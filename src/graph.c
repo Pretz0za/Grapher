@@ -66,3 +66,17 @@ int adjacent(Graph *g, size_t from, size_t to) {
   }
   return 0;
 }
+
+void destroyVertex(Vertex *v) {
+  free(v->data);
+  free(v->neighbors);
+  free(v);
+}
+
+void destroyGraph(Graph *g) {
+  for (int i = 0; i < g->count; i++) {
+    destroyVertex(g->vertices[i]);
+  }
+  free(g->vertices);
+  free(g);
+}

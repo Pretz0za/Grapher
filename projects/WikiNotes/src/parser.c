@@ -39,6 +39,8 @@ size_t strToLine(char *ptr, size_t count) {
   int mult = 1;
   int currVal;
   for (char *curr = ptr + count - 1; curr >= ptr; curr--) {
+    if (*curr < 'a' || *curr > 'z')
+      return 0;
     out += (*curr - 'a' + 1) * mult;
     mult *= 26;
   }
@@ -53,18 +55,20 @@ Note *parseLine(char *line, size_t idx) {
   n->capacity = 4;
   n->count = 0;
 
-  // TODO: Rewrite using a strchr() while loop to find '['s
-
-  char *word;
-  word = strtok(line, " ");
-  size_t len;
-  while (word) {
-    len = strlen(word);
-    if (*word == '[' && *(word + len - 1) == ']') {
-      pushToRefs(n, strToLine(word + 1, len - 2));
+  char *open;
+  char *close = line;
+  size_t currRef = 0;
+  while ((open = strchr(close, '[')) != NULL) {
+    close = strchr(open, ']');
+    if (close == NULL)
+      break;
+    if (close - open < 5) {
+      currRef = strToLine(open + 1, close - open - 1);
+      if (currRef != 0)
+        pushToRefs(n, currRef);
     }
-    word = strtok(NULL, " ");
   }
+
   return n;
 }
 

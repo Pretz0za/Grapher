@@ -1,5 +1,4 @@
 #include "../../include/graph.h"
-#include "./include/helpers.h"
 #include "./include/parser.h"
 #include <stddef.h>
 #include <stdio.h>
@@ -43,4 +42,10 @@ int main(int argc, char *argv[]) {
 
     printf("\n\n");
   }
+
+  Graph *g = makeNotesGraph(notes, lineCount);
+
+  // TODO: Cool stuff
+
+  destroyGraph(g);
 }

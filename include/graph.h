@@ -25,4 +25,7 @@ void *getVertexData(Graph *g, size_t idx);
 size_t *neighbors(Graph *g, size_t idx);
 int adjacent(Graph *g, size_t from, size_t to);
 
+void destroyVertex(Vertex *v);
+void destroyGraph(Graph *g);
+
 #endif
