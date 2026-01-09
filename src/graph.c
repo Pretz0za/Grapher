@@ -3,21 +3,25 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-Graph *createGraph(size_t vertexCount, int directed, int weighted) {
+Graph *createGraph(size_t vertexCount, int directed) {
   Graph *g = malloc(sizeof(Graph));
   g->vertices = malloc(vertexCount * sizeof(Vertex));
   g->directed = directed;
-  g->weighted = weighted;
   return g;
 }
 
-Vertex *createVertex(void *data) {
+int addVertex(Graph *g, void *data) {
+  if (g->count >= g->size)
+    return -1;
   Vertex *vertex = malloc(sizeof(Vertex));
   vertex->neighbors = malloc(4 * sizeof(size_t));
   vertex->data = data;
   vertex->capacity = 4;
   vertex->count = 0;
-  return vertex;
+
+  g->vertices[g->count++] = vertex;
+
+  return 0;
 }
 
 int addEdge(Graph *g, size_t from, size_t to) {

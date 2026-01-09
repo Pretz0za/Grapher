@@ -8,7 +8,7 @@ const int MAX_LINE_LEN = 2048;
 
 int min(int a, int b) { return a < b ? a : b; }
 
-[[nodiscard]] char *idxToStr(size_t line) {
+char *lineToStr(size_t line) {
   char *out =
       malloc((line / 26 + 2) * sizeof(char)); // +1 for \0, +1 for rounding = +2
   size_t idx = 0;
@@ -19,7 +19,7 @@ int min(int a, int b) { return a < b ? a : b; }
   return out;
 }
 
-[[nodiscard]] size_t strToIdx(char *ptr, size_t count) {
+size_t strToLine(char *ptr, size_t count) {
   if (count == 0)
     return 0;
   size_t out = 0;
@@ -45,25 +45,31 @@ Note *parseLine(char *line, size_t idx) {
   while (word) {
     len = strlen(word);
     if (*word == '[' && *(word + len - 1) == ']') {
-      pushToRefs(n, strToIdx(word + 1, len - 2));
+      pushToRefs(n, strToLine(word + 1, len - 2));
     }
     word = strtok(NULL, " ");
   }
   return n;
 }
 
-Note **parseFile(char *path, size_t count) {
+NotesSection parseFile(char *path, size_t count) {
+  NotesSection out;
   Note **notes = malloc(sizeof(Note) * count);
   FILE *f = fopen(path, "r");
   if (f == NULL) {
-    return NULL;
+    out.notes = NULL;
+    out.count = 0;
+    return out;
   }
   char line[MAX_LINE_LEN];
   int idx = 0;
 
   while (fgets(line, sizeof(line), f) != NULL) {
-    notes[idx] = parseLine(line, idx);
+    notes[idx] = parseLine(line, idx + 1);
+    idx++;
   }
 
-  return notes;
+  out.notes = notes;
+  out.count = idx;
+  return out;
 }
