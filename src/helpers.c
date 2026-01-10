@@ -23,32 +23,3 @@ int inBoundsVertices(Graph *g, size_t idx1, size_t idx2) {
     return 0;
   return 1;
 }
-
-int pushToNeighbors(Vertex *v, size_t other) {
-  if (!(v->count < v->capacity)) {
-    long newSize = sizeof(size_t) * (v->capacity ? v->capacity * 2 : 4);
-    size_t *newArr = realloc(v->neighbors, newSize);
-    if (!newArr) {
-      return 1;
-    }
-    v->neighbors = newArr;
-  }
-  v->neighbors[v->count++] = other;
-  return 0;
-}
-
-int removeFromNeighbors(Vertex *v, size_t other) {
-  if (v->count == 0)
-    return 0;
-  size_t *ptr = NULL;
-  for (int idx = 0; idx < v->count; idx++) {
-    if (v->neighbors[idx] == other) {
-      ptr = v->neighbors + idx;
-      break;
-    }
-  }
-  if (!ptr)
-    return 1;
-  xorSwap(ptr, v->neighbors + --v->count);
-  return 0;
-}

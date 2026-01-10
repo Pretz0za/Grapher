@@ -72,7 +72,7 @@ Note *parseLine(char *line, size_t idx) {
   return n;
 }
 
-Note **parseFile(char *path, size_t count) {
+Note **parseFile(char *path, size_t count, size_t *filter, size_t filterSize) {
   Note **notes = malloc(sizeof(Note) * count);
   FILE *f = fopen(path, "r");
   if (f == NULL) {
@@ -81,8 +81,13 @@ Note **parseFile(char *path, size_t count) {
   char line[MAX_LINE_LEN];
   int idx = 0;
 
-  while (fgets(line, sizeof(line), f) != NULL) {
-    notes[idx] = parseLine(line, idx + 1);
+  int subsetIdx = 0;
+
+  while (subsetIdx < filterSize && fgets(line, sizeof(line), f) != NULL) {
+    if (filterSize == 0 || idx + 1 == filter[subsetIdx]) {
+      notes[idx] = parseLine(line, idx + 1);
+      subsetIdx++;
+    }
     idx++;
   }
 
