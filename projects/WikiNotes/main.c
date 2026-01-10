@@ -4,6 +4,7 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 void *copyNote(const void *data) {
   Note *src = (Note *)data;
@@ -26,21 +27,33 @@ Graph *makeNotesGraph(Note **notes, size_t size, size_t *filter,
 
   DataCopyFn copyFn = copyNote;
   DataFreeFn freeFn = freeNote;
-  Graph *g = createGraph(size, 1, copyFn, freeFn);
+  Graph *g = createGraph(filterSize ? filterSize : size, 1, copyFn, freeFn);
 
-  for (int i = 0; i < size; i++) {
+  for (int i = 0; i < (filterSize ? filterSize : size); i++) {
     addVertex(g, notes[i]);
   }
 
-  for (int i = 0; i < size; i++) {
+  size_t refIdx;
+
+  for (int i = 0; i < (filterSize ? filterSize : size); i++) {
     for (int j = 0; j < notes[i]->references->count; j++) {
-      if (filterSize == 0 ||
-          findInArr(notes[i]->references->arr[j], filter, filterSize))
-        addEdge(g, i, notes[i]->references->arr[j]);
+      if (filterSize == 0 || (refIdx = findInArr(notes[i]->references->arr[j],
+                                                 filter, filterSize)) != -1) {
+
+        addEdge(g, i, refIdx);
+      }
     }
   }
 
   return g;
+}
+
+[[nodiscard]] size_t *makeFilter(char *notes[], size_t count) {
+  size_t *output = malloc(sizeof(size_t) * count);
+  for (int i = 0; i < count; i++) {
+    output[i] = strToLine(notes[i], strlen(notes[i]));
+  }
+  return output;
 }
 
 int main(int argc, char *argv[]) {
@@ -49,24 +62,20 @@ int main(int argc, char *argv[]) {
   char *subset[] = {"m",  "r",  "s",  "t",  "ab", "ad", "ai", "al",
                     "am", "ar", "bz", "ca", "cf", "ci", "cj", "ck",
                     "cl", "cm", "ct", "cu", "cv", "cy", "cz", "dd"};
-  size_t subsetSize = 21;
-  size_t lineSubset[subsetSize];
-  size_t len = 1;
-  for (int i = 0; i < subsetSize; i++) {
-    if (i == 4)
-      len = 2;
-    lineSubset[i] = strToLine(subset[i], len);
-  }
+  size_t subsetSize = 24;
+  size_t *filter = makeFilter(subset, subsetSize);
 
   size_t lineCount = strToLine("fs", 2);
-  Note **notes = parseFile(argv[1], lineCount, lineSubset, subsetSize);
+  Note **notes = parseFile(argv[1], lineCount, filter, subsetSize);
   char *currNote;
 
   for (int i = 0; i < subsetSize; i++) {
 
-    currNote = lineToStr(i + 1);
+    currNote = lineToStr(filter[i]);
 
     printf("Note [%s] has the following references in it:\n", currNote);
+
+    printVec(notes[i]->references, stdout);
 
     for (int j = 0; j < notes[i]->references->count; j++) {
       currNote = lineToStr(notes[i]->references->arr[j]);
@@ -76,14 +85,18 @@ int main(int argc, char *argv[]) {
     printf("\n\n");
   }
 
-  Graph *g = makeNotesGraph(notes, lineCount);
+  printf("Creating graph...\n");
+  Graph *g = makeNotesGraph(notes, lineCount, filter, subsetSize);
+  printf("Graph created! \n");
 
   // TODO: Cool stuff
 
   printf("Running DFS\n");
   Vector *expansionOrder = DepthFirstSearch(g, 0);
+
+  printf("\n\nDFS Finished successfully. Expansion order: \n");
   for (int i = 0; i < expansionOrder->count; i++) {
-    printf("%c", *(char *)(g->vertices[expansionOrder->arr[i]]->data));
+    printf("%s, ", (subset[expansionOrder->arr[i]]));
   }
   printf("\n");
   destroyGraph(g);

@@ -78,3 +78,11 @@ int copyVec(Vector *dest, Vector *src) {
   dest->count = src->count;
   return 0;
 }
+
+void printVec(Vector *v, FILE *stream) {
+  fprintf(stream, "[ ");
+  for (int i = 0; i < v->count; i++) {
+    fprintf(stream, "%zu, ", v->arr[i]);
+  }
+  fprintf(stream, "]\n");
+}

@@ -1,5 +1,4 @@
 #include "../include/parser.h"
-#include "../include/helpers.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -50,10 +49,8 @@ size_t strToLine(char *ptr, size_t count) {
 Note *parseLine(char *line, size_t idx) {
 
   Note *n = malloc(sizeof(Note));
-  n->references = malloc(sizeof(size_t) * 4);
+  n->references = createVec();
   n->line = idx;
-  n->capacity = 4;
-  n->count = 0;
 
   char *open;
   char *close = line;
@@ -65,7 +62,7 @@ Note *parseLine(char *line, size_t idx) {
     if (close - open < 5) {
       currRef = strToLine(open + 1, close - open - 1);
       if (currRef != 0)
-        pushToRefs(n, currRef);
+        pushToVec(n->references, currRef);
     }
   }
 
@@ -73,11 +70,19 @@ Note *parseLine(char *line, size_t idx) {
 }
 
 Note **parseFile(char *path, size_t count, size_t *filter, size_t filterSize) {
-  Note **notes = malloc(sizeof(Note) * count);
+  Note **notes = NULL;
+  if (filterSize)
+    notes = malloc(sizeof(Note) * filterSize);
+  else
+    notes = malloc(sizeof(Note) * count);
+  if (notes == NULL)
+    exit(EXIT_FAILURE);
+
   FILE *f = fopen(path, "r");
   if (f == NULL) {
     return NULL;
   }
+
   char line[MAX_LINE_LEN];
   int idx = 0;
 
@@ -85,7 +90,11 @@ Note **parseFile(char *path, size_t count, size_t *filter, size_t filterSize) {
 
   while (subsetIdx < filterSize && fgets(line, sizeof(line), f) != NULL) {
     if (filterSize == 0 || idx + 1 == filter[subsetIdx]) {
-      notes[idx] = parseLine(line, idx + 1);
+      // printf("parsing line %d\n", idx + 1);
+      notes[subsetIdx] = parseLine(line, idx + 1);
+      // printf("parsed! found %zu references.\n",
+      // notes[idx]->references->count); printVec(notes[idx]->references,
+      // stdout);
       subsetIdx++;
     }
     idx++;

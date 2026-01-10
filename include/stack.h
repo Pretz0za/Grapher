@@ -2,6 +2,7 @@
 #define STACK
 
 #include <stddef.h>
+#include <stdio.h>
 
 typedef struct {
   size_t *arr;
@@ -17,6 +18,7 @@ int isEmpty(Vector *v);
 size_t *findInVec(Vector *v, size_t item);
 
 int copyVec(Vector *dest, Vector *src);
+void printVec(Vector *v, FILE *stream);
 
 void destroyVec(Vector *v);
 
