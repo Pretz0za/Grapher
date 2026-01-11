@@ -72,9 +72,9 @@ Note *parseLine(char *line, size_t idx) {
 Note **parseFile(char *path, size_t count, size_t *filter, size_t filterSize) {
   Note **notes = NULL;
   if (filterSize)
-    notes = malloc(sizeof(Note) * filterSize);
+    notes = malloc(sizeof(Note *) * filterSize);
   else
-    notes = malloc(sizeof(Note) * count);
+    notes = malloc(sizeof(Note *) * count);
   if (notes == NULL)
     exit(EXIT_FAILURE);
 

@@ -163,6 +163,45 @@ int copyGraph(Graph *dest, Graph *src) {
     dest->count++;
   }
 
+  dest->directed = src->directed;
+
+  return 0;
+}
+
+int copyReversedGraph(Graph *dest, Graph *src) {
+  if (!src->directed)
+    return copyGraph(dest, src);
+  if (dest->freeData != src->freeData || dest->copyData != src->copyData)
+    return -1;
+  if (dest->size < src->count)
+    return 1;
+
+  // if dest has too many vertices, destroy all extras
+  while (dest->count > src->count) {
+    destroyVertex(dest->vertices[--dest->count], dest->freeData);
+  }
+
+  // if dest has too little vertices, copy the data of what we have
+  for (int i = 0; dest->count < src->count && i < dest->count; i++) {
+    dest->freeData(dest->vertices[i]->data);
+    dest->vertices[i]->data = src->copyData(src->vertices[i]->data);
+  }
+
+  // if we still didn't copy everything, create and copy the next vertex
+  while (dest->count < src->count) {
+    addVertex(dest, src->copyData(src->vertices[dest->count]->data));
+  }
+
+  dest->directed = src->directed;
+
+  Vertex *curr;
+  for (int i = 0; i < src->count; i++) {
+    curr = src->vertices[i];
+    for (int j = 0; j < curr->neighbors->count; j++) {
+      addEdge(dest, curr->neighbors->arr[j], i);
+    }
+  }
+
   return 0;
 }
 
@@ -171,9 +210,11 @@ void printDFSTree(Graph *g, Vector *dfs, char *strings[], FILE *stream) {
   char str[32];
   Position positions[dfs->count];
   int parents[dfs->count];
+  int childrenRemaining[dfs->count];
   int parentIdx = -1;
   Vertex *curr;
   memset(positions, 0, sizeof(positions));
+  memset(childrenRemaining, 0, sizeof(childrenRemaining));
 
   for (int i = 0; i < dfs->count; i++) {
     parents[i] = -1;
@@ -182,17 +223,25 @@ void printDFSTree(Graph *g, Vector *dfs, char *strings[], FILE *stream) {
   parents[0] = -2;
 
   for (int i = 0; i < dfs->count; i++) {
+    curr = g->vertices[dfs->arr[i]];
+    for (int j = 0; j < curr->neighbors->count; j++) {
+      if (parents[curr->neighbors->arr[j]] == -1) {
+        parents[curr->neighbors->arr[j]] = dfs->arr[i];
+        childrenRemaining[dfs->arr[i]]++;
+      }
+    }
+  }
+
+  for (int i = 0; i < dfs->count; i++) {
     if (!strings)
       snprintf(str, sizeof(str), "%zu", dfs->arr[i]);
     else
       strcpy(str, strings[dfs->arr[i]]);
     curr = g->vertices[dfs->arr[i]];
-    for (int j = 0; j < curr->neighbors->count; j++) {
-      if (parents[curr->neighbors->arr[j]] == -1)
-        parents[curr->neighbors->arr[j]] = dfs->arr[i];
-    }
+
     if (i != 0) {
       parentIdx = parents[dfs->arr[i]];
+      childrenRemaining[parentIdx]--;
 
       printAt(positions[parentIdx].x, positions[parentIdx].y + 1, "│", stream);
       printAt(positions[parentIdx].x, positions[parentIdx].y + 2, "└", stream);
@@ -205,13 +254,15 @@ void printDFSTree(Graph *g, Vector *dfs, char *strings[], FILE *stream) {
       parentIdx = parents[parentIdx];
 
       while (parentIdx != -2) {
+        if (childrenRemaining[parentIdx] > 0) {
+          printAt(positions[parentIdx].x, positions[parentIdx].y + 1, "│",
+                  stream);
 
-        printAt(positions[parentIdx].x, positions[parentIdx].y + 1, "│",
-                stream);
+          printAt(positions[parentIdx].x, positions[parentIdx].y + 2, "│",
+                  stream);
+          positions[parentIdx].y += 2;
+        }
 
-        printAt(positions[parentIdx].x, positions[parentIdx].y + 2, "│",
-                stream);
-        positions[parentIdx].y += 2;
         parentIdx = parents[parentIdx];
       }
     } else {

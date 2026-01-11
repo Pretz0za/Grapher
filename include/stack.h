@@ -41,7 +41,7 @@ int pushToVec(Vector *v, size_t item);
 /**
  * Deletes and returns the last element in a Vector.
  *
- * @param v a pointer to the Vector the item will be deleted from.
+ * @param v A pointer to the Vector the item will be deleted from.
  *
  * @return The element deleted from the array
  * @retval value The value of the deleted itm
@@ -52,8 +52,8 @@ size_t popVec(Vector *v);
 /**
  * Deletes the first instance of an item from a Vector.
  *
- * @param v a pointer to the Vector to delete from.
- * @param item the value of the item to delete.
+ * @param v    A pointer to the Vector to delete from.
+ * @param item The value of the item to delete.
  *
  * @return An error code showing whether or not the operation was successful.
  * @retval 0 If the item was deleted successfully.
@@ -64,7 +64,7 @@ int deleteFromVec(Vector *v, size_t item);
 /**
  * Checks if a Vector is empty.
  *
- * @param v a pointer to the Vector to check.
+ * @param v A pointer to the Vector to check.
  *
  * @return An integer signaling the result.
  * @retval 0 The vector is not empty.
@@ -75,8 +75,8 @@ int isEmpty(Vector *v);
 /**
  * Finds the first instance of an item in a Vector. O(n)
  *
- * @param v a pointer to the Vector to search.
- * @param item the value of the item to search for.
+ * @param v    A pointer to the Vector to search.
+ * @param item The value of the item to search for.
  *
  * @return the index of item in @p v.
  */
@@ -85,8 +85,8 @@ size_t *findInVec(Vector *v, size_t item);
 /**
  * Copies the data of one Vector to another.
  *
- * @param dest a pointer to the Vector the data will be copied to.
- * @param src  a pointer to the Vector the data will be compied from.
+ * @param dest A pointer to the Vector the data will be copied to.
+ * @param src  A pointer to the Vector the data will be compied from.
  *
  * @return An integer showing whether or no the operation was successful.
  * @retval 0 If the data was copied successfully.
@@ -101,15 +101,15 @@ int copyVec(Vector *dest, Vector *src);
  * The output is formatted like so:
  *   [ item1, item2, ..., itemN, ]
  *
- * @param v      a pointer to the Vector to be printed.
- * @param stream a pointer to the output stream.
+ * @param v      A pointer to the Vector to be printed.
+ * @param stream A pointer to the output stream.
  */
 void printVec(Vector *v, FILE *stream);
 
 /**
  * Frees a Vector and the memory owned by it.
  *
- * @param v the Vector to be destroyed. This pointer will become invalid after
+ * @param v The Vector to be destroyed. This pointer will become invalid after
  *          the function returns
  */
 void destroyVec(Vector *v);

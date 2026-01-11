@@ -123,7 +123,7 @@ int copyGraph(Graph *dest, Graph *src);
  * @note @p dest and @p src MUST have the same DataFreeFn and DataCopyFn to
  * safely copy.
  */
-Graph *copyReversedGraph(Graph *g);
+int copyReversedGraph(Graph *dest, Graph *src);
 
 /**
  * Attemps to allocate and add a Vertex to a Graph.
@@ -263,6 +263,9 @@ void destroyGraph(Graph *g);
  * @param stream  A pointer to the output stream.
  * @param strings An array of the string the string representation of each
  *                Vertex. If NULL will print Vertex indices.
+ *
+ * @note The terminal window should be zoomed out for large graphs if this
+ *       function is called, otherwise the output will overlap with itself.
  */
 void printDFSTree(Graph *g, Vector *dfs, char *strings[], FILE *stream);
 
