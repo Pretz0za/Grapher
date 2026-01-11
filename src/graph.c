@@ -103,7 +103,6 @@ void destroyGraph(Graph *g) {
 Vector *DepthFirstSearch(Graph *g, size_t from) {
   // NOTE: We cannot use deleteFromVec() as it reorderes the elements
   //       popVec(), however, does not. Besides, it is faster.
-  printf("intializing vectors. Graph size %lu\n", g->size);
   Vector *frontier = createVec();
   Vector *expansionOrder = createVec();
   int visited[g->size];
@@ -111,21 +110,13 @@ Vector *DepthFirstSearch(Graph *g, size_t from) {
   pushToVec(frontier, from);
   Vector *currNeighbors = NULL;
   size_t curr;
-  printf("begining while loop\n");
   visited[0] = 1;
   while (!isEmpty(frontier)) {
-    printf("popping\n");
     curr = popVec(frontier);
-    printf("popped %d from frontier\n", (int)curr);
     pushToVec(expansionOrder, curr);
-    printf("pushed to expansion vector\n");
-
     currNeighbors = neighbors(g, curr);
-    printf("looping thorugh %lu neighbors\n", currNeighbors->count);
     for (int idx = 0; idx < currNeighbors->count; idx++) {
       if (visited[currNeighbors->arr[idx]] == 0) {
-        printf("found unvisited neighbor %d: has index %lu\n", idx,
-               currNeighbors->arr[idx]);
         visited[currNeighbors->arr[idx]] = 1;
         pushToVec(frontier, currNeighbors->arr[idx]);
       }
@@ -174,3 +165,59 @@ int copyGraph(Graph *dest, Graph *src) {
 
   return 0;
 }
+
+void printDFSTree(Graph *g, Vector *dfs, char *strings[], FILE *stream) {
+  clearScreen(stream);
+  char str[32];
+  Position positions[dfs->count];
+  int parents[dfs->count];
+  int parentIdx = -1;
+  Vertex *curr;
+  memset(positions, 0, sizeof(positions));
+
+  for (int i = 0; i < dfs->count; i++) {
+    parents[i] = -1;
+  }
+
+  parents[0] = -2;
+
+  for (int i = 0; i < dfs->count; i++) {
+    if (!strings)
+      snprintf(str, sizeof(str), "%zu", dfs->arr[i]);
+    else
+      strcpy(str, strings[dfs->arr[i]]);
+    curr = g->vertices[dfs->arr[i]];
+    for (int j = 0; j < curr->neighbors->count; j++) {
+      if (parents[curr->neighbors->arr[j]] == -1)
+        parents[curr->neighbors->arr[j]] = dfs->arr[i];
+    }
+    if (i != 0) {
+      parentIdx = parents[dfs->arr[i]];
+
+      printAt(positions[parentIdx].x, positions[parentIdx].y + 1, "│", stream);
+      printAt(positions[parentIdx].x, positions[parentIdx].y + 2, "└", stream);
+      printAt(positions[parentIdx].x + 1, positions[parentIdx].y + 2, str,
+              stream);
+      positions[dfs->arr[i]].x = positions[parentIdx].x + 1;
+      positions[dfs->arr[i]].y = positions[parentIdx].y + 2;
+
+      positions[parentIdx].y += 2;
+      parentIdx = parents[parentIdx];
+
+      while (parentIdx != -2) {
+
+        printAt(positions[parentIdx].x, positions[parentIdx].y + 1, "│",
+                stream);
+
+        printAt(positions[parentIdx].x, positions[parentIdx].y + 2, "│",
+                stream);
+        positions[parentIdx].y += 2;
+        parentIdx = parents[parentIdx];
+      }
+    } else {
+      printAt(1, 1, str, stream);
+      positions[dfs->arr[i]].x = 1;
+      positions[dfs->arr[i]].y = 1;
+    }
+  }
+};

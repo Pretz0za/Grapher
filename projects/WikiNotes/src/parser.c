@@ -90,11 +90,7 @@ Note **parseFile(char *path, size_t count, size_t *filter, size_t filterSize) {
 
   while (subsetIdx < filterSize && fgets(line, sizeof(line), f) != NULL) {
     if (filterSize == 0 || idx + 1 == filter[subsetIdx]) {
-      // printf("parsing line %d\n", idx + 1);
       notes[subsetIdx] = parseLine(line, idx + 1);
-      // printf("parsed! found %zu references.\n",
-      // notes[idx]->references->count); printVec(notes[idx]->references,
-      // stdout);
       subsetIdx++;
     }
     idx++;

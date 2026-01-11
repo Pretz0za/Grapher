@@ -23,3 +23,9 @@ int inBoundsVertices(Graph *g, size_t idx1, size_t idx2) {
     return 0;
   return 1;
 }
+
+void printAt(int x, int y, char *line, FILE *stream) {
+  fprintf(stream, "\x1b[%d;%dH%s", y, x + 1, line);
+}
+
+void clearScreen(FILE *stream) { fprintf(stream, "\x1b[2J\x1b[H"); }

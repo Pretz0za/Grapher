@@ -6,6 +6,15 @@
 #include <stdio.h>
 
 /**
+ * @brief A position on the terminal screen to print to, using ANSI escape
+ * codes.
+ */
+typedef struct Position {
+  int x,
+      y; /**< The x and y positions to be passed into the ANSI escape code. */
+} Position;
+
+/**
  * @brief A Vertex's data for an adjacency list graph data structure.
  *
  * This structure represens a single vertex in a Graph.
@@ -35,7 +44,7 @@ typedef void *(*DataCopyFn)(const void *data);
  *
  * Releases memory allocated for a payload copy.
  *
- * @param data Pointer to the payload to free.
+ * @param Data Pointer to the payload to free.
  */
 typedef void (*DataFreeFn)(void *data);
 
@@ -44,8 +53,8 @@ typedef void (*DataFreeFn)(void *data);
  *
  * Uses adjacency lists stored in each Vertex to store edges.
  * The memory of the underlying Vertex array is owned by the Graph.
- * The size of the underlying Vertex array is fixed. Once full, no more vertices
- * may be added to the graph.
+ * The size of the underlying Vertex array is fixed. Once full, no more
+ * vertices may be added to the graph.
  */
 typedef struct {
   Vertex **vertices; /**< The list of all vertices in the graph. */
@@ -58,16 +67,19 @@ typedef struct {
 
 } Graph;
 
+// GRAPH CONSTRUCTION:
+// ---------------------------------------------------------
+
 /**
  * Allocates and returns a directed or undirected Graph. The underlying Vertex
  * array has fixed size equal to vertexCount.
  *
- * @param vertexCount the maximum number of vertices the Graph can hold. Can be
- *                    0. In which case, @p g ->vertices will be set to NULL.
+ * @param vertexCount The maximum number of vertices the Graph can hold. Can
+ * be 0. In which case, @p g ->vertices will be set to NULL.
  * @param directed    whether or not it is a directed graph. Non-zero for
  *                    directed.
- * @param copyData    a pointer to the Vertex payload copy function.
- * @param freeData    a pointer to the Vertex payload free function.
+ * @param copyData    A pointer to the Vertex payload copy function.
+ * @param freeData    A pointer to the Vertex payload free function.
  *
  * @return A pointer to the newly allocated Graph.
  */
@@ -75,98 +87,11 @@ typedef struct {
                                  DataCopyFn copyData, DataFreeFn freeData);
 
 /**
- * Attemps to allocate and add a Vertex to a Graph.
- *
- * @param g    a pointer to the Graph the vertex will be added to.
- * @param data a pointer to the data to be stored in the Vertex.
- *
- * @return An error code showing whether or not the operation was successful.
- * @retval 0 If the Vertex is created and added successfully.
- * @retval 1 If the Graph @p g is at maximum capacity. Does not allocate memory.
- */
-int addVertex(Graph *g, void *data);
-
-/**
- * Destroys all vertices currently in a given Graph.
- *
- * @param g a pointer to the Graph to be cleared.
- */
-void clearVertices(Graph *g);
-
-/**
- * Attemps to add an edge (u, v) to a Graph. If @p g is undirected, u will also
- * be added to v's adjacency list. May reallocate to increase the size of
- * affected vertex/vertices.
- *
- * @param g    a pointer to the Graph the vertex will be added to.
- * @param from the index of u in g->vertices.
- * @param to   the index of v in g->vertices.
- *
- * @return An error code showing whether or not the operation was successful
- * @retval 0 If the edge was created successfully.
- * @retval -1 If the indices of u and/or v are out of bounds.
- */
-int addEdge(Graph *g, size_t from, size_t to);
-
-/**
- * Attempts to remove and edge (u, v) from a Graph. If @p g is undirected, u
- * will also be removed from v's adjacency list.
- *
- * @param bool g a pointer to the Graph to remove the edge from.
- * @param from   the index of u in g->vertices.
- * @param to     the index of v in g->vertices.
- *
- * @return An error code showing whether or not the operation was successful
- * @retval 0 If the edge was removed successfully.
- * @retval 1 If the edge did not exist in the Graph.
- * @retval -1 If the indices of u and/or v are out of bounds.
- */
-int removeEdge(Graph *g, size_t from, size_t to);
-
-/**
- * Gets the data from a Vertex in a given Graph.
- *
- * @param g   a pointer to the Graph the vertex is in.
- * @param idx the index of the Vertex in g->vertices.
- *
- * @return a pointer to the address holding the data.
- * @retval ptr  Pointer to the successfully retrieved data.
- * @retval NULL If the Vertex index is out of bounds.
- */
-void *getVertexData(Graph *g, size_t idx);
-
-/**
- * Gets the adjacency list of a Vertex in a given Graph.
- *
- * @param g   a pointer to the Graph the Vertex is in.
- * @param idx the index of the Vertex in g->vertices.
- *
- * @return A pointer to a Vector holding the adjacency list
- * @retval ptr  Pointer to the successfully retrieved adjacency list.
- * @retval NULL If the Vertex index is out of bounds.
- */
-Vector *neighbors(Graph *g, size_t idx);
-
-/**
- * Checks if there exists an edge (u, v) in a Graph.
- *
- * @param g    a pointer to the Graph the vertices are in.
- * @param from the index of u in g->vertices.
- * @param to   the index of v in g->vertices.
- *
- * @return An integer signaling the result.
- * @retval 0 There is no edge from u to v in g.
- * @retval 1 There is an edge from u to v in g.
- * @retval -1 The indices of u and/or v are out of bounds.
- */
-int adjacent(Graph *g, size_t from, size_t to);
-
-/**
  * Copies the Graph in dest to the Graph in src. May allocate additional
  * memory for vertices or edges. May destroy some vertices.
  *
- * @param dest a pointer to the Graph the data will be copied into.
- * @param src  a pointer to the Graph the data will be copied from.
+ * @param dest A pointer to the Graph the data will be copied into.
+ * @param src  A pointer to the Graph the data will be copied from.
  *
  * @return An error code showing whether or not the operation was successful
  * @retval 0  If the operation was successful.
@@ -185,8 +110,8 @@ int copyGraph(Graph *dest, Graph *src);
  * allocate additional memory for vertices or edges. May destroy some
  * vertices.
  *
- * @param dest a pointer to the Graph the data will be copied into.
- * @param src  a pointer to the Graph the data will be copied from.
+ * @param dest A pointer to the Graph the data will be copied into.
+ * @param src  A pointer to the Graph the data will be copied from.
  *
  * @return An error code showing whether or not the operation was successful
  * @retval 0  If the operation was successful.
@@ -201,25 +126,124 @@ int copyGraph(Graph *dest, Graph *src);
 Graph *copyReversedGraph(Graph *g);
 
 /**
- * Frees a Vertex's memory and any memory it managed.
+ * Attemps to allocate and add a Vertex to a Graph.
  *
- * @param v        a pointer to the Vertex to free.
- * @param freeData a pointer to a function that frees the payload.
+ * @param g    A pointer to the Graph the vertex will be added to.
+ * @param data A pointer to the data to be stored in the Vertex.
+ *
+ * @return An error code showing whether or not the operation was successful.
+ * @retval 0 If the Vertex is created and added successfully.
+ * @retval 1 If the Graph @p g is at maximum capacity. Does not allocate
+ * memory.
+ */
+int addVertex(Graph *g, void *data);
+
+/**
+ * Destroys all vertices currently in a given Graph.
+ *
+ * @param g A pointer to the Graph to be cleared.
+ */
+void clearVertices(Graph *g);
+
+/**
+ * Attemps to add an edge (u, v) to a Graph. If @p g is undirected, u will
+ * also be added to v's adjacency list. May reallocate to increase the size of
+ * affected vertex/vertices.
+ *
+ * @param g    A pointer to the Graph the vertex will be added to.
+ * @param from The index of u in g->vertices.
+ * @param to   The index of v in g->vertices.
+ *
+ * @return An error code showing whether or not the operation was successful
+ * @retval 0 If the edge was created successfully.
+ * @retval -1 If the indices of u and/or v are out of bounds.
+ */
+int addEdge(Graph *g, size_t from, size_t to);
+
+/**
+ * Attempts to remove and edge (u, v) from a Graph. If @p g is undirected, u
+ * will also be removed from v's adjacency list.
+ *
+ * @param g    A pointer to the Graph to remove the edge from.
+ * @param from The index of u in @p g->vertices.
+ * @param to   The index of v in @p g->vertices.
+ *
+ * @return An error code showing whether or not the operation was successful
+ * @retval 0  If the edge was removed successfully.
+ * @retval 1  If the edge did not exist in the Graph.
+ * @retval -1 If the indices of u and/or v are out of bounds.
+ */
+int removeEdge(Graph *g, size_t from, size_t to);
+
+// DATA ACCESS:
+// ----------------------------------------------------------------
+
+/**
+ * Gets the adjacency list of a Vertex in a given Graph.
+ *
+ * @param g   A pointer to the Graph the Vertex is in.
+ * @param idx The index of the Vertex in @p g->vertices.
+ *
+ * @return A pointer to a Vector holding the adjacency list
+ * @retval ptr  Pointer to the successfully retrieved adjacency list.
+ * @retval NULL If the Vertex index is out of bounds.
+ */
+Vector *neighbors(Graph *g, size_t idx);
+
+/**
+ * Checks if there exists an edge (u, v) in a Graph.
+ *
+ * @param g    A pointer to the Graph the vertices are in.
+ * @param from The index of u in @p g->vertices.
+ * @param to   The index of v in @p g->vertices.
+ *
+ * @return An integer signaling the result.
+ * @retval 0  There is no edge from u to v in g.
+ * @retval 1  There is an edge from u to v in g.
+ * @retval -1 The indices of u and/or v are out of bounds.
+ */
+int adjacent(Graph *g, size_t from, size_t to);
+
+/**
+ * Gets the data from a Vertex in a given Graph.
+ *
+ * @param g   A pointer to the Graph the vertex is in.
+ * @param idx The index of the Vertex in @p g->vertices.
+ *
+ * @return A pointer to the address holding the data.
+ * @retval ptr  Pointer to the successfully retrieved data.
+ * @retval NULL If the Vertex index is out of bounds.
+ */
+void *getVertexData(Graph *g, size_t idx);
+
+// MEMORY FREEING:
+// -------------------------------------------------------------
+
+/**
+ * Frees a Vertex and the memory owned by it.
+ *
+ * @param v        A pointer to the Vertex to free. This pointer will become
+                   invalid after the function returns
+ * @param freeData A pointer to a function that frees the payload.
  */
 void destroyVertex(Vertex *v, DataFreeFn freeData);
 
 /**
- * Fress a Graph's memory and any memory it managed.
+ * Fress a Graph and the memory owned by it.
  *
- * @param g a pointer to the Graph to free.
+ * @param g A pointer to the Graph to free. This pointer will become
+            invalid after the function returns
  */
 void destroyGraph(Graph *g);
+
+// GRAPH ALGORITHMS:
+// -----------------------------------------------------------
 
 /**
  * Performs a Depth First Search on a Graph.
  *
- * @param g    a pointer to the Graph to search.
- * @param from the index of the vertex to begin the search from.
+ * @param g    A pointer to the Graph to search.
+ * @param from The index of the vertex to begin the search from.
  *
  * @return The expansion order of the vertices in found by the DFS.
  * @retval vec A Vector holding the indices of the expanded vertices, in
@@ -227,13 +251,19 @@ void destroyGraph(Graph *g);
  */
 [[nodiscard]] Vector *DepthFirstSearch(Graph *g, size_t from);
 
+// VISUALIZATION:
+// --------------------------------------------------------------
+
 /**
  * Writes a visualization of a DFS tree to the specified output stream.
  *
- * @param g a pointer to the Graph the DFS was performed on.
- * @param dfs a pointer to the Vector holding the expansion order of the DFS.
- * @param stream a pointer to the output stream.
+ * @param g       A pointer to the Graph the DFS was performed on.
+ * @param dfs     A pointer to the Vector holding the expansion order of the
+ * DFS.
+ * @param stream  A pointer to the output stream.
+ * @param strings An array of the string the string representation of each
+ *                Vertex. If NULL will print Vertex indices.
  */
-void printDFSTree(Graph *g, Vector *dfs, FILE *stream);
+void printDFSTree(Graph *g, Vector *dfs, char *strings[], FILE *stream);
 
 #endif

@@ -1,4 +1,5 @@
 #include "../../include/graph.h"
+#include "../../include/helpers.h"
 #include "./include/helpers.h"
 #include "./include/parser.h"
 #include <stddef.h>
@@ -67,37 +68,13 @@ int main(int argc, char *argv[]) {
 
   size_t lineCount = strToLine("fs", 2);
   Note **notes = parseFile(argv[1], lineCount, filter, subsetSize);
-  char *currNote;
 
-  for (int i = 0; i < subsetSize; i++) {
-
-    currNote = lineToStr(filter[i]);
-
-    printf("Note [%s] has the following references in it:\n", currNote);
-
-    printVec(notes[i]->references, stdout);
-
-    for (int j = 0; j < notes[i]->references->count; j++) {
-      currNote = lineToStr(notes[i]->references->arr[j]);
-      printf("%s, ", currNote);
-    }
-
-    printf("\n\n");
-  }
-
-  printf("Creating graph...\n");
   Graph *g = makeNotesGraph(notes, lineCount, filter, subsetSize);
-  printf("Graph created! \n");
 
-  // TODO: Cool stuff
-
-  printf("Running DFS\n");
   Vector *expansionOrder = DepthFirstSearch(g, 0);
 
-  printf("\n\nDFS Finished successfully. Expansion order: \n");
-  for (int i = 0; i < expansionOrder->count; i++) {
-    printf("%s, ", (subset[expansionOrder->arr[i]]));
-  }
-  printf("\n");
+  printDFSTree(g, expansionOrder, subset, stdout);
+  printAt(0, 49, "\n", stdout);
+
   destroyGraph(g);
 }
