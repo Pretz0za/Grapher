@@ -1,4 +1,4 @@
-#include "../include/stack.h"
+#include "../include/graph.h"
 #include "../include/helpers.h"
 
 #include <stddef.h>

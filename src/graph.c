@@ -1,6 +1,5 @@
 #include "../include/graph.h"
 #include "../include/helpers.h"
-#include "../include/stack.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -245,9 +244,11 @@ void printDFSTree(Graph *g, Vector *dfs, char *strings[], FILE *stream) {
 
       printAt(positions[parentIdx].x, positions[parentIdx].y + 1, "│", stream);
       printAt(positions[parentIdx].x, positions[parentIdx].y + 2, "└", stream);
-      printAt(positions[parentIdx].x + 1, positions[parentIdx].y + 2, str,
+      printAt(positions[parentIdx].x + 1, positions[parentIdx].y + 2, "──",
               stream);
-      positions[dfs->arr[i]].x = positions[parentIdx].x + 1;
+      printAt(positions[parentIdx].x + 3, positions[parentIdx].y + 2, str,
+              stream);
+      positions[dfs->arr[i]].x = positions[parentIdx].x + 3;
       positions[dfs->arr[i]].y = positions[parentIdx].y + 2;
 
       positions[parentIdx].y += 2;

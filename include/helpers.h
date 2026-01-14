@@ -1,5 +1,5 @@
-#ifndef HELPERS
-#define HELPERS
+#ifndef __GRAPH_HELPERS_H__
+#define __GRAPH_HELPERS_H__
 
 #include "./graph.h"
 #include <stddef.h>
