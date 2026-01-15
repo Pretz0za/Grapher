@@ -353,11 +353,11 @@ void destroyGraph(Graph *g);
  * @param g    A pointer to the Graph to search.
  * @param from The index of the vertex to begin the search from.
  *
- * @return The expansion order of the vertices in found by the DFS.
- * @retval vec A Vector holding the indices of the expanded vertices, in
- * order.
+ * @return A pointer to the DFS tree. The root of the dfs, @p from, will be the
+ *         first Vertex of the returned graph.
+ * @retval out A pointer to the Graph of the DFS tree.
  */
-[[nodiscard]] Vector *DepthFirstSearch(Graph *g, size_t from);
+[[nodiscard]] Graph *DepthFirstSearch(Graph *g, size_t from);
 
 // VISUALIZATION:
 // --------------------------------------------------------------
@@ -365,16 +365,14 @@ void destroyGraph(Graph *g);
 /**
  * Writes a visualization of a DFS tree to the specified output stream.
  *
- * @param g       A pointer to the Graph the DFS was performed on.
- * @param dfs     A pointer to the Vector holding the expansion order of the
- * DFS.
- * @param stream  A pointer to the output stream.
+ * @param g       A pointer to the Graph holding the DFS tree to be rendered.
  * @param strings An array of the string the string representation of each
  *                Vertex. If NULL will print Vertex indices.
+ * @param stream  A pointer to the output stream.
  *
  * @note The terminal window should be zoomed out for large graphs if this
  *       function is called, otherwise the output will overlap with itself.
  */
-void printDFSTree(Graph *g, Vector *dfs, char *strings[], FILE *stream);
+void printDFSTree(Graph *tree, char *strings[], FILE *stream);
 
 #endif

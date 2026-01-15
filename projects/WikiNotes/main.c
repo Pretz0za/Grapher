@@ -82,23 +82,37 @@ int main(int argc, char *argv[]) {
   Graph *reverse = createGraph(g->size, 1, copyFn, freeFn);
   copyReversedGraph(reverse, g);
 
-  Vector *expansionOrder = DepthFirstSearch(g, 0);
+  char *strings[subsetSize];
+
+  Graph *DFSTree = DepthFirstSearch(g, 0);
+
+  for (int i = 0; i < DFSTree->count; i++) {
+    strings[i] = lineToStr(((Note *)getVertexData(DFSTree, i))->line);
+    // printf("vertex idx: %d, str: %s, children: \n", i, strings[i]);
+    // printVec(neighbors(DFSTree, i), stdout);
+  }
+
   printf("\n\n DFS of graph completed. Reached %zu/%zu vertices\n",
-         expansionOrder->count, g->size);
-  printDFSTree(g, expansionOrder, subset, stdout);
+         DFSTree->count, g->count);
+  printDFSTree(DFSTree, strings, stdout);
 
-  destroyVec(expansionOrder);
+  printf("\n");
 
-  expansionOrder = DepthFirstSearch(reverse, 0);
+  Graph *rDFSTree = DepthFirstSearch(reverse, 0);
+  for (int i = 0; i < rDFSTree->count; i++) {
+    strings[i] = lineToStr(((Note *)getVertexData(DFSTree, i))->line);
+    // printf("vertex idx: %d, str: %s, children: \n", i, strings[i]);
+    // printVec(neighbors(rDFSTree, i), stdout);
+  }
+
   printf("\n\n DFS of reverse graph completed. Reached %zu/%zu vertices\n",
-         expansionOrder->count, reverse->size);
-  printDFSTree(reverse, expansionOrder, subset, stdout);
+         DFSTree->count, reverse->count);
+  printDFSTree(DFSTree, strings, stdout);
 
-  destroyVec(expansionOrder);
-
-  printAt(0, 49, "\n", stdout);
-
+  printf("destroying...\n");
   destroyGraph(g);
   destroyGraph(reverse);
+  destroyGraph(DFSTree);
+  destroyGraph(rDFSTree);
   destroyNotes(notes, subsetSize ? subsetSize : lineCount);
 }

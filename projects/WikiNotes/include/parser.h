@@ -1,7 +1,7 @@
 #ifndef PARSER
 #define PARSER
 
-#include "../../../include/stack.h"
+#include "../../../include/graph.h"
 #include <stddef.h>
 
 typedef struct Note {

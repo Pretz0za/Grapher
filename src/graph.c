@@ -90,39 +90,50 @@ void destroyVertex(Vertex *v, DataFreeFn freeData) {
 }
 
 void destroyGraph(Graph *g) {
-  for (int i = 0; i < g->count; i++) {
-    destroyVertex(g->vertices[i], g->freeData);
-  }
   if (g->vertices) {
+    for (int i = 0; i < g->count; i++) {
+      destroyVertex(g->vertices[i], g->freeData);
+    }
     free(g->vertices);
   }
   free(g);
 }
 
-Vector *DepthFirstSearch(Graph *g, size_t from) {
+Graph *DepthFirstSearch(Graph *g, size_t from) {
   // NOTE: We cannot use deleteFromVec() as it reorderes the elements
   //       popVec(), however, does not. Besides, it is faster.
+  Graph *out = createGraph(g->count, 1, g->copyData, g->freeData);
   Vector *frontier = createVec();
-  Vector *expansionOrder = createVec();
-  int visited[g->size];
-  memset(visited, 0x00, sizeof(visited));
-  pushToVec(frontier, from);
-  Vector *currNeighbors = NULL;
+  Vector *currNeighbors;
+  int visited[g->count];
+  size_t gToDFS[g->count]; // map the index of a Vertex in g->vertices to its
+                           // index in out->vertices
+  size_t currNeighbor;
   size_t curr;
-  visited[0] = 1;
+  memset(visited, 0, sizeof(visited));
+
+  gToDFS[from] = 0;
+  pushToVec(frontier, from);
+  visited[from] = 1;
+  addVertex(out, g->copyData(g->vertices[from]->data));
   while (!isEmpty(frontier)) {
     curr = popVec(frontier);
-    pushToVec(expansionOrder, curr);
     currNeighbors = neighbors(g, curr);
-    for (int idx = 0; idx < currNeighbors->count; idx++) {
-      if (visited[currNeighbors->arr[idx]] == 0) {
-        visited[currNeighbors->arr[idx]] = 1;
-        pushToVec(frontier, currNeighbors->arr[idx]);
+    for (size_t i = 0; i < currNeighbors->count; i++) {
+      currNeighbor = currNeighbors->arr[i];
+      if (!visited[currNeighbor]) {
+        visited[currNeighbor] = 1;
+        pushToVec(frontier, currNeighbor);
+        addVertex(out, g->copyData(g->vertices[currNeighbor]->data));
+        gToDFS[currNeighbor] = out->count - 1;
+        addEdge(out, gToDFS[curr], gToDFS[currNeighbor]);
       }
     }
   }
+
   destroyVec(frontier);
-  return expansionOrder;
+
+  return out;
 }
 
 void clearVertices(Graph *g) {
@@ -204,72 +215,46 @@ int copyReversedGraph(Graph *dest, Graph *src) {
   return 0;
 }
 
-void printDFSTree(Graph *g, Vector *dfs, char *strings[], FILE *stream) {
-  clearScreen(stream);
+int printSubtree(Graph *tree, size_t root, Position rootPos, char *strings[],
+                 FILE *stream) {
+  Position newPos;
+  Vector *currNeighbors = neighbors(tree, root);
   char str[32];
-  Position positions[dfs->count];
-  int parents[dfs->count];
-  int childrenRemaining[dfs->count];
-  int parentIdx = -1;
-  Vertex *curr;
-  memset(positions, 0, sizeof(positions));
-  memset(childrenRemaining, 0, sizeof(childrenRemaining));
+  if (!strings)
+    snprintf(str, sizeof(str), "%zu", root);
+  else
+    strcpy(str, strings[root]);
 
-  for (int i = 0; i < dfs->count; i++) {
-    parents[i] = -1;
-  }
+  printAt(rootPos.x, rootPos.y, str, stream);
+  int dy = 0;
+  for (int i = 0; i < currNeighbors->count; i++) {
+    printAt(rootPos.x, rootPos.y + 1, "│", stream);
+    printAt(rootPos.x, rootPos.y + 2, "└", stream);
+    printAt(rootPos.x + 1, rootPos.y + 2, "──", stream);
+    newPos.x = rootPos.x + 3;
+    newPos.y = rootPos.y + 2;
+    rootPos.y += 2;
+    dy += 2;
 
-  parents[0] = -2;
+    int res =
+        printSubtree(tree, currNeighbors->arr[i], newPos, strings, stream);
 
-  for (int i = 0; i < dfs->count; i++) {
-    curr = g->vertices[dfs->arr[i]];
-    for (int j = 0; j < curr->neighbors->count; j++) {
-      if (parents[curr->neighbors->arr[j]] == -1) {
-        parents[curr->neighbors->arr[j]] = dfs->arr[i];
-        childrenRemaining[dfs->arr[i]]++;
+    if (i + 1 < currNeighbors->count) {
+      for (int j = 1; j < res; j += 2) {
+        printAt(rootPos.x, rootPos.y + j, "│", stream);
+        printAt(rootPos.x, rootPos.y + j + 1, "│", stream);
       }
     }
+
+    rootPos.y += res;
+    dy += res;
   }
+  return dy;
+}
 
-  for (int i = 0; i < dfs->count; i++) {
-    if (!strings)
-      snprintf(str, sizeof(str), "%zu", dfs->arr[i]);
-    else
-      strcpy(str, strings[dfs->arr[i]]);
-    curr = g->vertices[dfs->arr[i]];
-
-    if (i != 0) {
-      parentIdx = parents[dfs->arr[i]];
-      childrenRemaining[parentIdx]--;
-
-      printAt(positions[parentIdx].x, positions[parentIdx].y + 1, "│", stream);
-      printAt(positions[parentIdx].x, positions[parentIdx].y + 2, "└", stream);
-      printAt(positions[parentIdx].x + 1, positions[parentIdx].y + 2, "──",
-              stream);
-      printAt(positions[parentIdx].x + 3, positions[parentIdx].y + 2, str,
-              stream);
-      positions[dfs->arr[i]].x = positions[parentIdx].x + 3;
-      positions[dfs->arr[i]].y = positions[parentIdx].y + 2;
-
-      positions[parentIdx].y += 2;
-      parentIdx = parents[parentIdx];
-
-      while (parentIdx != -2) {
-        if (childrenRemaining[parentIdx] > 0) {
-          printAt(positions[parentIdx].x, positions[parentIdx].y + 1, "│",
-                  stream);
-
-          printAt(positions[parentIdx].x, positions[parentIdx].y + 2, "│",
-                  stream);
-          positions[parentIdx].y += 2;
-        }
-
-        parentIdx = parents[parentIdx];
-      }
-    } else {
-      printAt(1, 1, str, stream);
-      positions[dfs->arr[i]].x = 1;
-      positions[dfs->arr[i]].y = 1;
-    }
-  }
+void printDFSTree(Graph *tree, char *strings[], FILE *stream) {
+  clearScreen(stream);
+  Position start = {1, 1};
+  printSubtree(tree, 0, start, strings, stream);
+  printAt(100, 100, "\n\n", stdout);
 };
