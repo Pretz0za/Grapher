@@ -1,0 +1,20 @@
+[
+{
+  "directory": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/projects/WikiNotes/build",
+  "command": "/usr/bin/cc   -std=gnu11 -arch arm64 -o CMakeFiles/wikinotes.dir/main.c.o -c \"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/projects/WikiNotes/main.c\"",
+  "file": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/projects/WikiNotes/main.c",
+  "output": "CMakeFiles/wikinotes.dir/main.c.o"
+},
+{
+  "directory": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/projects/WikiNotes/build",
+  "command": "/usr/bin/cc   -std=gnu11 -arch arm64 -o CMakeFiles/wikinotes.dir/src/helpers.c.o -c \"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/projects/WikiNotes/src/helpers.c\"",
+  "file": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/projects/WikiNotes/src/helpers.c",
+  "output": "CMakeFiles/wikinotes.dir/src/helpers.c.o"
+},
+{
+  "directory": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/projects/WikiNotes/build",
+  "command": "/usr/bin/cc   -std=gnu11 -arch arm64 -o CMakeFiles/wikinotes.dir/src/parser.c.o -c \"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/projects/WikiNotes/src/parser.c\"",
+  "file": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/projects/WikiNotes/src/parser.c",
+  "output": "CMakeFiles/wikinotes.dir/src/parser.c.o"
+}
+]

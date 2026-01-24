@@ -13,12 +13,25 @@ typedef struct vComponent2 {
   float r;
 } vComponent2;
 
+typedef struct RTVertexData {
+  float *offsets;
+  size_t lMost;
+  size_t rMost;
+  size_t depth;
+} RTVertexData;
+
+typedef struct RTTree {
+  Graph *tree;
+  RTVertexData *vertexData;
+  int *thread;
+} RTTree;
+
 /**
  * Draws a vComponent on the window.
  *
  * @param vComponent A vComponent to draw.
  */
-void drawVertex(vComponent2 vComponent);
+void drawVertex(vComponent2 vComponent, Camera2D camera);
 
 /**
  * Draws an edge between two vComponents.
@@ -27,5 +40,9 @@ void drawVertex(vComponent2 vComponent);
  * @param to   The vComponent the edge is going to.
  */
 void drawEdge(vComponent2 from, vComponent2 to, int directed);
+
+void runReingoldTilfordAlgorithm(RTTree *tree, size_t root, size_t level);
+void makeTreeComponents(RTTree *tree, vComponent2 *components, size_t root,
+                        Vector2 rootPos);
 
 #endif

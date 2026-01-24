@@ -368,6 +368,7 @@ void destroyGraph(Graph *g);
  * @param g       A pointer to the Graph holding the DFS tree to be rendered.
  * @param strings An array of the string the string representation of each
  *                Vertex. If NULL will print Vertex indices.
+ *
  * @param stream  A pointer to the output stream.
  *
  * @note The terminal window should be zoomed out for large graphs if this

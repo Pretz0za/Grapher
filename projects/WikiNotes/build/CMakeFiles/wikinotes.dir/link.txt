@@ -1,0 +1,1 @@
+/usr/bin/cc  -arch arm64 -Wl,-search_paths_first -Wl,-headerpad_max_install_names CMakeFiles/wikinotes.dir/main.c.o CMakeFiles/wikinotes.dir/src/helpers.c.o CMakeFiles/wikinotes.dir/src/parser.c.o -o wikinotes  /usr/local/lib/libraylib.a -framework Cocoa -framework OpenGL -framework IOKit -framework CoreVideo -framework CoreAudio -lm /usr/local/lib/libgraphvis.a

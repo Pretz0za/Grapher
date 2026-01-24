@@ -1,0 +1,3 @@
+/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/projects/WikiNotes/build/CMakeFiles/wikinotes.dir
+/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/projects/WikiNotes/build/CMakeFiles/edit_cache.dir
+/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/projects/WikiNotes/build/CMakeFiles/rebuild_cache.dir
