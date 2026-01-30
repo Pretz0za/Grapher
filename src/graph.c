@@ -23,12 +23,14 @@ Graph *createGraph(int directed, DataType dataType) {
 
 int addVertex(Graph *g, void *data) {
   if (g->count >= g->size) {
-    Vertex **newVertices = realloc(g->vertices, g->count * 2);
+    printf("REALLOCATING VERTICES GRAPH...\n");
+    Vertex **newVertices =
+        realloc(g->vertices, sizeof(Vertex *) * g->count * 2);
     if (newVertices == NULL) {
       exit(EXIT_FAILURE);
     }
-    g->vertices = newVertices;
     g->size = g->count * 2;
+    g->vertices = newVertices;
   }
   Vertex *vertex = malloc(sizeof(Vertex));
   if (vertex == NULL)
@@ -119,10 +121,10 @@ Graph *DepthFirstSearch(Graph *g, size_t from) {
   size_t curr;
   memset(visited, 0, sizeof(visited));
 
+  addVertex(out, NULL);
   map[0] = from;
-  pushToVec(frontier, from);
+  pushToVec(frontier, 0);
   visited[from] = 1;
-  addVertex(out, copyData(getVertexData(g, from), g->dataType));
   while (!isEmpty(frontier)) {
     curr = popVec(frontier);
     currNeighbors = neighbors(g, map[curr]);
@@ -425,6 +427,7 @@ void *copyData(void *data, DataType dataType) {
     return NULL;
   }
 }
+
 void freeData(void *data, DataType dataType) {
   switch (dataType) {
   case NODATA:

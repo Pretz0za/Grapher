@@ -61,8 +61,8 @@ typedef enum DataType {
  */
 typedef struct {
   Vertex **vertices; /**< The list of all vertices in the graph. */
-  int *map; /**< If this is a subgraph, this maps to the indices of the super
-          graph. */
+  int *map;          /**< If this is a subgraph, this maps to the indices of
+                          root graph. */
   size_t count;      /**< The current number of vertices in the graph. */
   size_t size;       /**< The maximum number of vertices in the graph. */
   int directed;      /**< Whether or not the graph is directed. */
@@ -344,6 +344,14 @@ void destroyGraph(Graph *g);
  */
 [[nodiscard]] void *parseDataLine(const char *line, DataType dataType);
 
+/**
+ * Reads an adjacency list from a null terminated string of space-separted
+ * neighbor indices.
+ *
+ * @param line The line to read the list from.
+ *
+ * @return A pointer to a newly allocated Vector holding the adjacency list.
+ */
 [[nodiscard]] Vector *parseAdjacencyListLine(const char *line);
 
 /**
@@ -405,8 +413,22 @@ void printDFSTree(Graph *tree, char *strings[], FILE *stream);
 // DATA COPY AND FREE FUNCTIONS:
 // --------------------------------------------------------------
 
-// TODO: IMPLEMENT THESE
+/**
+ * Properly copies or releases the data at an address based on its type.
+ *
+ * @param data     A pointer to the data to copy.
+ * @param dataType An enum of the data type.
+ *
+ * @return A pointer to the new allocated copy of the data.
+ */
 void *copyData(void *data, DataType dataType);
+
+/**
+ * Properly releases the data at an address based on its type.
+ *
+ * @param data     A pointer to the data to release.
+ * @param dataType An enum of the data type.
+ */
 void freeData(void *data, DataType dataType);
 
 #endif
