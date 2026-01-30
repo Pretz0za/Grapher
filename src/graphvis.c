@@ -6,11 +6,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-void drawVertex(vComponent2 vComponent, Camera2D camera) {
-  DrawRing(GetWorldToScreen2D(vComponent.pos, camera), 22, 25, 0, 360, 1,
-           BLACK);
-  //  DrawCircleLines(vComponent.pos.x, vComponent.pos.y, vComponent.r, BLACK);
-  // DrawText(str, vComponent.pos.x - 5, vComponent.pos.y - 5, 20, BLACK);
+void drawVertex(vComponent2 vComponent) {
+  DrawRing(vComponent.pos, 22, 25, 0, 360, 1, BLACK);
   return;
 }
 
@@ -39,10 +36,9 @@ void drawEdge(vComponent2 from, vComponent2 to, int directed) {
     DrawTriangle(v1, v3, v2, BLACK);
 }
 
-const int minsep = 100;
-
 void runReingoldTilfordAlgorithm(RTTree *tree, size_t root, size_t level) {
   Vector *children = neighbors(tree->tree, root);
+  const int minsep = 100;
   int currsep;
   int rootsep;
   int lOffSum, rOffSum;
@@ -51,23 +47,18 @@ void runReingoldTilfordAlgorithm(RTTree *tree, size_t root, size_t level) {
   size_t l, r; // l -> left subtree along right contour. r -> right subtree
                // along left contour.
 
-  char str[32];
-  snprintf(str, sizeof(str), "%c", *(char *)getVertexData(tree->tree, root));
-  printf("solving vertex %s\n", str);
-
   if (children->count == 0) {
-    printf("reingoldtilford: reached base case\n");
     tree->vertexData[root].rMost = root;
     tree->vertexData[root].lMost = root;
     tree->vertexData[root].depth = level;
     tree->vertexData[root].offsets = malloc(sizeof(float));
+    if (level > tree->height)
+      tree->height = level;
     memset(tree->vertexData[root].offsets, 0, sizeof(float));
     return;
   }
 
   for (int i = 0; i < children->count; i++) {
-    printf("reingoldtilford: dividing on\n");
-    printVec(children, stdout);
     runReingoldTilfordAlgorithm(tree, children->arr[i], level + 1);
   }
 
@@ -190,22 +181,125 @@ void runReingoldTilfordAlgorithm(RTTree *tree, size_t root, size_t level) {
   // DONE!
 }
 
-void makeTreeComponents(RTTree *tree, vComponent2 *components, size_t root,
-                        Vector2 rootPos) {
+Vector2 makeTreeComponents(RTTree *tree, vComponent2 *components, size_t root,
+                           Vector2 rootPos) {
   Vector *children = neighbors(tree->tree, root);
   Vector2 pos;
+  Vector2 currX;
+  Vector2 extremeX = {INFINITY, -INFINITY};
+
+  components[root].pos = rootPos;
+  components[root].r = 25.0f;
 
   if (children->count == 0) {
-    return;
+    return (Vector2){rootPos.x, rootPos.x};
   }
 
   for (int i = 0; i < children->count; i++) {
     pos = Vector2Add(rootPos,
                      (Vector2){tree->vertexData[root].offsets[i], 100.0});
     components[children->arr[i]].pos = pos;
-    components[children->arr[i]].r = 25;
-    components[children->arr[i]].v = tree->tree->vertices[children->arr[i]];
+    components[children->arr[i]].r = 25.0f;
 
-    makeTreeComponents(tree, components, children->arr[i], pos);
+    currX = makeTreeComponents(tree, components, children->arr[i], pos);
+    if (currX.x < extremeX.x) {
+      extremeX.x = currX.x;
+    }
+    if (currX.y > extremeX.y) {
+      extremeX.y = currX.y;
+    }
   }
+  return extremeX;
+}
+
+void openStateInWindow(VisState state) {
+  int WIDTH = 800;
+  int HEIGHT = 600;
+  InitWindow(WIDTH, HEIGHT, "graphvis");
+  SetTargetFPS(60);
+
+  Camera2D camera = {(Vector2){0, 0}, (Vector2){0, 0}, 0, 1.0f};
+  vComponent2 curr;
+
+  while (!WindowShouldClose()) {
+    BeginDrawing();
+
+    {
+      ClearBackground(RAYWHITE);
+
+      if (IsKeyDown(KEY_RIGHT))
+        camera.offset.x -= 4;
+      else if (IsKeyDown(KEY_LEFT))
+        camera.offset.x += 4;
+
+      if (IsKeyDown(KEY_UP))
+        camera.offset.y += 4;
+      else if (IsKeyDown(KEY_DOWN))
+        camera.offset.y -= 4;
+
+      camera.zoom =
+          expf(logf(camera.zoom) + ((float)GetMouseWheelMove() * 0.1f));
+
+      if (camera.zoom > 3.0f)
+        camera.zoom = 3.0f;
+      else if (camera.zoom < 0.1f)
+        camera.zoom = 0.1f;
+
+      BeginMode2D(camera);
+      for (size_t i = 0; i < state.g->count; i++) {
+        curr = state.gamma.components[i];
+        drawVertex(curr);
+        for (int j = 0; j < neighbors(state.g, i)->count; j++) {
+          drawEdge(curr, state.gamma.components[neighbors(state.g, i)->arr[j]],
+                   state.g->directed);
+        }
+      }
+
+      EndMode2D();
+      DrawText("Hello World", 0, 0, 20, GREEN);
+    }
+
+    EndDrawing();
+  }
+
+  CloseWindow();
+}
+
+Embedding generateTreeEmbedding(Graph *tree) {
+
+  // TODO: If not tree return NULL
+
+  int minsep = 100;
+  RTVertexData vertexData[tree->count];
+  int thread[tree->count];
+  memset(thread, 0, sizeof(thread));
+  RTTree rtTree = {tree, vertexData, thread, 0};
+
+  printf("running algo\n");
+
+  runReingoldTilfordAlgorithm(&rtTree, 0, 1);
+  vComponent2 *components = malloc(tree->count * sizeof(vComponent2));
+  Vector2 extremes =
+      makeTreeComponents(&rtTree, components, 0, (Vector2){0, 0});
+
+  printf("freeing rtTree\n");
+  for (int i = 0; i < tree->count; i++) {
+    if (thread[i]) {
+      removeEdge(tree, i, neighbors(tree, i)->arr[0]);
+      free(vertexData[i].offsets);
+    } else if (neighbors(tree, i)->count > 0) {
+      free(vertexData[i].offsets);
+    }
+  }
+  if (vertexData[0].lMost != vertexData[0].rMost) {
+    free(vertexData[vertexData[0].lMost].offsets);
+    free(vertexData[vertexData[0].rMost].offsets);
+  } else {
+    free(vertexData[vertexData[0].lMost].offsets);
+  }
+
+  printf("done freeing rtTree\n");
+
+  return (Embedding){components, extremes.y - extremes.x,
+                     rtTree.height * minsep};
 }

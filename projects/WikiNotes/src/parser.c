@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-const int MAX_LINE_LEN = 2048;
+const size_t MAX_LINE_LEN = 2048;
 
 int min(int a, int b) { return a < b ? a : b; }
 

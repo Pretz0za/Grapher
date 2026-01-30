@@ -4,6 +4,8 @@
 #include <stddef.h>
 #include <stdio.h>
 
+#define MAX_LINE_SIZE 4096
+
 /**
  * @brief A position on the terminal screen to print to, using ANSI escape
  * codes.
@@ -40,25 +42,14 @@ typedef struct Vertex {
 } Vertex;
 
 /**
- * @brief Copies a vertex payload.
- *
- * Creates a deep copy of the data pointed to by @p data.
- *
- * @param data Pointer to the source payload.
- *
- * @return Pointer to a newly allocated copy of the payload.
- *         The caller becomes responsible for freeing it.
+ * @brief Supported data to be stored in vertices.
  */
-typedef void *(*DataCopyFn)(const void *data);
-
-/**
- * @brief Frees a vertex payload.
- *
- * Releases memory allocated for a payload copy.
- *
- * @param Data Pointer to the payload to free.
- */
-typedef void (*DataFreeFn)(void *data);
+typedef enum DataType {
+  NODATA,
+  STRDATA,
+  IMGDATA,
+  CHARDATA,
+} DataType;
 
 /**
  * @brief A definition of a directed or undirected Graph data structure.
@@ -70,13 +61,13 @@ typedef void (*DataFreeFn)(void *data);
  */
 typedef struct {
   Vertex **vertices; /**< The list of all vertices in the graph. */
+  int *map; /**< If this is a subgraph, this maps to the indices of the super
+          graph. */
   size_t count;      /**< The current number of vertices in the graph. */
   size_t size;       /**< The maximum number of vertices in the graph. */
   int directed;      /**< Whether or not the graph is directed. */
-
-  DataCopyFn copyData; /**< A pointer to the Vertex payload copy function. */
-  DataFreeFn freeData; /**< A pointer to the Vertex payload free function. */
-
+  DataType dataType; /**< The type of the data stored in the vertices of the
+                        Graph. This affects how the data is presented. */
 } Graph;
 
 // VECTOR ----------------------------------------------------------------------
@@ -180,19 +171,14 @@ void destroyVec(Vector *v);
 
 /**
  * Allocates and returns a directed or undirected Graph. The underlying Vertex
- * array has fixed size equal to vertexCount.
- *
- * @param vertexCount The maximum number of vertices the Graph can hold. Can
- * be 0. In which case, @p g ->vertices will be set to NULL.
- * @param directed    whether or not it is a directed graph. Non-zero for
- *                    directed.
- * @param copyData    A pointer to the Vertex payload copy function.
- * @param freeData    A pointer to the Vertex payload free function.
+ * array is initilized to hold 64 vertices, an dynamically increases its size as
+ * needed.
+ * @param directed whether or not it is a directed graph. 1 for directed.
+ * @param dataType An enum of the data type stored in the vertices.
  *
  * @return A pointer to the newly allocated Graph.
  */
-[[nodiscard]] Graph *createGraph(size_t vertexCount, int directed,
-                                 DataCopyFn copyData, DataFreeFn freeData);
+[[nodiscard]] Graph *createGraph(int directed, DataType dataType);
 
 /**
  * Copies the Graph in dest to the Graph in src. May allocate additional
@@ -225,8 +211,7 @@ int copyGraph(Graph *dest, Graph *src);
  * @retval 0  If the operation was successful.
  * @retval 1  If size of the Graph in @p dest does not fit the vertices in @p
               src.
- * @retval -1 If @p dest and @p src do not have the same DataFreeFn and
- *            DataCopyFn.
+ * @retval -1 If @p dest and @p src do not have the same DataType
  *
  * @note @p dest and @p src MUST have the same DataFreeFn and DataCopyFn to
  * safely copy.
@@ -331,10 +316,10 @@ void *getVertexData(Graph *g, size_t idx);
  * Frees a Vertex and the memory owned by it.
  *
  * @param v        A pointer to the Vertex to free. This pointer will become
-                   invalid after the function returns
- * @param freeData A pointer to a function that frees the payload.
+                   invalid after the function returns.
+ * @param dataType An enum of the type of data held by the vertex;
  */
-void destroyVertex(Vertex *v, DataFreeFn freeData);
+void destroyVertex(Vertex *v, DataType dataType);
 
 /**
  * Fress a Graph and the memory owned by it.
@@ -343,6 +328,47 @@ void destroyVertex(Vertex *v, DataFreeFn freeData);
             invalid after the function returns
  */
 void destroyGraph(Graph *g);
+
+// READING AND WRITING:
+// -----------------------------------------------------------
+
+/**
+ * Allocates memory for a Vertex's data, and reads the data into memory.
+ *
+ * @param line The line of Vertex data from the .graph file to load.
+ * @param dataType The type of the data the function is reading.
+ *
+ * @return A pointer to the address of the newly allocated data.
+ * @retval ptr A pointer to the successfully read data.
+ * @retval NULL If the function failed to read the data.
+ */
+[[nodiscard]] void *parseDataLine(const char *line, DataType dataType);
+
+[[nodiscard]] Vector *parseAdjacencyListLine(const char *line);
+
+/**
+ * Allocates a Graph from data saved in a .graph file.
+ *
+ * @param path A null terminated string to the absolute or relative path of the
+ *        .graph file.
+ *
+ * @return A pointer to the newly allocated Graph read from the file.
+ * @retval g    A pointer to the successfully created Graph.
+ * @retval NULL If the read fails, either because of an invalid path or file.
+ */
+Graph *readGraphFile(const char *path);
+
+/**
+ * Writes a Graph struct to a .struct file.
+ *
+ * @param path A null terminated string to the absolute or relative path of the
+ *             .graph file.
+ * @param g    A pointer to the Graph to write to the file.
+ *
+ * @return An error code showing whether or not the operation was successful
+ * @retval 0 If the data was written successfully.
+ */
+int writeGraphFile(const char *path, Graph *g);
 
 // GRAPH ALGORITHMS:
 // -----------------------------------------------------------
@@ -375,5 +401,12 @@ void destroyGraph(Graph *g);
  *       function is called, otherwise the output will overlap with itself.
  */
 void printDFSTree(Graph *tree, char *strings[], FILE *stream);
+
+// DATA COPY AND FREE FUNCTIONS:
+// --------------------------------------------------------------
+
+// TODO: IMPLEMENT THESE
+void *copyData(void *data, DataType dataType);
+void freeData(void *data, DataType dataType);
 
 #endif
