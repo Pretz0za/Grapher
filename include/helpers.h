@@ -1,14 +1,14 @@
 #ifndef __GRAPH_HELPERS_H__
 #define __GRAPH_HELPERS_H__
 
-#include "./graph.h"
+#include "dsa/graph.h"
 #include <stddef.h>
 #include <stdio.h>
 
 void xorSwap(size_t *a, size_t *b);
 
-int inBoundsVertex(Graph *g, size_t idx);
-int inBoundsVertices(Graph *g, size_t idx1, size_t idx2);
+int inBoundsVertex(const Graph *g, size_t idx);
+int inBoundsVertices(const Graph *g, size_t idx1, size_t idx2);
 
 int pushToNeighbors(Vertex *vertex, size_t data);
 int removeFromNeighbors(Vertex *vertex, size_t data);

@@ -13,7 +13,7 @@ void *copyNote(const void *data) {
   Note *src = (Note *)data;
   Note *dest = malloc(sizeof(Note));
   dest->references = createVec();
-  copyVec(dest->references, src->references);
+  ulArrayCopy(dest->references, src->references);
   dest->line = src->line;
 
   return dest;
@@ -21,7 +21,7 @@ void *copyNote(const void *data) {
 
 void freeNote(void *data) {
   Note *tmp = (Note *)data;
-  destroyVec(tmp->references);
+  ulArrayRelease(tmp->references);
   free(tmp);
 }
 
@@ -31,10 +31,10 @@ DataFreeFn freeFn = freeNote;
 Graph *makeNotesGraph(Note **notes, size_t size, size_t *filter,
                       size_t filterSize) {
 
-  Graph *g = createGraph(filterSize ? filterSize : size, 1, copyFn, freeFn);
+  Graph *g = GraphInit(filterSize ? filterSize : size, 1, copyFn, freeFn);
 
   for (int i = 0; i < (filterSize ? filterSize : size); i++) {
-    addVertex(g, copyFn(notes[i]));
+    graphAddVertex(g, copyFn(notes[i]));
   }
 
   size_t refIdx;
@@ -44,10 +44,10 @@ Graph *makeNotesGraph(Note **notes, size_t size, size_t *filter,
       if (filterSize == 0 || (refIdx = findInArr(notes[i]->references->arr[j],
                                                  filter, filterSize)) != -1) {
         if (filterSize) {
-          addEdge(g, i, refIdx);
+          graphAddEdge(g, i, refIdx);
           printf("Added edge from %d to %zu\n", i, refIdx);
         } else {
-          addEdge(g, i, notes[i]->references->arr[j]);
+          graphAddEdge(g, i, notes[i]->references->arr[j]);
           printf("Added edge from %d to %zu\n", i,
                  notes[i]->references->arr[j]);
         }
@@ -60,7 +60,7 @@ Graph *makeNotesGraph(Note **notes, size_t size, size_t *filter,
 
 void destroyNotes(Note **notes, size_t count) {
   for (size_t i = 0; i < count; i++) {
-    destroyVec(notes[i]->references);
+    ulArrayRelease(notes[i]->references);
     free(notes[i]);
   }
   free(notes);
@@ -95,16 +95,16 @@ int main(int argc, char *argv[]) {
   for (int i = 0; i < g->count; i++) {
     // strings[i] = lineToStr(((Note *)getVertexData(DFSTree, i))->line);
     printf("vertex idx: %d, , children: \n", i);
-    printVec(neighbors(g, i), stdout);
+    ulArrayPrint(graphGetVertexNeighbors(g, i), stdout);
   }
 
-  Graph *reverse = createGraph(g->size, 1, copyFn, freeFn);
-  copyReversedGraph(reverse, g);
+  Graph *reverse = GraphInit(g->size, 1, copyFn, freeFn);
+  graphCopyReversed(reverse, g);
 
   char *strings[subsetSize];
 
   printf("running Depth First Search\n");
-  Graph *DFSTree = DepthFirstSearch(g, 43);
+  Graph *DFSTree = graphDFSTree(g, 43);
 
   // for (int i = 0; i < DFSTree->count; i++) {
   //   strings[i] = lineToStr(((Note *)getVertexData(DFSTree, i))->line);
@@ -118,11 +118,11 @@ int main(int argc, char *argv[]) {
 
   printf("\n");
 
-  Graph *rDFSTree = DepthFirstSearch(reverse, 43);
+  Graph *rDFSTree = graphDFSTree(reverse, 43);
   for (int i = 0; i < g->count; i++) {
     // strings[i] = lineToStr(((Note *)getVertexData(DFSTree, i))->line);
     printf("vertex idx: %d, , children: \n", i);
-    printVec(neighbors(g, i), stdout);
+    ulArrayPrint(graphGetVertexNeighbors(g, i), stdout);
   }
 
   printf("\n\n DFS of reverse graph completed. Reached %zu/%zu vertices\n",
@@ -147,7 +147,7 @@ int main(int argc, char *argv[]) {
   for (int i = 0; i < DFSTree->count; i++) {
     if (thread[i]) {
       printf("removed thread from %d\n", i);
-      removeEdge(DFSTree, i, neighbors(DFSTree, i)->arr[0]);
+      graphRemoveEdge(DFSTree, i, graphGetVertexNeighbors(DFSTree, i)->arr[0]);
     }
   }
 
@@ -203,9 +203,9 @@ int main(int argc, char *argv[]) {
 
   printf("destroying...\n");
   CloseWindow();
-  destroyGraph(g);
-  destroyGraph(reverse);
-  destroyGraph(DFSTree);
-  destroyGraph(rDFSTree);
+  graphRelease(g);
+  graphRelease(reverse);
+  graphRelease(DFSTree);
+  graphRelease(rDFSTree);
   destroyNotes(notes, subsetSize ? subsetSize : lineCount);
 }

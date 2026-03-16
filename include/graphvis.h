@@ -1,7 +1,7 @@
 #ifndef __GRAPHVIS_H__
 #define __GRAPHVIS_H__
 
-#include "./graph.h"
+#include "dsa/graph.h"
 #include <raylib.h>
 
 /**
@@ -59,6 +59,11 @@ typedef struct RTVertexData {
   size_t rMost; /**< The right-most Vertex in the deepest layer of the subtree
                      rooted at this Vertex. */
   size_t depth; /**< The depth of this Vertex in the whole tree. */
+  size_t offsetCount; /**< The number of elements in offset array. Normally this
+                           would always be children count, however, if animating
+                           it will be dynamic. */
+  int ancestor; /**< The root of the subtree (if known) this vertex belongs to.
+                 */
 } RTVertexData;
 
 /*
@@ -68,10 +73,12 @@ typedef struct RTTree {
   Graph *tree;              /**< The tree to draw. */
   RTVertexData *vertexData; /**< The data of each Vertex. This is populated by
                                  the algorithm. */
+  int *parents;
   int *thread; /**< Boolean array indicating which vertices were threaded. */
   float **offsets; /**< Array of float offset arrays. offsets[i] is the offset
                         array for the children of i. */
   size_t height;   /**< The calculated height of the whole tree. */
+  size_t defaultAncestor;
 } RTTree;
 
 /*
@@ -100,9 +107,9 @@ typedef struct RTTree {
  * @param level The depth of @p root in @p tree->tree.
  *
  * @note
- * Reference: Tidier Drawings of Trees EDWARD M. REINGOLD AND JOHN S. TILFORD
+ * References: Tidier Drawings of Trees EDWARD M. REINGOLD AND JOHN S. TILFORD
  *                 (https://reingold.co/tidier-drawings.pdf)
- *
+ *        (https://llimllib.github.io/pymag-trees/) for ancestor recording
  */
 void runReingoldTilfordAlgorithm(RTTree *tree, size_t root, size_t level);
 

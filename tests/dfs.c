@@ -9,7 +9,7 @@
 #include <string.h>
 #include <time.h>
 
-#define MAXDEPTH 8
+#define MAXDEPTH 6
 
 void randomTree(Graph *tree, size_t root, int depth, int k, int exact) {
   if (depth >= MAXDEPTH) {
@@ -17,16 +17,16 @@ void randomTree(Graph *tree, size_t root, int depth, int k, int exact) {
   }
   if (exact) {
     for (int i = 0; i < k; i++) {
-      addVertex(tree, NULL);
-      addEdge(tree, root, tree->count - 1);
+      graphAddVertex(tree, NULL);
+      graphAddEdge(tree, root, tree->count - 1);
       randomTree(tree, tree->count - 1, depth + 1, k, exact);
     }
   } else {
     int random = arc4random_uniform(k + 1);
     printf("random number %d\n", random);
     for (int i = 0; i < random; i++) {
-      addVertex(tree, NULL);
-      addEdge(tree, root, tree->count - 1);
+      graphAddVertex(tree, NULL);
+      graphAddEdge(tree, root, tree->count - 1);
       randomTree(tree, tree->count - 1, depth + 1, k, exact);
     }
   }
@@ -34,18 +34,18 @@ void randomTree(Graph *tree, size_t root, int depth, int k, int exact) {
 }
 
 int main() {
-  size_t curr = 0;
-  int k = 3;
-  Graph *g = NULL;
-  while (curr < pow(k - 1, MAXDEPTH)) {
-    if (g)
-      destroyGraph(g);
-    g = createGraph(1, NODATA);
-    addVertex(g, NULL);
-    printf("MAKING RANDOM TREE\n");
-    randomTree(g, 0, 0, k, 0);
-    printf("DONE! \n");
-    curr = g->count;
+  int k = 5;
+  Graph g;
+  graphInit(&g, 1, NODATA);
+  graphAddVertex(&g, NULL);
+  randomTree(&g, 0, 0, k, 0);
+  size_t curr = g.count;
+  while (curr < pow(k, MAXDEPTH - 2)) {
+    graphRelease(&g);
+    graphInit(&g, 1, NODATA);
+    graphAddVertex(&g, NULL);
+    randomTree(&g, 0, 0, k, 0);
+    curr = g.count;
   }
   // Graph *dfs = DepthFirstSearch(g, 1);
   // ViewStack stack;
@@ -54,10 +54,10 @@ int main() {
   // stack.end = malloc(sizeof(Graph *));
   // stack.end = dfs;
   //
-  Embedding embedding = generateTreeEmbedding(g);
-  VisState state = {g, NULL, embedding};
+  Embedding embedding = generateTreeEmbedding(&g);
+  VisState state = {&g, NULL, embedding};
   openStateInWindow(state);
-  destroyGraph(g);
+  graphRelease(&g);
   free(embedding.components);
   return 0;
 }

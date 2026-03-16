@@ -1,0 +1,32 @@
+[
+{
+  "directory": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/build",
+  "command": "/usr/bin/cc  -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/include\" -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/third-party\" -std=gnu11 -arch arm64 -o CMakeFiles/graphvis.dir/src/dsa/graph.c.o -c \"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/dsa/graph.c\"",
+  "file": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/dsa/graph.c",
+  "output": "CMakeFiles/graphvis.dir/src/dsa/graph.c.o"
+},
+{
+  "directory": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/build",
+  "command": "/usr/bin/cc  -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/include\" -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/third-party\" -std=gnu11 -arch arm64 -o CMakeFiles/graphvis.dir/src/graphvis.c.o -c \"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/graphvis.c\"",
+  "file": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/graphvis.c",
+  "output": "CMakeFiles/graphvis.dir/src/graphvis.c.o"
+},
+{
+  "directory": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/build",
+  "command": "/usr/bin/cc  -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/include\" -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/third-party\" -std=gnu11 -arch arm64 -o CMakeFiles/graphvis.dir/src/dsa/uLongArray.c.o -c \"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/dsa/uLongArray.c\"",
+  "file": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/dsa/uLongArray.c",
+  "output": "CMakeFiles/graphvis.dir/src/dsa/uLongArray.c.o"
+},
+{
+  "directory": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/build",
+  "command": "/usr/bin/cc  -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/include\" -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/third-party\" -std=gnu11 -arch arm64 -o CMakeFiles/graphvis.dir/src/helpers.c.o -c \"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/helpers.c\"",
+  "file": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/helpers.c",
+  "output": "CMakeFiles/graphvis.dir/src/helpers.c.o"
+},
+{
+  "directory": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/build",
+  "command": "/usr/bin/cc  -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/include\" -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/third-party\" -std=gnu11 -arch arm64 -o CMakeFiles/graph_demo.dir/tests/dfs.c.o -c \"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/tests/dfs.c\"",
+  "file": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/tests/dfs.c",
+  "output": "CMakeFiles/graph_demo.dir/tests/dfs.c.o"
+}
+]

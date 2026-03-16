@@ -62,7 +62,7 @@ Note *parseLine(char *line, size_t idx) {
     if (close - open < 5) {
       currRef = strToLine(open + 1, close - open - 1);
       if (currRef != 0)
-        pushToVec(n->references, currRef);
+        ulArrayPush(n->references, currRef);
     }
   }
 
