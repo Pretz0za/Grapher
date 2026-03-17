@@ -1,118 +1,133 @@
-#include "../../include/dsa/uLongArray.h"
+#include "../../include/dsa/gvizArray.h"
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-int ulArrayInit(ULongArray *arr) {
+int gvizArrayInit(gvizArray *arr, size_t elementSize) {
   if (arr == NULL)
     return -1;
-  arr->arr = ULA_ALLOC(sizeof(size_t) * 8);
+  arr->arr = ULA_ALLOC(elementSize * 8);
   if (arr->arr == NULL)
     return -1;
   arr->capacity = 8;
   arr->count = 0;
+  arr->elementSize = elementSize;
   return 0;
 }
 
-int ulArrayInitAtCapacity(ULongArray *arr, size_t initialCapacity) {
+int gvizArrayInitAtCapacity(gvizArray *arr, size_t elementSize,
+                            size_t initialCapacity) {
   if (arr == NULL)
     return -1;
-  arr->arr = ULA_ALLOC(sizeof(size_t) * initialCapacity);
+  arr->arr = ULA_ALLOC(elementSize * initialCapacity);
   if (arr->arr == NULL)
     return -1;
   arr->capacity = initialCapacity;
   arr->count = 0;
+  arr->elementSize = elementSize;
   return 0;
 }
 
-int ulArrayPush(ULongArray *v, size_t item) {
+int gvizArrayPush(gvizArray *v, void *item) {
   if (v->count >= v->capacity) {
     size_t newCapacity = v->capacity ? v->capacity * 2 : 8;
-    size_t *newArr = ULA_REALLOC(v->arr, sizeof(size_t) * newCapacity);
+    size_t *newArr = ULA_REALLOC(v->arr, v->elementSize * newCapacity);
     if (!newArr) {
       return -1;
     }
     v->capacity = newCapacity;
     v->arr = newArr;
   }
-  v->arr[v->count++] = item;
+  char *arr = v->arr;
+  memcpy(arr + (v->count++) * v->elementSize, item, v->elementSize);
   return 0;
 }
 
-int ulArrayPop(ULongArray *v, size_t *res) {
+int gvizArrayPop(gvizArray *v, void *res) {
   if (v->count == 0)
     return -1;
-  *res = v->arr[--v->count];
+  char *arr = v->arr;
+  memcpy(res, arr + (--v->count) * v->elementSize, v->elementSize);
   return 0;
 }
 
-int ulArrayFindOneAndDelete(ULongArray *s, size_t item) {
-  for (int idx = 0; idx < s->count; idx++) {
-    if (s->arr[idx] == item) {
-      for (int j = idx + 1; j < s->count; j++) {
-        s->arr[j - 1] = s->arr[j];
-      }
-      s->count--;
-      return idx;
+int gvizArrayFindOneAndDelete(gvizArray *v, void *item) {
+  char *arr = v->arr;
+  for (int i = 0; i < v->count; i++) {
+    if (memcmp(arr + i * v->elementSize, item, v->elementSize)) {
+      memmove(arr + i * v->elementSize, arr + i * v->elementSize + 1,
+              v->elementSize * (v->count - i - 1));
+      v->count--;
+      return i;
     }
   }
   return -1;
 }
 
-void ulArrayRelease(ULongArray *v) {
+void gvizArrayRelease(gvizArray *v) {
   if (v->arr)
     ULA_DEALLOC(v->arr);
 }
 
-int ulArrayIsEmpty(ULongArray *v) {
+int gvizArrayIsEmpty(const gvizArray *v) {
   return (v->count == 0 || v->capacity == 0);
 }
 
-int ulArrayFindOne(ULongArray *v, size_t item) {
-  for (int idx = 0; idx < v->count; idx++) {
-    if (v->arr[idx] == item)
-      return idx;
+int gvizArrayFindOne(const gvizArray *v, void *item) {
+  char *arr = v->arr;
+  for (int i = 0; i < v->count; i++) {
+    if (memcpy(arr + i * v->elementSize, item, v->elementSize))
+      return i;
   }
   return -1;
 }
 
-int ulArrayCopy(ULongArray *dest, const ULongArray *src) {
-  if (dest->capacity < src->count) {
-    size_t *newArr = ULA_REALLOC(dest->arr, sizeof(size_t) * src->capacity);
+int gvizArrayCopy(gvizArray *dest, const gvizArray *src) {
+  if (dest->capacity * dest->elementSize < src->count * src->elementSize) {
+    size_t *newArr = ULA_REALLOC(dest->arr, src->elementSize * src->count);
     if (newArr == NULL)
       return -1;
     dest->arr = newArr;
     dest->capacity = src->capacity;
+    dest->elementSize = src->elementSize;
   }
 
-  memcpy(dest, src, sizeof(size_t) * src->count);
+  memcpy(dest->arr, src->arr, src->elementSize * src->count);
 
   dest->count = src->count;
   return 0;
 }
 
-int ulArrayClone(ULongArray *dest, const ULongArray *src) {
+int gvizArrayClone(gvizArray *dest, const gvizArray *src) {
   int err = 0;
-  err = ulArrayInitAtCapacity(dest, src->count);
+  err = gvizArrayInitAtCapacity(dest, src->count, src->elementSize);
   if (err < 0)
     return err;
 
-  memcpy(dest, src, sizeof(size_t) * src->count);
+  memcpy(dest->arr, src->arr, src->elementSize * src->count);
 
   dest->count = src->count;
   return 0;
 }
 
-void ulArrayMove(ULongArray *dest, ULongArray *src) {
-  memcpy(dest, src, sizeof(ULongArray));
+void gvizArrayMove(gvizArray *dest, gvizArray *src) {
+  memcpy(dest->arr, src->arr, sizeof(gvizArray));
   src->arr = NULL;
 }
 
-void ulArrayPrint(ULongArray *v, FILE *stream) {
+void gvizArrayPrint(const gvizArray *v, FILE *stream, SerializeDatum *serialize,
+                    size_t bufsize) {
+  char *arr = v->arr;
+  char buf[bufsize];
   fprintf(stream, "[ ");
   for (int i = 0; i < v->count; i++) {
-    fprintf(stream, "%zu, ", v->arr[i]);
+    serialize(arr + i * v->elementSize, buf, bufsize);
+    fprintf(stream, "%s", buf);
   }
   fprintf(stream, "]\n");
+}
+
+void *gvizArrayAtIndex(const gvizArray *v, size_t i) {
+  return ((char *)v->arr + i * v->elementSize);
 }

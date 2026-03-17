@@ -1,5 +1,5 @@
 #include "dsa/graph.h"
-#include "dsa/uLongArray.h"
+#include "dsa/gvizArray.h"
 #include "helpers.h"
 #include <_string.h>
 #include <stdio.h>
@@ -10,7 +10,7 @@ int vertexInit(Vertex *v, void *data) {
   if (v == NULL)
     return -1;
   v->data = data;
-  int err = ulArrayInit(&v->neighbors);
+  int err = gvizArrayInit(&v->neighbors, sizeof(size_t));
   return err;
 }
 
@@ -18,7 +18,8 @@ int vertexInitAtCapacity(Vertex *v, void *data, size_t initialCapacity) {
   if (v == NULL)
     return -1;
   v->data = data;
-  int err = ulArrayInitAtCapacity(&v->neighbors, initialCapacity);
+  int err =
+      gvizArrayInitAtCapacity(&v->neighbors, initialCapacity, sizeof(size_t));
   return err;
 }
 
@@ -27,7 +28,7 @@ int vertexCopy(Vertex *dest, const Vertex *src) {
     return -1;
 
   dest->data = src->data;
-  int err = ulArrayCopy(&dest->neighbors, &src->neighbors);
+  int err = gvizArrayCopy(&dest->neighbors, &src->neighbors);
   return err;
 }
 
@@ -36,39 +37,36 @@ int vertexClone(Vertex *dest, const Vertex *src) {
     return -1;
 
   dest->data = src->data;
-  int err = ulArrayClone(&dest->neighbors, &src->neighbors);
+  int err = gvizArrayClone(&dest->neighbors, &src->neighbors);
   return err;
 }
 
 int graphInit(Graph *g, int directed) {
+  int err;
   if (g == NULL)
     return -1;
-  g->vertices = GRAPH_ALLOC(64 * sizeof(Vertex));
-  if (g->vertices == NULL)
-    return -1;
-
+  err = gvizArrayInit(&g->vertices, sizeof(Vertex));
+  if (err < 0)
+    return err;
   g->directed = directed;
-  g->size = 64;
-  g->count = 0;
   g->map = NULL;
   return 0;
 }
 
 int graphInitAtCapacity(Graph *g, int directed, size_t initialCapacity) {
+  int err;
   if (g == NULL)
     return -1;
-  g->vertices = GRAPH_ALLOC(initialCapacity * sizeof(Vertex));
-  if (g->vertices == NULL)
-    return -1;
+  err = gvizArrayInitAtCapacity(&g->vertices, sizeof(Vertex), initialCapacity);
+  if (err < 0)
+    return err;
 
   g->directed = directed;
-  g->size = initialCapacity;
-  g->count = 0;
   g->map = NULL;
   return 0;
 }
 
-int graphAddVertex(Graph *g, void *data, ULongArray *in, ULongArray *out) {
+int graphAddVertex(Graph *g, void *data, gvizArray *in, gvizArray *out) {
   Vertex v;
   int err;
 
@@ -76,28 +74,21 @@ int graphAddVertex(Graph *g, void *data, ULongArray *in, ULongArray *out) {
     err = vertexInitAtCapacity(&v, data, out->count);
     if (err < 0)
       return err;
-    ulArrayCopy(&v.neighbors, out);
+    gvizArrayCopy(&v.neighbors, out);
   } else {
     err = vertexInit(&v, data);
     if (err < 0)
       return err;
   }
 
-  if (g->count >= g->size) {
-    Vertex *newVertices =
-        GRAPH_REALLOC(g->vertices, sizeof(Vertex) * g->count * 2);
-    if (newVertices == NULL)
-      return -1;
-    g->size = g->count * 2;
-    g->vertices = newVertices;
-  }
-
-  memcpy(g->vertices + g->count++, &v, sizeof(Vertex));
+  gvizArrayPush(&g->vertices, &v);
 
   if (in) {
+    size_t idx = g->vertices.count - 1;
     for (size_t i = 0; i < in->count; i++) {
-      err =
-          ulArrayPush(&g->vertices[((size_t *)in)[i]].neighbors, g->count - 1);
+      err = gvizArrayPush(
+          gvizArrayAtIndex(&g->vertices, *(size_t *)gvizArrayAtIndex(in, i)),
+          &idx);
       if (err < 0)
         return err;
     }
@@ -110,9 +101,11 @@ int graphAddEdge(Graph *g, size_t from, size_t to) {
   if (!inBoundsVertices(g, from, to))
     return -1;
   int err;
-  err = ulArrayPush(&g->vertices[from].neighbors, to);
+  err = gvizArrayPush(
+      &((Vertex *)gvizArrayAtIndex(&g->vertices, from))->neighbors, &to);
   if (err == 0 && !g->directed) {
-    err = ulArrayPush(&g->vertices[to].neighbors, from);
+    err = gvizArrayPush(
+        &((Vertex *)gvizArrayAtIndex(&g->vertices, to))->neighbors, &from);
   }
   return err;
 }
@@ -121,40 +114,44 @@ int graphRemoveEdge(Graph *g, size_t from, size_t to) {
   if (!inBoundsVertices(g, from, to))
     return -1;
   int err;
-  err = ulArrayFindOneAndDelete(&g->vertices[from].neighbors, to);
+  err = gvizArrayFindOneAndDelete(
+      &((Vertex *)gvizArrayAtIndex(&g->vertices, from))->neighbors, &to);
   if (err >= 0 && !g->directed)
-    err = ulArrayFindOneAndDelete(&g->vertices[to].neighbors, from);
+    err = gvizArrayFindOneAndDelete(
+        &((Vertex *)gvizArrayAtIndex(&g->vertices, to))->neighbors, &from);
   return err < 0 ? err : 0;
 }
 
 void *graphGetVertexData(Graph *g, size_t idx) {
   if (!inBoundsVertex(g, idx))
     return NULL;
-  return g->vertices[idx].data;
+  return ((Vertex *)gvizArrayAtIndex(&g->vertices, idx))->data;
 }
 
-ULongArray *graphGetVertexNeighbors(const Graph *g, size_t idx) {
+gvizArray *graphGetVertexNeighbors(const Graph *g, size_t idx) {
   if (!inBoundsVertex(g, idx))
     return NULL;
-  return &g->vertices[idx].neighbors;
+  return &((Vertex *)gvizArrayAtIndex(&g->vertices, idx))->neighbors;
 }
 
 int graphEdgeExists(Graph *g, size_t from, size_t to) {
   if (!inBoundsVertices(g, from, to))
     return -1;
 
-  return ulArrayFindOne(&g->vertices[from].neighbors, to) >= 0 ? 1 : 0;
+  return gvizArrayFindOne(gvizArrayAtIndex(&g->vertices, from), &to) >= 0 ? 1
+                                                                          : 0;
 }
 
-void vertexRelease(Vertex *v) { ulArrayRelease(&v->neighbors); }
+void vertexRelease(Vertex *v) { gvizArrayRelease(&v->neighbors); }
 
 void graphRelease(Graph *g) {
-  if (g->vertices) {
-    for (int i = 0; i < g->count; i++) {
-      vertexRelease(&g->vertices[i]);
+  if (!gvizArrayIsEmpty(&g->vertices)) {
+    for (int i = 0; i < g->vertices.count; i++) {
+      vertexRelease(gvizArrayAtIndex(&g->vertices, i));
     }
-    GRAPH_DEALLOC(g->vertices);
   }
+  gvizArrayRelease(&g->vertices);
+
   if (g->map)
     GRAPH_DEALLOC(g->map);
 }
@@ -166,20 +163,20 @@ int graphDFSTree(Graph *g, Graph *out, size_t source) {
   err = graphInit(out, 1);
   if (err)
     return -1;
-  int *map = GRAPH_ALLOC(sizeof(int) * g->count);
+  int *map = GRAPH_ALLOC(sizeof(int) * g->vertices.count);
   if (!map) {
     return -1;
   }
 
   // Initialize frontier
-  ULongArray frontier;
-  err = ulArrayInit(&frontier);
+  gvizArray frontier;
+  err = gvizArrayInit(&frontier, sizeof(size_t));
   if (err)
     return -1;
 
   // Initialize DFS state
-  ULongArray *currNeighbors;
-  int visited[g->count];
+  gvizArray *currNeighbors;
+  int visited[g->vertices.count];
   memset(visited, 0, sizeof(visited));
   size_t currNeighbor;
   size_t curr;
@@ -191,31 +188,32 @@ int graphDFSTree(Graph *g, Graph *out, size_t source) {
   if (err)
     return -1;
 
-  err = ulArrayPush(&frontier, 0);
+  err = gvizArrayPush(&frontier, 0);
   if (err)
     return -1;
 
   visited[source] = 1;
 
   // DFS:
-  while (!ulArrayIsEmpty(&frontier)) {
-    ulArrayPop(&frontier, &curr);
+  while (!gvizArrayIsEmpty(&frontier)) {
+    gvizArrayPop(&frontier, &curr);
     currNeighbors = graphGetVertexNeighbors(g, map[curr]);
     if (!currNeighbors)
       return -1;
 
     for (size_t i = 0; i < currNeighbors->count; i++) {
-      currNeighbor = currNeighbors->arr[i];
+      currNeighbor = *(size_t *)gvizArrayAtIndex(currNeighbors, i);
       if (!visited[currNeighbor]) {
         visited[currNeighbor] = 1;
         err = graphAddVertex(out, graphGetVertexData(g, map[curr]), NULL, NULL);
+        size_t idx = out->vertices.count - 1;
         if (err)
           return -1;
-        err = ulArrayPush(&frontier, out->count - 1);
+        err = gvizArrayPush(&frontier, &idx);
         if (err)
           return -1;
-        map[out->count - 1] = g->map ? g->map[currNeighbor] : currNeighbor;
-        err = graphAddEdge(out, curr, out->count - 1);
+        map[idx] = g->map ? g->map[currNeighbor] : currNeighbor;
+        err = graphAddEdge(out, curr, idx);
         if (err)
           return -1;
       }
@@ -223,7 +221,7 @@ int graphDFSTree(Graph *g, Graph *out, size_t source) {
   }
 
   // GRAPH_REALLOCate map to have a possible smaller size.
-  int *tmp = GRAPH_REALLOC(map, out->count * sizeof(int));
+  int *tmp = GRAPH_REALLOC(map, out->vertices.count * sizeof(int));
   if (!tmp) {
     return -1;
   }
@@ -231,17 +229,17 @@ int graphDFSTree(Graph *g, Graph *out, size_t source) {
   out->map = map;
 
   // Cleanup and return
-  ulArrayRelease(&frontier);
+  gvizArrayRelease(&frontier);
   return 0;
 }
 
 void graphClear(Graph *g) {
-  if (g->count == 0)
+  if (g->vertices.count == 0)
     return;
-  for (int i = 0; i < g->count; i++) {
-    vertexRelease(&g->vertices[i]);
+  for (int i = 0; i < g->vertices.count; i++) {
+    vertexRelease(gvizArrayAtIndex(&g->vertices, i));
   }
-  g->count = 0;
+  g->vertices.count = 0;
 }
 
 int graphCopy(Graph *dest, const Graph *src) {
@@ -250,21 +248,24 @@ int graphCopy(Graph *dest, const Graph *src) {
 
   graphClear(dest);
 
-  if (dest->size < src->count) {
-    GRAPH_DEALLOC(dest->vertices);
-    dest->vertices = GRAPH_ALLOC(sizeof(Vertex *) * src->count);
-    dest->size = src->count;
-    if (!dest->vertices)
-      return -1;
+  // NOTE: We can't just gvizArrayCopy() since that is a shallow copy
+  // The vertices in dest and src will share the memory for their adjacency
+  // lists, causing possible double frees if both graphs are released.
+
+  if (dest->vertices.capacity < src->vertices.count) {
+    gvizArrayRelease(&dest->vertices);
+    gvizArrayInitAtCapacity(&dest->vertices, sizeof(Vertex),
+                            src->vertices.count);
   }
 
-  for (size_t i = 0; i < src->count; i++) {
-    int err = vertexClone(&dest->vertices[i], &src->vertices[i]);
+  for (size_t i = 0; i < src->vertices.count; i++) {
+    int err = vertexClone(gvizArrayAtIndex(&dest->vertices, i),
+                          gvizArrayAtIndex(&src->vertices, i));
     if (err < 0)
       return err;
   }
 
-  dest->count = src->count;
+  dest->vertices.count = src->vertices.count;
   dest->directed = src->directed;
 
   return 0;
@@ -273,15 +274,16 @@ int graphCopy(Graph *dest, const Graph *src) {
 int graphClone(Graph *dest, const Graph *src) {
   if (!dest || !src)
     return -1;
-  graphInitAtCapacity(dest, src->directed, src->count);
+  graphInitAtCapacity(dest, src->directed, src->vertices.count);
 
-  for (size_t i = 0; i < src->count; i++) {
-    int err = vertexClone(&dest->vertices[i], &src->vertices[i]);
+  for (size_t i = 0; i < src->vertices.count; i++) {
+    int err = vertexClone(gvizArrayAtIndex(&dest->vertices, i),
+                          gvizArrayAtIndex(&src->vertices, i));
     if (err < 0)
       return err;
   }
 
-  dest->count = src->count;
+  dest->vertices.count = src->vertices.count;
   dest->directed = src->directed;
 
   return 0;
@@ -293,35 +295,35 @@ int graphCopyReversed(Graph *dest, const Graph *src) {
 
   graphClear(dest);
 
-  if (dest->size < src->count) {
-    GRAPH_DEALLOC(dest->vertices);
-    dest->vertices = GRAPH_ALLOC(sizeof(Vertex *) * src->count);
-    dest->size = src->count;
-    if (!dest->vertices)
-      return -1;
+  if (dest->vertices.capacity < src->vertices.count) {
+    gvizArrayRelease(&dest->vertices);
+    gvizArrayInitAtCapacity(&dest->vertices, sizeof(Vertex),
+                            src->vertices.count);
   }
 
-  ULongArray *curr;
-  ULongArray reversedLists[src->count];
-  for (size_t i = 0; i < src->count; i++) {
-    ulArrayInit(&reversedLists[i]);
+  gvizArray *curr;
+  gvizArray reversedLists[src->vertices.count];
+  for (size_t i = 0; i < src->vertices.count; i++) {
+    gvizArrayInit(&reversedLists[i], sizeof(size_t));
   }
 
-  for (size_t i = 0; i < src->count; i++) {
+  for (size_t i = 0; i < src->vertices.count; i++) {
     curr = graphGetVertexNeighbors(src, i);
     for (int j = 0; curr->count; j++) {
-      ulArrayPush(reversedLists + curr->arr[j], i);
+      gvizArrayPush(reversedLists + *(size_t *)gvizArrayAtIndex(curr, j), &i);
     }
   }
 
-  Vertex *target = dest->vertices;
-  dest->count = 0;
-  for (size_t i = 0; i < src->count; i++) {
-    target[i].data = src->vertices[i].data;
-    ulArrayMove(&target[i].neighbors, &reversedLists[i]);
+  Vertex *source;
+  Vertex *target;
+  for (size_t i = 0; i < src->vertices.count; i++) {
+    target = gvizArrayAtIndex(&dest->vertices, i);
+    source = gvizArrayAtIndex(&src->vertices, i);
+    target->data = source->data;
+    gvizArrayMove(&target->neighbors, &reversedLists[i]);
   }
 
-  dest->count = src->count;
+  dest->vertices.count = src->vertices.count;
   dest->directed = src->directed;
 
   return 0;
@@ -329,31 +331,33 @@ int graphCopyReversed(Graph *dest, const Graph *src) {
 
 int graphCloneReversed(Graph *dest, const Graph *src) {
   if (!src->directed)
-    return graphClone(dest, src);
+    return graphCopy(dest, src);
 
-  ULongArray *curr;
-  ULongArray reversedLists[src->count];
-  for (size_t i = 0; i < src->count; i++) {
-    ulArrayInit(&reversedLists[i]);
+  graphInitAtCapacity(dest, src->directed, src->vertices.count);
+
+  gvizArray *curr;
+  gvizArray reversedLists[src->vertices.count];
+  for (size_t i = 0; i < src->vertices.count; i++) {
+    gvizArrayInit(&reversedLists[i], sizeof(size_t));
   }
 
-  for (size_t i = 0; i < src->count; i++) {
+  for (size_t i = 0; i < src->vertices.count; i++) {
     curr = graphGetVertexNeighbors(src, i);
     for (int j = 0; curr->count; j++) {
-      ulArrayPush(reversedLists + curr->arr[j], i);
+      gvizArrayPush(reversedLists + *(size_t *)gvizArrayAtIndex(curr, j), &i);
     }
   }
 
-  graphInitAtCapacity(dest, src->directed, src->count);
-
-  Vertex *target = dest->vertices;
-  dest->count = 0;
-  for (size_t i = 0; i < src->count; i++) {
-    target[i].data = src->vertices[i].data;
-    ulArrayMove(&target[i].neighbors, &reversedLists[i]);
+  Vertex *source;
+  Vertex *target;
+  for (size_t i = 0; i < src->vertices.count; i++) {
+    target = gvizArrayAtIndex(&dest->vertices, i);
+    source = gvizArrayAtIndex(&src->vertices, i);
+    target->data = source->data;
+    gvizArrayMove(&target->neighbors, &reversedLists[i]);
   }
 
-  dest->count = src->count;
+  dest->vertices.count = src->vertices.count;
   dest->directed = src->directed;
 
   return 0;
@@ -362,7 +366,7 @@ int graphCloneReversed(Graph *dest, const Graph *src) {
 int printSubtree(Graph *tree, size_t root, Position rootPos, char *strings[],
                  FILE *stream) {
   Position newPos;
-  ULongArray *currNeighbors = graphGetVertexNeighbors(tree, root);
+  gvizArray *currNeighbors = graphGetVertexNeighbors(tree, root);
   char str[32];
   if (!strings)
     snprintf(str, sizeof(str), "%zu", root);
@@ -380,8 +384,8 @@ int printSubtree(Graph *tree, size_t root, Position rootPos, char *strings[],
     rootPos.y += 2;
     dy += 2;
 
-    int res =
-        printSubtree(tree, currNeighbors->arr[i], newPos, strings, stream);
+    int res = printSubtree(tree, *(size_t *)gvizArrayAtIndex(currNeighbors, i),
+                           newPos, strings, stream);
 
     if (i + 1 < currNeighbors->count) {
       for (int j = 1; j < res; j += 2) {

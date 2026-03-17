@@ -1,7 +1,7 @@
 #ifndef __GRAPH_H__
 #define __GRAPH_H__
 
-#include "uLongArray.h"
+#include "gvizArray.h"
 
 #define MAX_LINE_SIZE 4096
 
@@ -35,8 +35,8 @@ typedef struct Position {
  * edge (u, v) in the Graph.
  */
 typedef struct Vertex {
-  void *data;           /**< Pointer to the Vertex's data. */
-  ULongArray neighbors; /**< Dynamically allocated vector for adjacency list. */
+  void *data;          /**< Pointer to the Vertex's data. */
+  gvizArray neighbors; /**< Dynamically allocated vector for adjacency list. */
 } Vertex;
 
 /**
@@ -48,12 +48,10 @@ typedef struct Vertex {
  * vertices may be added to the graph.
  */
 typedef struct {
-  Vertex *vertices; /**< The list of all vertices in the graph. */
-  int *map;         /**< If this is a subgraph, this maps to the indices of
-                         root graph. */
-  size_t count;     /**< The current number of vertices in the graph. */
-  size_t size;      /**< The maximum number of vertices in the graph. */
-  int directed;     /**< Whether or not the graph is directed. */
+  gvizArray vertices; /**< The list of all vertices in the graph. */
+  int *map;           /**< If this is a subgraph, this maps to the indices of
+                           root graph. */
+  int directed;       /**< Whether or not the graph is directed. */
 } Graph;
 
 // GRAPH CONSTRUCTION: ---------------------------------------------------------
@@ -159,19 +157,18 @@ int graphCopyReversed(Graph *dest, const Graph *src);
 int graphCopyReversed(Graph *dest, const Graph *src);
 
 /**
- * Attemps to add an already initialized vertex to a graph. This does not
- * modify the adjacency list of @p v, even if @p is non NULL and @p g is
- * undirected.
+ * Attemps to initialize and add a vertex to a graph.
  *
  * @param g    A pointer to the Graph the vertex will be added to.
  * @param data The address the vertex's data attribute will point to.
- * @param in   (NULL?) Array with indices of vertices with edges to @p v.
+ * @param in   (NULL?) Array with indices of vertices with edges to v.
+ * @param out  (NULL?) Array with indices of vertices with edges from v.
  *
  * @return An error code showing whether or not the operation was successful.
  * @retval 0  If the Vertex is created and added successfully.
  * @retval -1 If a reallocation fails.
  */
-int graphAddVertex(Graph *g, void *data, ULongArray *in, ULongArray *out);
+int graphAddVertex(Graph *g, void *data, gvizArray *in, gvizArray *out);
 
 /**
  * Destroys all vertices currently in a given Graph.
@@ -222,7 +219,7 @@ int graphRemoveEdge(Graph *g, size_t from, size_t to);
  * @retval ptr  Pointer to the successfully retrieved adjacency list.
  * @retval NULL If the Vertex index is out of bounds.
  */
-ULongArray *graphGetVertexNeighbors(const Graph *g, size_t idx);
+gvizArray *graphGetVertexNeighbors(const Graph *g, size_t idx);
 
 /**
  * Checks if there exists an edge (u, v) in a Graph.

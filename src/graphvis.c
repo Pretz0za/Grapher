@@ -40,7 +40,7 @@ void drawEdge(vComponent2 from, vComponent2 to, int directed,
 }
 
 void runReingoldTilfordAlgorithm(RTTree *tree, size_t root, size_t level) {
-  ULongArray *children = graphGetVertexNeighbors(tree->tree, root);
+  gvizArray *children = graphGetVertexNeighbors(tree->tree, root);
   const int minsep = 100;
   int currsep;
   float acc;
@@ -237,7 +237,7 @@ void runReingoldTilfordAlgorithm(RTTree *tree, size_t root, size_t level) {
 
 Vector2 makeTreeComponents(RTTree *tree, vComponent2 *components, size_t root,
                            Vector2 rootPos) {
-  ULongArray *children = graphGetVertexNeighbors(tree->tree, root);
+  gvizArray *children = graphGetVertexNeighbors(tree->tree, root);
   Vector2 pos;
   Vector2 currX;
   Vector2 extremeX = {INFINITY, -INFINITY};

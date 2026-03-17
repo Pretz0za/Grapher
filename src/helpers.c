@@ -13,13 +13,14 @@ void xorSwap(size_t *a, size_t *b) {
 }
 
 int inBoundsVertex(const Graph *g, size_t idx) {
-  if (idx < 0 || idx >= g->size)
+  if (idx < 0 || idx >= g->vertices.count)
     return 0;
   return 1;
 }
 
 int inBoundsVertices(const Graph *g, size_t idx1, size_t idx2) {
-  if (idx1 < 0 || idx2 < 0 || idx2 >= g->size || idx2 >= g->size)
+  if (idx1 < 0 || idx2 < 0 || idx2 >= g->vertices.count ||
+      idx2 >= g->vertices.count)
     return 0;
   return 1;
 }

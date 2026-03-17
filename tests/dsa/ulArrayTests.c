@@ -258,6 +258,7 @@ void test_copy_creates_independent_buffer_and_equal_contents(void) {
   fill_and_check_sequence(&src, 128, 1000);
 
   TEST_ASSERT_EQUAL_INT(0, ulArrayCopy(&dest, &src));
+  assert_invariants(&src);
   assert_invariants(&dest);
   TEST_ASSERT_EQUAL_UINT64((uint64_t)src.count, (uint64_t)dest.count);
 

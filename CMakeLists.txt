@@ -29,4 +29,7 @@ target_link_libraries(graphvis
 )
 
 add_executable(ulArrayTests third-party/unity/unity.c tests/dsa/ulArrayTests.c)
+add_executable(graphTests third-party/unity/unity.c tests/dsa/graphTests.c)
+
 target_link_libraries(ulArrayTests PRIVATE graphvis)
+target_link_libraries(graphTests PRIVATE graphvis)
