@@ -1,63 +1,118 @@
-#include "../include/graph.h"
-#include "../include/graphvis.h"
+#include "dsa/gvizGraph.h"
+#include "raylib.h"
+#include "renderer/embeddings/gvizEmbeddedGraph.h"
+#include "renderer/embeddings/gvizEmbeddedTree.h"
+#include "renderer/layers/gvizLayerGraph.h"
 #include <_stdlib.h>
 #include <math.h>
-#include <raylib.h>
-#include <raymath.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
 
-#define MAXDEPTH 6
+#define MAXDEPTH 5
 
-void randomTree(Graph *tree, size_t root, int depth, int k, int exact) {
+void randomTree(gvizGraph *tree, size_t root, int depth, int k, int exact) {
   if (depth >= MAXDEPTH) {
     return;
   }
   if (exact) {
     for (int i = 0; i < k; i++) {
-      graphAddVertex(tree, NULL);
-      graphAddEdge(tree, root, tree->count - 1);
-      randomTree(tree, tree->count - 1, depth + 1, k, exact);
+      gvizGraphAddVertex(tree, NULL, NULL, NULL);
+      gvizGraphAddEdge(tree, root, tree->vertices.count - 1);
+      randomTree(tree, tree->vertices.count - 1, depth + 1, k, exact);
     }
   } else {
     int random = arc4random_uniform(k + 1);
-    printf("random number %d\n", random);
+    while (random < 2) {
+      random = arc4random_uniform(k + 1);
+    }
     for (int i = 0; i < random; i++) {
-      graphAddVertex(tree, NULL);
-      graphAddEdge(tree, root, tree->count - 1);
-      randomTree(tree, tree->count - 1, depth + 1, k, exact);
+      gvizGraphAddVertex(tree, NULL, NULL, NULL);
+      gvizGraphAddEdge(tree, root, tree->vertices.count - 1);
+      randomTree(tree, tree->vertices.count - 1, depth + 1, k, exact);
     }
   }
   return;
 }
 
 int main() {
-  int k = 5;
-  Graph g;
-  graphInit(&g, 1, NODATA);
-  graphAddVertex(&g, NULL);
-  randomTree(&g, 0, 0, k, 0);
-  size_t curr = g.count;
-  while (curr < pow(k, MAXDEPTH - 2)) {
-    graphRelease(&g);
-    graphInit(&g, 1, NODATA);
-    graphAddVertex(&g, NULL);
-    randomTree(&g, 0, 0, k, 0);
-    curr = g.count;
+  int WIDTH = 800;
+  int HEIGHT = 600;
+  gvizGraph graph;
+  gvizGraphInit(&graph, 1);
+  gvizGraphAddVertex(&graph, NULL, NULL, NULL);
+  randomTree(&graph, 0, 0, 5, 0);
+
+  gvizEmbeddedTree rtTreeEmbedding;
+  gvizEmbeddedTreeRTInit(&rtTreeEmbedding, &graph, 0);
+
+  InitWindow(WIDTH, HEIGHT, "graphvis");
+  SetTargetFPS(60);
+  Camera2D camera = {(Vector2){0, 0}, (Vector2){0, 0}, 0, 1.0f};
+
+  gvizEmbeddedTreeCalculateOffsets(&rtTreeEmbedding, 0, 0);
+
+  gvizEmbeddedTreeEmbed(&rtTreeEmbedding, 0, (Vector2){0, 0});
+
+  gvizLayerGraph layer;
+  gvizViewport viewport = {0, 0, 800, 600};
+  gvizLayerGraphInit(&layer, (gvizEmbeddedGraph *)&rtTreeEmbedding, viewport,
+                     999);
+
+  unsigned char currOpacity = 0xFF;
+
+  while (!WindowShouldClose()) {
+    BeginDrawing();
+
+    {
+      ClearBackground(RAYWHITE);
+
+      // Drag to move camera
+      if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+        Vector2 delta = GetMouseDelta();
+        camera.target.x -= delta.x / camera.zoom;
+        camera.target.y -= delta.y / camera.zoom;
+      }
+
+      // Zoom with mouse wheel, centered on cursor
+      float wheelMove = GetMouseWheelMove();
+      if (wheelMove != 0) {
+        Vector2 mousePos = GetMousePosition();
+
+        // Get world position before zoom
+        Vector2 worldPosBefore = GetScreenToWorld2D(mousePos, camera);
+
+        // Apply zoom
+        float zoomFactor = 1.0f + (wheelMove * 0.1f);
+        camera.zoom *= zoomFactor;
+
+        // Clamp zoom
+        // if (camera.zoom > 3.0f)
+        //   camera.zoom = 3.0f;
+        // else if (camera.zoom < 0.1f)
+        //   camera.zoom = 0.1f;
+
+        // Get world position after zoom
+        Vector2 worldPosAfter = GetScreenToWorld2D(mousePos, camera);
+
+        // Adjust camera target to keep cursor on same world position
+        camera.target.x += (worldPosBefore.x - worldPosAfter.x);
+        camera.target.y += (worldPosBefore.y - worldPosAfter.y);
+      }
+
+      BeginMode2D(camera);
+
+      // draw
+
+      ((gvizLayer *)&layer)->vtable->draw(&layer, &camera);
+
+      EndMode2D();
+      DrawText("Hello World", 0, 0, 20, GREEN);
+      currOpacity = 0xFF;
+    }
+
+    EndDrawing();
   }
-  // Graph *dfs = DepthFirstSearch(g, 1);
-  // ViewStack stack;
-  // stack.capacity = 1;
-  // stack.count = 1;
-  // stack.end = malloc(sizeof(Graph *));
-  // stack.end = dfs;
-  //
-  Embedding embedding = generateTreeEmbedding(&g);
-  VisState state = {&g, NULL, embedding};
-  openStateInWindow(state);
-  graphRelease(&g);
-  free(embedding.components);
+
+  gvizEmbeddedTreeRTRelease(&rtTreeEmbedding);
+  gvizGraphRelease(&graph);
+  CloseWindow();
   return 0;
 }

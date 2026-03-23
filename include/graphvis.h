@@ -1,7 +1,7 @@
 #ifndef __GRAPHVIS_H__
 #define __GRAPHVIS_H__
 
-#include "dsa/graph.h"
+#include "dsa/gvizGraph.h"
 #include <raylib.h>
 
 /**
@@ -13,7 +13,7 @@ typedef struct vComponent2 {
 } vComponent2;
 
 typedef struct ViewStack {
-  Graph *end;
+  gvizGraph *end;
   size_t count, capacity;
 } ViewStack;
 typedef struct Embedding {
@@ -22,7 +22,7 @@ typedef struct Embedding {
 } Embedding;
 
 typedef struct VisState {
-  Graph *g;
+  gvizGraph *g;
   ViewStack *stack;
   Embedding gamma;
 } VisState;
@@ -70,7 +70,7 @@ typedef struct RTVertexData {
  * @brief Data required to perform Reingold-Tilford drawing algorithm.
  */
 typedef struct RTTree {
-  Graph *tree;              /**< The tree to draw. */
+  gvizGraph *tree;          /**< The tree to draw. */
   RTVertexData *vertexData; /**< The data of each Vertex. This is populated by
                                  the algorithm. */
   int *parents;
@@ -146,6 +146,6 @@ Vector2 makeTreeComponents(RTTree *tree, vComponent2 *components, size_t root,
  * @note This function handles the overhead of performing the Reingold-Tilford
  *       algorithm and interpreting the output.
  */
-[[nodiscard]] Embedding generateTreeEmbedding(Graph *tree);
+[[nodiscard]] Embedding generateTreeEmbedding(gvizGraph *tree);
 
 #endif

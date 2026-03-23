@@ -1,21 +1,10 @@
 #ifndef __GRAPH_H__
 #define __GRAPH_H__
 
+#include "core/alloc.h"
 #include "gvizArray.h"
 
 #define MAX_LINE_SIZE 4096
-
-#ifndef GRAPH_ALLOC
-#define GRAPH_ALLOC(x) malloc(x)
-#endif
-
-#ifndef GRAPH_REALLOC
-#define GRAPH_REALLOC(x, y) realloc(x, y)
-#endif
-
-#ifndef GRAPH_DEALLOC
-#define GRAPH_DEALLOC(x) free(x)
-#endif
 
 /**
  * @brief A position on the terminal screen to print to, using ANSI escape
@@ -37,7 +26,7 @@ typedef struct Position {
 typedef struct Vertex {
   void *data;          /**< Pointer to the Vertex's data. */
   gvizArray neighbors; /**< Dynamically allocated vector for adjacency list. */
-} Vertex;
+} gvizVertex;
 
 /**
  * @brief A definition of a directed or undirected Graph data structure.
@@ -52,7 +41,7 @@ typedef struct {
   int *map;           /**< If this is a subgraph, this maps to the indices of
                            root graph. */
   int directed;       /**< Whether or not the graph is directed. */
-} Graph;
+} gvizGraph;
 
 // GRAPH CONSTRUCTION: ---------------------------------------------------------
 
@@ -66,8 +55,8 @@ typedef struct {
  * @retval 0  If the operation was successful
  * @retval -1 If the allocation failed or v is NULL.
  */
-int vertexInit(Vertex *v, void *data);
-int vertexInitAtCapacity(Vertex *v, void *data, size_t initialCapacity);
+int gvizVertexInit(gvizVertex *v, void *data);
+int gvizVertexInitAtCapacity(gvizVertex *v, void *data, size_t initialCapacity);
 
 /**
  * Copies the @p src into it. @p dest will manage its own adjacency list.
@@ -79,7 +68,7 @@ int vertexInitAtCapacity(Vertex *v, void *data, size_t initialCapacity);
  * @retval 0 If the operation was successfu.
  * @retval -1 If reallocation failed or src or dest is NULL.
  */
-int vertexCopy(Vertex *dest, const Vertex *src);
+int gvizVertexCopy(gvizVertex *dest, const gvizVertex *src);
 
 /**
  * Initializes @p dest as a vertex. Copies the @p src into it. @p dest will
@@ -92,7 +81,7 @@ int vertexCopy(Vertex *dest, const Vertex *src);
  * @retval 0 If the operation was successfu.
  * @retval -1 If reallocation failed or src or dest is NULL.
  */
-int vertexClone(Vertex *dest, const Vertex *src);
+int gvizVertexClone(gvizVertex *dest, const gvizVertex *src);
 
 /**
  * Allocates the vertex array and initializes a directed or undirected Graph.
@@ -103,8 +92,8 @@ int vertexClone(Vertex *dest, const Vertex *src);
  *
  * @return a
  */
-int graphInit(Graph *g, int directed);
-int graphInitAtCapacity(Graph *g, int directed, size_t initialCapacity);
+int gvizGraphInit(gvizGraph *g, int directed);
+int gvizGraphInitAtCapacity(gvizGraph *g, int directed, size_t initialCapacity);
 
 /**
  * Copies the Graph data of @p src to @p dest.
@@ -116,7 +105,7 @@ int graphInitAtCapacity(Graph *g, int directed, size_t initialCapacity);
  * @retval 0  If the operation was successful.
  * @retval -1 If a reallocation fails.
  */
-int graphCopy(Graph *dest, const Graph *src);
+int gvizGraphCopy(gvizGraph *dest, const gvizGraph *src);
 
 /**
  * Initializes @p dest as a Graph. Copies the Graph data of @p src to @p dest.
@@ -128,7 +117,7 @@ int graphCopy(Graph *dest, const Graph *src);
  * @retval 0  If the operation was successful.
  * @retval -1 If a reallocation fails.
  */
-int graphClone(Graph *dest, const Graph *src);
+int gvizGraphClone(gvizGraph *dest, const gvizGraph *src);
 
 /**
  * Copies the reverse of the Graph data of @p src to @p dest. An edge (u, v) in
@@ -141,7 +130,7 @@ int graphClone(Graph *dest, const Graph *src);
  * @retval 0  If the operation was successful.
  * @retval -1 If a reallocation fails.
  */
-int graphCopyReversed(Graph *dest, const Graph *src);
+int gvizGraphCopyReversed(gvizGraph *dest, const gvizGraph *src);
 
 /**
  * Initializes @p dest as a Graph. copies the reverse of the Graph data of @p
@@ -154,7 +143,7 @@ int graphCopyReversed(Graph *dest, const Graph *src);
  * @retval 0  If the operation was successful.
  * @retval -1 If a reallocation fails.
  */
-int graphCopyReversed(Graph *dest, const Graph *src);
+int gvizGraphCloneReversed(gvizGraph *dest, const gvizGraph *src);
 
 /**
  * Attemps to initialize and add a vertex to a graph.
@@ -168,14 +157,14 @@ int graphCopyReversed(Graph *dest, const Graph *src);
  * @retval 0  If the Vertex is created and added successfully.
  * @retval -1 If a reallocation fails.
  */
-int graphAddVertex(Graph *g, void *data, gvizArray *in, gvizArray *out);
+int gvizGraphAddVertex(gvizGraph *g, void *data, gvizArray *in, gvizArray *out);
 
 /**
  * Destroys all vertices currently in a given Graph.
  *
  * @param g A pointer to the Graph to be cleared.
  */
-void graphClear(Graph *g);
+void gvizGraphClear(gvizGraph *g);
 
 /**
  * Attemps to add an edge (u, v) to a Graph. If @p g is undirected, u will
@@ -190,7 +179,7 @@ void graphClear(Graph *g);
  * @retval 0 If the edge was created successfully.
  * @retval -1 If (from OR to is out of bounds) OR reallocation fail.
  */
-int graphAddEdge(Graph *g, size_t from, size_t to);
+int gvizGraphAddEdge(gvizGraph *g, size_t from, size_t to);
 
 /**
  * Attempts to remove and edge (u, v) from a Graph. If @p g is undirected, u
@@ -204,10 +193,19 @@ int graphAddEdge(Graph *g, size_t from, size_t to);
  * @retval 0  If the edge was removed successfully.
  * @retval -1 If (from OR to is out of bounds) OR edge not found.
  */
-int graphRemoveEdge(Graph *g, size_t from, size_t to);
+int gvizGraphRemoveEdge(gvizGraph *g, size_t from, size_t to);
 
 // DATA ACCESS:
 // ----------------------------------------------------------------
+
+/**
+ * Changes the address a vertex's data points to in a graph.
+ *
+ * @param g    A pointer to the graph owning the vertex.
+ * @param idx  The index of the vertex in @p g->vertices.
+ * @param data The address of the new data to store
+ */
+void gvizGraphSetVertexData(gvizGraph *g, size_t idx, void *data);
 
 /**
  * Gets the adjacency list of a Vertex in a given Graph.
@@ -219,7 +217,7 @@ int graphRemoveEdge(Graph *g, size_t from, size_t to);
  * @retval ptr  Pointer to the successfully retrieved adjacency list.
  * @retval NULL If the Vertex index is out of bounds.
  */
-gvizArray *graphGetVertexNeighbors(const Graph *g, size_t idx);
+gvizArray *gvizGraphGetVertexNeighbors(const gvizGraph *g, size_t idx);
 
 /**
  * Checks if there exists an edge (u, v) in a Graph.
@@ -233,7 +231,7 @@ gvizArray *graphGetVertexNeighbors(const Graph *g, size_t idx);
  * @retval 1  There is an edge from u to v in g.
  * @retval -1 The indices of u and/or v are out of bounds.
  */
-int graphEdgeExists(Graph *g, size_t from, size_t to);
+int gvizGraphEdgeExists(gvizGraph *g, size_t from, size_t to);
 
 /**
  * Gets the data from a Vertex in a given Graph.
@@ -245,7 +243,7 @@ int graphEdgeExists(Graph *g, size_t from, size_t to);
  * @retval ptr  Pointer to the successfully retrieved data.
  * @retval NULL If the Vertex index is out of bounds.
  */
-void *graphGetVertexData(Graph *g, size_t idx);
+void *gvizGraphGetVertexData(gvizGraph *g, size_t idx);
 
 // MEMORY FREEING:
 // -------------------------------------------------------------
@@ -256,7 +254,7 @@ void *graphGetVertexData(Graph *g, size_t idx);
  * @param v        A pointer to the Vertex to free. The vertex data stored at
  *                 the address will become invalid.
  */
-void vertexRelease(Vertex *v);
+void gvizVertexRelease(gvizVertex *v);
 
 /**
  * Releases all the data the is controlled by a graph.
@@ -264,7 +262,7 @@ void vertexRelease(Vertex *v);
  * @param g A pointer to the Graph to free. This pointer will become
             invalid after the function returns
  */
-void graphRelease(Graph *g);
+void gvizGraphRelease(gvizGraph *g);
 
 // GRAPH ALGORITHMS:
 // -----------------------------------------------------------
@@ -282,7 +280,7 @@ void graphRelease(Graph *g);
  * @retval 0  The tree was calculated and stored in @p out successfully.
  * @retval -1 Reallocation failure.
  */
-int graphDFSTree(Graph *g, Graph *out, size_t source);
+int gvizGraphDFSTree(gvizGraph *g, gvizGraph *out, size_t source);
 
 // VISUALIZATION:
 // --------------------------------------------------------------
@@ -299,6 +297,6 @@ int graphDFSTree(Graph *g, Graph *out, size_t source);
  * @note The terminal window should be zoomed out for large graphs if this
  *       function is called, otherwise the output will overlap with itself.
  */
-void printDFSTree(Graph *tree, char *strings[], FILE *stream);
+void gvizPrintDFSTree(gvizGraph *tree, char *strings[], FILE *stream);
 
 #endif

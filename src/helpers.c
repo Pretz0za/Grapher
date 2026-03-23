@@ -12,14 +12,14 @@ void xorSwap(size_t *a, size_t *b) {
   }
 }
 
-int inBoundsVertex(const Graph *g, size_t idx) {
+int inBoundsVertex(const gvizGraph *g, size_t idx) {
   if (idx < 0 || idx >= g->vertices.count)
     return 0;
   return 1;
 }
 
-int inBoundsVertices(const Graph *g, size_t idx1, size_t idx2) {
-  if (idx1 < 0 || idx2 < 0 || idx2 >= g->vertices.count ||
+int inBoundsVertices(const gvizGraph *g, size_t idx1, size_t idx2) {
+  if (idx1 < 0 || idx2 < 0 || idx1 >= g->vertices.count ||
       idx2 >= g->vertices.count)
     return 0;
   return 1;

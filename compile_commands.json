@@ -1,21 +1,51 @@
 [
 {
   "directory": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/build",
-  "command": "/usr/bin/cc  -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/include\" -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/third-party\" -std=gnu11 -arch arm64 -o CMakeFiles/graphvis.dir/src/dsa/graph.c.o -c \"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/dsa/graph.c\"",
-  "file": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/dsa/graph.c",
-  "output": "CMakeFiles/graphvis.dir/src/dsa/graph.c.o"
+  "command": "/usr/bin/cc  -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/include\" -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/third-party\" -std=gnu11 -arch arm64 -o CMakeFiles/graphvis.dir/src/dsa/gvizGraph.c.o -c \"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/dsa/gvizGraph.c\"",
+  "file": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/dsa/gvizGraph.c",
+  "output": "CMakeFiles/graphvis.dir/src/dsa/gvizGraph.c.o"
 },
 {
   "directory": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/build",
-  "command": "/usr/bin/cc  -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/include\" -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/third-party\" -std=gnu11 -arch arm64 -o CMakeFiles/graphvis.dir/src/graphvis.c.o -c \"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/graphvis.c\"",
-  "file": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/graphvis.c",
-  "output": "CMakeFiles/graphvis.dir/src/graphvis.c.o"
+  "command": "/usr/bin/cc  -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/include\" -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/third-party\" -std=gnu11 -arch arm64 -o CMakeFiles/graphvis.dir/src/dsa/gvizTree.c.o -c \"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/dsa/gvizTree.c\"",
+  "file": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/dsa/gvizTree.c",
+  "output": "CMakeFiles/graphvis.dir/src/dsa/gvizTree.c.o"
 },
 {
   "directory": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/build",
-  "command": "/usr/bin/cc  -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/include\" -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/third-party\" -std=gnu11 -arch arm64 -o CMakeFiles/graphvis.dir/src/dsa/uLongArray.c.o -c \"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/dsa/uLongArray.c\"",
-  "file": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/dsa/uLongArray.c",
-  "output": "CMakeFiles/graphvis.dir/src/dsa/uLongArray.c.o"
+  "command": "/usr/bin/cc  -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/include\" -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/third-party\" -std=gnu11 -arch arm64 -o CMakeFiles/graphvis.dir/src/dsa/gvizArray.c.o -c \"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/dsa/gvizArray.c\"",
+  "file": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/dsa/gvizArray.c",
+  "output": "CMakeFiles/graphvis.dir/src/dsa/gvizArray.c.o"
+},
+{
+  "directory": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/build",
+  "command": "/usr/bin/cc  -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/include\" -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/third-party\" -std=gnu11 -arch arm64 -o CMakeFiles/graphvis.dir/src/renderer/embeddings/gvizEmbeddedGraph.c.o -c \"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/renderer/embeddings/gvizEmbeddedGraph.c\"",
+  "file": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/renderer/embeddings/gvizEmbeddedGraph.c",
+  "output": "CMakeFiles/graphvis.dir/src/renderer/embeddings/gvizEmbeddedGraph.c.o"
+},
+{
+  "directory": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/build",
+  "command": "/usr/bin/cc  -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/include\" -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/third-party\" -std=gnu11 -arch arm64 -o CMakeFiles/graphvis.dir/src/renderer/embeddings/gvizEmbeddedTree.c.o -c \"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/renderer/embeddings/gvizEmbeddedTree.c\"",
+  "file": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/renderer/embeddings/gvizEmbeddedTree.c",
+  "output": "CMakeFiles/graphvis.dir/src/renderer/embeddings/gvizEmbeddedTree.c.o"
+},
+{
+  "directory": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/build",
+  "command": "/usr/bin/cc  -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/include\" -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/third-party\" -std=gnu11 -arch arm64 -o CMakeFiles/graphvis.dir/src/renderer/layers/gvizLayer.c.o -c \"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/renderer/layers/gvizLayer.c\"",
+  "file": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/renderer/layers/gvizLayer.c",
+  "output": "CMakeFiles/graphvis.dir/src/renderer/layers/gvizLayer.c.o"
+},
+{
+  "directory": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/build",
+  "command": "/usr/bin/cc  -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/include\" -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/third-party\" -std=gnu11 -arch arm64 -o CMakeFiles/graphvis.dir/src/renderer/layers/gvizLayerGraph.c.o -c \"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/renderer/layers/gvizLayerGraph.c\"",
+  "file": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/renderer/layers/gvizLayerGraph.c",
+  "output": "CMakeFiles/graphvis.dir/src/renderer/layers/gvizLayerGraph.c.o"
+},
+{
+  "directory": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/build",
+  "command": "/usr/bin/cc  -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/include\" -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/third-party\" -std=gnu11 -arch arm64 -o CMakeFiles/graphvis.dir/src/utils/serializers.c.o -c \"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/utils/serializers.c\"",
+  "file": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/utils/serializers.c",
+  "output": "CMakeFiles/graphvis.dir/src/utils/serializers.c.o"
 },
 {
   "directory": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/build",
@@ -25,8 +55,44 @@
 },
 {
   "directory": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/build",
-  "command": "/usr/bin/cc  -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/include\" -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/third-party\" -std=gnu11 -arch arm64 -o CMakeFiles/graph_demo.dir/tests/dfs.c.o -c \"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/tests/dfs.c\"",
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/include\" -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/third-party\" -std=gnu11 -arch arm64 -o CMakeFiles/gvizArrayTests.dir/third-party/unity/unity.c.o -c \"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/third-party/unity/unity.c\"",
+  "file": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/third-party/unity/unity.c",
+  "output": "CMakeFiles/gvizArrayTests.dir/third-party/unity/unity.c.o"
+},
+{
+  "directory": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/build",
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/include\" -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/third-party\" -std=gnu11 -arch arm64 -o CMakeFiles/gvizArrayTests.dir/tests/dsa/gvizArrayTests.c.o -c \"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/tests/dsa/gvizArrayTests.c\"",
+  "file": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/tests/dsa/gvizArrayTests.c",
+  "output": "CMakeFiles/gvizArrayTests.dir/tests/dsa/gvizArrayTests.c.o"
+},
+{
+  "directory": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/build",
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/include\" -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/third-party\" -std=gnu11 -arch arm64 -o CMakeFiles/gvizGraphTests.dir/third-party/unity/unity.c.o -c \"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/third-party/unity/unity.c\"",
+  "file": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/third-party/unity/unity.c",
+  "output": "CMakeFiles/gvizGraphTests.dir/third-party/unity/unity.c.o"
+},
+{
+  "directory": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/build",
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/include\" -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/third-party\" -std=gnu11 -arch arm64 -o CMakeFiles/gvizGraphTests.dir/tests/dsa/gvizGraphTests.c.o -c \"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/tests/dsa/gvizGraphTests.c\"",
+  "file": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/tests/dsa/gvizGraphTests.c",
+  "output": "CMakeFiles/gvizGraphTests.dir/tests/dsa/gvizGraphTests.c.o"
+},
+{
+  "directory": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/build",
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/include\" -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/third-party\" -std=gnu11 -arch arm64 -o CMakeFiles/gvizBitArrayTests.dir/third-party/unity/unity.c.o -c \"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/third-party/unity/unity.c\"",
+  "file": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/third-party/unity/unity.c",
+  "output": "CMakeFiles/gvizBitArrayTests.dir/third-party/unity/unity.c.o"
+},
+{
+  "directory": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/build",
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/include\" -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/third-party\" -std=gnu11 -arch arm64 -o CMakeFiles/gvizBitArrayTests.dir/tests/dsa/gvizBitArrayTests.c.o -c \"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/tests/dsa/gvizBitArrayTests.c\"",
+  "file": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/tests/dsa/gvizBitArrayTests.c",
+  "output": "CMakeFiles/gvizBitArrayTests.dir/tests/dsa/gvizBitArrayTests.c.o"
+},
+{
+  "directory": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/build",
+  "command": "/usr/bin/cc  -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/include\" -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/third-party\" -std=gnu11 -arch arm64 -o CMakeFiles/render_test.dir/tests/dfs.c.o -c \"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/tests/dfs.c\"",
   "file": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/tests/dfs.c",
-  "output": "CMakeFiles/graph_demo.dir/tests/dfs.c.o"
+  "output": "CMakeFiles/render_test.dir/tests/dfs.c.o"
 }
 ]

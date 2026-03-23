@@ -7,7 +7,7 @@
 int gvizArrayInit(gvizArray *arr, size_t elementSize) {
   if (arr == NULL)
     return -1;
-  arr->arr = ULA_ALLOC(elementSize * 8);
+  arr->arr = GVIZ_ALLOC(elementSize * 8);
   if (arr->arr == NULL)
     return -1;
   arr->capacity = 8;
@@ -20,7 +20,7 @@ int gvizArrayInitAtCapacity(gvizArray *arr, size_t elementSize,
                             size_t initialCapacity) {
   if (arr == NULL)
     return -1;
-  arr->arr = ULA_ALLOC(elementSize * initialCapacity);
+  arr->arr = GVIZ_ALLOC(elementSize * initialCapacity);
   if (arr->arr == NULL)
     return -1;
   arr->capacity = initialCapacity;
@@ -32,7 +32,7 @@ int gvizArrayInitAtCapacity(gvizArray *arr, size_t elementSize,
 int gvizArrayPush(gvizArray *v, void *item) {
   if (v->count >= v->capacity) {
     size_t newCapacity = v->capacity ? v->capacity * 2 : 8;
-    size_t *newArr = ULA_REALLOC(v->arr, v->elementSize * newCapacity);
+    size_t *newArr = GVIZ_REALLOC(v->arr, v->elementSize * newCapacity);
     if (!newArr) {
       return -1;
     }
@@ -55,8 +55,8 @@ int gvizArrayPop(gvizArray *v, void *res) {
 int gvizArrayFindOneAndDelete(gvizArray *v, void *item) {
   char *arr = v->arr;
   for (int i = 0; i < v->count; i++) {
-    if (memcmp(arr + i * v->elementSize, item, v->elementSize)) {
-      memmove(arr + i * v->elementSize, arr + i * v->elementSize + 1,
+    if (!memcmp(arr + i * v->elementSize, item, v->elementSize)) {
+      memmove(arr + i * v->elementSize, arr + (i + 1) * v->elementSize,
               v->elementSize * (v->count - i - 1));
       v->count--;
       return i;
@@ -67,7 +67,7 @@ int gvizArrayFindOneAndDelete(gvizArray *v, void *item) {
 
 void gvizArrayRelease(gvizArray *v) {
   if (v->arr)
-    ULA_DEALLOC(v->arr);
+    GVIZ_DEALLOC(v->arr);
 }
 
 int gvizArrayIsEmpty(const gvizArray *v) {
@@ -77,7 +77,7 @@ int gvizArrayIsEmpty(const gvizArray *v) {
 int gvizArrayFindOne(const gvizArray *v, void *item) {
   char *arr = v->arr;
   for (int i = 0; i < v->count; i++) {
-    if (memcpy(arr + i * v->elementSize, item, v->elementSize))
+    if (!memcmp(arr + i * v->elementSize, item, v->elementSize))
       return i;
   }
   return -1;
@@ -85,7 +85,7 @@ int gvizArrayFindOne(const gvizArray *v, void *item) {
 
 int gvizArrayCopy(gvizArray *dest, const gvizArray *src) {
   if (dest->capacity * dest->elementSize < src->count * src->elementSize) {
-    size_t *newArr = ULA_REALLOC(dest->arr, src->elementSize * src->count);
+    size_t *newArr = GVIZ_REALLOC(dest->arr, src->elementSize * src->count);
     if (newArr == NULL)
       return -1;
     dest->arr = newArr;
@@ -101,33 +101,48 @@ int gvizArrayCopy(gvizArray *dest, const gvizArray *src) {
 
 int gvizArrayClone(gvizArray *dest, const gvizArray *src) {
   int err = 0;
-  err = gvizArrayInitAtCapacity(dest, src->count, src->elementSize);
+
+  if (!src->count) {
+    err = gvizArrayInit(dest, src->elementSize);
+    if (err < 0)
+      return err;
+    dest->elementSize = src->elementSize;
+    dest->count = 0;
+    return 0;
+  }
+
+  err = gvizArrayInitAtCapacity(dest, src->elementSize, src->count);
   if (err < 0)
     return err;
 
   memcpy(dest->arr, src->arr, src->elementSize * src->count);
 
+  dest->elementSize = src->elementSize;
   dest->count = src->count;
   return 0;
 }
 
 void gvizArrayMove(gvizArray *dest, gvizArray *src) {
-  memcpy(dest->arr, src->arr, sizeof(gvizArray));
+  memcpy(dest, src, sizeof(gvizArray));
   src->arr = NULL;
 }
 
-void gvizArrayPrint(const gvizArray *v, FILE *stream, SerializeDatum *serialize,
-                    size_t bufsize) {
+void gvizArrayPrint(const gvizArray *v, FILE *stream,
+                    gvizSerializeDatum *serialize, size_t bufsize) {
   char *arr = v->arr;
   char buf[bufsize];
   fprintf(stream, "[ ");
   for (int i = 0; i < v->count; i++) {
     serialize(arr + i * v->elementSize, buf, bufsize);
-    fprintf(stream, "%s", buf);
+    fprintf(stream, "%s, ", buf);
   }
-  fprintf(stream, "]\n");
+  fprintf(stream, " ]\n");
 }
 
 void *gvizArrayAtIndex(const gvizArray *v, size_t i) {
-  return ((char *)v->arr + i * v->elementSize);
+  return ((char *)v->arr) + i * v->elementSize;
+}
+
+void *gvizArrayTail(const gvizArray *v) {
+  return ((char *)v->arr) + (v->elementSize * (v->count - 1));
 }

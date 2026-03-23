@@ -5,9 +5,19 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Your graph library (static)
 add_library(graphvis STATIC 
-    src/dsa/graph.c
-    src/graphvis.c
-    src/dsa/uLongArray.c
+    src/dsa/gvizGraph.c
+    src/dsa/gvizTree.c
+    src/dsa/gvizArray.c
+
+    src/renderer/embeddings/gvizEmbeddedGraph.c
+    src/renderer/embeddings/gvizEmbeddedTree.c
+
+    src/renderer/layers/gvizLayer.c
+    src/renderer/layers/gvizLayerGraph.c
+
+
+    src/utils/serializers.c
+
     src/helpers.c
 )
 
@@ -28,8 +38,28 @@ target_link_libraries(graphvis
     "-lm"
 )
 
-add_executable(ulArrayTests third-party/unity/unity.c tests/dsa/ulArrayTests.c)
-add_executable(graphTests third-party/unity/unity.c tests/dsa/graphTests.c)
+# Tests
+add_executable(gvizArrayTests third-party/unity/unity.c tests/dsa/gvizArrayTests.c)
+add_executable(gvizGraphTests third-party/unity/unity.c tests/dsa/gvizGraphTests.c)
+add_executable(gvizBitArrayTests third-party/unity/unity.c tests/dsa/gvizBitArrayTests.c)
 
-target_link_libraries(ulArrayTests PRIVATE graphvis)
-target_link_libraries(graphTests PRIVATE graphvis)
+add_executable(render_test tests/dfs.c)
+
+target_compile_definitions(gvizArrayTests PRIVATE UNITY_INCLUDE_DOUBLE)
+target_compile_definitions(gvizGraphTests PRIVATE UNITY_INCLUDE_DOUBLE)
+target_compile_definitions(gvizBitArrayTests PRIVATE UNITY_INCLUDE_DOUBLE)
+
+set_target_properties(gvizArrayTests PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/dsa)
+set_target_properties(gvizGraphTests PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/dsa)
+set_target_properties(gvizBitArrayTests PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/dsa)
+
+set_target_properties(render_test PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/renderer/)
+
+target_link_libraries(gvizArrayTests PRIVATE graphvis)
+target_link_libraries(gvizGraphTests PRIVATE graphvis)
+target_link_libraries(gvizBitArrayTests PRIVATE graphvis)
+target_link_libraries(render_test PRIVATE graphvis)
