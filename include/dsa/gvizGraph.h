@@ -282,6 +282,21 @@ void gvizGraphRelease(gvizGraph *g);
  */
 int gvizGraphDFSTree(gvizGraph *g, gvizGraph *out, size_t source);
 
+/**
+ * Performs a Breadth First Search on a Graph from a given source. The resulting
+ * BFS tree is initialized and stored in @p out. the map attribute of @p out
+ * will map vertex indices from @p out vertex array to @p g vertex array.
+ *
+ * @param g    A pointer to the Graph to search.
+ * @param out  The address to store and initalize the resulting BFS tree at.
+ * @param from The index of the vertex to begin the search from.
+ *
+ * @return An error code showing whether or not the operation was successful
+ * @retval 0  The tree was calculated and stored in @p out successfully.
+ * @retval -1 Reallocation failure.
+ */
+int gvizGraphBFSTree(gvizGraph *g, gvizGraph *out, size_t source);
+
 // VISUALIZATION:
 // --------------------------------------------------------------
 

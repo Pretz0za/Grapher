@@ -1,6 +1,9 @@
 #include "dsa/gvizGraph.h"
 #include "dsa/gvizArray.h"
+#include "dsa/gvizBitArray.h"
+#include "dsa/gvizDeque.h"
 #include "helpers.h"
+#include <cstddef>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -172,10 +175,11 @@ int gvizGraphDFSTree(gvizGraph *g, gvizGraph *out, size_t source) {
 
   // Initialize output graph
   err = gvizGraphInit(out, 1);
-  if (err)
+  if (err < 0)
     return -1;
-  int *map = GVIZ_ALLOC(sizeof(int) * g->vertices.count);
-  if (!map) {
+  gvizArray map;
+  err = gvizArrayInit(&map, sizeof(size_t));
+  if (err < 0) {
     return -1;
   }
 
@@ -187,13 +191,12 @@ int gvizGraphDFSTree(gvizGraph *g, gvizGraph *out, size_t source) {
 
   // Initialize DFS state
   gvizArray *currNeighbors;
-  int visited[g->vertices.count];
+  GVIZ_BIT_UNIT visited[GVIZ_ARRAY_UNITS(g->vertices.count)];
   memset(visited, 0, sizeof(visited));
-  size_t currNeighbor;
-  size_t curr;
+  size_t image, currNeighbor, curr = 0;
 
   // Add source vertex to output and frontier
-  map[0] = source;
+  gvizArrayPush(&map, &curr);
 
   err = gvizGraphAddVertex(out, gvizGraphGetVertexData(g, source), NULL, NULL);
   if (err)
@@ -203,28 +206,35 @@ int gvizGraphDFSTree(gvizGraph *g, gvizGraph *out, size_t source) {
   if (err)
     return -1;
 
-  visited[source] = 1;
+  gvizSetBit(visited, source);
 
   // DFS:
   while (!gvizArrayIsEmpty(&frontier)) {
     gvizArrayPop(&frontier, &curr);
-    currNeighbors = gvizGraphGetVertexNeighbors(g, map[curr]);
+    currNeighbors =
+        gvizGraphGetVertexNeighbors(g, *(size_t *)gvizArrayAtIndex(&map, curr));
     if (!currNeighbors)
       return -1;
 
     for (size_t i = 0; i < currNeighbors->count; i++) {
       currNeighbor = *(size_t *)gvizArrayAtIndex(currNeighbors, i);
-      if (!visited[currNeighbor]) {
-        visited[currNeighbor] = 1;
-        err = gvizGraphAddVertex(out, gvizGraphGetVertexData(g, map[curr]),
-                                 NULL, NULL);
+      if (!gvizTestBit(visited, currNeighbor)) {
+        gvizSetBit(visited, currNeighbor);
+
+        err = gvizGraphAddVertex(
+            out,
+            gvizGraphGetVertexData(g, *(size_t *)gvizArrayAtIndex(&map, curr)),
+            NULL, NULL);
         size_t idx = out->vertices.count - 1;
         if (err)
           return -1;
         err = gvizArrayPush(&frontier, &idx);
         if (err)
           return -1;
-        map[idx] = g->map ? g->map[currNeighbor] : currNeighbor;
+
+        image = g->map ? g->map[currNeighbor] : currNeighbor;
+        memcpy(gvizArrayAtIndex(&map, idx), &image, map.elementSize);
+
         err = gvizGraphAddEdge(out, curr, idx);
         if (err)
           return -1;
@@ -232,16 +242,93 @@ int gvizGraphDFSTree(gvizGraph *g, gvizGraph *out, size_t source) {
     }
   }
 
-  // GVIZ_REALLOCate map to have a possible smaller size.
-  int *tmp = GVIZ_REALLOC(map, out->vertices.count * sizeof(int));
-  if (!tmp) {
-    return -1;
-  }
-  map = tmp;
-  out->map = map;
+  // We don't release map. since out controls its memory now.
+  out->map = map.arr;
 
   // Cleanup and return
   gvizArrayRelease(&frontier);
+  return 0;
+}
+
+int gvizGraphBFSTree(gvizGraph *g, gvizGraph *out, size_t source) {
+
+  int err = 0;
+
+  // Initialize output graph
+  err = gvizGraphInit(out, 1);
+  if (err < 0)
+    return -1;
+  gvizArray map;
+  err = gvizArrayInit(&map, sizeof(int));
+  if (err < 0) {
+    return -1;
+  }
+
+  // Initialize queue
+  gvizDeque queue;
+  err = gvizDequeInit(&queue, sizeof(size_t));
+  if (err < 0)
+    return -1;
+
+  // Initialize BFS state
+  gvizArray *currNeighbors;
+  size_t image, currNeighbor, curr = 0;
+  GVIZ_BIT_UNIT visited[GVIZ_ARRAY_UNITS(g->vertices.count)];
+  memset(visited, 0, sizeof(visited));
+
+  // Add source vertex to output and frontier
+  gvizArrayPush(&map, &source);
+
+  err = gvizGraphAddVertex(out, gvizGraphGetVertexData(g, source), NULL, NULL);
+  if (err)
+    return -1;
+
+  err = gvizDequePush(&queue, &curr);
+  if (err)
+    return -1;
+
+  gvizSetBit(visited, source);
+
+  // BFS:
+  while (!gvizDequeIsEmpty(&queue)) {
+    gvizDequePopLeft(&queue, &curr);
+
+    currNeighbors =
+        gvizGraphGetVertexNeighbors(g, *(size_t *)gvizArrayAtIndex(&map, curr));
+    if (!currNeighbors)
+      return -1;
+
+    for (size_t i = 0; i < currNeighbors->count; i++) {
+      currNeighbor = *(size_t *)gvizArrayAtIndex(currNeighbors, i);
+      if (!gvizTestBit(visited, currNeighbor)) {
+        gvizSetBit(visited, currNeighbor);
+
+        err = gvizGraphAddVertex(
+            out,
+            gvizGraphGetVertexData(g, *(size_t *)gvizArrayAtIndex(&map, curr)),
+            NULL, NULL);
+
+        size_t idx = out->vertices.count - 1;
+        if (err)
+          return -1;
+        err = gvizDequePush(&queue, &idx);
+        if (err)
+          return -1;
+
+        image = g->map ? g->map[currNeighbor] : currNeighbor;
+        memcpy(gvizArrayAtIndex(&map, idx), &image, map.elementSize);
+        err = gvizGraphAddEdge(out, curr, idx);
+        if (err)
+          return -1;
+      }
+    }
+  }
+
+  // We don't release map. since out controls its memory now.
+  out->map = map.arr;
+
+  // Cleanup and return
+  gvizDequeRelease(&queue);
   return 0;
 }
 

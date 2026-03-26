@@ -7,12 +7,12 @@
 
 typedef struct gvizDFSState {
 
+  size_t *bitArrayOffsets;
+  GVIZ_BIT_ARRAY visitedHalfEdges;
 } gvizFaceSearchState;
 
 typedef struct gvizEmbedding {
   Vector2 *vertexPositions;
-  size_t *bitArrayOffsets;
-  GVIZ_BIT_ARRAY visitedHalfEdges;
 } gvizEmbedding;
 
 typedef struct gvizEmbeddedGraph {
