@@ -41,7 +41,7 @@ void *gvizDequeAtIndex(const gvizDeque *d, size_t idx) {
   return (d->arr + (d->elementSize * offset));
 }
 
-int gvizDequePopLeft(gvizDeque *d, void *res) {
+void gvizDequePopLeft(gvizDeque *d, void *res) {
   memcpy(res, d->begin, d->elementSize);
   size_t idx = (d->begin - d->arr + 1) % d->capacity;
   d->begin = d->arr + idx;

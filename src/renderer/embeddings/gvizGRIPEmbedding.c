@@ -1,8 +1,11 @@
 #include "core/alloc.h"
+#include "dsa/gvizBitArray.h"
+#include "dsa/gvizGraph.h"
 #include "renderer/embeddings/gvivGRIPEmbedding.h"
 #include "renderer/embeddings/gvizEmbeddedGraph.h"
 #include <math.h>
 #include <stdlib.h>
+#include <string.h>
 
 int gvizGRIPEmbeddingInit(gvizGRIPState *state, gvizGraph *graph,
                           size_t diameter) {
@@ -50,9 +53,33 @@ size_t *elementsOfSubset(gvizGRIPState *state, size_t i) {
   return state->misFiltration;
 }
 
-size_t createMISFiltration(gvizGRIPState *state) { return 0; }
-size_t iterMISFiltration(gvizGRIPState *state, size_t i) {
+int iterMISFiltration(gvizGRIPState *state, size_t i, GVIZ_BIT_ARRAY curr) {
+  gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
   size_t *prev = elementsOfSubset(state, i - 1);
   size_t prevCount = state->misBorder[i];
+  gvizGraph bfs;
+
+  for (size_t j = 0; j < embedding->graph->vertices.count; j++) {
+    if (!gvizTestBit(curr, j))
+      continue;
+    gvizGraphBFSTree(((gvizEmbeddedGraph *)state)->graph, &bfs, j, pow(2, i));
+
+    gvizGraphRelease(&bfs);
+  }
 }
+
+size_t createMISFiltration(gvizGRIPState *state) {
+  gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
+
+  GVIZ_BIT_UNIT curr[GVIZ_ARRAY_UNITS(embedding->graph->vertices.count)];
+  memset(curr, 1, sizeof(curr));
+
+  size_t i = 1;
+  while (iterMISFiltration(state, i, curr)) {
+    i++;
+  }
+
+  return 0;
+}
+
 int gvizGRIPEmbeddingEmbed(gvizGRIPState *state);

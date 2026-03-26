@@ -1,4 +1,4 @@
 build/
-.clangd/
+.clangd
 .cache/
 projects/

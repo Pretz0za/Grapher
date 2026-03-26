@@ -2,6 +2,7 @@
 #define __GRAPH_H__
 
 #include "core/alloc.h"
+#include "dsa/gvizBitArray.h"
 #include "gvizArray.h"
 
 #define MAX_LINE_SIZE 4096
@@ -295,7 +296,8 @@ int gvizGraphDFSTree(gvizGraph *g, gvizGraph *out, size_t source);
  * @retval 0  The tree was calculated and stored in @p out successfully.
  * @retval -1 Reallocation failure.
  */
-int gvizGraphBFSTree(gvizGraph *g, gvizGraph *out, size_t source);
+int gvizGraphBFSTree(gvizGraph *g, gvizGraph *out, size_t source,
+                     size_t maxDepth, GVIZ_BIT_ARRAY filter);
 
 // VISUALIZATION:
 // --------------------------------------------------------------

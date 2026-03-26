@@ -18,7 +18,7 @@ int gvizDequeIsEmpty(const gvizDeque *d);
 size_t gvizDequeSize(const gvizDeque *d);
 void *gvizDequeAtIndex(const gvizDeque *d, size_t idx);
 
-int gvizDequePopLeft(gvizDeque *d, void *res);
+void gvizDequePopLeft(gvizDeque *d, void *res);
 int gvizDequePopRight(gvizDeque *d, void *res);
 
 void *gvizDequePeekLeft(const gvizDeque *d);
