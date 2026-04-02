@@ -5,7 +5,7 @@
 typedef struct gvizDeque {
   void *arr;
   void *begin;
-  void *end;
+  size_t count;
   size_t capacity;
   size_t elementSize;
 } gvizDeque;
@@ -19,7 +19,7 @@ size_t gvizDequeSize(const gvizDeque *d);
 void *gvizDequeAtIndex(const gvizDeque *d, size_t idx);
 
 void gvizDequePopLeft(gvizDeque *d, void *res);
-int gvizDequePopRight(gvizDeque *d, void *res);
+void gvizDequePopRight(gvizDeque *d, void *res);
 
 void *gvizDequePeekLeft(const gvizDeque *d);
 void *gvizDequePeekRight(const gvizDeque *d);

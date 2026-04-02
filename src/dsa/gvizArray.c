@@ -1,4 +1,5 @@
 #include "../../include/dsa/gvizArray.h"
+#include "helpers.h"
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -42,6 +43,30 @@ int gvizArrayPush(gvizArray *v, void *item) {
   char *arr = v->arr;
   memcpy(arr + (v->count++) * v->elementSize, item, v->elementSize);
   return 0;
+}
+
+void gvizArraySwapDelete(gvizArray *v, size_t idx) {
+  if (v->count == 0)
+    return;
+
+  size_t last = v->count - 1;
+
+  if (idx != last) {
+    // compute byte pointers
+    char *base = (char *)v->arr;
+    void *dst = base + idx * v->elementSize;
+    void *src = base + last * v->elementSize;
+
+    // swap element contents
+    unsigned char
+        tmp[v->elementSize]; // or allocate on heap if elementSize > 256
+
+    memcpy(tmp, src, v->elementSize);
+    memcpy(src, dst, v->elementSize);
+    memcpy(dst, tmp, v->elementSize);
+  }
+
+  v->count--;
 }
 
 int gvizArrayPop(gvizArray *v, void *res) {

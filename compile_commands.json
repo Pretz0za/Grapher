@@ -19,6 +19,12 @@
 },
 {
   "directory": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/build",
+  "command": "/usr/bin/cc  -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/include\" -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/third-party\" -std=gnu11 -arch arm64 -o CMakeFiles/graphvis.dir/src/dsa/gvizDeque.c.o -c \"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/dsa/gvizDeque.c\"",
+  "file": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/dsa/gvizDeque.c",
+  "output": "CMakeFiles/graphvis.dir/src/dsa/gvizDeque.c.o"
+},
+{
+  "directory": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/build",
   "command": "/usr/bin/cc  -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/include\" -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/third-party\" -std=gnu11 -arch arm64 -o CMakeFiles/graphvis.dir/src/renderer/embeddings/gvizEmbeddedGraph.c.o -c \"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/renderer/embeddings/gvizEmbeddedGraph.c\"",
   "file": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/renderer/embeddings/gvizEmbeddedGraph.c",
   "output": "CMakeFiles/graphvis.dir/src/renderer/embeddings/gvizEmbeddedGraph.c.o"
@@ -28,6 +34,18 @@
   "command": "/usr/bin/cc  -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/include\" -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/third-party\" -std=gnu11 -arch arm64 -o CMakeFiles/graphvis.dir/src/renderer/embeddings/gvizEmbeddedTree.c.o -c \"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/renderer/embeddings/gvizEmbeddedTree.c\"",
   "file": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/renderer/embeddings/gvizEmbeddedTree.c",
   "output": "CMakeFiles/graphvis.dir/src/renderer/embeddings/gvizEmbeddedTree.c.o"
+},
+{
+  "directory": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/build",
+  "command": "/usr/bin/cc  -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/include\" -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/third-party\" -std=gnu11 -arch arm64 -o CMakeFiles/graphvis.dir/src/renderer/embeddings/gvizGRIPEmbedding.c.o -c \"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/renderer/embeddings/gvizGRIPEmbedding.c\"",
+  "file": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/renderer/embeddings/gvizGRIPEmbedding.c",
+  "output": "CMakeFiles/graphvis.dir/src/renderer/embeddings/gvizGRIPEmbedding.c.o"
+},
+{
+  "directory": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/build",
+  "command": "/usr/bin/cc  -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/include\" -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/third-party\" -std=gnu11 -arch arm64 -o CMakeFiles/graphvis.dir/src/renderer/embeddings/gvizForceDirected.c.o -c \"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/renderer/embeddings/gvizForceDirected.c\"",
+  "file": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/renderer/embeddings/gvizForceDirected.c",
+  "output": "CMakeFiles/graphvis.dir/src/renderer/embeddings/gvizForceDirected.c.o"
 },
 {
   "directory": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/build",
@@ -91,8 +109,38 @@
 },
 {
   "directory": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/build",
-  "command": "/usr/bin/cc  -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/include\" -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/third-party\" -std=gnu11 -arch arm64 -o CMakeFiles/render_test.dir/tests/dfs.c.o -c \"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/tests/dfs.c\"",
-  "file": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/tests/dfs.c",
-  "output": "CMakeFiles/render_test.dir/tests/dfs.c.o"
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/include\" -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/third-party\" -std=gnu11 -arch arm64 -o CMakeFiles/gvizDequeTests.dir/third-party/unity/unity.c.o -c \"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/third-party/unity/unity.c\"",
+  "file": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/third-party/unity/unity.c",
+  "output": "CMakeFiles/gvizDequeTests.dir/third-party/unity/unity.c.o"
+},
+{
+  "directory": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/build",
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/include\" -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/third-party\" -std=gnu11 -arch arm64 -o CMakeFiles/gvizDequeTests.dir/tests/dsa/gvizDequeTests.c.o -c \"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/tests/dsa/gvizDequeTests.c\"",
+  "file": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/tests/dsa/gvizDequeTests.c",
+  "output": "CMakeFiles/gvizDequeTests.dir/tests/dsa/gvizDequeTests.c.o"
+},
+{
+  "directory": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/build",
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/include\" -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/third-party\" -std=gnu11 -arch arm64 -o CMakeFiles/gvizGRIPTests.dir/third-party/unity/unity.c.o -c \"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/third-party/unity/unity.c\"",
+  "file": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/third-party/unity/unity.c",
+  "output": "CMakeFiles/gvizGRIPTests.dir/third-party/unity/unity.c.o"
+},
+{
+  "directory": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/build",
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/include\" -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/third-party\" -std=gnu11 -arch arm64 -o CMakeFiles/gvizGRIPTests.dir/tests/renderer/GRIP/gvizGRIPTests.c.o -c \"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/tests/renderer/GRIP/gvizGRIPTests.c\"",
+  "file": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/tests/renderer/GRIP/gvizGRIPTests.c",
+  "output": "CMakeFiles/gvizGRIPTests.dir/tests/renderer/GRIP/gvizGRIPTests.c.o"
+},
+{
+  "directory": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/build",
+  "command": "/usr/bin/cc  -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/include\" -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/third-party\" -std=gnu11 -arch arm64 -o CMakeFiles/treeDemo.dir/tests/renderer/treeDemo.c.o -c \"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/tests/renderer/treeDemo.c\"",
+  "file": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/tests/renderer/treeDemo.c",
+  "output": "CMakeFiles/treeDemo.dir/tests/renderer/treeDemo.c.o"
+},
+{
+  "directory": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/build",
+  "command": "/usr/bin/cc  -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/include\" -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/third-party\" -std=gnu11 -arch arm64 -o CMakeFiles/gripDemo.dir/tests/renderer/gripDemo.c.o -c \"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/tests/renderer/gripDemo.c\"",
+  "file": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/tests/renderer/gripDemo.c",
+  "output": "CMakeFiles/gripDemo.dir/tests/renderer/gripDemo.c.o"
 }
 ]

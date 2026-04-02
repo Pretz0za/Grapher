@@ -4,7 +4,6 @@
 #include "renderer/embeddings/gvizEmbeddedTree.h"
 #include "renderer/layers/gvizLayerGraph.h"
 #include <_stdlib.h>
-#include <math.h>
 
 #define MAXDEPTH 5
 

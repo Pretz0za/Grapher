@@ -20,4 +20,6 @@ int gvizGRIPEmbeddingInit(gvizGRIPState *state, gvizGraph *graph,
 int gvizGRIPEmbeddingEmbed(gvizGRIPState *state);
 void gvizGRIPEmbeddingRelease(gvizGRIPState *state);
 
+size_t createMISFiltration(gvizGRIPState *state);
+
 #endif

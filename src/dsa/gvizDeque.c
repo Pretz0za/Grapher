@@ -9,8 +9,8 @@ int gvizDequeInit(gvizDeque *d, size_t elementSize) {
     return -1;
 
   d->capacity = 8;
-  d->begin = d->arr;
-  d->end = d->arr;
+  d->begin = NULL;
+  d->count = 0;
   d->elementSize = elementSize;
 
   return 0;
@@ -22,74 +22,120 @@ int gvizDequeInitAtCapacity(gvizDeque *d, size_t elementSize,
     return -1;
 
   d->capacity = initialCapacity;
-  d->begin = d->arr;
-  d->end = d->arr;
+  d->begin = NULL;
+  d->count = 0;
   d->elementSize = elementSize;
 
   return 0;
 }
 
-size_t gvizDequeSize(const gvizDeque *d) {
-  return d->end >= d->begin ? d->end - d->begin + 1
-                            : d->capacity - (d->begin - d->end - 1);
-}
+size_t gvizDequeSize(const gvizDeque *d) { return d->count; }
 
-int gvizDequeIsEmpty(const gvizDeque *d) { return d->begin == NULL; }
+int gvizDequeIsEmpty(const gvizDeque *d) { return !d->count; }
 
 void *gvizDequeAtIndex(const gvizDeque *d, size_t idx) {
+  if (idx >= d->count)
+    return NULL;
   size_t offset = (idx + (d->begin - d->arr)) % d->capacity;
   return (d->arr + (d->elementSize * offset));
 }
 
 void gvizDequePopLeft(gvizDeque *d, void *res) {
   memcpy(res, d->begin, d->elementSize);
-  size_t idx = (d->begin - d->arr + 1) % d->capacity;
-  d->begin = d->arr + idx;
-  return 0;
+  d->count--;
+
+  if (d->count) {
+    size_t headIndex = ((char *)d->begin - ((char *)d->arr)) / d->elementSize;
+    d->begin =
+        ((char *)d->arr) + (((headIndex + 1) % d->capacity) * d->elementSize);
+  } else
+    d->begin = NULL;
 };
-int gvizDequePopRight(gvizDeque *d, void *res) {
-  memcpy(res, d->end, d->elementSize);
-  size_t idx = (d->end - d->arr - 1) % d->capacity;
-  d->end = d->arr + idx;
-  return 0;
+
+void gvizDequePopRight(gvizDeque *d, void *res) {
+  size_t headIndex = ((char *)d->begin - ((char *)d->arr)) / d->elementSize;
+  size_t tailIndex = (headIndex + d->count - 1) % d->capacity;
+  char *end = ((char *)d->arr) + (tailIndex * d->elementSize);
+  memcpy(res, end, d->elementSize);
+  d->count--;
+  if (!d->count)
+    d->begin = NULL;
 };
 
 void *gvizDequePeekLeft(const gvizDeque *d) { return d->begin; }
-void *gvizDequePeekRight(const gvizDeque *d) { return d->end; }
+void *gvizDequePeekRight(const gvizDeque *d) {
+  return d->count ? ((char *)d->arr) + (d->count - 1) * d->elementSize : NULL;
+}
 
 int gvizDequePush(gvizDeque *d, void *item) {
-  // resize if needed
-  if (gvizDequeSize(d) == d->capacity) {
-    void *newArr;
-    size_t count = gvizDequeSize(d);
-    if (d->end >= d->begin) {
-      // simple case
-      size_t tmp = d->begin - d->arr;
-      newArr = GVIZ_REALLOC(d->arr, 2 * d->capacity * d->elementSize);
-      if (!newArr)
-        return -1;
-      d->arr = newArr;
-      d->begin = d->arr + tmp;
-      d->end = d->begin + (d->elementSize * count);
-    } else {
-      // harder case with a loop around the deque
-      newArr = GVIZ_ALLOC(2 * d->capacity * d->elementSize);
-      if (!newArr)
-        return -1;
-      memcpy(newArr, d->begin, d->capacity - (d->begin - d->arr));
-      memcpy(newArr + d->capacity - (d->begin - d->arr), d->arr,
-             d->end - d->arr + 1);
-      GVIZ_DEALLOC(d->arr);
-      d->begin = newArr;
-      d->end = d->begin + count;
-      d->arr = newArr;
-    }
-    d->capacity = 2 * d->capacity;
+  // On first use, capacity and arr must already be initialized
+  if (d->capacity == 0 || d->elementSize == 0 || d->arr == NULL) {
+    return -1;
   }
 
-  size_t idx = (d->end - d->arr + 1) % d->capacity;
-  d->end = d->arr + idx;
-  memcpy(d->end, item, d->elementSize);
+  // Grow if full
+  if (d->count == d->capacity) {
+    size_t newCapacity = d->capacity * 2;
+    size_t oldCapacity = d->capacity;
+
+    char *oldArr = (char *)d->arr;
+    char *newArr = (char *)GVIZ_ALLOC(newCapacity * d->elementSize);
+    if (!newArr) {
+      return -1;
+    }
+
+    if (d->count == 0) {
+      // Nothing to copy
+      d->arr = newArr;
+      d->begin = NULL;
+      d->capacity = newCapacity;
+    } else {
+      // Compute head index (in elements)
+      size_t headIndex = ((char *)d->begin - oldArr) / d->elementSize;
+
+      // If contiguous: elements are from headIndex .. headIndex + count - 1
+      if (headIndex + d->count <= oldCapacity) {
+        memcpy(newArr, oldArr + headIndex * d->elementSize,
+               d->count * d->elementSize);
+      } else {
+        // Wrapped: copy tail then head
+        size_t firstPartCount = oldCapacity - headIndex;    // elements
+        size_t secondPartCount = d->count - firstPartCount; // elements
+
+        memcpy(newArr, oldArr + headIndex * d->elementSize,
+               firstPartCount * d->elementSize);
+        memcpy(newArr + firstPartCount * d->elementSize, oldArr,
+               secondPartCount * d->elementSize);
+      }
+
+      GVIZ_DEALLOC(d->arr);
+
+      d->arr = newArr;
+      d->begin = newArr; // head element now at index 0
+      d->capacity = newCapacity;
+    }
+  }
+
+  char *base = (char *)d->arr;
+
+  if (d->count == 0) {
+    // First element
+    d->begin = base;
+    memcpy(d->begin, item, d->elementSize);
+    d->count = 1;
+    return 0;
+  }
+
+  // Compute indices in elements
+  size_t headIndex = ((char *)d->begin - base) / d->elementSize;
+  size_t tailIndex = (headIndex + d->count - 1) % d->capacity;
+  size_t newTailIndex = (tailIndex + 1) % d->capacity;
+
+  // Write to new tail
+  void *dest = base + newTailIndex * d->elementSize;
+  memcpy(dest, item, d->elementSize);
+
+  d->count += 1;
   return 0;
 }
 

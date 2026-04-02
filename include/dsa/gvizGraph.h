@@ -39,8 +39,8 @@ typedef struct Vertex {
  */
 typedef struct {
   gvizArray vertices; /**< The list of all vertices in the graph. */
-  int *map;           /**< If this is a subgraph, this maps to the indices of
-                           root graph. */
+  size_t *map;        /**< If this is a subgraph, this maps to the indices to
+                        their corresponding image in the original graph. */
   int directed;       /**< Whether or not the graph is directed. */
 } gvizGraph;
 
@@ -287,6 +287,9 @@ int gvizGraphDFSTree(gvizGraph *g, gvizGraph *out, size_t source);
  * Performs a Breadth First Search on a Graph from a given source. The resulting
  * BFS tree is initialized and stored in @p out. the map attribute of @p out
  * will map vertex indices from @p out vertex array to @p g vertex array.
+ * Sets the data pointer of each vertex in @p out to its depth. The pointer is
+ * invalid! however interpreting the address as a size_t will yield the depth of
+ * the vertex.
  *
  * @param g    A pointer to the Graph to search.
  * @param out  The address to store and initalize the resulting BFS tree at.
@@ -297,7 +300,27 @@ int gvizGraphDFSTree(gvizGraph *g, gvizGraph *out, size_t source);
  * @retval -1 Reallocation failure.
  */
 int gvizGraphBFSTree(gvizGraph *g, gvizGraph *out, size_t source,
-                     size_t maxDepth, GVIZ_BIT_ARRAY filter);
+                     size_t maxDepth, int invMap);
+
+/**
+ * Finds the K nearest vertices, belonging to a filter, from a source vertex in
+ * a graph. Uses graph distance (number of edges used), not euclidian.
+ *
+ * @param g A pointer to the Graph to search
+ * @param out A pointer to an array of size at least @p k to store the results
+ * @param k The number of nearest neighbors to find
+ * @param source The index of the vertex to start the search from
+ * @param filter A bit array indicating which vertices are being searched for
+ *
+ * @return The number of neighbors found, a negative number if an error occured.
+ * @retval n  The number of vertices reached that satisfy the filter
+ * @retval <0 Allocation failiure
+ *
+ * @note If filter is NULL then all vertices of the graph are considered,
+ * otherwise, a BFS is performed until K vertices in filter are found.
+ */
+int gvizGraphKNearestNeighbors(gvizGraph *g, size_t *out, size_t k,
+                               size_t source, GVIZ_BIT_ARRAY filter);
 
 // VISUALIZATION:
 // --------------------------------------------------------------

@@ -50,6 +50,15 @@ int gvizArrayInitAtCapacity(gvizArray *arr, size_t elementSize,
 int gvizArrayPush(gvizArray *v, void *item);
 
 /**
+ * Deletes an item at a given index in O(1) time. Does not preserve the relative
+ * ordering of the elements.
+ *
+ * @param v   A pointer to the gvizArray the item will be deleted from.
+ * @param idx The index of the item to delete.
+ */
+void gvizArraySwapDelete(gvizArray *v, size_t item);
+
+/**
  * Deletes and returns the last element in a gvizArray.
  *
  * @param v   A pointer to the gvizArray the item will be deleted from.
