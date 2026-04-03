@@ -68,7 +68,8 @@ void gvizLayerGraphDraw(void *layer, const Camera2D *camera) {
       double *otherPosition = gvizEmbeddedGraphGetVPosition(
           embedding, *(size_t *)gvizArrayAtIndex(children, j));
       drawEdge((Vector2){position[0], position[1]},
-               (Vector2){otherPosition[0], otherPosition[1]}, 1, 0xFF, camera);
+               (Vector2){otherPosition[0], otherPosition[1]},
+               embedding->graph->directed, 0xFF, camera);
     }
   }
 }

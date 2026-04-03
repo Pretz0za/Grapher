@@ -5,7 +5,7 @@
 static const double FR_SCALE_FACTOR = 0.05;
 
 // Kamada Kawai Force Vector calculation
-void gvizPairwiseKKForce(int n, double *uPos, double *vPos, size_t gDist,
+void gvizPairwiseKKForce(int n, double *vPos, double *uPos, size_t gDist,
                          double edgeLength, double *acc) {
   double tmp[n];
 
@@ -17,7 +17,12 @@ void gvizPairwiseKKForce(int n, double *uPos, double *vPos, size_t gDist,
 
   // dist = ||uPos - vPos|| = distance in Rn!
   double dist = cblas_dnrm2(n, tmp, 1);
-  double scalar = dist / (gDist * edgeLength * edgeLength) - 1.0;
+
+  double L = gDist * edgeLength * edgeLength;
+  // if (L < 1e-9)
+  //   return; // guard
+
+  double scalar = dist / L - 1.0;
 
   // tmp = Kamada-Kawai Force vector
   cblas_dscal(n, scalar, tmp, 1);
@@ -26,8 +31,8 @@ void gvizPairwiseKKForce(int n, double *uPos, double *vPos, size_t gDist,
   cblas_daxpy(n, 1, tmp, 1, acc, 1);
 }
 
-// Fruchterman Reingold Attraction Force Vector calculation
-void gvizPairwiseFRAttForce(int n, double *uPos, double *vPos,
+// Fruchterman Reingold Attraction Force Vector calculation. Use on neighbors.
+void gvizPairwiseFRRepForce(int n, double *vPos, double *uPos,
                             double edgeLength, double *acc) {
   double tmp[n];
 
@@ -38,7 +43,10 @@ void gvizPairwiseFRAttForce(int n, double *uPos, double *vPos,
   cblas_daxpy(n, -1, vPos, 1, tmp, 1);
 
   double dist = cblas_dnrm2(n, tmp, 1);
-  double scalar = pow(dist, 2) / pow(edgeLength, 2);
+  // if (dist < 1e-9)
+  //   return;
+
+  double scalar = (dist * dist) / (edgeLength * edgeLength);
 
   // tmp = Final force vector
   cblas_dscal(n, scalar, tmp, 1);
@@ -47,8 +55,8 @@ void gvizPairwiseFRAttForce(int n, double *uPos, double *vPos,
   cblas_daxpy(n, 1, tmp, 1, acc, 1);
 }
 
-// Fruchterman Reingold Repulsive Force Vector calculation
-void gvizPairwiseFRRepForce(int n, double *uPos, double *vPos,
+// Fruchterman Reingold Repulsive Force Vector calculation. Use on KNN
+void gvizPairwiseFRAttForce(int n, double *vPos, double *uPos,
                             double edgeLength, double *acc) {
   double tmp[n];
 
@@ -59,6 +67,9 @@ void gvizPairwiseFRRepForce(int n, double *uPos, double *vPos,
   cblas_daxpy(n, -1, uPos, 1, tmp, 1);
 
   double dist = cblas_dnrm2(n, tmp, 1);
+  // if (dist < 1e-9)
+  //   return;
+
   double scalar = FR_SCALE_FACTOR * (pow(edgeLength, 2) / pow(dist, 2));
 
   // tmp = final force vector

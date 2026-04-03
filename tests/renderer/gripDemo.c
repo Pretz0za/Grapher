@@ -1,4 +1,6 @@
+#include "cblas.h"
 #include "dsa/gvizGraph.h"
+#include "raylib.h"
 #include "renderer/embeddings/gvivGRIPEmbedding.h"
 #include "renderer/layers/gvizLayerGraph.h"
 
@@ -8,6 +10,12 @@ typedef struct {
 
 } SierpinskiTriangle;
 void createSierpinski() {}
+
+void scalePositions(size_t n, double *positions, size_t count) {
+  for (double *curr = positions; curr < positions + count * n; curr += n) {
+    cblas_dscal(n, 10, curr, 1);
+  }
+}
 
 gvizGraph build_rect_mesh(size_t L, size_t W) {
   gvizGraph g;
@@ -41,7 +49,7 @@ gvizGraph build_rect_mesh(size_t L, size_t W) {
 
 int main() {
 
-  size_t WIDTH = 500, HEIGHT = 100;
+  size_t WIDTH = 100, HEIGHT = 100;
 
   printf("initializing state\n");
   gvizGRIPState state;
@@ -50,6 +58,27 @@ int main() {
 
   printf("creating filtration\n");
   gvizGRIPEmbeddingEmbed(&state);
+
+  scalePositions(2, state.graph.embedding.vertexPositions, mesh.vertices.count);
+
+  size_t N = state.graph.graph->vertices.count;
+
+  double minx = 1e30, maxx = -1e30;
+  double miny = 1e30, maxy = -1e30;
+
+  for (size_t i = 0; i < N; ++i) {
+    double *p = gvizEmbeddedGraphGetVPosition(&state.graph, i);
+    if (p[0] < minx)
+      minx = p[0];
+    if (p[0] > maxx)
+      maxx = p[0];
+    if (p[1] < miny)
+      miny = p[1];
+    if (p[1] > maxy)
+      maxy = p[1];
+  }
+
+  printf("layout bbox: x=[%f,%f], y=[%f,%f]\n", minx, maxx, miny, maxy);
 
   InitWindow(1000, 1000, "graphvis");
   SetTargetFPS(60);
@@ -60,6 +89,8 @@ int main() {
   gvizLayerGraphInit(&layer, (gvizEmbeddedGraph *)&state, viewport, 999);
 
   unsigned char currOpacity = 0xFF;
+
+  printf("directed: %d\n", mesh.directed);
 
   while (!WindowShouldClose()) {
     BeginDrawing();
