@@ -1,6 +1,7 @@
 #ifndef __GRAPH_HELPERS_H__
 #define __GRAPH_HELPERS_H__
 
+#include "dsa/gvizArray.h"
 #include "dsa/gvizGraph.h"
 #include <stddef.h>
 #include <stdio.h>
@@ -15,5 +16,8 @@ int removeFromNeighbors(gvizVertex *vertex, size_t data);
 
 void printAt(int x, int y, char *line, FILE *stream);
 void clearScreen(FILE *stream);
+
+double *barrycenter(size_t dimension, const double *positions,
+                    const gvizArray *indeces, double *out);
 
 #endif

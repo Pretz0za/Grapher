@@ -41,14 +41,14 @@ int main() {
 
   gvizEmbeddedTree rtTreeEmbedding;
   gvizEmbeddedTreeRTInit(&rtTreeEmbedding, &graph, 0);
+  gvizEmbeddedTreeCalculateOffsets(&rtTreeEmbedding, 0, 0);
+
+  double init[2] = {0.0, 0.0};
+  gvizEmbeddedTreeEmbed(&rtTreeEmbedding, 0, init);
 
   InitWindow(WIDTH, HEIGHT, "graphvis");
   SetTargetFPS(60);
   Camera2D camera = {(Vector2){0, 0}, (Vector2){0, 0}, 0, 1.0f};
-
-  gvizEmbeddedTreeCalculateOffsets(&rtTreeEmbedding, 0, 0);
-
-  gvizEmbeddedTreeEmbed(&rtTreeEmbedding, 0, (Vector2){0, 0});
 
   gvizLayerGraph layer;
   gvizViewport viewport = {0, 0, 800, 600};

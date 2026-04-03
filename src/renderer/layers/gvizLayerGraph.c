@@ -1,6 +1,7 @@
 #include "renderer/layers/gvizLayerGraph.h"
 #include "raylib.h"
 #include "raymath.h"
+#include "renderer/embeddings/gvizEmbeddedGraph.h"
 #include <string.h>
 
 #define VERTEXRADIUS 7.0
@@ -55,17 +56,19 @@ void gvizLayerGraphDraw(void *layer, const Camera2D *camera) {
   //
   gvizEmbeddedGraph *embedding = ((gvizLayerGraph *)layer)->graph;
   for (size_t i = 0; i < embedding->graph->vertices.count; i++) {
-    DrawRing(embedding->embedding.vertexPositions[i],
+    double *position = gvizEmbeddedGraphGetVPosition(embedding, i);
+
+    DrawRing((Vector2){position[0], position[1]},
              getEffectiveDist(VERTEXRADIUS, camera),
              getEffectiveDist(VERTEXRADIUS, camera) +
                  getEffectiveDist(VERTEXTHICKNESS, camera),
              0, 360, 1, (Color){0x00, 0x00, 0x00, 0xFF});
     gvizArray *children = gvizGraphGetVertexNeighbors(embedding->graph, i);
     for (size_t j = 0; j < children->count; j++) {
-      drawEdge(embedding->embedding.vertexPositions[i],
-               embedding->embedding
-                   .vertexPositions[*(size_t *)gvizArrayAtIndex(children, j)],
-               1, 0xFF, camera);
+      double *otherPosition = gvizEmbeddedGraphGetVPosition(
+          embedding, *(size_t *)gvizArrayAtIndex(children, j));
+      drawEdge((Vector2){position[0], position[1]},
+               (Vector2){otherPosition[0], otherPosition[1]}, 1, 0xFF, camera);
     }
   }
 }

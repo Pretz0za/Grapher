@@ -1,4 +1,5 @@
 #include "renderer/embeddings/gvizEmbeddedTree.h"
+#include "cblas.h"
 #include "core/alloc.h"
 #include "dsa/gvizArray.h"
 #include "dsa/gvizBitArray.h"
@@ -6,7 +7,6 @@
 #include "dsa/gvizTree.h"
 #include "raymath.h"
 #include "renderer/embeddings/gvizEmbeddedGraph.h"
-#include "utils/serializers.h"
 #include <assert.h>
 #include <math.h>
 #include <stdio.h>
@@ -313,7 +313,7 @@ int gvizEmbeddedTreeRTInit(gvizEmbeddedTree *state, gvizGraph *graph,
   memset(state, 0, sizeof(gvizEmbeddedTree));
   int res;
 
-  res = gvizEmbeddedGraphInit((gvizEmbeddedGraph *)state, graph);
+  res = gvizEmbeddedGraphInit((gvizEmbeddedGraph *)state, graph, 2);
   if (res < 0)
     return res;
   state->parents = GVIZ_ALLOC(sizeof(int) * graph->vertices.count);
@@ -362,17 +362,19 @@ void gvizEmbeddedTreeRTRelease(gvizEmbeddedTree *state) {
   }
 }
 
+// TODO: add an option to choose between horizontal and vertical. (x,y)->(y,x)
 int gvizEmbeddedTreeEmbed(gvizEmbeddedTree *state, size_t root,
-                          Vector2 position) {
+                          double *position) {
   gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
   gvizArray *children = gvizGraphGetVertexNeighbors(embedding->graph, root);
-  embedding->embedding.vertexPositions[root] = position;
+  gvizEmbeddedGraphSetVPosition(embedding, root, position);
   for (size_t i = 0; i < children->count; i++) {
-    gvizEmbeddedTreeEmbed(
-        state, *(size_t *)gvizArrayAtIndex(children, i),
-        Vector2Add(
-            position,
-            (Vector2){state->dec[root].offsets[i] * XSEPERATION, YSEPERATION}));
+
+    double newPos[2] = {state->dec[root].offsets[i] * XSEPERATION, YSEPERATION};
+    cblas_daxpy(2, 1, position, 1, newPos, 1);
+
+    gvizEmbeddedTreeEmbed(state, *(size_t *)gvizArrayAtIndex(children, i),
+                          newPos);
   }
   return 0;
 }

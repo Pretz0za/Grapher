@@ -44,7 +44,7 @@ void test_filtration_nestedLayers(void) {
   gvizGRIPState state;
   gvizGraph graph = build_rect_mesh(MESH_H, MESH_W);
 
-  gvizGRIPEmbeddingInit(&state, &graph, MESH_D);
+  gvizGRIPEmbeddingInit(&state, &graph, MESH_D, 2);
   size_t layers = createMISFiltration(&state);
 
   for (size_t i = 1; i < layers; i++) {
@@ -58,7 +58,7 @@ void test_filtration_eachVertexAppearsOnce(void) {
   gvizGRIPState state;
   gvizGraph graph = build_rect_mesh(MESH_H, MESH_W);
 
-  gvizGRIPEmbeddingInit(&state, &graph, MESH_D);
+  gvizGRIPEmbeddingInit(&state, &graph, MESH_D, 2);
   size_t layers = createMISFiltration(&state);
   size_t sum = 0;
 
@@ -77,12 +77,12 @@ void test_filtration_eachVertexAppearsOnce(void) {
 
 // From GRIP paper : "...each Vi is a maximal subset of Vi−1 so that the graph
 // distance between any pair of its elements is at least 2i−1 + 1."
-// we test maximality and spacing here:
+// we test maximality and spacing with this:
 void test_filtration_perLayerVertexSpacingAndMaximality(void) {
   gvizGRIPState state;
   gvizGraph graph = build_rect_mesh(MESH_H, MESH_W);
 
-  gvizGRIPEmbeddingInit(&state, &graph, MESH_D);
+  gvizGRIPEmbeddingInit(&state, &graph, MESH_D, 2);
   size_t layers = createMISFiltration(&state);
 
   // printf("filtration array: \n");

@@ -3,7 +3,6 @@
 
 #include "dsa/gvizBitArray.h"
 #include "dsa/gvizGraph.h"
-#include "raylib.h"
 
 typedef struct gvizDFSState {
 
@@ -12,7 +11,8 @@ typedef struct gvizDFSState {
 } gvizFaceSearchState;
 
 typedef struct gvizEmbedding {
-  Vector2 *vertexPositions;
+  size_t dim;
+  double *vertexPositions;
 } gvizEmbedding;
 
 typedef struct gvizEmbeddedGraph {
@@ -21,9 +21,17 @@ typedef struct gvizEmbeddedGraph {
 
 } gvizEmbeddedGraph;
 
-int gvizEmbeddedGraphInit(gvizEmbeddedGraph *embedding, gvizGraph *graph);
+int gvizEmbeddedGraphInit(gvizEmbeddedGraph *embedding, gvizGraph *graph,
+                          size_t dimension);
 void gvizEmbeddedGraphRelease(gvizEmbeddedGraph *embedding);
 int gvizEmbeddedGraphNextFace(gvizEmbeddedGraph *embedding,
                               gvizFaceSearchState *gvizDFSSate);
+
+double *gvizEmbeddedGraphGetVPosition(gvizEmbeddedGraph *embedding, size_t idx);
+void gvizEmbeddedGraphSetVPosition(gvizEmbeddedGraph *embedding, size_t idx,
+                                   double *position);
+
+void gvizEmbeddedGraphAddVPosition(gvizEmbeddedGraph *embedding, size_t idx,
+                                   double *position);
 
 #endif

@@ -1,5 +1,4 @@
 #include "../../include/dsa/gvizArray.h"
-#include "helpers.h"
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>

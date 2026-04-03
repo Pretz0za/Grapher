@@ -268,6 +268,11 @@ void gvizGraphRelease(gvizGraph *g);
 // GRAPH ALGORITHMS:
 // -----------------------------------------------------------
 
+typedef struct gvizFoundVertex {
+  size_t v;
+  size_t dist;
+} gvizFoundVertex;
+
 /**
  * Performs a Depth First Search on a Graph from a given source. The resulting
  * DFS tree is initialized and stored in @p out. the map attribute of @p out
@@ -319,7 +324,7 @@ int gvizGraphBFSTree(gvizGraph *g, gvizGraph *out, size_t source,
  * @note If filter is NULL then all vertices of the graph are considered,
  * otherwise, a BFS is performed until K vertices in filter are found.
  */
-int gvizGraphKNearestNeighbors(gvizGraph *g, size_t *out, size_t k,
+int gvizGraphKNearestNeighbors(gvizGraph *g, gvizFoundVertex *out, size_t k,
                                size_t source, GVIZ_BIT_ARRAY filter);
 
 // VISUALIZATION:

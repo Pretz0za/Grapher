@@ -2,7 +2,7 @@
 #include "dsa/gvizArray.h"
 #include "dsa/gvizBitArray.h"
 #include "dsa/gvizDeque.h"
-#include "helpers.h"
+#include "utils/helpers.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -365,7 +365,7 @@ int gvizGraphBFSTree(gvizGraph *g, gvizGraph *out, size_t source,
   return 0;
 }
 
-int gvizGraphKNearestNeighbors(gvizGraph *g, size_t *out, size_t k,
+int gvizGraphKNearestNeighbors(gvizGraph *g, gvizFoundVertex *out, size_t k,
                                size_t source, GVIZ_BIT_ARRAY filter) {
   if (k == 0)
     return 0;
@@ -373,7 +373,7 @@ int gvizGraphKNearestNeighbors(gvizGraph *g, size_t *out, size_t k,
 
   // init queue
   gvizDeque queue;
-  err = gvizDequeInit(&queue, sizeof(size_t));
+  err = gvizDequeInit(&queue, sizeof(gvizFoundVertex));
   if (err < 0)
     return -1;
 
@@ -383,17 +383,18 @@ int gvizGraphKNearestNeighbors(gvizGraph *g, size_t *out, size_t k,
   gvizSetBit(seen, source);
 
   // enqueue start node with depth 0
-  err = gvizDequePush(&queue, &source);
+  gvizFoundVertex curr = {source, 0};
+  err = gvizDequePush(&queue, &curr);
   if (err < 0)
     return -1;
 
   // BFS
-  size_t curr, count = 0;
+  size_t count = 0;
   while (!gvizDequeIsEmpty(&queue)) {
 
     gvizDequePopLeft(&queue, &curr);
 
-    gvizArray *currNeighbors = gvizGraphGetVertexNeighbors(g, curr);
+    gvizArray *currNeighbors = gvizGraphGetVertexNeighbors(g, curr.v);
 
     for (size_t i = 0; i < currNeighbors->count; i++) {
       size_t currNeighbor = *(size_t *)gvizArrayAtIndex(currNeighbors, i);
@@ -403,15 +404,19 @@ int gvizGraphKNearestNeighbors(gvizGraph *g, size_t *out, size_t k,
         continue;
       gvizSetBit(seen, currNeighbor);
 
+      gvizFoundVertex next = {currNeighbor, curr.dist + 1};
+
       // If satisfies filter, increment count and add to out
       if (!filter || gvizTestBit(filter, currNeighbor)) {
-        out[count++] = currNeighbor;
-        if (count >= k)
-          break;
+        out[count++] = next;
+        if (count >= k) {
+          gvizDequeRelease(&queue);
+          return k;
+        }
       }
 
       // enqueue neighbor
-      err = gvizDequePush(&queue, &currNeighbor);
+      err = gvizDequePush(&queue, &next);
       if (err < 0)
         return -1;
     }

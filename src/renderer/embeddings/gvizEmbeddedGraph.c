@@ -1,4 +1,5 @@
 #include "renderer/embeddings/gvizEmbeddedGraph.h"
+#include "cblas.h"
 #include "core/alloc.h"
 #include "dsa/gvizArray.h"
 #include "dsa/gvizGraph.h"
@@ -6,20 +7,24 @@
 #include <stdlib.h>
 #include <string.h>
 
-int gvizEmbeddedGraphInit(gvizEmbeddedGraph *embedding, gvizGraph *graph) {
+int gvizEmbeddedGraphInit(gvizEmbeddedGraph *embedding, gvizGraph *graph,
+                          size_t n) {
   embedding->graph = graph;
+  embedding->embedding.dim = n;
   embedding->embedding.vertexPositions =
-      GVIZ_ALLOC(sizeof(Vector2) * graph->vertices.count);
+      GVIZ_ALLOC(sizeof(double) * graph->vertices.count * n);
   if (!embedding->embedding.vertexPositions)
     return -1;
   memset(embedding->embedding.vertexPositions, 0,
-         sizeof(Vector2) * graph->vertices.count);
+         sizeof(double) * graph->vertices.count * n);
 
   // Count the edges in the graph to avoid overallocating later.
-  // O(1) initializtion doable by making an n * n 2d bit array, where we have:
+  // O(1) initializtion doable by making an n * n 2d bit array, where we
+  // have:
   //                arr[idx(u, v)] = uv visted ? 1 : 0;
-  // The disadvantage in this in that we are allocating memory for non-existent
-  // edges. In fact, in most cases, of the n * n array will be unused.
+  // The disadvantage in this in that we are allocating memory for
+  // non-existent edges. In fact, in most cases, of the n * n array will be
+  // unused.
   //
   // Alternative is only allocating for the number of edges we have. This is
   // O(n) instead. Additionally, it requires to keep track of where each
@@ -78,4 +83,21 @@ void gvizEmbeddedGraphRelease(gvizEmbeddedGraph *embedding) {
   if (embedding->embedding.vertexPositions) {
     GVIZ_DEALLOC(embedding->embedding.vertexPositions);
   }
+}
+
+double *gvizEmbeddedGraphGetVPosition(gvizEmbeddedGraph *embedding,
+                                      size_t idx) {
+  return embedding->embedding.vertexPositions + idx * embedding->embedding.dim;
+}
+
+void gvizEmbeddedGraphSetVPosition(gvizEmbeddedGraph *embedding, size_t idx,
+                                   double *position) {
+  cblas_dcopy(embedding->embedding.dim, position, 1,
+              gvizEmbeddedGraphGetVPosition(embedding, idx), 1);
+}
+
+void gvizEmbeddedGraphAddVPosition(gvizEmbeddedGraph *embedding, size_t idx,
+                                   double *position) {
+  cblas_daxpy(embedding->embedding.dim, 1, position, 1,
+              gvizEmbeddedGraphGetVPosition(embedding, idx), 1);
 }

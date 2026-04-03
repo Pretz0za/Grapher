@@ -20,8 +20,7 @@ add_library(graphvis STATIC
 
 
     src/utils/serializers.c
-
-    src/helpers.c
+    src/utils/helpers.c
 )
 
 target_include_directories(graphvis 
@@ -32,6 +31,7 @@ target_include_directories(graphvis
 
 target_link_libraries(graphvis
     PRIVATE
+    /usr/local/lib/libopenblas.a
     /usr/local/lib/libraylib.a
     "-framework Cocoa"
     "-framework OpenGL"

@@ -39,6 +39,6 @@ int gvizEmbeddedTreeCalculateOffsets(gvizEmbeddedTree *state, size_t root,
                                      size_t level);
 void gvizEmbeddedTreeRTRelease(gvizEmbeddedTree *state);
 int gvizEmbeddedTreeEmbed(gvizEmbeddedTree *state, size_t root,
-                          Vector2 position);
+                          double *position);
 
 #endif
