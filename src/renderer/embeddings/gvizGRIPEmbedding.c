@@ -406,8 +406,6 @@ void simulateSpringForces(gvizGRIPState *state, size_t layer,
 
       else {
 
-        return;
-
         gvizArray *neighbors =
             gvizGraphGetVertexNeighbors(embedding->graph, curr);
 
