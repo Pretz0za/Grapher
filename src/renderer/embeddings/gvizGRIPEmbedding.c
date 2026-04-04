@@ -352,9 +352,7 @@ void updateLocalTemp(gvizGRIPState *state, size_t v) {
                           state->dec[v].oldDisp, 1) /
                (nrm * oldNrm);
 
-  double heat;
-
-  if (cos * state->dec[v].oldCos > 0)
+  if (cos > 0 && state->dec[v].oldCos > 0)
     state->dec[v].heat *= (1 + cos * gvizGRIPr * gvizGRIPs);
   else
     state->dec[v].heat *= (1 + cos * gvizGRIPr);
@@ -410,6 +408,19 @@ void refineGRIPPositions(gvizGRIPState *state, size_t layer,
                          GVIZ_BIT_ARRAY placedVertices) {
   gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
 
+  // Reset per-vertex state so each layer starts with a fresh temperature
+  // schedule. Without this, vertices that were refined at coarser layers
+  // arrive here with near-zero heat and can barely move, permanently locking
+  // in any error from that earlier pass.
+  for (size_t i = 0; i < state->misBorder[layer]; i++) {
+    size_t curr = state->misFiltration[i];
+    gvizGRIPDecorators *dec = state->dec + curr;
+    dec->heat = GVIZ_EDGE_LENGTH / 6.0;
+    dec->oldCos = 0.0;
+    memset(dec->disp,    0, embedding->embedding.dim * sizeof(double));
+    memset(dec->oldDisp, 0, embedding->embedding.dim * sizeof(double));
+  }
+
   gvizArray knns[state->misBorder[layer]];
   for (size_t i = 0; i < state->misBorder[layer]; i++) {
     gvizArrayInitAtCapacity(&knns[i], sizeof(gvizFoundVertex), 3);
@@ -430,11 +441,7 @@ void refineGRIPPositions(gvizGRIPState *state, size_t layer,
 
       calculateSpringForces(state, curr, knns + i, layer, placedVertices);
 
-      if (!gvizTestBit(state->dispCalculated, curr)) {
-        gvizSetBit(state->dispCalculated, curr);
-        dec->heat = GVIZ_EDGE_LENGTH / 6.0;
-      } else
-        updateLocalTemp(state, curr);
+      updateLocalTemp(state, curr);
 
       dec->heat = fmin(dec->heat, GVIZ_EDGE_LENGTH * 10);
       dec->heat = fmax(dec->heat, GVIZ_EDGE_LENGTH * 1e-4);
