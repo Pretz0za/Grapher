@@ -12,7 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define GVIZ_EDGE_LENGTH 1.0
+#define GVIZ_EDGE_LENGTH 100.0
 
 static const double gvizGRIPr = 0.15;
 static const double gvizGRIPs = 3;
@@ -352,6 +352,8 @@ void updateLocalTemp(gvizGRIPState *state, size_t v) {
                           state->dec[v].oldDisp, 1) /
                (nrm * oldNrm);
 
+  double heat;
+
   if (cos * state->dec[v].oldCos > 0)
     state->dec[v].heat *= (1 + cos * gvizGRIPr * gvizGRIPs);
   else
@@ -417,11 +419,15 @@ void refineGRIPPositions(gvizGRIPState *state, size_t layer,
   }
 
   // TODO: implement rounds instead of hardcoding 18
-  for (size_t r = 0; r < 18; r++) {
+  for (size_t r = 0; r < 50; r++) {
     // calculate normalized displacements
     for (size_t i = 0; i < state->misBorder[layer]; i++) {
       size_t curr = state->misFiltration[i];
       gvizGRIPDecorators *dec = state->dec + curr;
+
+      // oldDisp = disp
+      cblas_dcopy(embedding->embedding.dim, dec->disp, 1, dec->oldDisp, 1);
+
       calculateSpringForces(state, curr, knns + i, layer, placedVertices);
 
       if (!gvizTestBit(state->dispCalculated, curr)) {
@@ -430,14 +436,14 @@ void refineGRIPPositions(gvizGRIPState *state, size_t layer,
       } else
         updateLocalTemp(state, curr);
 
+      dec->heat = fmin(dec->heat, GVIZ_EDGE_LENGTH * 10);
+      dec->heat = fmax(dec->heat, GVIZ_EDGE_LENGTH * 1e-4);
+
       double nrm = cblas_dnrm2(embedding->embedding.dim, dec->disp, 1);
       // avoid division by zero here:
       if (nrm > gvizNumericEpsilon) {
         cblas_dscal(embedding->embedding.dim, dec->heat / nrm, dec->disp, 1);
       }
-
-      // oldDisp = disp
-      cblas_dcopy(embedding->embedding.dim, dec->disp, 1, dec->oldDisp, 1);
     }
 
     size_t nonzero, zero;
@@ -491,7 +497,7 @@ int gvizGRIPEmbeddingEmbed(gvizGRIPState *state) {
       double triangle[6];
       // NOTE: this only works in 2d now since im only maing triangles and only
       // ensuring 3 vertices
-      makeEquilateralTriangle2(triangle, GVIZ_EDGE_LENGTH * 1000);
+      makeEquilateralTriangle2(triangle, GVIZ_EDGE_LENGTH * 100);
       for (size_t j = 0; j < 3; j++) {
         gvizSetBit(placed, state->misFiltration[j]);
         cblas_dcopy(

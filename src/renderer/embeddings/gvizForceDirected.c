@@ -18,7 +18,7 @@ void gvizPairwiseKKForce(int n, double *vPos, double *uPos, size_t gDist,
   // dist = ||uPos - vPos|| = distance in Rn!
   double dist = cblas_dnrm2(n, tmp, 1);
 
-  double L = gDist * edgeLength * edgeLength;
+  double L = gDist * edgeLength; //* edgeLength;
   // if (L < 1e-9)
   //   return; // guard
 

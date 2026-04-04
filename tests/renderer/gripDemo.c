@@ -49,7 +49,7 @@ gvizGraph build_rect_mesh(size_t L, size_t W) {
 
 int main() {
 
-  size_t WIDTH = 250, HEIGHT = 250;
+  size_t WIDTH = 250, HEIGHT = 100;
 
   printf("initializing state\n");
   gvizGRIPState state;
