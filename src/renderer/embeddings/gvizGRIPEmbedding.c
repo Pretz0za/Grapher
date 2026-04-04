@@ -12,7 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define GVIZ_EDGE_LENGTH 100.0
+#define GVIZ_EDGE_LENGTH 10.0
 
 static const double gvizGRIPr = 0.15;
 static const double gvizGRIPs = 3;
@@ -354,7 +354,7 @@ void updateLocalTemp(gvizGRIPState *state, size_t v) {
 
   double heat;
 
-  if (cos * state->dec[v].oldCos > 0)
+  if (cos > 0 && state->dec[v].oldCos > 0)
     state->dec[v].heat *= (1 + cos * gvizGRIPr * gvizGRIPs);
   else
     state->dec[v].heat *= (1 + cos * gvizGRIPr);
@@ -410,16 +410,29 @@ void refineGRIPPositions(gvizGRIPState *state, size_t layer,
                          GVIZ_BIT_ARRAY placedVertices) {
   gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
 
+  memset(state->dispCalculated, 0,
+         sizeof(GVIZ_BIT_UNIT) *
+             GVIZ_ARRAY_UNITS(embedding->graph->vertices.count));
+
+  for (size_t i = 0; i < state->misBorder[layer]; i++) {
+    size_t curr = state->misFiltration[i];
+    gvizGRIPDecorators *dec = state->dec + curr;
+    dec->heat = 0.0;
+    dec->oldCos = 0.0;
+    memset(dec->disp, 0, embedding->embedding.dim * sizeof(double));
+    memset(dec->oldDisp, 0, embedding->embedding.dim * sizeof(double));
+  }
+
   gvizArray knns[state->misBorder[layer]];
   for (size_t i = 0; i < state->misBorder[layer]; i++) {
-    gvizArrayInitAtCapacity(&knns[i], sizeof(gvizFoundVertex), 3);
+    gvizArrayInitAtCapacity(&knns[i], sizeof(gvizFoundVertex), 8);
     knns[i].count =
-        gvizGraphKNearestNeighbors(embedding->graph, knns[i].arr, 3,
+        gvizGraphKNearestNeighbors(embedding->graph, knns[i].arr, 8,
                                    state->misFiltration[i], placedVertices);
   }
 
   // TODO: implement rounds instead of hardcoding 18
-  for (size_t r = 0; r < 50; r++) {
+  for (size_t r = 0; r < 30; r++) {
     // calculate normalized displacements
     for (size_t i = 0; i < state->misBorder[layer]; i++) {
       size_t curr = state->misFiltration[i];

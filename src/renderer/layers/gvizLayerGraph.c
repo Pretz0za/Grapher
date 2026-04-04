@@ -4,7 +4,7 @@
 #include "renderer/embeddings/gvizEmbeddedGraph.h"
 #include <string.h>
 
-#define VERTEXRADIUS 2.0
+#define VERTEXRADIUS 3.0
 #define VERTEXTHICKNESS 1.0
 #define EDGETHICKNESS 1.0
 #define MAXRADIUS 250
