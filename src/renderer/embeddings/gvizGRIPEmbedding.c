@@ -353,9 +353,9 @@ void updateLocalTemp(gvizGRIPState *state, size_t v) {
                (nrm * oldNrm);
 
   if (cos * state->dec[v].oldCos > 0)
-    state->dec[v].heat += (1 + cos * gvizGRIPr * gvizGRIPs);
+    state->dec[v].heat *= (1 + cos * gvizGRIPr * gvizGRIPs);
   else
-    state->dec[v].heat += (1 + cos * gvizGRIPr);
+    state->dec[v].heat *= (1 + cos * gvizGRIPr);
 
   state->dec[v].oldCos = cos;
 }
@@ -397,6 +397,8 @@ void calculateSpringForces(gvizGRIPState *state, size_t v, gvizArray *knn,
     }
   }
 
+  printf("force vector: %f %f\n", f[0], f[1]);
+
   // disp = force vector
   cblas_dcopy(embedding->embedding.dim, f, 1, state->dec[v].disp, 1);
   return;
@@ -415,7 +417,7 @@ void refineGRIPPositions(gvizGRIPState *state, size_t layer,
   }
 
   // TODO: implement rounds instead of hardcoding 18
-  for (size_t r = 0; r < 50; r++) {
+  for (size_t r = 0; r < 18; r++) {
     // calculate normalized displacements
     for (size_t i = 0; i < state->misBorder[layer]; i++) {
       size_t curr = state->misFiltration[i];

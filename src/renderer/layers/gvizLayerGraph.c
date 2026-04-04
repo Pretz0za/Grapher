@@ -4,9 +4,9 @@
 #include "renderer/embeddings/gvizEmbeddedGraph.h"
 #include <string.h>
 
-#define VERTEXRADIUS 7.0
-#define VERTEXTHICKNESS 3.0
-#define EDGETHICKNESS 2.0
+#define VERTEXRADIUS 2.0
+#define VERTEXTHICKNESS 1.0
+#define EDGETHICKNESS 1.0
 #define MAXRADIUS 250
 
 void gvizLayerGraphInit(gvizLayerGraph *layer, gvizEmbeddedGraph *graph,
