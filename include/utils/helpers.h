@@ -18,6 +18,6 @@ void printAt(int x, int y, char *line, FILE *stream);
 void clearScreen(FILE *stream);
 
 double *barrycenter(size_t dimension, const double *positions,
-                    const gvizArray *indeces, double *out);
+                    const gvizArray *indices, double *out);
 
 #endif

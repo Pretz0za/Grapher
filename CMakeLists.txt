@@ -3,6 +3,13 @@ project(Grapher C)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+option(ENABLE_ASAN "Enable AddressSanitizer" OFF)
+
+if(ENABLE_ASAN)
+    add_compile_options(-fsanitize=address -fno-omit-frame-pointer)
+    add_link_options(-fsanitize=address)
+endif()
+
 # Your graph library (static)
 add_library(graphvis STATIC 
     src/dsa/gvizGraph.c
@@ -10,6 +17,7 @@ add_library(graphvis STATIC
     src/dsa/gvizArray.c
     src/dsa/gvizDeque.c
 
+    src/renderer/gvizRenderer.c
     src/renderer/embeddings/gvizEmbeddedGraph.c
     src/renderer/embeddings/gvizEmbeddedTree.c
     src/renderer/embeddings/gvizGRIPEmbedding.c
@@ -19,6 +27,7 @@ add_library(graphvis STATIC
     src/renderer/layers/gvizLayerGraph.c
 
 
+    src/utils/graphs.c
     src/utils/serializers.c
     src/utils/helpers.c
 )

@@ -352,10 +352,13 @@ int gvizGraphBFSTree(gvizGraph *g, gvizGraph *out, size_t source,
   }
 
   // out->map should now be map or invMap
-  if (inv)
+  if (inv) {
     out->map = invMap.arr;
-  else
+    gvizArrayRelease(&map);
+  } else {
     out->map = map.arr;
+    gvizArrayRelease(&invMap);
+  }
 
   // for (size_t i = 0; i < GVIZ_ARRAY_UNITS(g->vertices.count); i++) {
   //   printf("%d, ", seen[i] == 0xFF);

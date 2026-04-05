@@ -19,8 +19,8 @@ void gvizPairwiseKKForce(int n, double *vPos, double *uPos, size_t gDist,
   double dist = cblas_dnrm2(n, tmp, 1);
 
   double L = gDist * edgeLength; //* edgeLength;
-  // if (L < 1e-9)
-  //   return; // guard
+  if (L < 1e-9)
+    return; // guard
 
   double scalar = dist / L - 1.0;
 
@@ -43,8 +43,8 @@ void gvizPairwiseFRRepForce(int n, double *vPos, double *uPos,
   cblas_daxpy(n, -1, vPos, 1, tmp, 1);
 
   double dist = cblas_dnrm2(n, tmp, 1);
-  // if (dist < 1e-9)
-  //   return;
+  if (dist < 1e-9)
+    return;
 
   double scalar = (dist * dist) / (edgeLength * edgeLength);
 
@@ -67,8 +67,8 @@ void gvizPairwiseFRAttForce(int n, double *vPos, double *uPos,
   cblas_daxpy(n, -1, uPos, 1, tmp, 1);
 
   double dist = cblas_dnrm2(n, tmp, 1);
-  // if (dist < 1e-9)
-  //   return;
+  if (dist < 1e-9)
+    return;
 
   double scalar = FR_SCALE_FACTOR * (pow(edgeLength, 2) / pow(dist, 2));
 

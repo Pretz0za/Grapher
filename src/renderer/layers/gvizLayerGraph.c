@@ -2,9 +2,10 @@
 #include "raylib.h"
 #include "raymath.h"
 #include "renderer/embeddings/gvizEmbeddedGraph.h"
+#include "rlgl.h"
 #include <string.h>
 
-#define VERTEXRADIUS 3.0
+#define VERTEXRADIUS 1.0
 #define VERTEXTHICKNESS 1.0
 #define EDGETHICKNESS 1.0
 #define MAXRADIUS 250
@@ -55,23 +56,39 @@ void gvizLayerGraphDraw(void *layer, const Camera2D *camera) {
   // gvizEmbeddedGraphDraw(((gvizLayerGraph *)layer)->graph);
   //
   gvizEmbeddedGraph *embedding = ((gvizLayerGraph *)layer)->graph;
-  for (size_t i = 0; i < embedding->graph->vertices.count; i++) {
-    double *position = gvizEmbeddedGraphGetVPosition(embedding, i);
+  rlColor4ub(0, 0, 0, 255); // set once before vertices
 
-    DrawRing((Vector2){position[0], position[1]},
-             getEffectiveDist(VERTEXRADIUS, camera),
-             getEffectiveDist(VERTEXRADIUS, camera) +
-                 getEffectiveDist(VERTEXTHICKNESS, camera),
-             0, 360, 1, (Color){0x00, 0x00, 0x00, 0xFF});
+  rlBegin(RL_LINES);
+  for (size_t i = 0; i < embedding->graph->vertices.count; i++) {
+    double *pos = gvizEmbeddedGraphGetVPosition(embedding, i);
     gvizArray *children = gvizGraphGetVertexNeighbors(embedding->graph, i);
     for (size_t j = 0; j < children->count; j++) {
-      double *otherPosition = gvizEmbeddedGraphGetVPosition(
+      double *otherPos = gvizEmbeddedGraphGetVPosition(
           embedding, *(size_t *)gvizArrayAtIndex(children, j));
-      drawEdge((Vector2){position[0], position[1]},
-               (Vector2){otherPosition[0], otherPosition[1]},
-               embedding->graph->directed, 0xFF, camera);
+
+      rlVertex3f(pos[0], pos[1], pos[2]);
+      rlVertex3f(otherPos[0], otherPos[1], otherPos[2]);
     }
   }
+  rlEnd();
+
+  // for (size_t i = 0; i < embedding->graph->vertices.count; i++) {
+  //   double *position = gvizEmbeddedGraphGetVPosition(embedding, i);
+  //
+  //   DrawRing((Vector2){position[0], position[1]},
+  //            getEffectiveDist(VERTEXRADIUS, camera),
+  //            getEffectiveDist(VERTEXRADIUS, camera) +
+  //                getEffectiveDist(VERTEXTHICKNESS, camera),
+  //            0, 360, 1, (Color){0x00, 0x00, 0x00, 0xFF});
+  //   gvizArray *children = gvizGraphGetVertexNeighbors(embedding->graph, i);
+  //   for (size_t j = 0; j < children->count; j++) {
+  //     double *otherPosition = gvizEmbeddedGraphGetVPosition(
+  //         embedding, *(size_t *)gvizArrayAtIndex(children, j));
+  //     drawEdge((Vector2){position[0], position[1]},
+  //              (Vector2){otherPosition[0], otherPosition[1]},
+  //              embedding->graph->directed, 0xFF, camera);
+  //   }
+  // }
 }
 
 void gvizLayerGraphUpdate(void *layer, float dt) {}
