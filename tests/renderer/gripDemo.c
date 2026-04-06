@@ -122,30 +122,45 @@ int main() {
     state.graph.embedding.dim = 3;
   }
 
+  int is3D = (state.graph.embedding.dim == 3);
+
   Vector3 centroid = {0};
-  if (state.graph.embedding.dim == 3) {
+  Vector2 centroid2D = {0};
+  {
     size_t N = state.graph.graph->vertices.count;
     for (size_t i = 0; i < N; i++) {
       double *pos =
           gvizEmbeddedGraphGetVPosition((gvizEmbeddedGraph *)&state, i);
-      centroid.x += pos[0];
-      centroid.y += pos[1];
-      centroid.z += pos[2];
+      centroid2D.x += (float)pos[0];
+      centroid2D.y += (float)pos[1];
+      if (is3D) {
+        centroid.x += (float)pos[0];
+        centroid.y += (float)pos[1];
+        centroid.z += (float)pos[2];
+      }
     }
-    centroid.x /= N;
-    centroid.y /= N;
-    centroid.z /= N;
+    centroid2D.x /= (float)N;
+    centroid2D.y /= (float)N;
+    if (is3D) {
+      centroid.x /= (float)N;
+      centroid.y /= (float)N;
+      centroid.z /= (float)N;
+    }
   }
 
   InitWindow(1000, 1000, "graphvis");
   SetTargetFPS(60);
 
-  Camera3D camera = {.position = (Vector3){0, 0, 5000},
-                     .target = (Vector3){0, 0, 0},
-                     .up = (Vector3){0, 1, 0},
-                     .fovy = 45.0f,
-                     .projection = CAMERA_PERSPECTIVE};
-  // Camera2D camera = {(Vector2){0, 0}, (Vector2){0, 0}, 0, 1.0f};
+  Camera3D camera3D = {.position = (Vector3){centroid.x, centroid.y,
+                                             centroid.z + 5000},
+                       .target = centroid,
+                       .up = (Vector3){0, 1, 0},
+                       .fovy = 45.0f,
+                       .projection = CAMERA_PERSPECTIVE};
+  Camera2D camera2D = {.offset = (Vector2){500, 500},
+                       .target = centroid2D,
+                       .rotation = 0.0f,
+                       .zoom = 1.0f};
 
   gvizLayerGraph layer;
   gvizViewport viewport = {0, 0, 800, 600};
@@ -172,10 +187,10 @@ int main() {
           embedding, *(size_t *)gvizArrayAtIndex(children, j));
       edgeVerts[vi++] = (float)pos[0];
       edgeVerts[vi++] = (float)pos[1];
-      edgeVerts[vi++] = (float)pos[2];
+      edgeVerts[vi++] = is3D ? (float)pos[2] : 0.0f;
       edgeVerts[vi++] = (float)otherPos[0];
       edgeVerts[vi++] = (float)otherPos[1];
-      edgeVerts[vi++] = (float)otherPos[2];
+      edgeVerts[vi++] = is3D ? (float)otherPos[2] : 0.0f;
     }
   }
 
@@ -195,8 +210,10 @@ int main() {
 
   while (!WindowShouldClose()) {
 
-    gvizRenderer3DCameraUpdate(&camera, centroid);
-    // gvizRenderer2DCameraUpdate(&camera);
+    if (is3D)
+      gvizRenderer3DCameraUpdate(&camera3D, centroid);
+    else
+      gvizRenderer2DCameraUpdate(&camera2D);
 
     // screenshot
     if (IsKeyPressed(KEY_G)) {
@@ -219,8 +236,10 @@ int main() {
       ClearBackground(RAYWHITE);
 
       rlSetClipPlanes(0.1, 1000000.0); // near, far
-      BeginMode3D(camera);
-      // BeginMode2D(camera);
+      if (is3D)
+        BeginMode3D(camera3D);
+      else
+        BeginMode2D(camera2D);
 
       // draw
 
@@ -241,8 +260,10 @@ int main() {
       rlDisableVertexArray();
       rlDisableShader();
 
-      EndMode3D();
-      // EndMode2D();
+      if (is3D)
+        EndMode3D();
+      else
+        EndMode2D();
       // DrawText("Hello World", 0, 0, 20, GREEN);
       currOpacity = 0xFF;
     }
