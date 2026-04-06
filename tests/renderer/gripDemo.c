@@ -3,6 +3,7 @@
 #include "lapack.h"
 #include "msf_gif.h"
 #include "raylib.h"
+#include "raymath.h"
 #include "renderer/embeddings/gvivGRIPEmbedding.h"
 #include "renderer/embeddings/gvizEmbeddedGraph.h"
 #include "renderer/gvizRenderer.h"
@@ -14,6 +15,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#if defined(__APPLE__)
+#include <OpenGL/gl3.h>
+#else
+#include <GL/gl.h>
+#endif
 
 MsfGifState gifState = {0};
 bool gifRecording = false;
@@ -144,6 +151,46 @@ int main() {
   gvizViewport viewport = {0, 0, 800, 600};
   gvizLayerGraphInit(&layer, (gvizEmbeddedGraph *)&state, viewport, 999);
 
+  // Build edge vertex buffer once before the render loop.
+  // Each edge becomes two 3-float vertices (line endpoint pair).
+  gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)&state;
+  size_t N = embedding->graph->vertices.count;
+
+  size_t edgeVertexCount = 0;
+  for (size_t i = 0; i < N; i++) {
+    gvizArray *children = gvizGraphGetVertexNeighbors(embedding->graph, i);
+    edgeVertexCount += children->count * 2;
+  }
+
+  float *edgeVerts = (float *)malloc(edgeVertexCount * 3 * sizeof(float));
+  size_t vi = 0;
+  for (size_t i = 0; i < N; i++) {
+    double *pos = gvizEmbeddedGraphGetVPosition(embedding, i);
+    gvizArray *children = gvizGraphGetVertexNeighbors(embedding->graph, i);
+    for (size_t j = 0; j < children->count; j++) {
+      double *otherPos = gvizEmbeddedGraphGetVPosition(
+          embedding, *(size_t *)gvizArrayAtIndex(children, j));
+      edgeVerts[vi++] = (float)pos[0];
+      edgeVerts[vi++] = (float)pos[1];
+      edgeVerts[vi++] = (float)pos[2];
+      edgeVerts[vi++] = (float)otherPos[0];
+      edgeVerts[vi++] = (float)otherPos[1];
+      edgeVerts[vi++] = (float)otherPos[2];
+    }
+  }
+
+  // Upload geometry to GPU.
+  unsigned int graphVAO = rlLoadVertexArray();
+  rlEnableVertexArray(graphVAO);
+  unsigned int graphVBO = rlLoadVertexBuffer(
+      edgeVerts, (int)(edgeVertexCount * 3 * sizeof(float)), false);
+  rlSetVertexAttribute(0, 3, RL_FLOAT, 0, 0, 0);
+  rlEnableVertexAttribute(0);
+  rlDisableVertexArray();
+  free(edgeVerts);
+
+  int graphVertexCount = (int)edgeVertexCount;
+
   unsigned char currOpacity = 0xFF;
 
   while (!WindowShouldClose()) {
@@ -177,7 +224,22 @@ int main() {
 
       // draw
 
-      ((gvizLayer *)&layer)->vtable->draw(&layer, &camera);
+      // ((gvizLayer *)&layer)->vtable->draw(&layer, &camera);
+
+      // Draw graph edges using pre-uploaded VAO/VBO in a single GL call.
+      rlEnableShader(rlGetShaderIdDefault());
+      float black[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+      int *locs = rlGetShaderLocsDefault();
+      rlSetUniform(locs[RL_SHADER_LOC_COLOR_DIFFUSE], black,
+                   RL_SHADER_UNIFORM_VEC4, 1);
+      Matrix mvp = MatrixMultiply(
+          MatrixMultiply(rlGetMatrixModelview(), rlGetMatrixTransform()),
+          rlGetMatrixProjection());
+      rlSetUniformMatrix(locs[RL_SHADER_LOC_MATRIX_MVP], mvp);
+      rlEnableVertexArray(graphVAO);
+      glDrawArrays(GL_LINES, 0, graphVertexCount);
+      rlDisableVertexArray();
+      rlDisableShader();
 
       EndMode3D();
       // EndMode2D();
@@ -197,6 +259,8 @@ int main() {
   }
 
   // gvizGraphRelease(&mesh);
+  rlUnloadVertexArray(graphVAO);
+  rlUnloadVertexBuffer(graphVBO);
   CloseWindow();
   gvizGRIPEmbeddingRelease(&state);
   gvizGraphRelease(&sierpinski3d);
