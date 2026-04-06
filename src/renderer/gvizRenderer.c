@@ -6,7 +6,7 @@ void gvizRenderer3DCameraUpdate(Camera3D *camera, Vector3 centroid) {
       Vector3Normalize(Vector3Subtract(camera->target, camera->position));
   Vector3 right = Vector3Normalize(Vector3CrossProduct(forward, camera->up));
 
-  float speed = 10.0f;
+  float speed = 50.0f;
   float fb = (IsKeyDown(KEY_W) - IsKeyDown(KEY_S)) * speed;
   float lr = (IsKeyDown(KEY_D) - IsKeyDown(KEY_A)) * speed;
   float ud = (IsKeyDown(KEY_E) - IsKeyDown(KEY_Q)) * speed;
@@ -56,7 +56,7 @@ void gvizRenderer3DCameraUpdate(Camera3D *camera, Vector3 centroid) {
     camera->target = centroid;
     camera->position = (Vector3){
         centroid.x, centroid.y,
-        centroid.z + 1000.0f // pull back along Z
+        centroid.z + 5000.0f // pull back along Z
     };
   }
 

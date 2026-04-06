@@ -1,6 +1,7 @@
 #include "cblas.h"
 #include "dsa/gvizGraph.h"
 #include "lapack.h"
+#include "msf_gif.h"
 #include "raylib.h"
 #include "renderer/embeddings/gvivGRIPEmbedding.h"
 #include "renderer/embeddings/gvizEmbeddedGraph.h"
@@ -13,6 +14,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+MsfGifState gifState = {0};
+bool gifRecording = false;
+int gifFrameCounter = 0;
+#define GIF_FRAMERATE 2
 
 // Mutates positions in place: N*4 row-major -> N*3 row-major
 // After call, positions[i*3 + 0..2] holds the 3D projection
@@ -81,14 +87,14 @@ void projectPCA(double *positions, size_t N) {
 int main() {
 
   size_t WIDTH = 400, HEIGHT = 100;
-  size_t DEPTH = 8;
+  size_t DEPTH = 5;
 
   printf("initializing state\n");
   gvizGRIPState state;
-  gvizGraph klein = build_klein_bottle(WIDTH, HEIGHT);
+  // gvizGraph klein = build_klein_bottle(WIDTH, HEIGHT);
   // gvizGraph mobius = build_mobius_strip(WIDTH, HEIGHT);
   // gvizGraph knottedMesh = build_knotted_rect_mesh(WIDTH, HEIGHT);
-  // gvizGraph sierpinski3d = createSierpinskiTetrahedron(DEPTH, NULL);
+  gvizGraph sierpinski3d = createSierpinskiTetrahedron(DEPTH, NULL);
   // gvizGraph mesh = build_rect_mesh(WIDTH, HEIGHT);
   // gvizGraph sierpinski = createSierpinski(DEPTH, NULL);
   // gvizGraph trimesh = build_equilateral_tri_mesh(DEPTH);
@@ -98,13 +104,16 @@ int main() {
   // gvizGRIPEmbeddingInit(&state, &trimesh, DEPTH, 2);
   // gvizGRIPEmbeddingInit(&state, &carpet, pow(4, DEPTH), 2);
   // gvizGRIPEmbeddingInit(&state, &mobius, pow(2, DEPTH + 1), 4);
-  gvizGRIPEmbeddingInit(&state, &klein, pow(2, DEPTH + 1), 4);
+  gvizGRIPEmbeddingInit(&state, &sierpinski3d, pow(2, DEPTH + 1), 3);
 
   printf("creating filtration\n");
   gvizGRIPEmbeddingEmbed(&state);
 
-  projectPCA(state.graph.embedding.vertexPositions, klein.vertices.count);
-  state.graph.embedding.dim = 3;
+  if (state.graph.embedding.dim == 4) {
+    projectPCA(state.graph.embedding.vertexPositions,
+               sierpinski3d.vertices.count);
+    state.graph.embedding.dim = 3;
+  }
 
   Vector3 centroid = {0};
   if (state.graph.embedding.dim == 3) {
@@ -142,6 +151,21 @@ int main() {
     gvizRenderer3DCameraUpdate(&camera, centroid);
     // gvizRenderer2DCameraUpdate(&camera);
 
+    // screenshot
+    if (IsKeyPressed(KEY_G)) {
+      if (!gifRecording) {
+        gifRecording = true;
+        gifFrameCounter = 0;
+        msf_gif_begin(&gifState, GetRenderWidth(), GetRenderHeight());
+      } else {
+        gifRecording = false;
+        MsfGifResult result = msf_gif_end(&gifState);
+        SaveFileData("tests/renderer/out/output.gif", result.data,
+                     (unsigned int)result.dataSize);
+        msf_gif_free(result);
+      }
+    }
+
     BeginDrawing();
 
     {
@@ -157,17 +181,25 @@ int main() {
 
       EndMode3D();
       // EndMode2D();
-      DrawText("Hello World", 0, 0, 20, GREEN);
+      // DrawText("Hello World", 0, 0, 20, GREEN);
       currOpacity = 0xFF;
     }
 
     EndDrawing();
+
+    if (gifRecording && ++gifFrameCounter > GIF_FRAMERATE) {
+      Image img = LoadImageFromScreen();
+      int centiseconds = (int)((GIF_FRAMERATE / 60.0f) * 100);
+      msf_gif_frame(&gifState, img.data, centiseconds, 16, img.width * 4);
+      gifFrameCounter = 0;
+      UnloadImage(img);
+    }
   }
 
   // gvizGraphRelease(&mesh);
   CloseWindow();
   gvizGRIPEmbeddingRelease(&state);
-  gvizGraphRelease(&klein);
+  gvizGraphRelease(&sierpinski3d);
   // gvizGraphRelease(&mobius);
   // gvizGraphRelease(&knottedMesh);
   // gvizGraphRelease(&carpet);
