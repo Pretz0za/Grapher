@@ -562,12 +562,12 @@ void refineGRIPPositions(gvizGRIPState *state, size_t layer,
   for (size_t i = 0; i < state->misBorder[layer]; i++) {
     gvizArrayInitAtCapacity(&knns[i], sizeof(gvizFoundVertex), 128);
     knns[i].count =
-        gvizGraphKNearestNeighbors(embedding->graph, knns[i].arr, 96,
+        gvizGraphKNearestNeighbors(embedding->graph, knns[i].arr, 64,
                                    state->misFiltration[i], placedVertices);
   }
 
-  // TODO: implement rounds instead of hardcoding 18
-  for (size_t r = 0; r < 48; r++) {
+  // TODO: implement rounds instead of hardcoding
+  for (size_t r = 0; r < 18; r++) {
     printf("Refining layer %zu... round %zu\n", layer, r);
     // calculate normalized displacements
     for (size_t i = 0; i < state->misBorder[layer]; i++) {
@@ -625,6 +625,46 @@ void refineGRIPPositions(gvizGRIPState *state, size_t layer,
     gvizArrayRelease(&knns[i]);
   }
   GVIZ_DEALLOC(knns);
+}
+
+int gvizGRIPRefineEmbedding(gvizGRIPState *state) {
+  gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
+
+  GVIZ_BIT_UNIT placed[GVIZ_ARRAY_UNITS(
+      ((gvizEmbeddedGraph *)state)->graph->vertices.count)];
+  memset(placed, 0, sizeof(placed));
+
+  // Step 1: Create a Maximal Independent Set, then filter into coarser subsets
+  size_t layerCount = createMISFiltration(state);
+
+  // Vertices already placed. Only refine and maintain placed bitest./
+
+  // initialize with the smallest layer
+  for (size_t i = 0; i < state->misBorder[layerCount - 1]; i++) {
+    gvizSetBit(placed, state->misFiltration[i]);
+  }
+
+  for (size_t i = layerCount; i-- > 0;) {
+
+    // update placed vertices to include the new layer's vertices
+    if (i != layerCount - 1) {
+      for (size_t j = state->misBorder[i + 1]; j < state->misBorder[i]; j++) {
+        gvizSetBit(placed, state->misFiltration[j]);
+      }
+    }
+
+    // printf("placing layer %zu\n", i);
+
+    // printf("simulating springs \n");
+    refineGRIPPositions(state, i, placed);
+  }
+  // for (size_t i = 0; i < embedding->graph->vertices.count; i++) {
+  //   printf("Vertex #%zu, placed: %d, position (%lf, %lf)\n", i,
+  //          gvizTestBit(placed, i), state->dec[i].disp[0],
+  //          state->dec[i].disp[i + 1]);
+  // }
+  //
+  return 0;
 }
 
 int gvizGRIPEmbeddingEmbed(gvizGRIPState *state) {

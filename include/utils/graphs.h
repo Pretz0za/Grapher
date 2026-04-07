@@ -58,6 +58,8 @@ gvizGraph createSierpinski(int depth, SierpinskiTriangle *st);
 
 gvizGraph build_sierpinski_carpet(size_t depth);
 
+gvizGraph build_tetrahedral_mesh(size_t depth);
+
 gvizGraph build_rect_mesh(size_t L, size_t W);
 
 gvizGraph build_equilateral_tri_mesh(size_t depth);

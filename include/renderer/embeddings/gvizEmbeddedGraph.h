@@ -34,4 +34,10 @@ void gvizEmbeddedGraphSetVPosition(gvizEmbeddedGraph *embedding, size_t idx,
 void gvizEmbeddedGraphAddVPosition(gvizEmbeddedGraph *embedding, size_t idx,
                                    double *position);
 
+int gvizEmbeddedGraphSaveEmbedding(gvizEmbeddedGraph *embedding,
+                                   const char *name, const char *filename);
+
+int gvizEmbeddedGraphLoadEmbedding(gvizEmbeddedGraph *embedding,
+                                   const char *filename);
+
 #endif

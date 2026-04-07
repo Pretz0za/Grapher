@@ -26,4 +26,6 @@ void gvizGRIPEmbeddingRelease(gvizGRIPState *state);
 
 size_t createMISFiltration(gvizGRIPState *state);
 
+int gvizGRIPRefineEmbedding(gvizGRIPState *state);
+
 #endif

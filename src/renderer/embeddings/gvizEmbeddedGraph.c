@@ -101,3 +101,55 @@ void gvizEmbeddedGraphAddVPosition(gvizEmbeddedGraph *embedding, size_t idx,
   cblas_daxpy(embedding->embedding.dim, 1, position, 1,
               gvizEmbeddedGraphGetVPosition(embedding, idx), 1);
 }
+
+int gvizEmbeddedGraphSaveEmbedding(gvizEmbeddedGraph *embedding,
+                                   const char *name, const char *filename) {
+  FILE *f = fopen(filename, "w");
+  if (!f)
+    return -1;
+
+  fprintf(f, "%s\n", name);
+
+  fprintf(f, "%zu %zu\n", embedding->graph->vertices.count,
+          embedding->embedding.dim);
+  for (size_t i = 0; i < embedding->graph->vertices.count; i++) {
+    double *pos = gvizEmbeddedGraphGetVPosition(embedding, i);
+    for (size_t j = 0; j < embedding->embedding.dim; j++) {
+      fprintf(f, "%f ", pos[j]);
+    }
+    fprintf(f, "\n");
+  }
+
+  fclose(f);
+  return 0;
+}
+
+int gvizEmbeddedGraphLoadEmbedding(gvizEmbeddedGraph *embedding,
+                                   const char *filename) {
+  FILE *f = fopen(filename, "r");
+  if (!f)
+    return -1;
+
+  char name[256];
+  fgets(name, 256, f);
+
+  printf("loading embedding: %s\n", name);
+
+  size_t vertexCount, dim;
+  fscanf(f, "%zu %zu", &vertexCount, &dim);
+  if (vertexCount != embedding->graph->vertices.count ||
+      dim != embedding->embedding.dim) {
+    fclose(f);
+    return -1;
+  }
+
+  for (size_t i = 0; i < vertexCount; i++) {
+    double *pos = gvizEmbeddedGraphGetVPosition(embedding, i);
+    for (size_t j = 0; j < dim; j++) {
+      fscanf(f, "%lf", &pos[j]);
+    }
+  }
+
+  fclose(f);
+  return 0;
+}

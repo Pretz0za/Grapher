@@ -25,6 +25,12 @@
 },
 {
   "directory": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/build",
+  "command": "/usr/bin/cc  -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/include\" -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/third-party\" -std=gnu11 -arch arm64 -o CMakeFiles/graphvis.dir/src/renderer/gvizRenderer.c.o -c \"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/renderer/gvizRenderer.c\"",
+  "file": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/renderer/gvizRenderer.c",
+  "output": "CMakeFiles/graphvis.dir/src/renderer/gvizRenderer.c.o"
+},
+{
+  "directory": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/build",
   "command": "/usr/bin/cc  -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/include\" -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/third-party\" -std=gnu11 -arch arm64 -o CMakeFiles/graphvis.dir/src/renderer/embeddings/gvizEmbeddedGraph.c.o -c \"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/renderer/embeddings/gvizEmbeddedGraph.c\"",
   "file": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/renderer/embeddings/gvizEmbeddedGraph.c",
   "output": "CMakeFiles/graphvis.dir/src/renderer/embeddings/gvizEmbeddedGraph.c.o"
@@ -61,15 +67,21 @@
 },
 {
   "directory": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/build",
+  "command": "/usr/bin/cc  -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/include\" -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/third-party\" -std=gnu11 -arch arm64 -o CMakeFiles/graphvis.dir/src/utils/graphs.c.o -c \"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/utils/graphs.c\"",
+  "file": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/utils/graphs.c",
+  "output": "CMakeFiles/graphvis.dir/src/utils/graphs.c.o"
+},
+{
+  "directory": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/build",
   "command": "/usr/bin/cc  -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/include\" -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/third-party\" -std=gnu11 -arch arm64 -o CMakeFiles/graphvis.dir/src/utils/serializers.c.o -c \"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/utils/serializers.c\"",
   "file": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/utils/serializers.c",
   "output": "CMakeFiles/graphvis.dir/src/utils/serializers.c.o"
 },
 {
   "directory": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/build",
-  "command": "/usr/bin/cc  -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/include\" -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/third-party\" -std=gnu11 -arch arm64 -o CMakeFiles/graphvis.dir/src/helpers.c.o -c \"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/helpers.c\"",
-  "file": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/helpers.c",
-  "output": "CMakeFiles/graphvis.dir/src/helpers.c.o"
+  "command": "/usr/bin/cc  -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/include\" -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/third-party\" -std=gnu11 -arch arm64 -o CMakeFiles/graphvis.dir/src/utils/helpers.c.o -c \"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/utils/helpers.c\"",
+  "file": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/utils/helpers.c",
+  "output": "CMakeFiles/graphvis.dir/src/utils/helpers.c.o"
 },
 {
   "directory": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/build",

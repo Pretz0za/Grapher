@@ -1,6 +1,7 @@
 #include "utils/graphs.h"
 #include "core/alloc.h"
 #include "dsa/gvizGraph.h"
+#include <assert.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
@@ -315,6 +316,151 @@ gvizGraph build_rect_mesh(size_t L, size_t W) {
         gvizGraphAddEdge(&g, idx, idx_down);
       }
     }
+
+  return g;
+}
+
+typedef struct {
+  size_t a, b, c, d; // a + b + c + d = depth
+} Bary4;
+
+// Total number of barycentric integer points for given depth
+// = C(depth + 3, 3)
+static inline size_t tetra_num_vertices(size_t depth) {
+  return (depth + 3) * (depth + 2) * (depth + 1) / 6;
+}
+
+// Map (a,b,c,d) -> linear index in [0, numVerts)
+//
+// Enumeration order:
+//   for (a = 0..depth)
+//     for (b = 0..depth-a)
+//       for (c = 0..depth-a-b)
+//         d = depth - a - b - c;
+//         emit (a,b,c,d);
+size_t bary4_to_index(size_t depth, size_t a, size_t b, size_t c, size_t d) {
+  // Ensure it's a valid barycentric tuple
+  assert(a + b + c + d == depth);
+
+  size_t idx = 0;
+
+  // Count all points with a' < a
+  for (size_t aa = 0; aa < a; aa++) {
+    size_t remaining1 = depth - aa; // b + c + d = remaining1
+    // #solutions to b + c + d = remaining1 is C(remaining1 + 2, 2)
+    size_t r = remaining1;
+    idx += (r + 2) * (r + 1) / 2; // C(r+2,2)
+  }
+
+  // For this a, count all with b' < b
+  size_t remaining2 = depth - a;
+  for (size_t bb = 0; bb < b; bb++) {
+    size_t rem_bc = remaining2 - bb; // c + d = rem_bc
+    // #solutions to c + d = rem_bc is rem_bc + 1
+    idx += rem_bc + 1;
+  }
+
+  // For this (a,b), c is just an offset inside that block
+  idx += c;
+
+  return idx;
+}
+
+// Inverse mapping: index -> (a,b,c,d) for given depth
+Bary4 index_to_bary4(size_t depth, size_t idx) {
+  size_t numVerts = tetra_num_vertices(depth);
+  assert(idx < numVerts);
+
+  Bary4 out = {0, 0, 0, 0};
+
+  // Find a such that idx falls in that a-slab
+  for (size_t a = 0; a <= depth; a++) {
+    size_t remaining1 = depth - a; // b + c + d = remaining1
+    size_t blockA = (remaining1 + 2) * (remaining1 + 1) / 2; // C(r+2,2)
+
+    if (idx < blockA) {
+      out.a = a;
+      break;
+    } else {
+      idx -= blockA;
+    }
+  }
+
+  size_t remaining2 = depth - out.a;
+
+  // Find b for this a
+  for (size_t b = 0; b <= remaining2; b++) {
+    size_t rem_bc = remaining2 - b; // c + d = rem_bc
+    size_t blockB = rem_bc + 1;     // #solutions to c + d = rem_bc
+
+    if (idx < blockB) {
+      out.b = b;
+      break;
+    } else {
+      idx -= blockB;
+    }
+  }
+
+  size_t rem_cd = remaining2 - out.b;
+
+  // c is exactly the remaining idx inside this (a,b) block
+  out.c = idx;
+  // d is forced by the sum constraint
+  out.d = rem_cd - out.c;
+
+  assert(out.a + out.b + out.c + out.d == depth);
+  return out;
+}
+
+// -------------------------
+// Tetrahedral mesh builder
+// -------------------------
+
+// Graph of the 1-skeleton of a subdivided tetrahedron:
+// - Vertices: barycentric integer points (a,b,c,d), a+b+c+d = depth
+// - Edges: (+1,-1,0,0) moves (and permutations), constrained to nonnegative
+// coords
+gvizGraph build_tetrahedral_mesh(size_t depth) {
+  size_t numVerts = tetra_num_vertices(depth);
+
+  gvizGraph g;
+  gvizGraphInitAtCapacity(&g, 0, numVerts);
+
+  for (size_t i = 0; i < numVerts; i++) {
+    gvizGraphAddVertex(&g, NULL, NULL, NULL);
+  }
+
+  for (size_t idx = 0; idx < numVerts; idx++) {
+    Bary4 v = index_to_bary4(depth, idx);
+
+// Try a single (+1,-1,0,0) pattern
+#define TRY_MOVE(da, db, dc, dd)                                               \
+  do {                                                                         \
+    long na = (long)v.a + (da);                                                \
+    long nb = (long)v.b + (db);                                                \
+    long nc = (long)v.c + (dc);                                                \
+    long nd = (long)v.d + (dd);                                                \
+    if (na >= 0 && nb >= 0 && nc >= 0 && nd >= 0 &&                            \
+        na + nb + nc + nd == (long)depth) {                                    \
+      size_t to = bary4_to_index(depth, (size_t)na, (size_t)nb, (size_t)nc,    \
+                                 (size_t)nd);                                  \
+      gvizGraphAddEdge(&g, idx, to);                                           \
+    }                                                                          \
+  } while (0)
+
+    // 6 distinct oriented moves (+1/-1 between coordinates)
+    TRY_MOVE(+1, -1, 0, 0);
+    TRY_MOVE(+1, 0, -1, 0);
+    TRY_MOVE(+1, 0, 0, -1);
+    TRY_MOVE(0, +1, -1, 0);
+    TRY_MOVE(0, +1, 0, -1);
+    TRY_MOVE(0, 0, +1, -1);
+
+#undef TRY_MOVE
+  }
+
+  printf("Created tetrahedral mesh with depth %zu (%zu vertices).\n", depth,
+         numVerts);
 
   return g;
 }

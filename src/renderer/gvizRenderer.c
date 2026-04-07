@@ -18,7 +18,7 @@ void gvizRenderer3DCameraUpdate(Camera3D *camera, Vector3 centroid) {
   camera->target = Vector3Add(camera->target, Vector3Scale(right, lr));
   camera->target = Vector3Add(camera->target, Vector3Scale(camera->up, ud));
 
-  // rotation still via UpdateCameraPro with zero movement
+  // yaw/pitch via UpdateCameraPro
   UpdateCameraPro(
       camera, (Vector3){0, 0, 0},
       (Vector3){
@@ -26,6 +26,24 @@ void gvizRenderer3DCameraUpdate(Camera3D *camera, Vector3 centroid) {
           IsMouseButtonDown(MOUSE_BUTTON_RIGHT) ? GetMouseDelta().y * 0.3f : 0,
           0},
       0);
+
+  // roll (neck twist) with Z/X
+  {
+    float rollSpeed = 1.5f; // radians per second
+    float rollDelta = 0.0f;
+
+    if (IsKeyDown(KEY_Z))
+      rollDelta += rollSpeed * GetFrameTime();
+    if (IsKeyDown(KEY_X))
+      rollDelta -= rollSpeed * GetFrameTime();
+
+    if (rollDelta != 0.0f) {
+      Vector3 dir = Vector3Normalize(
+          Vector3Subtract(camera->target, camera->position)); // forward
+      camera->up = Vector3RotateByAxisAngle(camera->up, dir, rollDelta);
+      camera->up = Vector3Normalize(camera->up);
+    }
+  }
 
   // scroll to change FOV (zoom feel without moving)
   float wheel = GetMouseWheelMove();
@@ -37,18 +55,17 @@ void gvizRenderer3DCameraUpdate(Camera3D *camera, Vector3 centroid) {
       camera->fovy = 120.0f;
   }
 
+  // rotate camera & target around centroid using *current up* axis
   if (IsKeyDown(KEY_R)) {
     float rotSpeed = 1.0f * GetFrameTime();
-    Vector3 worldUp = {0, 1, 0};
+    Vector3 axis = Vector3Normalize(camera->up);
 
-    // rotate position around centroid
     Vector3 toCamera = Vector3Subtract(camera->position, centroid);
-    toCamera = Vector3RotateByAxisAngle(toCamera, worldUp, rotSpeed);
+    toCamera = Vector3RotateByAxisAngle(toCamera, axis, rotSpeed);
     camera->position = Vector3Add(centroid, toCamera);
 
-    // rotate target around centroid too
     Vector3 toTarget = Vector3Subtract(camera->target, centroid);
-    toTarget = Vector3RotateByAxisAngle(toTarget, worldUp, rotSpeed);
+    toTarget = Vector3RotateByAxisAngle(toTarget, axis, rotSpeed);
     camera->target = Vector3Add(centroid, toTarget);
   }
 

@@ -3,6 +3,7 @@
 #include "lapack.h"
 #include "msf_gif.h"
 #include "raylib.h"
+#include "raymath.h"
 #include "renderer/embeddings/gvivGRIPEmbedding.h"
 #include "renderer/embeddings/gvizEmbeddedGraph.h"
 #include "renderer/gvizRenderer.h"
@@ -14,6 +15,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#if defined(__APPLE__)
+#include <OpenGL/gl3.h>
+#else
+#include <GL/gl.h>
+#endif
 
 MsfGifState gifState = {0};
 bool gifRecording = false;
@@ -87,69 +94,136 @@ void projectPCA(double *positions, size_t N) {
 int main() {
 
   size_t WIDTH = 400, HEIGHT = 100;
-  size_t DEPTH = 5;
+  size_t DEPTH = 11;
 
   printf("initializing state\n");
   gvizGRIPState state;
+  gvizGraph g;
+  // g = build_tetrahedral_mesh(DEPTH);
   // gvizGraph klein = build_klein_bottle(WIDTH, HEIGHT);
   // gvizGraph mobius = build_mobius_strip(WIDTH, HEIGHT);
   // gvizGraph knottedMesh = build_knotted_rect_mesh(WIDTH, HEIGHT);
-  gvizGraph sierpinski3d = createSierpinskiTetrahedron(DEPTH, NULL);
+  g = createSierpinskiTetrahedron(DEPTH, NULL);
   // gvizGraph mesh = build_rect_mesh(WIDTH, HEIGHT);
   // gvizGraph sierpinski = createSierpinski(DEPTH, NULL);
   // gvizGraph trimesh = build_equilateral_tri_mesh(DEPTH);
   // gvizGraph carpet = build_sierpinski_carpet(DEPTH);
   // gvizGRIPEmbeddingInit(&state, &mesh, (WIDTH - 1) + (HEIGHT - 1) + 10, 2);
   // gvizGRIPEmbeddingInit(&state, &carpet, pow(2, DEPTH), 2);
-  // gvizGRIPEmbeddingInit(&state, &trimesh, DEPTH, 2);
-  // gvizGRIPEmbeddingInit(&state, &carpet, pow(4, DEPTH), 2);
+  // gvizGRIPEmbeddingInit(&state, &g, DEPTH, 2); // trimesh 2d
+  // gvizGRIPEmbeddingInit(&state, &g, DEPTH, 3); // trimesh 3d
+  // gvizGRIPEmbeddingInit(&state, &g, pow(4, DEPTH), 2);
   // gvizGRIPEmbeddingInit(&state, &mobius, pow(2, DEPTH + 1), 4);
-  gvizGRIPEmbeddingInit(&state, &sierpinski3d, pow(2, DEPTH + 1), 3);
+  gvizGRIPEmbeddingInit(&state, &g, pow(2, DEPTH + 1), 3); // 3d sierpinski
 
   printf("creating filtration\n");
-  gvizGRIPEmbeddingEmbed(&state);
+  // gvizGRIPEmbeddingEmbed(&state);
+  gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)&state;
+
+  assert(!gvizEmbeddedGraphLoadEmbedding(embedding, "3d_sierpinski_11.txt"));
+
+  gvizGRIPRefineEmbedding(&state);
+
+  gvizEmbeddedGraphSaveEmbedding(embedding,
+                                 "Depth 11 Sierpinski Tetrahedron Embedding",
+                                 "3d_sierpinski_11.txt");
 
   if (state.graph.embedding.dim == 4) {
-    projectPCA(state.graph.embedding.vertexPositions,
-               sierpinski3d.vertices.count);
+    projectPCA(state.graph.embedding.vertexPositions, g.vertices.count);
     state.graph.embedding.dim = 3;
   }
 
+  int is3D = (state.graph.embedding.dim == 3);
+
   Vector3 centroid = {0};
-  if (state.graph.embedding.dim == 3) {
+  Vector2 centroid2D = {0};
+  {
     size_t N = state.graph.graph->vertices.count;
     for (size_t i = 0; i < N; i++) {
       double *pos =
           gvizEmbeddedGraphGetVPosition((gvizEmbeddedGraph *)&state, i);
-      centroid.x += pos[0];
-      centroid.y += pos[1];
-      centroid.z += pos[2];
+      centroid2D.x += (float)pos[0];
+      centroid2D.y += (float)pos[1];
+      if (is3D) {
+        centroid.x += (float)pos[0];
+        centroid.y += (float)pos[1];
+        centroid.z += (float)pos[2];
+      }
     }
-    centroid.x /= N;
-    centroid.y /= N;
-    centroid.z /= N;
+    centroid2D.x /= (float)N;
+    centroid2D.y /= (float)N;
+    if (is3D) {
+      centroid.x /= (float)N;
+      centroid.y /= (float)N;
+      centroid.z /= (float)N;
+    }
   }
 
   InitWindow(1000, 1000, "graphvis");
   SetTargetFPS(60);
 
-  Camera3D camera = {.position = (Vector3){0, 0, 5000},
-                     .target = (Vector3){0, 0, 0},
-                     .up = (Vector3){0, 1, 0},
-                     .fovy = 45.0f,
-                     .projection = CAMERA_PERSPECTIVE};
-  // Camera2D camera = {(Vector2){0, 0}, (Vector2){0, 0}, 0, 1.0f};
+  Camera3D camera3D = {.position =
+                           (Vector3){centroid.x, centroid.y, centroid.z + 5000},
+                       .target = centroid,
+                       .up = (Vector3){0, 1, 0},
+                       .fovy = 45.0f,
+                       .projection = CAMERA_PERSPECTIVE};
+  Camera2D camera2D = {.offset = (Vector2){500, 500},
+                       .target = centroid2D,
+                       .rotation = 0.0f,
+                       .zoom = 1.0f};
 
   gvizLayerGraph layer;
   gvizViewport viewport = {0, 0, 800, 600};
   gvizLayerGraphInit(&layer, (gvizEmbeddedGraph *)&state, viewport, 999);
 
+  // Build edge vertex buffer once before the render loop.
+  // Each edge becomes two 3-float vertices (line endpoint pair).
+  size_t N = embedding->graph->vertices.count;
+
+  size_t edgeVertexCount = 0;
+  for (size_t i = 0; i < N; i++) {
+    gvizArray *children = gvizGraphGetVertexNeighbors(embedding->graph, i);
+    edgeVertexCount += children->count * 2;
+  }
+
+  float *edgeVerts = (float *)malloc(edgeVertexCount * 3 * sizeof(float));
+  size_t vi = 0;
+  for (size_t i = 0; i < N; i++) {
+    double *pos = gvizEmbeddedGraphGetVPosition(embedding, i);
+    gvizArray *children = gvizGraphGetVertexNeighbors(embedding->graph, i);
+    for (size_t j = 0; j < children->count; j++) {
+      double *otherPos = gvizEmbeddedGraphGetVPosition(
+          embedding, *(size_t *)gvizArrayAtIndex(children, j));
+      edgeVerts[vi++] = (float)pos[0];
+      edgeVerts[vi++] = (float)pos[1];
+      edgeVerts[vi++] = is3D ? (float)pos[2] : 0.0f;
+      edgeVerts[vi++] = (float)otherPos[0];
+      edgeVerts[vi++] = (float)otherPos[1];
+      edgeVerts[vi++] = is3D ? (float)otherPos[2] : 0.0f;
+    }
+  }
+
+  // Upload geometry to GPU.
+  unsigned int graphVAO = rlLoadVertexArray();
+  rlEnableVertexArray(graphVAO);
+  unsigned int graphVBO = rlLoadVertexBuffer(
+      edgeVerts, (int)(edgeVertexCount * 3 * sizeof(float)), false);
+  rlSetVertexAttribute(0, 3, RL_FLOAT, 0, 0, 0);
+  rlEnableVertexAttribute(0);
+  rlDisableVertexArray();
+  free(edgeVerts);
+
+  int graphVertexCount = (int)edgeVertexCount;
+
   unsigned char currOpacity = 0xFF;
 
   while (!WindowShouldClose()) {
 
-    gvizRenderer3DCameraUpdate(&camera, centroid);
-    // gvizRenderer2DCameraUpdate(&camera);
+    if (is3D)
+      gvizRenderer3DCameraUpdate(&camera3D, centroid);
+    else
+      gvizRenderer2DCameraUpdate(&camera2D);
 
     // screenshot
     if (IsKeyPressed(KEY_G)) {
@@ -172,15 +246,34 @@ int main() {
       ClearBackground(RAYWHITE);
 
       rlSetClipPlanes(0.1, 1000000.0); // near, far
-      BeginMode3D(camera);
-      // BeginMode2D(camera);
+      if (is3D)
+        BeginMode3D(camera3D);
+      else
+        BeginMode2D(camera2D);
 
       // draw
 
-      ((gvizLayer *)&layer)->vtable->draw(&layer, &camera);
+      // ((gvizLayer *)&layer)->vtable->draw(&layer, &camera);
 
-      EndMode3D();
-      // EndMode2D();
+      // Draw graph edges using pre-uploaded VAO/VBO in a single GL call.
+      rlEnableShader(rlGetShaderIdDefault());
+      float black[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+      int *locs = rlGetShaderLocsDefault();
+      rlSetUniform(locs[RL_SHADER_LOC_COLOR_DIFFUSE], black,
+                   RL_SHADER_UNIFORM_VEC4, 1);
+      Matrix mvp = MatrixMultiply(
+          MatrixMultiply(rlGetMatrixModelview(), rlGetMatrixTransform()),
+          rlGetMatrixProjection());
+      rlSetUniformMatrix(locs[RL_SHADER_LOC_MATRIX_MVP], mvp);
+      rlEnableVertexArray(graphVAO);
+      glDrawArrays(GL_LINES, 0, graphVertexCount);
+      rlDisableVertexArray();
+      rlDisableShader();
+
+      if (is3D)
+        EndMode3D();
+      else
+        EndMode2D();
       // DrawText("Hello World", 0, 0, 20, GREEN);
       currOpacity = 0xFF;
     }
@@ -197,12 +290,15 @@ int main() {
   }
 
   // gvizGraphRelease(&mesh);
+  rlUnloadVertexArray(graphVAO);
+  rlUnloadVertexBuffer(graphVBO);
   CloseWindow();
   gvizGRIPEmbeddingRelease(&state);
-  gvizGraphRelease(&sierpinski3d);
+  gvizGraphRelease(&g);
+  // gvizGraphRelease(&sierpinski3d);
   // gvizGraphRelease(&mobius);
   // gvizGraphRelease(&knottedMesh);
-  // gvizGraphRelease(&carpet);
+  // gvizGraphRelease(&sierpinski);
   // gvizGraphRelease(&sierpinski);
   // gvizGraphRelease(&sierpinski3d);
   // gvizGraphRelease(&trimesh);
