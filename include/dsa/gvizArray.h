@@ -44,10 +44,23 @@ int gvizArrayInitAtCapacity(gvizArray *arr, size_t elementSize,
  * @param item the value of the item to be added to @p v.
  *
  * @return An error code showing whether or not the operation was successful
- * @retval 0 If the item was added succesfully.
+ * @retval 0 If the item was added successfully.
  * @retval -1 If the reallocation fails. @p v is still valid.
  */
 int gvizArrayPush(gvizArray *v, void *item);
+
+/**
+ * Inserts an item in the middle of a gvizArray, it will be at index i.
+ *
+ * @param v    a pointer to the gvizArray the item will be inserted in.
+ * @param item the value of the itme to be added to @p v.
+ * @param idx  the index of @v that @item will be in after insertion.
+ *
+ * @return An error code showing whether or not the operation was successful
+ * @retval 0 If the item was inserted successfully.
+ * @retval -1 If the reallocation fails. @p v is still valid.
+ */
+int gvizArrayInsert(gvizArray *v, void *item, size_t idx);
 
 /**
  * Deletes an item at a given index in O(1) time. Does not preserve the relative
@@ -81,6 +94,14 @@ int gvizArrayPop(gvizArray *v, void *res);
  * @retval -1  If the item was not found in the Vecotr.
  */
 int gvizArrayFindOneAndDelete(gvizArray *v, void *item);
+
+/**
+ * Deletes an element at an index from a gvizArray.
+ *
+ * @param v   A pointer to the gvizArray to delete from.
+ * @param idx The index of the item to delete.
+ */
+void gvizArrayDeleteAtIndex(gvizArray *v, size_t i);
 
 /**
  * Checks if a gvizArray is empty.

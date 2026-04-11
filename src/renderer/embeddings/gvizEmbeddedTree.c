@@ -290,8 +290,9 @@ int gvizEmbeddedTreeCalculateOffsets(gvizEmbeddedTree *state, size_t root,
 
   // Divide
   for (size_t i = 0; i < children->count; i++) {
-    gvizEmbeddedTreeCalculateOffsets(
-        state, *(size_t *)gvizArrayAtIndex(children, i), level);
+    if (gvizEmbeddedTreeCalculateOffsets(
+            state, *(size_t *)gvizArrayAtIndex(children, i), level) < 0)
+      return -1;
   }
 
   // Initialization. Includes base case (leaf node)

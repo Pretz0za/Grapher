@@ -22,6 +22,7 @@ add_library(graphvis STATIC
     src/renderer/embeddings/gvizEmbeddedTree.c
     src/renderer/embeddings/gvizGRIPEmbedding.c
     src/renderer/embeddings/gvizForceDirected.c
+    src/renderer/embeddings/gvizPlanarEmbedding.c
 
     src/renderer/layers/gvizLayer.c
     src/renderer/layers/gvizLayerGraph.c
@@ -40,6 +41,7 @@ target_include_directories(graphvis
 
 target_link_libraries(graphvis
     PRIVATE
+    /usr/local/lib/libplanar.a
     /usr/local/lib/libopenblas.a
     /usr/local/lib/libraylib.a
     "-framework Cocoa"
@@ -58,6 +60,7 @@ add_executable(gvizDequeTests third-party/unity/unity.c tests/dsa/gvizDequeTests
 
 
 add_executable(gvizGRIPTests third-party/unity/unity.c tests/renderer/GRIP/gvizGRIPTests.c)
+add_executable(gvizPlanarTests third-party/unity/unity.c tests/renderer/planar/gvizPlanarTests.c)
 
 add_executable(treeDemo tests/renderer/treeDemo.c)
 add_executable(gripDemo tests/renderer/gripDemo.c)
@@ -68,6 +71,7 @@ target_compile_definitions(gvizBitArrayTests PRIVATE UNITY_INCLUDE_DOUBLE)
 target_compile_definitions(gvizDequeTests PRIVATE UNITY_INCLUDE_DOUBLE)
 
 target_compile_definitions(gvizGRIPTests PRIVATE UNITY_INCLUDE_DOUBLE)
+target_compile_definitions(gvizPlanarTests PRIVATE UNITY_INCLUDE_DOUBLE)
 
 set_target_properties(gvizArrayTests PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/dsa)
@@ -80,6 +84,8 @@ set_target_properties(gvizDequeTests PROPERTIES
 
 set_target_properties(gvizGRIPTests PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/renderer/GRIP)
+set_target_properties(gvizPlanarTests PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/renderer/planar)
 
 set_target_properties(treeDemo PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/renderer/)
@@ -92,6 +98,7 @@ target_link_libraries(gvizBitArrayTests PRIVATE graphvis)
 target_link_libraries(gvizDequeTests PRIVATE graphvis)
 
 target_link_libraries(gvizGRIPTests PRIVATE graphvis)
+target_link_libraries(gvizPlanarTests PRIVATE graphvis)
 
 target_link_libraries(treeDemo PRIVATE graphvis)
 target_link_libraries(gripDemo PRIVATE graphvis)

@@ -44,6 +44,26 @@ int gvizArrayPush(gvizArray *v, void *item) {
   return 0;
 }
 
+int gvizArrayInsert(gvizArray *v, void *item, size_t idx) {
+  char *arr = (char *)v->arr;
+
+  if (v->count >= v->capacity) {
+    size_t newCapacity = v->capacity ? v->capacity * 2 : 8;
+    size_t *newArr = GVIZ_REALLOC(v->arr, v->elementSize * newCapacity);
+    if (!newArr) {
+      return -1;
+    }
+    v->capacity = newCapacity;
+    v->arr = newArr;
+  }
+
+  memmove(arr + (idx + 1) * v->elementSize, arr + idx * v->elementSize,
+          v->elementSize * (v->count - idx));
+  memcpy(arr + idx * v->elementSize, item, v->elementSize);
+  v->count++;
+  return 0;
+}
+
 void gvizArraySwapDelete(gvizArray *v, size_t idx) {
   if (v->count == 0)
     return;
@@ -87,6 +107,13 @@ int gvizArrayFindOneAndDelete(gvizArray *v, void *item) {
     }
   }
   return -1;
+}
+
+void gvizArrayDeleteAtIndex(gvizArray *v, size_t i) {
+  char *arr = v->arr;
+  memmove(arr + i * v->elementSize, arr + (i + 1) * v->elementSize,
+          v->elementSize * (v->count - i - 1));
+  v->count--;
 }
 
 void gvizArrayRelease(gvizArray *v) {

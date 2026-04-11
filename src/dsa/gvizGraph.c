@@ -107,11 +107,9 @@ int gvizGraphAddEdge(gvizGraph *g, size_t from, size_t to) {
   if (!inBoundsVertices(g, from, to))
     return -1;
   int err;
-  err = gvizArrayPush(
-      &((gvizVertex *)gvizArrayAtIndex(&g->vertices, from))->neighbors, &to);
+  err = gvizArrayPush(gvizGraphGetVertexNeighbors(g, from), &to);
   if (err == 0 && !g->directed) {
-    err = gvizArrayPush(
-        &((gvizVertex *)gvizArrayAtIndex(&g->vertices, to))->neighbors, &from);
+    err = gvizArrayPush(gvizGraphGetVertexNeighbors(g, to), &from);
   }
   return err;
 }
