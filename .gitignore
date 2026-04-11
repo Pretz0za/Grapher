@@ -2,3 +2,4 @@ build/
 .clangd
 .cache/
 projects/
+*.o
