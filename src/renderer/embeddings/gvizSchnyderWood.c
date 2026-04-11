@@ -155,7 +155,7 @@ int gvizSchnyderWoodInit(gvizSchnyderWood *sw, const gvizGraph *g)
 
         /* For a valid triangulated planar graph this must always succeed. */
         assert(w != GVIZ_SW_NONE);
-        if (w == GVIZ_SW_NONE) break;
+        if (w == GVIZ_SW_NONE) break; /* defensive: guard for release builds */
 
         size_t found_R = bnext[found_L];
 

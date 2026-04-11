@@ -181,10 +181,6 @@ static void verifySchnyderWood(const gvizSchnyderWood *sw, gvizGraph *g)
       /* Chain must terminate at the correct root. */
       size_t reached = swFollowToRoot(sw, c, v);
       TEST_ASSERT_EQUAL_UINT64(sw->root[c], reached);
-
-      if (!is_outer) {
-        /* Interior vertices must have a parent in every tree. */
-      }
     }
     /* Every interior vertex must have exactly one parent per tree. */
     if (!is_outer) {
