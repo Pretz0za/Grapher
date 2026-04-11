@@ -23,6 +23,7 @@ add_library(graphvis STATIC
     src/renderer/embeddings/gvizGRIPEmbedding.c
     src/renderer/embeddings/gvizForceDirected.c
     src/renderer/embeddings/gvizPlanarEmbedding.c
+    src/renderer/embeddings/gvizSchnyderWood.c
 
     src/renderer/layers/gvizLayer.c
     src/renderer/layers/gvizLayerGraph.c
