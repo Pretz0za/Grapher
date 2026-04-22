@@ -24,6 +24,7 @@ add_library(graphvis STATIC
     src/renderer/embeddings/gvizForceDirected.c
     src/renderer/embeddings/gvizPlanarEmbedding.c
     src/renderer/embeddings/gvizSchnyderWood.c
+    src/renderer/embeddings/gvizTutteEmbedding.c
 
     src/renderer/layers/gvizLayer.c
     src/renderer/layers/gvizLayerGraph.c
@@ -63,8 +64,11 @@ add_executable(gvizDequeTests third-party/unity/unity.c tests/dsa/gvizDequeTests
 add_executable(gvizGRIPTests third-party/unity/unity.c tests/renderer/GRIP/gvizGRIPTests.c)
 add_executable(gvizPlanarTests third-party/unity/unity.c tests/renderer/planar/gvizPlanarTests.c)
 
+add_executable(gvizTutteTests third-party/unity/unity.c tests/renderer/embeddings/gvizTutteTests.c)
+
 add_executable(treeDemo tests/renderer/treeDemo.c)
 add_executable(gripDemo tests/renderer/gripDemo.c)
+add_executable(tutteDemo tests/renderer/tutteDemo.c)
 
 target_compile_definitions(gvizArrayTests PRIVATE UNITY_INCLUDE_DOUBLE)
 target_compile_definitions(gvizGraphTests PRIVATE UNITY_INCLUDE_DOUBLE)
@@ -73,6 +77,7 @@ target_compile_definitions(gvizDequeTests PRIVATE UNITY_INCLUDE_DOUBLE)
 
 target_compile_definitions(gvizGRIPTests PRIVATE UNITY_INCLUDE_DOUBLE)
 target_compile_definitions(gvizPlanarTests PRIVATE UNITY_INCLUDE_DOUBLE)
+target_compile_definitions(gvizTutteTests PRIVATE UNITY_INCLUDE_DOUBLE)
 
 set_target_properties(gvizArrayTests PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/dsa)
@@ -87,10 +92,14 @@ set_target_properties(gvizGRIPTests PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/renderer/GRIP)
 set_target_properties(gvizPlanarTests PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/renderer/planar)
+set_target_properties(gvizTutteTests PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/renderer/embeddings)
 
 set_target_properties(treeDemo PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/renderer/)
 set_target_properties(gripDemo PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/renderer/)
+set_target_properties(tutteDemo PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/renderer/)
 
 target_link_libraries(gvizArrayTests PRIVATE graphvis)
@@ -100,7 +109,9 @@ target_link_libraries(gvizDequeTests PRIVATE graphvis)
 
 target_link_libraries(gvizGRIPTests PRIVATE graphvis)
 target_link_libraries(gvizPlanarTests PRIVATE graphvis)
+target_link_libraries(gvizTutteTests PRIVATE graphvis)
 
 target_link_libraries(treeDemo PRIVATE graphvis)
 target_link_libraries(gripDemo PRIVATE graphvis)
+target_link_libraries(tutteDemo PRIVATE graphvis)
 
