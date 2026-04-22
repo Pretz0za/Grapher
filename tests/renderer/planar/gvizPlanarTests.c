@@ -150,8 +150,7 @@ void test_triangulation() {
 
 /* Helper: follow parent[tree] pointers from v, return root reached.
  * Returns GVIZ_SW_NONE if a cycle is detected or too many hops. */
-static size_t swFollowToRoot(const gvizSchnyderWood *sw, int tree, size_t v)
-{
+static size_t swFollowToRoot(const gvizSchnyderWood *sw, int tree, size_t v) {
   size_t hops = sw->n + 1;
   while (hops-- && sw->parent[tree][v] != GVIZ_SW_NONE)
     v = sw->parent[tree][v];
@@ -164,8 +163,7 @@ static size_t swFollowToRoot(const gvizSchnyderWood *sw, int tree, size_t v)
  *   3. Every assigned parent is an actual neighbour in g.
  *   4. Following any chain in tree i eventually reaches root[i].
  */
-static void verifySchnyderWood(const gvizSchnyderWood *sw, gvizGraph *g)
-{
+static void verifySchnyderWood(const gvizSchnyderWood *sw, gvizGraph *g) {
   for (int c = 0; c < 3; c++)
     TEST_ASSERT_EQUAL_UINT64(GVIZ_SW_NONE, sw->parent[c][sw->root[c]]);
 
@@ -173,7 +171,8 @@ static void verifySchnyderWood(const gvizSchnyderWood *sw, gvizGraph *g)
     int is_outer = (v == sw->root[0] || v == sw->root[1] || v == sw->root[2]);
     for (int c = 0; c < 3; c++) {
       size_t p = sw->parent[c][v];
-      if (p == GVIZ_SW_NONE) continue;
+      if (p == GVIZ_SW_NONE)
+        continue;
 
       /* Must be an actual edge in the graph. */
       TEST_ASSERT_EQUAL_INT(1, gvizGraphEdgeExists(g, v, p));
@@ -191,8 +190,7 @@ static void verifySchnyderWood(const gvizSchnyderWood *sw, gvizGraph *g)
 }
 
 /* --- Schnyder wood on K4 (already a maximal planar graph) --- */
-void test_schnyderWood_K4(void)
-{
+void test_schnyderWood_K4(void) {
   gvizGraph g;
   gvizGraphInit(&g, 0);
 
@@ -221,8 +219,7 @@ void test_schnyderWood_K4(void)
 }
 
 /* --- Schnyder wood on a hexagon after triangulation --- */
-void test_schnyderWood_hexagon(void)
-{
+void test_schnyderWood_hexagon(void) {
   gvizGraph g;
   gvizGraphInit(&g, 0);
 
@@ -251,6 +248,32 @@ void test_schnyderWood_hexagon(void)
   TEST_ASSERT_EQUAL_UINT64(6, sw.n);
 
   verifySchnyderWood(&sw, &g);
+
+  printf("Schnyder Wood Created: \n");
+  printf("\t root[0]: %zu\n", sw.root[0]);
+  printf("\t root[1]: %zu\n", sw.root[1]);
+  printf("\t root[2]: %zu\n", sw.root[2]);
+
+  printf("Parents: \n");
+  for (size_t r = 0; r < 3; r++) {
+    printf("Tree %zu parents arr:\n", r);
+    for (size_t i = 0; i < sw.n; i++) {
+      if (i == sw.root[0] || i == sw.root[1] || i == sw.root[2])
+        continue;
+
+      printf("\t%zu's parent is %zu. %zu <--- %zu\n", i, sw.parent[r][i], i,
+             sw.parent[r][i]);
+    }
+  }
+
+  gvizSchnyderWoodEmbed(&sw, (gvizEmbeddedGraph *)(&state));
+
+  printf("Schnyder Wood Drawn: \n");
+  for (size_t i = 0; i < sw.n; i++) {
+    double *pos =
+        gvizEmbeddedGraphGetVPosition((gvizEmbeddedGraph *)(&state), i);
+    printf("\t vertex %zu: (%f, %f)\n", i, pos[0], pos[1]);
+  }
 
   gvizSchnyderWoodRelease(&sw);
   gvizPlanarEmbeddingRelease(&state);

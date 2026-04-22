@@ -9,6 +9,8 @@ typedef struct gvizPlanarEmbeddingState {
   gvizGraph *kuratowskiSubdivision;
 } gvizPlanarEmbeddingState;
 
+// initializes a planar graph and reorders the adjacency lists to show the
+// counter-clockwise rotation system (embedding).
 int gvizPlanarEmbeddingInit(gvizPlanarEmbeddingState *state, gvizGraph *g);
 void gvizPlanarEmbeddingRelease(gvizPlanarEmbeddingState *g);
 

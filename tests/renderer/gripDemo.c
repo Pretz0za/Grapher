@@ -94,7 +94,7 @@ void projectPCA(double *positions, size_t N) {
 int main() {
 
   size_t WIDTH = 400, HEIGHT = 100;
-  size_t DEPTH = 11;
+  size_t DEPTH = 6;
 
   printf("initializing state\n");
   gvizGRIPState state;
@@ -103,31 +103,31 @@ int main() {
   // gvizGraph klein = build_klein_bottle(WIDTH, HEIGHT);
   // gvizGraph mobius = build_mobius_strip(WIDTH, HEIGHT);
   // gvizGraph knottedMesh = build_knotted_rect_mesh(WIDTH, HEIGHT);
-  g = createSierpinskiTetrahedron(DEPTH, NULL);
+  // g = createSierpinskiTetrahedron(DEPTH, NULL);
   // gvizGraph mesh = build_rect_mesh(WIDTH, HEIGHT);
   // gvizGraph sierpinski = createSierpinski(DEPTH, NULL);
   // gvizGraph trimesh = build_equilateral_tri_mesh(DEPTH);
-  // gvizGraph carpet = build_sierpinski_carpet(DEPTH);
+  g = build_sierpinski_carpet(DEPTH);
   // gvizGRIPEmbeddingInit(&state, &mesh, (WIDTH - 1) + (HEIGHT - 1) + 10, 2);
-  // gvizGRIPEmbeddingInit(&state, &carpet, pow(2, DEPTH), 2);
+  gvizGRIPEmbeddingInit(&state, &g, pow(2, DEPTH), 2);
   // gvizGRIPEmbeddingInit(&state, &g, DEPTH, 2); // trimesh 2d
   // gvizGRIPEmbeddingInit(&state, &g, DEPTH, 3); // trimesh 3d
   // gvizGRIPEmbeddingInit(&state, &g, pow(4, DEPTH), 2);
   // gvizGRIPEmbeddingInit(&state, &mobius, pow(2, DEPTH + 1), 4);
-  gvizGRIPEmbeddingInit(&state, &g, pow(2, DEPTH + 1), 3); // 3d sierpinski
+  // gvizGRIPEmbeddingInit(&state, &g, pow(2, DEPTH + 1), 3); // 3d sierpinski
 
   printf("creating filtration\n");
-  // gvizGRIPEmbeddingEmbed(&state);
+  gvizGRIPEmbeddingEmbed(&state);
   gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)&state;
 
-  assert(!gvizEmbeddedGraphLoadEmbedding(embedding, "3d_sierpinski_11.txt"));
+  // assert(!gvizEmbeddedGraphLoadEmbedding(embedding, "3d_sierpinski_11.txt"));
 
-  gvizGRIPRefineEmbedding(&state);
+  // gvizGRIPRefineEmbedding(&state);
 
-  gvizEmbeddedGraphSaveEmbedding(embedding,
-                                 "Depth 11 Sierpinski Tetrahedron Embedding",
-                                 "3d_sierpinski_11.txt");
-
+  // gvizEmbeddedGraphSaveEmbedding(embedding,
+  //                                "Depth 11 Sierpinski Tetrahedron Embedding",
+  //                                "3d_sierpinski_11.txt");
+  //
   if (state.graph.embedding.dim == 4) {
     projectPCA(state.graph.embedding.vertexPositions, g.vertices.count);
     state.graph.embedding.dim = 3;

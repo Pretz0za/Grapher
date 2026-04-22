@@ -562,12 +562,12 @@ void refineGRIPPositions(gvizGRIPState *state, size_t layer,
   for (size_t i = 0; i < state->misBorder[layer]; i++) {
     gvizArrayInitAtCapacity(&knns[i], sizeof(gvizFoundVertex), 128);
     knns[i].count =
-        gvizGraphKNearestNeighbors(embedding->graph, knns[i].arr, 64,
+        gvizGraphKNearestNeighbors(embedding->graph, knns[i].arr, 128,
                                    state->misFiltration[i], placedVertices);
   }
 
   // TODO: implement rounds instead of hardcoding
-  for (size_t r = 0; r < 18; r++) {
+  for (size_t r = 0; r < 36; r++) {
     printf("Refining layer %zu... round %zu\n", layer, r);
     // calculate normalized displacements
     for (size_t i = 0; i < state->misBorder[layer]; i++) {

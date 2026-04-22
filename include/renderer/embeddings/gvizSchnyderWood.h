@@ -2,9 +2,11 @@
 #define _GVIZ_SCHNYDER_WOOD_H_
 
 #include "dsa/gvizGraph.h"
+#include "renderer/embeddings/gvizEmbeddedGraph.h"
 #include <stddef.h>
 
-/** Sentinel meaning "no parent" (root vertex, or edge excluded from this tree). */
+/** Sentinel meaning "no parent" (root vertex, or edge excluded from this tree).
+ */
 #define GVIZ_SW_NONE ((size_t)-1)
 
 /**
@@ -29,9 +31,9 @@
  *     edge root[0]–root[1] is excluded from every tree).
  */
 typedef struct gvizSchnyderWood {
-    size_t  n;         /**< Number of vertices (same as the input graph). */
-    size_t  root[3];   /**< root[i] = root vertex of tree Ti.             */
-    size_t *parent[3]; /**< parent[i][v] = parent of v in Ti.             */
+  size_t n;          /**< Number of vertices (same as the input graph). */
+  size_t root[3];    /**< root[i] = root vertex of tree Ti.             */
+  size_t *parent[3]; /**< parent[i][v] = parent of v in Ti.             */
 } gvizSchnyderWood;
 
 /**
@@ -55,5 +57,8 @@ int gvizSchnyderWoodInit(gvizSchnyderWood *sw, const gvizGraph *g);
  * Releases all memory owned by @p sw.
  */
 void gvizSchnyderWoodRelease(gvizSchnyderWood *sw);
+
+void gvizSchnyderWoodEmbed(const gvizSchnyderWood *sw,
+                           gvizEmbeddedGraph *embedding);
 
 #endif /* _GVIZ_SCHNYDER_WOOD_H_ */
