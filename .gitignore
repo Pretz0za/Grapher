@@ -3,3 +3,5 @@ build/
 .cache/
 projects/
 *.o
+.CLAUDE.md
+.claude/
