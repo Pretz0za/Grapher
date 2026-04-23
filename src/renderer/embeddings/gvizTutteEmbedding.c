@@ -2,7 +2,9 @@
 #include "core/alloc.h"
 #include "dsa/gvizArray.h"
 #include "dsa/gvizGraph.h"
+#include "cblas.h"
 #include <math.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -40,10 +42,14 @@ int gvizTutteEmbeddingInit(gvizTutteState *s, gvizGraph *g, size_t dimension,
         return -1;
     memset(s->isBoundary, 0, sizeof(GVIZ_BIT_UNIT) * GVIZ_ARRAY_UNITS(N));
 
-    s->scratch = GVIZ_ALLOC(sizeof(double) * N * dimension);
-    if (!s->scratch)
-        return -1;
-    memset(s->scratch, 0, sizeof(double) * N * dimension);
+    s->matII = NULL;
+    s->rhs = NULL;
+    s->xiBuf = NULL;
+    s->baryBuf = NULL;
+    s->interiorIdx = NULL;
+    s->vertexToInterior = NULL;
+    s->numInterior = 0;
+    s->matrixBuilt = 0;
 
     s->iteration = 0;
     s->lastMaxDelta = 0.0;
@@ -56,9 +62,14 @@ int gvizTutteEmbeddingInit(gvizTutteState *s, gvizGraph *g, size_t dimension,
 }
 
 void gvizTutteEmbeddingRelease(gvizTutteState *s) {
-    if (s->boundary)   GVIZ_DEALLOC(s->boundary);
-    if (s->isBoundary) GVIZ_DEALLOC(s->isBoundary);
-    if (s->scratch)    GVIZ_DEALLOC(s->scratch);
+    if (s->boundary)         GVIZ_DEALLOC(s->boundary);
+    if (s->isBoundary)       GVIZ_DEALLOC(s->isBoundary);
+    if (s->matII)            GVIZ_DEALLOC(s->matII);
+    if (s->rhs)              GVIZ_DEALLOC(s->rhs);
+    if (s->xiBuf)            GVIZ_DEALLOC(s->xiBuf);
+    if (s->baryBuf)          GVIZ_DEALLOC(s->baryBuf);
+    if (s->interiorIdx)      GVIZ_DEALLOC(s->interiorIdx);
+    if (s->vertexToInterior) GVIZ_DEALLOC(s->vertexToInterior);
     gvizEmbeddedGraphRelease((gvizEmbeddedGraph *)s);
 }
 
@@ -87,7 +98,7 @@ int gvizTutteEmbeddingSetBoundary(gvizTutteState *s, const size_t *boundary,
         setPos(s, boundary[i], (double *)(positions + i * d));
     }
 
-    return 0;
+    return gvizTutteEmbeddingBuildMatrix(s);
 }
 
 void gvizTutteEmbeddingSeedInterior(gvizTutteState *s) {
@@ -131,93 +142,132 @@ void gvizTutteFixConvexPolygon(gvizTutteState *s, const size_t *boundary,
     gvizTutteEmbeddingSetBoundary(s, boundary, count, positions);
 }
 
-/* ---- step ----------------------------------------------------------------- */
+/* ---- matrix build --------------------------------------------------------- */
 
-/* Snapshot interior positions into scratch so Jacobi reads a consistent generation. */
-static void snapshotInterior(gvizTutteState *s) {
+int gvizTutteEmbeddingBuildMatrix(gvizTutteState *s) {
+    gvizGraph *g = ((gvizEmbeddedGraph *)s)->graph;
     size_t N = numVertices(s);
     size_t d = dim(s);
+
+    if (s->matII)            { GVIZ_DEALLOC(s->matII);            s->matII = NULL; }
+    if (s->rhs)              { GVIZ_DEALLOC(s->rhs);              s->rhs = NULL; }
+    if (s->xiBuf)            { GVIZ_DEALLOC(s->xiBuf);            s->xiBuf = NULL; }
+    if (s->baryBuf)          { GVIZ_DEALLOC(s->baryBuf);          s->baryBuf = NULL; }
+    if (s->interiorIdx)      { GVIZ_DEALLOC(s->interiorIdx);      s->interiorIdx = NULL; }
+    if (s->vertexToInterior) { GVIZ_DEALLOC(s->vertexToInterior); s->vertexToInterior = NULL; }
+    s->matrixBuilt = 0;
+
+    s->vertexToInterior = GVIZ_ALLOC(sizeof(size_t) * N);
+    if (!s->vertexToInterior)
+        return -1;
+
+    size_t NI = 0;
     for (size_t u = 0; u < N; u++) {
         if (!gvizTestBit(s->isBoundary, u))
-            memcpy(s->scratch + u * d, livePos(s, u), sizeof(double) * d);
+            s->vertexToInterior[u] = NI++;
+        else
+            s->vertexToInterior[u] = SIZE_MAX;
     }
-}
+    s->numInterior = NI;
 
-/* Returns a pointer to vertex v's position to use as a neighbor read source. */
-static double *neighborReadPos(gvizTutteState *s, size_t v) {
-    if (!s->useGaussSeidel && !gvizTestBit(s->isBoundary, v))
-        return s->scratch + v * dim(s);
-    return livePos(s, v);
-}
+    if (NI == 0)
+        return 0;
 
-/* Computes the unweighted barycenter of u's neighbors into out[dim]. */
-static void computeBarycenter(gvizTutteState *s, size_t u, double *out) {
-    gvizGraph *g = ((gvizEmbeddedGraph *)s)->graph;
-    gvizArray *nb = gvizGraphGetVertexNeighbors(g, u);
-    size_t d = dim(s);
-    memset(out, 0, sizeof(double) * d);
-    for (size_t j = 0; j < nb->count; j++) {
-        size_t v = *(size_t *)gvizArrayAtIndex(nb, j);
-        double *vp = neighborReadPos(s, v);
-        for (size_t k = 0; k < d; k++)
-            out[k] += vp[k];
-    }
-    for (size_t k = 0; k < d; k++)
-        out[k] /= (double)nb->count;
-}
+    s->interiorIdx = GVIZ_ALLOC(sizeof(size_t) * NI);
+    if (!s->interiorIdx) return -1;
+    for (size_t u = 0, i = 0; u < N; u++)
+        if (s->vertexToInterior[u] != SIZE_MAX)
+            s->interiorIdx[i++] = u;
 
-/* Moves u by alpha toward its barycenter; returns L2 displacement. */
-static double relaxVertex(gvizTutteState *s, size_t u, double alpha) {
-    gvizArray *nb = gvizGraphGetVertexNeighbors(((gvizEmbeddedGraph *)s)->graph, u);
-    if (nb->count == 0)
-        return 0.0;
+    s->matII   = GVIZ_ALLOC(sizeof(double) * NI * NI);
+    s->rhs     = GVIZ_ALLOC(sizeof(double) * NI * d);
+    s->xiBuf   = GVIZ_ALLOC(sizeof(double) * NI);
+    s->baryBuf = GVIZ_ALLOC(sizeof(double) * NI);
+    if (!s->matII || !s->rhs || !s->xiBuf || !s->baryBuf)
+        return -1;
 
-    size_t d = dim(s);
-    double bary[d];
-    computeBarycenter(s, u, bary);
+    memset(s->matII, 0, sizeof(double) * NI * NI);
+    memset(s->rhs,   0, sizeof(double) * NI * d);
 
-    double *old = livePos(s, u);
-    double newp[d];
-    double delta = 0.0;
-    for (size_t k = 0; k < d; k++) {
-        newp[k] = old[k] + alpha * (bary[k] - old[k]);
-        double diff = newp[k] - old[k];
-        delta += diff * diff;
+    /* M_II[i][j] = 1/deg(i) for interior-interior edges.
+       rhs[i*d+k] = (1/deg(i)) * sum of boundary-neighbor positions for dim k. */
+    for (size_t i = 0; i < NI; i++) {
+        size_t u = s->interiorIdx[i];
+        gvizArray *nb = gvizGraphGetVertexNeighbors(g, u);
+        double inv_deg = 1.0 / (double)nb->count;
+        for (size_t j = 0; j < nb->count; j++) {
+            size_t v = *(size_t *)gvizArrayAtIndex(nb, j);
+            size_t vi = s->vertexToInterior[v];
+            if (vi != SIZE_MAX) {
+                s->matII[i * NI + vi] = inv_deg;
+            } else {
+                double *vp = livePos(s, v);
+                for (size_t k = 0; k < d; k++)
+                    s->rhs[i * d + k] += inv_deg * vp[k];
+            }
+        }
     }
 
-    setPos(s, u, newp);
-    return sqrt(delta);
+    s->matrixBuilt = 1;
+    return 0;
 }
+
+/* ---- step ----------------------------------------------------------------- */
 
 double gvizTutteEmbeddingStep(gvizTutteState *s, double dt) {
-    size_t N = numVertices(s);
+    if (!s->matrixBuilt)
+        return 0.0;
+
+    size_t NI = s->numInterior;
+    size_t d = dim(s);
 
     double alpha = s->relaxationRate * dt;
     if (alpha <= 0.0) return 0.0;
     if (alpha > 1.0)  alpha = 1.0;
 
-    if (!s->useGaussSeidel)
-        snapshotInterior(s);
+    /* Accumulate squared displacement per interior vertex across all dims. */
+    double deltaSum[NI];
+    memset(deltaSum, 0, sizeof(double) * NI);
+
+    for (size_t k = 0; k < d; k++) {
+        /* Snapshot x_I for this dimension (Jacobi: read before any writes). */
+        for (size_t i = 0; i < NI; i++)
+            s->xiBuf[i] = livePos(s, s->interiorIdx[i])[k];
+
+        /* baryBuf = M_II * x_I  (interior-neighbor contribution). */
+        cblas_dgemv(CblasRowMajor, CblasNoTrans,
+                    (int)NI, (int)NI,
+                    1.0, s->matII, (int)NI,
+                    s->xiBuf, 1,
+                    0.0, s->baryBuf, 1);
+
+        /* baryBuf += rhs[:,k]  (precomputed boundary contribution, stride=d). */
+        cblas_daxpy((int)NI, 1.0, s->rhs + k, (int)d, s->baryBuf, 1);
+
+        /* Relaxation: x[i][k] += alpha * (bary[i] - x[i][k]). */
+        for (size_t i = 0; i < NI; i++) {
+            double diff = alpha * (s->baryBuf[i] - s->xiBuf[i]);
+            livePos(s, s->interiorIdx[i])[k] += diff;
+            deltaSum[i] += diff * diff;
+        }
+    }
 
     double maxDelta = 0.0;
-    for (size_t u = 0; u < N; u++) {
-        if (gvizTestBit(s->isBoundary, u))
-            continue;
-        double d = relaxVertex(s, u, alpha);
-        if (d > maxDelta)
-            maxDelta = d;
+    for (size_t i = 0; i < NI; i++) {
+        double l2 = sqrt(deltaSum[i]);
+        if (l2 > maxDelta)
+            maxDelta = l2;
     }
 
     s->iteration++;
     s->lastMaxDelta = maxDelta;
-    if (maxDelta < s->epsilon)
-        s->converged = 1;
+    s->converged = (maxDelta < s->epsilon) ? 1 : 0;
 
     return maxDelta;
 }
 
 int gvizTutteEmbeddingRun(gvizTutteState *s, size_t maxIters) {
-    if (!s || !s->boundary)
+    if (!s || !s->matrixBuilt)
         return -1;
 
     while (!s->converged && s->iteration < maxIters)
