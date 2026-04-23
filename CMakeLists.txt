@@ -32,11 +32,13 @@ add_library(graphvis STATIC
 
     src/renderer/layers/gvizLayer.c
     src/renderer/layers/gvizLayerGraph.c
+    src/renderer/layers/gvizLayerMainMenu.c
 
 
     src/utils/graphs.c
     src/utils/serializers.c
     src/utils/helpers.c
+    src/utils/gvizTreeIO.c
 )
 
 target_include_directories(graphvis 
@@ -120,7 +122,7 @@ target_link_libraries(gripDemo PRIVATE graphvis)
 target_link_libraries(tutteDemo PRIVATE graphvis)
 
 # Main application executable
-add_executable(grapher src/app/main.c)
+add_executable(grapher src/app/main.c src/app/gvizSceneBuilders.c)
 target_link_libraries(grapher PRIVATE graphvis)
 set_target_properties(grapher PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
