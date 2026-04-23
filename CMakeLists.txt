@@ -18,6 +18,7 @@ add_library(graphvis STATIC
     src/dsa/gvizDeque.c
 
     src/renderer/gvizRenderer.c
+    src/renderer/raygui_impl.c
     src/renderer/embeddings/gvizEmbeddedGraph.c
     src/renderer/embeddings/gvizEmbeddedTree.c
     src/renderer/embeddings/gvizGRIPEmbedding.c
