@@ -18,6 +18,7 @@ add_library(graphvis STATIC
     src/dsa/gvizDeque.c
 
     src/core/gvizCamera.c
+    src/core/gvizScene.c
 
     src/renderer/gvizRenderer.c
     src/renderer/raygui_impl.c
@@ -117,4 +118,10 @@ target_link_libraries(gvizTutteTests PRIVATE graphvis)
 target_link_libraries(treeDemo PRIVATE graphvis)
 target_link_libraries(gripDemo PRIVATE graphvis)
 target_link_libraries(tutteDemo PRIVATE graphvis)
+
+# Main application executable
+add_executable(grapher src/app/main.c)
+target_link_libraries(grapher PRIVATE graphvis)
+set_target_properties(grapher PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
