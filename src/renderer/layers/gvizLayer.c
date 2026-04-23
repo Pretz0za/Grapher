@@ -5,4 +5,5 @@ void gvizLayerInit(gvizLayer *layer, const gvizViewport viewport,
   layer->vtable = vtable;
   layer->viewport = viewport;
   layer->z = z;
+  layer->flags = GVIZ_LAYER_VISIBLE;
 }

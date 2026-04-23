@@ -17,6 +17,8 @@ add_library(graphvis STATIC
     src/dsa/gvizArray.c
     src/dsa/gvizDeque.c
 
+    src/core/gvizCamera.c
+
     src/renderer/gvizRenderer.c
     src/renderer/raygui_impl.c
     src/renderer/embeddings/gvizEmbeddedGraph.c
