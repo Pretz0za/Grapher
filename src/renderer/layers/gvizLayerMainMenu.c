@@ -4,9 +4,10 @@
 #include <string.h>
 
 #define PANEL_W 320
-#define PANEL_H 260
-#define BTN_H 40
-#define BTN_GAP 12
+#define BTN_H   40
+#define BTN_GAP 10
+#define BTN_COUNT 6
+#define PANEL_H (48 + BTN_COUNT * (BTN_H + BTN_GAP) - BTN_GAP + 16)
 
 void gvizLayerMainMenuInit(gvizLayerMainMenu *layer,
                            const gvizViewport viewport, size_t z) {
@@ -28,19 +29,18 @@ void gvizLayerMainMenuDraw(void *layerV, const gvizCamera *camera) {
   GuiPanel((Rectangle){px, py, PANEL_W, PANEL_H}, "Grapher");
 
   float by = py + 48;
-  if (GuiButton((Rectangle){px + 16, by, PANEL_W - 32, BTN_H}, "Load Scene")) {
-    l->requestedAction = GVIZ_MENU_LOAD_SCENE;
-  }
+#define MBTN(label, action) \
+  if (GuiButton((Rectangle){px + 16, by, PANEL_W - 32, BTN_H}, label)) \
+    l->requestedAction = (action); \
   by += BTN_H + BTN_GAP;
-  if (GuiButton((Rectangle){px + 16, by, PANEL_W - 32, BTN_H},
-                "Demo: GRIP Sierpinski")) {
-    l->requestedAction = GVIZ_MENU_DEMO_GRIP_SIERPINSKI;
-  }
-  by += BTN_H + BTN_GAP;
-  if (GuiButton((Rectangle){px + 16, by, PANEL_W - 32, BTN_H},
-                "Blank Scene")) {
-    l->requestedAction = GVIZ_MENU_BLANK_SCENE;
-  }
+
+  MBTN("Load Scene",              GVIZ_MENU_LOAD_SCENE)
+  MBTN("Demo: GRIP Sierpinski",   GVIZ_MENU_DEMO_GRIP_SIERPINSKI)
+  MBTN("Demo: GRIP Carpet",       GVIZ_MENU_DEMO_GRIP_CARPET)
+  MBTN("Demo: Tutte Spider-Web",  GVIZ_MENU_DEMO_TUTTE)
+  MBTN("Demo: Random Tree",       GVIZ_MENU_DEMO_TREE)
+  MBTN("Blank Scene",             GVIZ_MENU_BLANK_SCENE)
+#undef MBTN
 }
 
 void gvizLayerMainMenuUpdate(void *layer, float dt) {

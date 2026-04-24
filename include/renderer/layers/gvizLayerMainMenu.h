@@ -12,13 +12,15 @@ typedef enum gvizMainMenuAction {
   GVIZ_MENU_NONE = 0,
   GVIZ_MENU_LOAD_SCENE,
   GVIZ_MENU_DEMO_GRIP_SIERPINSKI,
+  GVIZ_MENU_DEMO_GRIP_CARPET,
+  GVIZ_MENU_DEMO_TUTTE,
+  GVIZ_MENU_DEMO_TREE,
   GVIZ_MENU_BLANK_SCENE,
 } gvizMainMenuAction;
 
 typedef struct gvizLayerMainMenu {
   gvizLayer layer;
   gvizMainMenuAction requestedAction;
-  /* Filled when requestedAction is LOAD_SCENE — a best-effort path string. */
   char loadPath[512];
 } gvizLayerMainMenu;
 

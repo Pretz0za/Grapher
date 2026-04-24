@@ -48,8 +48,20 @@ int main(void) {
         if (gvizBuildGRIPSierpinskiScene(&scene, 4) != 0)
           gvizBuildBlankScene(&scene);
         break;
+      case GVIZ_MENU_DEMO_GRIP_CARPET:
+        if (gvizBuildGRIPCarpetScene(&scene, 4) != 0)
+          gvizBuildBlankScene(&scene);
+        break;
+      case GVIZ_MENU_DEMO_TUTTE:
+        if (gvizBuildTutteDemoScene(&scene) != 0)
+          gvizBuildBlankScene(&scene);
+        break;
+      case GVIZ_MENU_DEMO_TREE:
+        if (gvizBuildTreeDemoScene(&scene) != 0)
+          gvizBuildBlankScene(&scene);
+        break;
       case GVIZ_MENU_LOAD_SCENE:
-        /* TODO: raygui text-input file picker. For now fall back to blank. */
+        /* TODO: raygui text-input file picker. */
         gvizBuildBlankScene(&scene);
         break;
       default:

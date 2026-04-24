@@ -3,21 +3,22 @@
 
 #include "core/gvizScene.h"
 
-/*
- * Initialize an empty 2D scene. Caller is responsible for releasing @p out.
- */
+/* Initialize an empty 2D scene. */
 int gvizBuildBlankScene(gvizScene *out);
 
-/*
- * Initialize a 2D scene containing a GRIP-embedded Sierpinski triangle of the
- * given depth (use 4 for a reasonable demo).
- */
+/* 2D scene: GRIP-embedded Sierpinski triangle (depth 4 recommended). */
 int gvizBuildGRIPSierpinskiScene(gvizScene *out, int depth);
 
-/*
- * Initialize a 2D scene by loading a tree JSON file. Returns 0 on success,
- * -1 on any I/O or parse failure.
- */
+/* 2D scene: GRIP-embedded Sierpinski carpet (depth 4 recommended). */
+int gvizBuildGRIPCarpetScene(gvizScene *out, int depth);
+
+/* 2D scene: live Tutte barycentric embedding on a spider-web graph. */
+int gvizBuildTutteDemoScene(gvizScene *out);
+
+/* 2D scene: Reingold-Tilford layout of a random tree. */
+int gvizBuildTreeDemoScene(gvizScene *out);
+
+/* 2D scene loaded from a tree JSON file. */
 int gvizBuildSceneFromTreeFile(gvizScene *out, const char *path);
 
 #endif
