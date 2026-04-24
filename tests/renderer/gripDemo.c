@@ -175,7 +175,7 @@ int main() {
 
   gvizLayerGraph layer;
   gvizViewport viewport = {0, 0, 800, 600};
-  gvizLayerGraphInit(&layer, (gvizEmbeddedGraph *)&state, viewport, 999);
+  gvizLayerGraphInit(&layer, (gvizEmbeddedGraph *)&state, NULL, viewport, 999);
 
   // Build edge vertex buffer once before the render loop.
   // Each edge becomes two 3-float vertices (line endpoint pair).

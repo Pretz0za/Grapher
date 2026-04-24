@@ -52,7 +52,7 @@ int main() {
 
   gvizLayerGraph layer;
   gvizViewport viewport = {0, 0, 800, 600};
-  gvizLayerGraphInit(&layer, (gvizEmbeddedGraph *)&rtTreeEmbedding, viewport,
+  gvizLayerGraphInit(&layer, (gvizEmbeddedGraph *)&rtTreeEmbedding, NULL, viewport,
                      999);
 
   unsigned char currOpacity = 0xFF;

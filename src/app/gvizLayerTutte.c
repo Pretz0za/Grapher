@@ -1,83 +1,81 @@
 #include "app/gvizLayerTutte.h"
 #include "core/event.h"
 #include "core/gvizCamera.h"
-#include "dsa/gvizArray.h"
-#include "dsa/gvizBitArray.h"
-#include "renderer/embeddings/gvizEmbeddedGraph.h"
-#include "rlgl.h"
 #include "raylib.h"
-#include <stdlib.h>
-#include <string.h>
+#include "renderer/embeddings/gvizEmbeddedGraph.h"
+#include "renderer/layers/gvizGraphVBO.h"
 
 int gvizLayerTutteInit(gvizLayerTutte *layer, gvizGraph *g,
                        const size_t *boundary, size_t boundaryCount,
                        double boundaryRadius, size_t z) {
-    gvizLayerInit((gvizLayer *)layer, (gvizViewport){0,0,0,0},
-                  &GVIZ_LAYER_TUTTE_VTABLE, z);
-    layer->layer.flags = GVIZ_LAYER_VISIBLE;
-    layer->paused = 0;
+  gvizLayerInit((gvizLayer *)layer, (gvizViewport){0, 0, 0, 0},
+                &GVIZ_LAYER_TUTTE_VTABLE, z);
+  layer->layer.flags = GVIZ_LAYER_VISIBLE;
+  layer->paused = 0;
 
-    if (gvizGraphClone(&layer->graph, g) != 0)
-        return -1;
+  if (gvizGraphClone(&layer->graph, g) != 0)
+    return -1;
 
-    if (gvizTutteEmbeddingInit(&layer->tutte, &layer->graph, 2, 1e-5) != 0) {
-        gvizGraphRelease(&layer->graph);
-        return -1;
-    }
-    layer->tutte.relaxationRate = 10.0;
+  if (gvizTutteEmbeddingInit(&layer->tutte, &layer->graph, 2, 1e-5) != 0) {
+    gvizGraphRelease(&layer->graph);
+    return -1;
+  }
+  layer->tutte.relaxationRate = 10.0;
 
-    gvizTutteFixConvexPolygon(&layer->tutte, boundary, boundaryCount,
-                              boundaryRadius);
-    gvizTutteEmbeddingSeedInterior(&layer->tutte);
-    return 0;
+  gvizTutteFixConvexPolygon(&layer->tutte, boundary, boundaryCount,
+                            boundaryRadius);
+  gvizTutteEmbeddingSeedInterior(&layer->tutte);
+
+  gvizGraphVBOInit(&layer->vbo);
+  layer->gpuDirty = 2;
+  return 0;
 }
 
 void gvizLayerTutteDraw(void *layerV, const gvizCamera *camera) {
-    (void)camera;
-    gvizLayerTutte *self = (gvizLayerTutte *)layerV;
-    gvizEmbeddedGraph *eg = (gvizEmbeddedGraph *)&self->tutte;
+  (void)camera;
+  gvizLayerTutte *self = (gvizLayerTutte *)layerV;
+  gvizEmbeddedGraph *eg = (gvizEmbeddedGraph *)&self->tutte;
 
-    rlColor4ub(0, 0, 0, 255);
-    rlBegin(RL_LINES);
-    for (size_t i = 0; i < eg->graph->vertices.count; i++) {
-        double *p = gvizEmbeddedGraphGetVPosition(eg, i);
-        gvizArray *nb = gvizGraphGetVertexNeighbors(eg->graph, i);
-        for (size_t j = 0; j < nb->count; j++) {
-            double *op = gvizEmbeddedGraphGetVPosition(
-                eg, *(size_t *)gvizArrayAtIndex(nb, j));
-            rlVertex3f((float)p[0],  (float)p[1],  0.0f);
-            rlVertex3f((float)op[0], (float)op[1], 0.0f);
-        }
-    }
-    rlEnd();
+  if (self->gpuDirty >= 2 || !self->vbo.vaoId)
+    gvizGraphVBORebuild(&self->vbo, eg);
+  else if (self->gpuDirty == 1)
+    gvizGraphVBOUploadPositions(&self->vbo, eg);
+  self->gpuDirty = 0;
+
+  gvizGraphVBODraw(&self->vbo);
 }
 
 void gvizLayerTutteUpdate(void *layerV, float dt) {
-    gvizLayerTutte *self = (gvizLayerTutte *)layerV;
-    if (!self->paused && !self->tutte.converged)
-        gvizTutteEmbeddingStep(&self->tutte, dt);
+  gvizLayerTutte *self = (gvizLayerTutte *)layerV;
+  if (!self->paused && !self->tutte.converged) {
+    gvizTutteEmbeddingStep(&self->tutte, dt);
+    self->gpuDirty = 1;
+  }
 }
 
 void gvizLayerTutteRelease(void *layerV) {
-    gvizLayerTutte *self = (gvizLayerTutte *)layerV;
-    gvizTutteEmbeddingRelease(&self->tutte);
-    gvizGraphRelease(&self->graph);
+  gvizLayerTutte *self = (gvizLayerTutte *)layerV;
+  gvizGraphVBORelease(&self->vbo);
+  gvizTutteEmbeddingRelease(&self->tutte);
+  gvizGraphRelease(&self->graph);
 }
 
 int gvizLayerTutteHandleEvent(void *layerV, const gvizEvent *event) {
-    gvizLayerTutte *self = (gvizLayerTutte *)layerV;
-    if (event->type != GVIZ_EVENT_KEY_DOWN)
-        return 0;
-    switch (event->key.key) {
-    case KEY_SPACE:
-        self->paused = !self->paused;
-        return 1;
-    case KEY_S:
-        gvizTutteEmbeddingStep(&self->tutte, 1.0f / 60.0f);
-        return 1;
-    case KEY_R:
-        gvizTutteEmbeddingSeedInterior(&self->tutte);
-        return 1;
-    }
+  gvizLayerTutte *self = (gvizLayerTutte *)layerV;
+  if (event->type != GVIZ_EVENT_KEY_DOWN)
     return 0;
+  switch (event->key.key) {
+  case KEY_SPACE:
+    self->paused = !self->paused;
+    return 1;
+  case KEY_S:
+    gvizTutteEmbeddingStep(&self->tutte, 1.0f / 60.0f);
+    self->gpuDirty = 1;
+    return 1;
+  case KEY_R:
+    gvizTutteEmbeddingSeedInterior(&self->tutte);
+    self->gpuDirty = 1;
+    return 1;
+  }
+  return 0;
 }

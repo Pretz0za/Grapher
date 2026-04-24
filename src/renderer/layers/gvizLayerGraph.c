@@ -1,43 +1,31 @@
 #include "renderer/layers/gvizLayerGraph.h"
 #include "core/alloc.h"
-#include "raylib.h"
-#include "raymath.h"
 #include "renderer/embeddings/gvizEmbeddedGraph.h"
-#include "rlgl.h"
-#include <math.h>
+#include "renderer/layers/gvizGraphVBO.h"
 #include <stdlib.h>
-#include <string.h>
-
-#define VERTEXRADIUS 1.0
-#define VERTEXTHICKNESS 1.0
-#define EDGETHICKNESS 1.0
-#define MAXRADIUS 250
 
 void gvizLayerGraphInit(gvizLayerGraph *layer, gvizEmbeddedGraph *graph,
+                        void (*releaseGraph)(gvizEmbeddedGraph *),
                         const gvizViewport viewport, size_t z) {
   gvizLayerInit((gvizLayer *)layer, viewport, &GVIZ_LAYER_GRAPH_VTABLE, z);
   layer->graph = graph;
-  layer->ownsGraph = 1;
+  layer->releaseGraph = releaseGraph;
+  gvizGraphVBOInit(&layer->vbo);
+  layer->gpuDirty = 2;
 }
 
-void gvizLayerGraphDraw(void *layer, const gvizCamera *camera) {
+void gvizLayerGraphDraw(void *layerV, const gvizCamera *camera) {
   (void)camera;
-  gvizEmbeddedGraph *embedding = ((gvizLayerGraph *)layer)->graph;
-  rlColor4ub(0, 0, 0, 255);
+  gvizLayerGraph *self = (gvizLayerGraph *)layerV;
+  if (!self->graph) return;
 
-  rlBegin(RL_LINES);
-  for (size_t i = 0; i < embedding->graph->vertices.count; i++) {
-    double *pos = gvizEmbeddedGraphGetVPosition(embedding, i);
-    gvizArray *children = gvizGraphGetVertexNeighbors(embedding->graph, i);
-    for (size_t j = 0; j < children->count; j++) {
-      double *otherPos = gvizEmbeddedGraphGetVPosition(
-          embedding, *(size_t *)gvizArrayAtIndex(children, j));
+  if (self->gpuDirty >= 2 || !self->vbo.vaoId)
+    gvizGraphVBORebuild(&self->vbo, self->graph);
+  else if (self->gpuDirty == 1)
+    gvizGraphVBOUploadPositions(&self->vbo, self->graph);
+  self->gpuDirty = 0;
 
-      rlVertex3f(pos[0], pos[1], pos[2]);
-      rlVertex3f(otherPos[0], otherPos[1], otherPos[2]);
-    }
-  }
-  rlEnd();
+  gvizGraphVBODraw(&self->vbo);
 }
 
 void gvizLayerGraphUpdate(void *layer, float dt) {
@@ -47,15 +35,9 @@ void gvizLayerGraphUpdate(void *layer, float dt) {
 
 void gvizLayerGraphRelease(void *layer) {
   gvizLayerGraph *self = (gvizLayerGraph *)layer;
-  if (self->ownsGraph && self->graph) {
-    gvizGraph *g = self->graph->graph;
-    gvizEmbeddedGraphRelease(self->graph);
-    GVIZ_DEALLOC(self->graph);
-    if (g) {
-      gvizGraphRelease(g);
-      GVIZ_DEALLOC(g);
-    }
-  }
+  gvizGraphVBORelease(&self->vbo);
+  if (self->releaseGraph && self->graph)
+    self->releaseGraph(self->graph);
   self->graph = NULL;
 }
 

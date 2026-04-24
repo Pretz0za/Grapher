@@ -3,6 +3,7 @@
 
 #include "dsa/gvizGraph.h"
 #include "renderer/embeddings/gvizTutteEmbedding.h"
+#include "renderer/layers/gvizGraphVBO.h"
 #include "renderer/layers/gvizLayer.h"
 
 /*
@@ -14,6 +15,8 @@ typedef struct gvizLayerTutte {
     gvizLayer layer;     /* MUST be first */
     gvizGraph graph;
     gvizTutteState tutte;
+    gvizGraphVBO vbo;
+    int gpuDirty; /* 2=topology, 1=positions, 0=clean */
     int paused;
 } gvizLayerTutte;
 

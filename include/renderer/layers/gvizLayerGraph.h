@@ -2,27 +2,29 @@
 #define _GVIZ_LAYER_GRAPH_H_
 
 #include "renderer/embeddings/gvizEmbeddedGraph.h"
+#include "renderer/layers/gvizGraphVBO.h"
 #include "renderer/layers/gvizLayer.h"
 
 typedef struct gvizLayerGraph {
   gvizLayer layer;
   gvizEmbeddedGraph *graph;
   /*
-   * When set, the layer owns `graph` and releases + frees it (and the
-   * underlying gvizGraph) in gvizLayerGraphRelease. Set by gvizLayerGraphInit.
+   * If non-NULL, called on release to tear down and free the embedding and
+   * its underlying graph. Pass NULL to borrow the pointer (no ownership).
+   * Typically a static wrapper around the specific algorithm's release fn.
    */
-  int ownsGraph;
+  void (*releaseGraph)(gvizEmbeddedGraph *);
+  gvizGraphVBO vbo;
+  int gpuDirty; /* 2=topology changed, 1=positions changed, 0=clean */
 } gvizLayerGraph;
 
 /*
- * Initialize memory as a gvizLayerGraph. The layer takes ownership of
- * @p graph and the gvizGraph it wraps; both are released when the layer
- * is released.
- *
- * @param layer  Memory to initialize.
- * @param graph  Heap-allocated gvizEmbeddedGraph; ownership transfers.
- * */
+ * Initialize @p layer. When @p releaseGraph is non-NULL the layer owns
+ * @p graph and calls @p releaseGraph(graph) in gvizLayerGraphRelease.
+ * Pass NULL to borrow the pointer (caller manages lifetime).
+ */
 void gvizLayerGraphInit(gvizLayerGraph *layer, gvizEmbeddedGraph *graph,
+                        void (*releaseGraph)(gvizEmbeddedGraph *),
                         const gvizViewport viewport, size_t z);
 
 void gvizLayerGraphDraw(void *layer, const gvizCamera *camera);
