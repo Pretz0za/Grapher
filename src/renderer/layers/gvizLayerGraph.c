@@ -11,7 +11,14 @@ void gvizLayerGraphInit(gvizLayerGraph *layer, gvizEmbeddedGraph *graph,
   layer->graph = graph;
   layer->releaseGraph = releaseGraph;
   gvizGraphVBOInit(&layer->vbo);
+  layer->vboMode = GVIZ_GRAPH_VBO_EDGES | GVIZ_GRAPH_VBO_DISCS;
+  gvizGraphVBOSetMode(&layer->vbo, layer->vboMode);
   layer->gpuDirty = 2;
+}
+
+void gvizLayerGraphSetVBOMode(gvizLayerGraph *layer, unsigned int mode) {
+  layer->vboMode = mode;
+  gvizGraphVBOSetMode(&layer->vbo, mode);
 }
 
 void gvizLayerGraphDraw(void *layerV, const gvizCamera *camera) {

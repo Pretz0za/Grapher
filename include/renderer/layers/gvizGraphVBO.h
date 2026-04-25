@@ -2,18 +2,37 @@
 #define _GVIZ_GRAPH_VBO_H_
 
 #include "renderer/embeddings/gvizEmbeddedGraph.h"
+#include "renderer/layers/gvizVertexDiscVBO.h"
+#include <stddef.h>
 
 /*
- * GPU-side line representation of a gvizEmbeddedGraph.
- * Expanded non-indexed VBO: each edge is stored as two consecutive float[3]
- * endpoint positions, drawn with GL_LINES in a single glDrawArrays call.
- * For animated embeddings, gvizGraphVBOUploadPositions cheaply re-uploads
- * positions without reallocating the GPU buffer.
+ * GPU-side representation of a gvizEmbeddedGraph supporting two independent
+ * render modes that can be combined via bit-or:
+ *  - GVIZ_GRAPH_VBO_EDGES: expanded GL_LINES VBO (one rebuild per topology
+ *    change; cheap re-upload on position change).
+ *  - GVIZ_GRAPH_VBO_DISCS: instanced screen-aligned discs at vertex
+ *    positions, one quad per vertex, drawn via gvizVertexDiscVBO.
+ *
+ * Per-vertex disc radii live CPU-side in @c radii (length @c radiiCount)
+ * and are mirrored to the GPU on Rebuild and on the SetRadius* calls.
  */
+enum gvizGraphVBOMode {
+    GVIZ_GRAPH_VBO_EDGES = 1 << 0,
+    GVIZ_GRAPH_VBO_DISCS = 1 << 1,
+};
+
+#define GVIZ_GRAPH_VBO_DEFAULT_RADIUS 6.0f
+
 typedef struct gvizGraphVBO {
     unsigned int vaoId;
     unsigned int vboPositions; /* float[3] per endpoint, 2 endpoints per edge */
     int vertexCount;           /* 2 * number of directed neighbor pairs */
+
+    gvizVertexDiscVBO discs;
+    unsigned int mode;         /* bitmask of gvizGraphVBOMode */
+    float *radii;              /* CPU-side, length radiiCount */
+    size_t radiiCount;
+    gvizEmbeddedGraph *lastEG; /* borrowed; set by Rebuild for lazy disc build */
 } gvizGraphVBO;
 
 void gvizGraphVBOInit(gvizGraphVBO *vbo);
@@ -25,7 +44,24 @@ void gvizGraphVBORebuild(gvizGraphVBO *vbo, gvizEmbeddedGraph *eg);
 /* Positions-only update — call when only coordinates change. */
 void gvizGraphVBOUploadPositions(gvizGraphVBO *vbo, gvizEmbeddedGraph *eg);
 
-/* Draw edges as GL_LINES using the active raylib camera matrices. */
+/*
+ * Toggle render mode. If GVIZ_GRAPH_VBO_DISCS becomes set after a prior
+ * Rebuild, disc buffers are built lazily here using the cached @p eg-less
+ * state (caller must ensure a Rebuild has run with a valid graph first; if
+ * radii is NULL, no disc build occurs until the next Rebuild).
+ */
+void gvizGraphVBOSetMode(gvizGraphVBO *vbo, unsigned int mode);
+
+/* Set the radius of a single vertex; uploads the change immediately. */
+void gvizGraphVBOSetVertexRadius(gvizGraphVBO *vbo, size_t idx, float radius);
+
+/* Bulk setter — fills all radii uniformly and uploads. */
+void gvizGraphVBOSetAllRadii(gvizGraphVBO *vbo, float radius);
+
+/*
+ * Draw according to @c mode: edges first (GL_LINES), then discs on top.
+ * Uses the active raylib camera matrices.
+ */
 void gvizGraphVBODraw(const gvizGraphVBO *vbo);
 
 #endif

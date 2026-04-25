@@ -15,6 +15,7 @@ typedef struct gvizLayerGraph {
    */
   void (*releaseGraph)(gvizEmbeddedGraph *);
   gvizGraphVBO vbo;
+  unsigned int vboMode; /* bitmask of gvizGraphVBOMode (edges/discs) */
   int gpuDirty; /* 2=topology changed, 1=positions changed, 0=clean */
 } gvizLayerGraph;
 
@@ -26,6 +27,9 @@ typedef struct gvizLayerGraph {
 void gvizLayerGraphInit(gvizLayerGraph *layer, gvizEmbeddedGraph *graph,
                         void (*releaseGraph)(gvizEmbeddedGraph *),
                         const gvizViewport viewport, size_t z);
+
+/* Update which render passes (edges, discs) the underlying VBO uses. */
+void gvizLayerGraphSetVBOMode(gvizLayerGraph *layer, unsigned int mode);
 
 void gvizLayerGraphDraw(void *layer, const gvizCamera *camera);
 void gvizLayerGraphUpdate(void *layer, float dt);
