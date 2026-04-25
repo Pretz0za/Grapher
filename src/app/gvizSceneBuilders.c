@@ -9,7 +9,20 @@
 #include <math.h>
 #include <stdlib.h>
 
-int gvizBuildBlankScene(gvizScene *out) { return gvizSceneInit2D(out); }
+int gvizBuildBlankScene(gvizScene *out) {
+  if (gvizSceneInit2D(out) != 0)
+    return -1;
+
+  gvizLayerTutte *tlayer = GVIZ_ALLOC(sizeof(gvizLayerTutte));
+  if (!tlayer || gvizLayerTutteInitEmpty(tlayer, 0) != 0) {
+    if (tlayer)
+      GVIZ_DEALLOC(tlayer);
+    gvizSceneRelease(out);
+    return -1;
+  }
+  gvizSceneAddLayer(out, (gvizLayer *)tlayer);
+  return 0;
+}
 
 /* ---- Release callbacks ---------------------------------------------------- */
 

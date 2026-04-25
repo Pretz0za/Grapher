@@ -16,8 +16,12 @@ typedef struct gvizLayerTutte {
     gvizGraph graph;
     gvizTutteState tutte;
     gvizGraphVBO vbo;
-    int gpuDirty; /* 2=topology, 1=positions, 0=clean */
+    int gpuDirty;        /* 2=topology, 1=positions, 0=clean */
     int paused;
+    int hasTutte;        /* 1 once tutte matrix has been built */
+    size_t pendingVertex;/* SIZE_MAX = none; first picked endpoint of edge */
+    double *positions;   /* side-table of (x,y) per vertex; length 2*cap */
+    size_t positionsCap; /* number of vertices the positions buffer can hold */
 } gvizLayerTutte;
 
 /*
@@ -31,6 +35,13 @@ typedef struct gvizLayerTutte {
 int gvizLayerTutteInit(gvizLayerTutte *layer, gvizGraph *g,
                        const size_t *boundary, size_t boundaryCount,
                        double boundaryRadius, size_t z);
+
+/*
+ * Initialize an empty Tutte layer with no graph and no embedding yet.
+ * Use this for blank scenes — vertices and edges are added incrementally
+ * via right-click events.
+ */
+int gvizLayerTutteInitEmpty(gvizLayerTutte *layer, size_t z);
 
 void gvizLayerTutteDraw(void *layer, const gvizCamera *camera);
 void gvizLayerTutteUpdate(void *layer, float dt);
