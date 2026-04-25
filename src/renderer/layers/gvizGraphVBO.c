@@ -176,7 +176,7 @@ void gvizGraphVBODraw(const gvizGraphVBO *vbo) {
     }
 
     if ((vbo->mode & GVIZ_GRAPH_VBO_DISCS) && vbo->discs.vaoId && vbo->discs.instanceCount > 0) {
-        float discColor[4] = {0.10f, 0.20f, 0.55f, 1.0f};
-        gvizVertexDiscVBODraw(&vbo->discs, discColor);
+        float discColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+        gvizVertexDiscVBODraw(&vbo->discs, discColor, 0.0f);
     }
 }

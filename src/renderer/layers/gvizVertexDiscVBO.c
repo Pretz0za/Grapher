@@ -103,7 +103,8 @@ void gvizVertexDiscVBOUploadRadii(gvizVertexDiscVBO *vbo, const float *radii,
     rlUpdateVertexBuffer(vbo->vboRadii, radii, (int)(n * sizeof(float)), 0);
 }
 
-void gvizVertexDiscVBODraw(const gvizVertexDiscVBO *vbo, const float color[4]) {
+void gvizVertexDiscVBODraw(const gvizVertexDiscVBO *vbo, const float color[4],
+                           float fill) {
     if (!vbo->vaoId || vbo->instanceCount == 0) return;
 
     const gvizDiscShader *sh = gvizDiscShaderGet();
@@ -111,15 +112,19 @@ void gvizVertexDiscVBODraw(const gvizVertexDiscVBO *vbo, const float color[4]) {
 
     rlDrawRenderBatchActive();
 
-    Matrix mv   = MatrixMultiply(rlGetMatrixModelview(), rlGetMatrixTransform());
-    Matrix proj = rlGetMatrixProjection();
-    Matrix mvp  = MatrixMultiply(mv, proj);
+    Matrix mvp = MatrixMultiply(
+        MatrixMultiply(rlGetMatrixModelview(), rlGetMatrixTransform()),
+        rlGetMatrixProjection());
+    float viewport[2] = {
+        (float)rlGetFramebufferWidth(),
+        (float)rlGetFramebufferHeight(),
+    };
 
     rlEnableShader(sh->programId);
-    if (sh->locMVP        >= 0) rlSetUniformMatrix(sh->locMVP, mvp);
-    if (sh->locModelView  >= 0) rlSetUniformMatrix(sh->locModelView, mv);
-    if (sh->locProjection >= 0) rlSetUniformMatrix(sh->locProjection, proj);
-    if (sh->locColor      >= 0) rlSetUniform(sh->locColor, color, RL_SHADER_UNIFORM_VEC4, 1);
+    if (sh->locMVP      >= 0) rlSetUniformMatrix(sh->locMVP, mvp);
+    if (sh->locViewport >= 0) rlSetUniform(sh->locViewport, viewport, RL_SHADER_UNIFORM_VEC2, 1);
+    if (sh->locColor    >= 0) rlSetUniform(sh->locColor, color, RL_SHADER_UNIFORM_VEC4, 1);
+    if (sh->locFill     >= 0) rlSetUniform(sh->locFill, &fill, RL_SHADER_UNIFORM_FLOAT, 1);
 
     rlEnableVertexArray(vbo->vaoId);
     glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, vbo->instanceCount);

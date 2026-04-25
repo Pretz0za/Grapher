@@ -38,6 +38,7 @@ void gvizVertexDiscVBOUploadRadii(gvizVertexDiscVBO *vbo, const float *radii,
                                   size_t n);
 
 /* Bind disc shader, set MVP/MV/P/color uniforms, and issue the instanced draw. */
-void gvizVertexDiscVBODraw(const gvizVertexDiscVBO *vbo, const float color[4]);
+void gvizVertexDiscVBODraw(const gvizVertexDiscVBO *vbo, const float color[4],
+                           float fill);
 
 #endif

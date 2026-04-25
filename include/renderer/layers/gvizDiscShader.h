@@ -22,9 +22,9 @@
 typedef struct gvizDiscShader {
     unsigned int programId;
     int locMVP;
-    int locModelView;
-    int locProjection;
+    int locViewport; /* vec2: framebuffer width, height in pixels */
     int locColor;
+    int locFill;
 } gvizDiscShader;
 
 const gvizDiscShader *gvizDiscShaderGet(void);
