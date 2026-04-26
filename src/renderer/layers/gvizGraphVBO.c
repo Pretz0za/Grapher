@@ -13,21 +13,83 @@
 #include <GL/gl.h>
 #endif
 
+/* Per-endpoint colored line shader (singleton). */
+static const char *EDGE_VS_SRC =
+    "#version 330 core\n"
+    "layout(location=0) in vec3 aPos;\n"
+    "layout(location=1) in vec3 aColor;\n"
+    "uniform mat4 uMVP;\n"
+    "out vec3 vColor;\n"
+    "void main() {\n"
+    "    gl_Position = uMVP * vec4(aPos, 1.0);\n"
+    "    vColor = aColor;\n"
+    "}\n";
+
+static const char *EDGE_FS_SRC =
+    "#version 330 core\n"
+    "in vec3 vColor;\n"
+    "out vec4 fragColor;\n"
+    "void main() { fragColor = vec4(vColor, 1.0); }\n";
+
+static unsigned int g_edgeProgram = 0;
+static int g_edgeLocMVP = -1;
+
+static unsigned int compileEdgeShader(unsigned int type, const char *src) {
+    unsigned int id = glCreateShader(type);
+    glShaderSource(id, 1, &src, NULL);
+    glCompileShader(id);
+    int ok = 0;
+    glGetShaderiv(id, GL_COMPILE_STATUS, &ok);
+    if (!ok) { glDeleteShader(id); return 0; }
+    return id;
+}
+
+static unsigned int getEdgeProgram(void) {
+    if (g_edgeProgram) return g_edgeProgram;
+    unsigned int vs = compileEdgeShader(GL_VERTEX_SHADER, EDGE_VS_SRC);
+    unsigned int fs = compileEdgeShader(GL_FRAGMENT_SHADER, EDGE_FS_SRC);
+    if (!vs || !fs) {
+        if (vs) glDeleteShader(vs);
+        if (fs) glDeleteShader(fs);
+        return 0;
+    }
+    unsigned int prog = glCreateProgram();
+    glAttachShader(prog, vs);
+    glAttachShader(prog, fs);
+    glLinkProgram(prog);
+    glDeleteShader(vs);
+    glDeleteShader(fs);
+    int ok = 0;
+    glGetProgramiv(prog, GL_LINK_STATUS, &ok);
+    if (!ok) { glDeleteProgram(prog); return 0; }
+    g_edgeProgram = prog;
+    g_edgeLocMVP = glGetUniformLocation(prog, "uMVP");
+    return prog;
+}
+
 void gvizGraphVBOInit(gvizGraphVBO *vbo) {
     vbo->vaoId = 0;
     vbo->vboPositions = 0;
+    vbo->vboColors = 0;
+    vbo->colors = NULL;
+    vbo->colorsCount = 0;
     vbo->vertexCount = 0;
     gvizVertexDiscVBOInit(&vbo->discs);
     vbo->mode = GVIZ_GRAPH_VBO_EDGES;
     vbo->radii = NULL;
     vbo->radiiCount = 0;
+    vbo->discFill = 0.0f;
     vbo->lastEG = NULL;
 }
 
 void gvizGraphVBORelease(gvizGraphVBO *vbo) {
     if (vbo->vboPositions) { rlUnloadVertexBuffer(vbo->vboPositions); vbo->vboPositions = 0; }
+    if (vbo->vboColors)    { rlUnloadVertexBuffer(vbo->vboColors);    vbo->vboColors = 0; }
     if (vbo->vaoId)        { rlUnloadVertexArray(vbo->vaoId);         vbo->vaoId = 0; }
     vbo->vertexCount = 0;
+
+    if (vbo->colors) { GVIZ_DEALLOC(vbo->colors); vbo->colors = NULL; }
+    vbo->colorsCount = 0;
 
     gvizVertexDiscVBORelease(&vbo->discs);
     if (vbo->radii) { GVIZ_DEALLOC(vbo->radii); vbo->radii = NULL; }
@@ -73,12 +135,22 @@ static void rebuildEdges(gvizGraphVBO *vbo, gvizEmbeddedGraph *eg) {
     float *verts = buildExpandedVerts(eg, dim3, &count);
 
     if (vbo->vboPositions) { rlUnloadVertexBuffer(vbo->vboPositions); vbo->vboPositions = 0; }
+    if (vbo->vboColors)    { rlUnloadVertexBuffer(vbo->vboColors);    vbo->vboColors = 0; }
     if (vbo->vaoId)        { rlUnloadVertexArray(vbo->vaoId);         vbo->vaoId = 0; }
     vbo->vertexCount = 0;
+    if (vbo->colors) { GVIZ_DEALLOC(vbo->colors); vbo->colors = NULL; }
+    vbo->colorsCount = 0;
 
     if (!verts || count == 0) {
         if (verts) GVIZ_DEALLOC(verts);
         return;
+    }
+
+    size_t nFloats = count * 3;
+    vbo->colors = (float *)GVIZ_ALLOC(nFloats * sizeof(float));
+    if (vbo->colors) {
+        for (size_t i = 0; i < nFloats; i++) vbo->colors[i] = 0.0f;
+        vbo->colorsCount = nFloats;
     }
 
     vbo->vaoId = rlLoadVertexArray();
@@ -86,6 +158,12 @@ static void rebuildEdges(gvizGraphVBO *vbo, gvizEmbeddedGraph *eg) {
     vbo->vboPositions = rlLoadVertexBuffer(verts, (int)(count * 3 * sizeof(float)), true);
     rlSetVertexAttribute(0, 3, RL_FLOAT, false, 0, 0);
     rlEnableVertexAttribute(0);
+    if (vbo->colors) {
+        vbo->vboColors = rlLoadVertexBuffer(vbo->colors,
+                                            (int)(nFloats * sizeof(float)), true);
+        rlSetVertexAttribute(1, 3, RL_FLOAT, false, 0, 0);
+        rlEnableVertexAttribute(1);
+    }
     rlDisableVertexArray();
     vbo->vertexCount = (int)count;
 
@@ -148,6 +226,13 @@ void gvizGraphVBOSetVertexRadius(gvizGraphVBO *vbo, size_t idx, float radius) {
         gvizVertexDiscVBOUploadRadii(&vbo->discs, vbo->radii, vbo->radiiCount);
 }
 
+void gvizGraphVBOUploadEndpointColors(gvizGraphVBO *vbo, const float *rgb2N) {
+    if (!vbo->vboColors || !vbo->colors || vbo->colorsCount == 0) return;
+    for (size_t i = 0; i < vbo->colorsCount; i++) vbo->colors[i] = rgb2N[i];
+    rlUpdateVertexBuffer(vbo->vboColors, vbo->colors,
+                         (int)(vbo->colorsCount * sizeof(float)), 0);
+}
+
 void gvizGraphVBOSetAllRadii(gvizGraphVBO *vbo, float radius) {
     for (size_t i = 0; i < vbo->radiiCount; i++) vbo->radii[i] = radius;
     if (vbo->discs.vaoId)
@@ -158,25 +243,31 @@ void gvizGraphVBODraw(const gvizGraphVBO *vbo) {
     if ((vbo->mode & GVIZ_GRAPH_VBO_EDGES) && vbo->vaoId && vbo->vertexCount > 0) {
         rlDrawRenderBatchActive();
 
-        int    *locs = rlGetShaderLocsDefault();
-        Matrix  mvp  = MatrixMultiply(
-                           MatrixMultiply(rlGetMatrixModelview(), rlGetMatrixTransform()),
-                           rlGetMatrixProjection());
+        unsigned int prog = getEdgeProgram();
+        Matrix mvp = MatrixMultiply(
+                         MatrixMultiply(rlGetMatrixModelview(), rlGetMatrixTransform()),
+                         rlGetMatrixProjection());
 
-        rlEnableShader(rlGetShaderIdDefault());
-        rlSetUniformMatrix(locs[RL_SHADER_LOC_MATRIX_MVP], mvp);
-        float black[4] = {0.0f, 0.0f, 0.0f, 1.0f};
-        rlSetUniform(locs[RL_SHADER_LOC_COLOR_DIFFUSE], black, RL_SHADER_UNIFORM_VEC4, 1);
+        if (prog) {
+            float m[16] = {
+                mvp.m0, mvp.m1, mvp.m2, mvp.m3,
+                mvp.m4, mvp.m5, mvp.m6, mvp.m7,
+                mvp.m8, mvp.m9, mvp.m10, mvp.m11,
+                mvp.m12, mvp.m13, mvp.m14, mvp.m15
+            };
+            glUseProgram(prog);
+            glUniformMatrix4fv(g_edgeLocMVP, 1, GL_FALSE, m);
 
-        rlEnableVertexArray(vbo->vaoId);
-        glDrawArrays(GL_LINES, 0, vbo->vertexCount);
-        rlDisableVertexArray();
+            rlEnableVertexArray(vbo->vaoId);
+            glDrawArrays(GL_LINES, 0, vbo->vertexCount);
+            rlDisableVertexArray();
 
-        rlDisableShader();
+            glUseProgram(0);
+        }
     }
 
     if ((vbo->mode & GVIZ_GRAPH_VBO_DISCS) && vbo->discs.vaoId && vbo->discs.instanceCount > 0) {
         float discColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
-        gvizVertexDiscVBODraw(&vbo->discs, discColor, 0.0f);
+        gvizVertexDiscVBODraw(&vbo->discs, discColor, vbo->discFill);
     }
 }

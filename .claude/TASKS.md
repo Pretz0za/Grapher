@@ -1,42 +1,79 @@
 # TASKS
 
-## Epic: Disc Shader Style
+## Epic 1: Highlights + dynamic mutation in gvizLayerGraph
 
-- **Shader uniform for ring vs filled**:
-  - [x] Add `int locFill;` field to `gvizDiscShader` struct in `include/renderer/layers/gvizDiscShader.h`.
-  - [x] In `src/renderer/layers/gvizDiscShader.c`, add `uniform float uFill;` to `DISC_FS_SRC` and modify the body so when `uFill < 0.5` (ring) the FS discards fragments where `d < 0.65` in addition to `d > 1.0`; when `uFill >= 0.5` keep existing filled behavior.
-  - [x] In `gvizDiscShaderGet`, query the `uFill` location into `g_shader.locFill`.
+Add per-vertex and per-edge red-highlight overlays driven by bitarrays, plus runtime add/remove of vertices and edges. Highlights must NOT trigger geometry rebuilds — they ride a parallel per-endpoint color stream. Mutations resize bitarrays and the edge-bit index.
 
-- **Pass uFill through draw path**:
-  - [x] Update `gvizVertexDiscVBODraw` signature in `include/renderer/layers/gvizVertexDiscVBO.h` to add a trailing `float fill` parameter.
-  - [x] In `src/renderer/layers/gvizVertexDiscVBO.c` `gvizVertexDiscVBODraw`, set `uFill` via `rlSetUniform` (RL_SHADER_UNIFORM_FLOAT) when `sh->locFill >= 0` before the instanced draw.
-  - [x] In `src/renderer/layers/gvizGraphVBO.c` `gvizGraphVBODraw`, pass `0.0f` for `fill` so `GVIZ_GRAPH_VBO_DISCS` defaults to ring mode.
+### Highlight storage on gvizLayerGraph
 
-- **Color change**:
-  - [x] In `src/renderer/layers/gvizGraphVBO.c` `gvizGraphVBODraw`, change `float discColor[4] = {0.10f, 0.20f, 0.55f, 1.0f}` to `{0.0f, 0.0f, 0.0f, 1.0f}`.
+- [x] Add `GVIZ_BIT_UNIT *vertexHighlight` and `size_t vertexHighlightBits` fields to `gvizLayerGraph` (`include/renderer/layers/gvizLayerGraph.h`); allocate to `GVIZ_ARRAY_UNITS(N)` in `gvizLayerGraphInit` and zero-fill.
+- [x] Add `GVIZ_BIT_UNIT *edgeHighlight`, `size_t edgeHighlightBits`, and `size_t *edgeStartIdx` (length = N+1, last entry = total directed-edge count) to `gvizLayerGraph`; allocate and zero-fill in init.
+- [x] Add helper `static size_t computeEdgeStartIdx(gvizGraph *g, size_t *out)` (in `src/renderer/layers/gvizLayerGraph.c`) that walks vertex neighbor counts to fill prefix sums and returns total directed-edge count.
+- [x] Free `vertexHighlight`, `edgeHighlight`, and `edgeStartIdx` in `gvizLayerGraphRelease`.
 
-## Epic: Blank Scene Graph Creation
+### Highlight public API
 
-- **Empty Tutte layer initialization**:
-  - [ ] In `include/app/gvizLayerTutte.h`, add fields to `gvizLayerTutte`: `size_t pendingVertex;` (sentinel `SIZE_MAX`) and `int hasTutte;` (1 once `tutte` matrix is built).
-  - [ ] In `include/app/gvizLayerTutte.h`, declare `int gvizLayerTutteInitEmpty(gvizLayerTutte *layer, size_t z);`.
-  - [ ] In `src/app/gvizLayerTutte.c`, implement `gvizLayerTutteInitEmpty`: `gvizLayerInit` with vtable, `flags = GVIZ_LAYER_VISIBLE`, `gvizGraphInit(&self->graph, 0)`, `gvizGraphVBOInit(&self->vbo)`, `gvizGraphVBOSetMode(..., EDGES|DISCS)`, `gpuDirty = 2`, `paused = 0`, `pendingVertex = SIZE_MAX`, `hasTutte = 0`.
-  - [ ] In `gvizLayerTutteRelease`, only call `gvizTutteEmbeddingRelease` when `hasTutte` is set.
+- [x] Add `gvizLayerGraphSetVertexHighlight(gvizLayerGraph *, size_t v, int on)` and `gvizLayerGraphClearVertexHighlights(gvizLayerGraph *)` to header + impl.
+- [x] Add `gvizLayerGraphSetEdgeHighlight(gvizLayerGraph *, size_t u, size_t v, int on)` that resolves the bit index via `edgeStartIdx[u] + indexOf(neighbors(u), v)`; for undirected graphs also sets the symmetric (v,u) bit.
+- [x] Add `gvizLayerGraphClearEdgeHighlights(gvizLayerGraph *)` (memset edge bits to 0).
+- [x] Add `gvizLayerGraphRebuildEdgeIndex(gvizLayerGraph *)` that recomputes `edgeStartIdx`, resizes `edgeHighlight` to the new bit count, and zeroes new bits — called after any topology mutation.
 
-- **Blank scene wiring**:
-  - [ ] In `src/app/gvizSceneBuilders.c` `gvizBuildBlankScene`, after `gvizSceneInit2D`, allocate a `gvizLayerTutte`, call `gvizLayerTutteInitEmpty`, and `gvizSceneAddLayer`.
+### VBO color-stream support
 
-- **Hit testing**:
-  - [ ] In `src/app/gvizLayerTutte.c`, add static helper `findVertexAtWorld(self, wx, wy, radius)` that scans `self->graph.vertices`, reads each position via `gvizEmbeddedGraphGetVPosition` on `&self->tutte.graph` (or directly off the embedding once present), returns the index within `radius`, else `SIZE_MAX`. For empty/unbuilt embedding, fall back to a side-table of positions stored on the layer (see next task).
-  - [ ] Add a `double *positions;` and `size_t positionsCap;` to `gvizLayerTutte` so newly added vertices have a position before the Tutte embedding is (re)built. Free in `gvizLayerTutteRelease`.
+- [x] Extend `gvizGraphVBO` (`include/renderer/layers/gvizGraphVBO.h`, `src/renderer/layers/gvizGraphVBO.c`) with `unsigned int vboColors` (per-endpoint vec3 stream) and `float *colors` CPU mirror sized `2 * totalDirectedEdges * 3`.
+- [x] In `rebuildEdges`, after creating the position VBO, allocate the color buffer (default = black per endpoint) and bind as vertex attribute 1 (`rlSetVertexAttribute(1, 3, RL_FLOAT, ...)`); enable attribute 1 in the VAO.
+- [x] Replace the hardcoded black uniform draw path in `gvizGraphVBODraw` with a custom inline shader (singleton, in the style of the disc shader) that takes per-vertex color and emits it.
+- [x] Add `gvizGraphVBOUploadEndpointColors(gvizGraphVBO *, const float *rgba2N)` that uploads via `rlUpdateVertexBuffer`. Call `glBufferSubData`-equivalent path so highlight changes do NOT require topology rebuild.
+- [x] Release the colors VBO and CPU buffer in `gvizGraphVBORelease`.
 
-- **Right-click vertex / edge creation**:
-  - [ ] In `gvizLayerTutteHandleEvent`, add a `case GVIZ_EVENT_MOUSE_DOWN:` branch guarded by `event->mouse.button == GVIZ_MOUSE_RIGHT`.
-  - [ ] On miss: `gvizGraphAddVertex(&self->graph, NULL, NULL, NULL)`, grow `positions` and write `(wx, wy)` for the new vertex, mark `gpuDirty = 2`, set `hasTutte = 0`.
-  - [ ] On hit `v`: if `pendingVertex == SIZE_MAX` set `pendingVertex = v`; else if `v != pendingVertex` call `gvizGraphAddEdge(&self->graph, pendingVertex, v)`, clear `pendingVertex = SIZE_MAX`, set `gpuDirty = 2` and `hasTutte = 0`.
-  - [ ] Return 1 from the handler when a click is consumed.
+### Wiring highlights into draw path
 
-- **Per-frame Tutte re-relaxation**:
-  - [ ] In `gvizLayerTutteUpdate`, when `!hasTutte` and `self->graph.vertices.count >= 1`: if a previous `tutte` exists release it; call `gvizTutteEmbeddingInit(&self->tutte, &self->graph, 2, 1e-5)`, copy current `positions` into the embedding via `gvizEmbeddedGraphGetVPosition`, call `gvizTutteEmbeddingBuildMatrix`, set `hasTutte = 1`.
-  - [ ] When `hasTutte && !paused && self->tutte.numInterior > 0 && !self->tutte.converged`, call `gvizTutteEmbeddingStep(&self->tutte, dt)`, sync positions back into the layer's `positions` table, and set `gpuDirty = 1`.
-  - [ ] In `gvizLayerTutteDraw`, when `hasTutte` use `&self->tutte` as the `gvizEmbeddedGraph *`; when not, build a temporary `gvizEmbeddedGraph` view over `self->graph` + `positions` so the VBO can rebuild from current positions even before Tutte exists.
+- [x] In `gvizLayerGraphDraw`, before calling `gvizGraphVBODraw`, walk `(u, j)` over directed neighbor pairs in the same order as `buildExpandedVerts` and write a color per endpoint: red `(1,0,0)` if `vertexHighlight[u]` set OR the edge bit at `edgeStartIdx[u]+j` is set; otherwise black. Upload via `gvizGraphVBOUploadEndpointColors`.
+- [x] Track a `highlightDirty` flag on `gvizLayerGraph` so the color buffer is only rewritten when highlights or topology actually changed.
+
+### Dynamic graph mutations
+
+- [x] Add `gvizLayerGraphAddVertex(gvizLayerGraph *, const double *startPos)` — calls `gvizGraphAddVertex` on the underlying graph, grows the embedding's `vertexPositions` array, writes `startPos` into the new slot, grows `vertexHighlight` (one extra bit, zeroed), calls `gvizLayerGraphRebuildEdgeIndex`, and sets `gpuDirty = 2`.
+- [x] Add `gvizLayerGraphRemoveVertex(gvizLayerGraph *, size_t v)` — removes incident edges, removes the vertex from `gvizGraph` (extend `gvizGraph` with a `gvizGraphRemoveVertex` if not present), compacts `vertexPositions` and `vertexHighlight`, rebuilds edge index, sets `gpuDirty = 2`.
+- [x] Add `gvizLayerGraphAddEdge(gvizLayerGraph *, size_t u, size_t v)` — calls `gvizGraphAddEdge`, then `gvizLayerGraphRebuildEdgeIndex`, sets `gpuDirty = 2`.
+- [x] Add `gvizLayerGraphRemoveEdge(gvizLayerGraph *, size_t u, size_t v)` — calls `gvizGraphRemoveEdge`, then `gvizLayerGraphRebuildEdgeIndex`, sets `gpuDirty = 2`.
+- [x] After each mutation, request the owning embedding to incorporate the change: add a `void (*onTopologyChanged)(gvizEmbeddedGraph *)` hook on `gvizLayerGraph` (NULL = no-op). Tutte/PolyTutte layers set this to re-seed/re-fix; trees/GRIP can ignore.
+
+### gvizGraph removal primitive (only if missing)
+
+- [x] Verify `gvizGraphRemoveVertex` exists in `include/dsa/gvizGraph.h`; if not, add it (removes from vertex array, drops all incident edges, decrements neighbor indices that referenced shifted vertices). Implement in `src/dsa/gvizGraph.c`.
+
+## Epic 2: Polyhedral Tutte re-embedding layer
+
+New layer that runs Tutte on a 3-connected planar mesh, then on user input scans all faces (highlighting each as it goes) and re-embeds with the largest face as the outer boundary. Lives in `include/app/gvizLayerPolyTutte.h` and `src/app/gvizLayerPolyTutte.c`.
+
+### Layer scaffolding
+
+- [ ] Create `include/app/gvizLayerPolyTutte.h` defining `gvizLayerPolyTutte` (first member `gvizLayer layer`, then owned `gvizGraph graph`, `gvizTutteEmbedding tutte`, `gvizGraphVBO vbo`, plus state fields: `int phase` = {INITIAL, SCANNING, FINAL}, `size_t scanFaceIdx`, `size_t bestFaceIdx`, `double bestFaceArea`, `gvizArray faces` of `gvizArray<size_t>` per face).
+- [ ] Declare `gvizLayerPolyTutteInit(gvizLayerPolyTutte *, gvizGraph *mesh, const size_t *outerTriangle, size_t z)`, `Draw`, `Update`, `Release`, `HandleEvent`, and `GVIZ_LAYER_POLY_TUTTE_VTABLE`.
+- [ ] Implement init: clone graph, init Tutte with `outerTriangle` as the fixed boundary (radius matching existing demo), seed interior, init VBO with `EDGES | DISCS`, set `phase = INITIAL`.
+- [ ] Implement Update: while `phase == INITIAL`, run `gvizTutteEmbeddingStep` until converged; while `phase == SCANNING`, advance one face per Update tick (so the user sees each highlighted face for one frame).
+- [ ] Implement Draw mirroring `gvizLayerTutteDraw` (rebuild VBO on `gpuDirty >= 2`, upload positions on `== 1`, then draw).
+- [ ] Implement Release: free faces array + inner arrays, release Tutte, VBO, graph.
+
+### Rotation system extraction
+
+- [ ] Add `void gvizComputeRotationSystem(gvizEmbeddedGraph *eg)` to a shared header (e.g. `include/renderer/embeddings/gvizPlanarRotation.h`) and `.c` file. For each vertex u, compute `atan2(p[v].y - p[u].y, p[v].x - p[u].x)` for each neighbor v, then sort u's `neighbors` array (in `gvizGraph`) clockwise (descending angle, or ascending depending on screen-y convention — pick clockwise relative to +x axis with y-down screen).
+- [ ] Sort in place using `qsort` with a thread-unsafe context global or a comparator that reads positions from a file-static pointer set just before the call (consistent with project's no-`qsort_r` style).
+
+### Face iteration
+
+- [ ] Locate existing face-iteration utility in the codebase (search `include/renderer/embeddings/` and `src/renderer/embeddings/` for "face" / "rotation" — likely tied to planar embeddings). If one exists, use it. If not, add `gvizEnumerateFaces(gvizGraph *g, gvizArray *outFaces)` that, given a graph whose adjacency lists are already in clockwise rotation order, walks each directed half-edge once via the "next around face" rule (`next(u→v) = v→prev_in_rotation(v, u)`), accumulating vertex-cycles into `outFaces`.
+- [ ] Add `static double polygonArea2D(const size_t *faceVerts, size_t n, gvizEmbeddedGraph *eg)` (shoelace formula) to `gvizLayerPolyTutte.c`.
+
+### User-triggered largest-face scan
+
+- [ ] In `HandleEvent`, on `KEY_SPACE` while `phase == INITIAL`: call `gvizComputeRotationSystem` on the embedded graph, run face enumeration into `self->faces`, set `phase = SCANNING`, `scanFaceIdx = 0`, `bestFaceArea = -inf`.
+- [ ] In `Update` while `phase == SCANNING`: clear vertex/edge highlights via the new `gvizLayerGraph`-style API (Poly-Tutte will use the same highlight buffers — either inherit by reusing a `gvizLayerGraph` sub-struct, or duplicate the minimal highlight fields here). Set highlights for the current face's vertices and edges. Compute area; if larger than `bestFaceArea`, update best. Increment `scanFaceIdx`. When done, transition to FINAL.
+- [ ] On `phase == FINAL`: clear highlights, release current Tutte state, re-init Tutte with `bestFace` vertices as the new outer boundary (use boundary radius matching original), re-seed interior, set `gpuDirty = 2`.
+
+### Integration / scene builder
+
+- [ ] Add a scene builder `gvizBuildPolyTutteDemoScene(gvizScene *out)` in `src/app/gvizSceneBuilders.c` and declare in `gvizSceneBuilders.h`. Build a small polyhedral mesh (e.g. octahedron or icosahedron edge-graph from existing utils, or a hand-coded 3-connected planar graph) and pass an initial outer triangle.
+- [ ] Add a `GVIZ_MENU_DEMO_POLY_TUTTE` entry to the main menu enum and route it through `main.c`'s switch.
+- [ ] Update `CMakeLists.txt` to include the new source files (`src/app/gvizLayerPolyTutte.c`, plus the rotation-system helper if placed in its own file).

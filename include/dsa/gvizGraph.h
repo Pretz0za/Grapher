@@ -196,6 +196,21 @@ int gvizGraphAddEdge(gvizGraph *g, size_t from, size_t to);
  */
 int gvizGraphRemoveEdge(gvizGraph *g, size_t from, size_t to);
 
+/**
+ * Removes a vertex from a Graph. All incident edges are dropped from neighbor
+ * lists, then the vertex slot is removed (preserving relative ordering). Any
+ * neighbor index strictly greater than @p v in the remaining adjacency lists
+ * is decremented by one to account for the shift.
+ *
+ * @param g A pointer to the Graph the vertex will be removed from.
+ * @param v The index of the vertex to remove.
+ *
+ * @return An error code showing whether or not the operation was successful.
+ * @retval 0  If the vertex was removed successfully.
+ * @retval -1 If @p v is out of bounds.
+ */
+int gvizGraphRemoveVertex(gvizGraph *g, size_t v);
+
 // DATA ACCESS:
 // ----------------------------------------------------------------
 

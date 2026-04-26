@@ -17,22 +17,26 @@
  * and are mirrored to the GPU on Rebuild and on the SetRadius* calls.
  */
 enum gvizGraphVBOMode {
-    GVIZ_GRAPH_VBO_EDGES = 1 << 0,
-    GVIZ_GRAPH_VBO_DISCS = 1 << 1,
+  GVIZ_GRAPH_VBO_EDGES = 1 << 0,
+  GVIZ_GRAPH_VBO_DISCS = 1 << 1,
 };
 
-#define GVIZ_GRAPH_VBO_DEFAULT_RADIUS 6.0f
+#define GVIZ_GRAPH_VBO_DEFAULT_RADIUS 8.0f
 
 typedef struct gvizGraphVBO {
-    unsigned int vaoId;
-    unsigned int vboPositions; /* float[3] per endpoint, 2 endpoints per edge */
-    int vertexCount;           /* 2 * number of directed neighbor pairs */
+  unsigned int vaoId;
+  unsigned int vboPositions; /* float[3] per endpoint, 2 endpoints per edge */
+  unsigned int vboColors;    /* float[3] per endpoint, parallel to positions */
+  float *colors;             /* CPU mirror, length 2 * totalDirectedEdges * 3 */
+  size_t colorsCount;        /* number of floats in @c colors (= vertexCount*3) */
+  int vertexCount;           /* 2 * number of directed neighbor pairs */
 
-    gvizVertexDiscVBO discs;
-    unsigned int mode;         /* bitmask of gvizGraphVBOMode */
-    float *radii;              /* CPU-side, length radiiCount */
-    size_t radiiCount;
-    gvizEmbeddedGraph *lastEG; /* borrowed; set by Rebuild for lazy disc build */
+  gvizVertexDiscVBO discs;
+  unsigned int mode; /* bitmask of gvizGraphVBOMode */
+  float *radii;      /* CPU-side, length radiiCount */
+  size_t radiiCount;
+  float discFill;            /* 0.0=ring (default), 1.0=filled disc */
+  gvizEmbeddedGraph *lastEG; /* borrowed; set by Rebuild for lazy disc build */
 } gvizGraphVBO;
 
 void gvizGraphVBOInit(gvizGraphVBO *vbo);
@@ -57,6 +61,13 @@ void gvizGraphVBOSetVertexRadius(gvizGraphVBO *vbo, size_t idx, float radius);
 
 /* Bulk setter — fills all radii uniformly and uploads. */
 void gvizGraphVBOSetAllRadii(gvizGraphVBO *vbo, float radius);
+
+/*
+ * Upload a per-endpoint RGB color stream sized exactly @c colorsCount floats
+ * (= 2 * totalDirectedEdges * 3). Re-uploaded via rlUpdateVertexBuffer so a
+ * color change does NOT trigger a topology rebuild.
+ */
+void gvizGraphVBOUploadEndpointColors(gvizGraphVBO *vbo, const float *rgb2N);
 
 /*
  * Draw according to @c mode: edges first (GL_LINES), then discs on top.

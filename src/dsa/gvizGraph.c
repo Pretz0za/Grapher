@@ -126,6 +126,32 @@ int gvizGraphRemoveEdge(gvizGraph *g, size_t from, size_t to) {
   return err < 0 ? err : 0;
 }
 
+int gvizGraphRemoveVertex(gvizGraph *g, size_t v) {
+  if (v >= g->vertices.count)
+    return -1;
+
+  for (size_t u = 0; u < g->vertices.count; u++) {
+    if (u == v)
+      continue;
+    gvizArray *nb = &((gvizVertex *)gvizArrayAtIndex(&g->vertices, u))->neighbors;
+    for (size_t j = 0; j < nb->count;) {
+      size_t *slot = (size_t *)gvizArrayAtIndex(nb, j);
+      if (*slot == v) {
+        gvizArrayDeleteAtIndex(nb, j);
+        continue;
+      }
+      if (*slot > v)
+        (*slot)--;
+      j++;
+    }
+  }
+
+  gvizVertex *vx = (gvizVertex *)gvizArrayAtIndex(&g->vertices, v);
+  gvizVertexRelease(vx);
+  gvizArrayDeleteAtIndex(&g->vertices, v);
+  return 0;
+}
+
 void gvizGraphSetVertexData(gvizGraph *g, size_t idx, void *data) {
   ((gvizVertex *)gvizArrayAtIndex(&g->vertices, idx))->data = data;
   return;
