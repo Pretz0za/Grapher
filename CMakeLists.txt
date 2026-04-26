@@ -27,6 +27,7 @@ add_library(graphvis STATIC
     src/renderer/embeddings/gvizGRIPEmbedding.c
     src/renderer/embeddings/gvizForceDirected.c
     src/renderer/embeddings/gvizPlanarEmbedding.c
+    src/renderer/embeddings/gvizPlanarRotation.c
     src/renderer/embeddings/gvizSchnyderWood.c
     src/renderer/embeddings/gvizTutteEmbedding.c
     src/renderer/embeddings/gvizTutteSolveEmbedding.c
@@ -118,6 +119,9 @@ add_executable(grapher
     src/app/main.c
     src/app/gvizSceneBuilders.c
     src/app/gvizLayerTutte.c
+    src/app/gvizLayerPolyTutte.c
+    src/app/gvizLayerGRIP.c
+    src/app/gvizLayerGRIPLive.c
 )
 target_link_libraries(grapher PRIVATE graphvis)
 set_target_properties(grapher PROPERTIES

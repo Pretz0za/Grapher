@@ -45,7 +45,7 @@ int main(void) {
         gvizBuildBlankScene(&scene);
         break;
       case GVIZ_MENU_DEMO_GRIP_SIERPINSKI:
-        if (gvizBuildGRIPSierpinskiScene(&scene, 8) != 0)
+        if (gvizBuildGRIPSierpinskiScene(&scene, 13) != 0)
           gvizBuildBlankScene(&scene);
         break;
       case GVIZ_MENU_DEMO_GRIP_CARPET:
@@ -54,6 +54,10 @@ int main(void) {
         break;
       case GVIZ_MENU_DEMO_TUTTE:
         if (gvizBuildTutteDemoScene(&scene) != 0)
+          gvizBuildBlankScene(&scene);
+        break;
+      case GVIZ_MENU_DEMO_POLY_TUTTE:
+        if (gvizBuildPolyTutteDemoScene(&scene) != 0)
           gvizBuildBlankScene(&scene);
         break;
       case GVIZ_MENU_DEMO_TREE:

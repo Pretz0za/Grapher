@@ -1,7 +1,8 @@
 #include "app/gvizSceneBuilders.h"
+#include "app/gvizLayerGRIPLive.h"
+#include "app/gvizLayerPolyTutte.h"
 #include "app/gvizLayerTutte.h"
 #include "core/alloc.h"
-#include "renderer/embeddings/gvivGRIPEmbedding.h"
 #include "renderer/embeddings/gvizEmbeddedTree.h"
 #include "renderer/layers/gvizLayerGraph.h"
 #include "utils/graphs.h"
@@ -26,14 +27,6 @@ int gvizBuildBlankScene(gvizScene *out) {
 
 /* ---- Release callbacks ---------------------------------------------------- */
 
-static void releaseGRIP(gvizEmbeddedGraph *eg) {
-  gvizGRIPState *s = (gvizGRIPState *)eg;
-  gvizGraph *g = eg->graph;
-  gvizGRIPEmbeddingRelease(s);
-  if (g) { gvizGraphRelease(g); GVIZ_DEALLOC(g); }
-  GVIZ_DEALLOC(s);
-}
-
 static void releaseEmbeddedTree(gvizEmbeddedGraph *eg) {
   gvizEmbeddedTree *t = (gvizEmbeddedTree *)eg;
   gvizGraph *g = eg->graph;
@@ -48,28 +41,17 @@ int gvizBuildGRIPSierpinskiScene(gvizScene *out, int depth) {
   if (gvizSceneInit2D(out) != 0)
     return -1;
 
-  gvizGraph *g = GVIZ_ALLOC(sizeof(gvizGraph));
-  if (!g) { gvizSceneRelease(out); return -1; }
-  *g = createSierpinski(depth, NULL);
+  gvizGraph g = createSierpinski(depth, NULL);
 
-  gvizGRIPState *state = GVIZ_ALLOC(sizeof(gvizGRIPState));
-  if (!state ||
-      gvizGRIPEmbeddingInit(state, g, (size_t)pow(2.0, (double)depth), 2) != 0) {
-    if (state) GVIZ_DEALLOC(state);
-    gvizGraphRelease(g); GVIZ_DEALLOC(g);
+  gvizLayerGRIPLive *layer = GVIZ_ALLOC(sizeof(gvizLayerGRIPLive));
+  if (!layer ||
+      gvizLayerGRIPLiveInit(layer, &g, (size_t)pow(2.0, (double)depth), 0) != 0) {
+    if (layer) GVIZ_DEALLOC(layer);
+    gvizGraphRelease(&g);
     gvizSceneRelease(out);
     return -1;
   }
-  gvizGRIPEmbeddingEmbed(state);
-
-  gvizLayerGraph *layer = GVIZ_ALLOC(sizeof(gvizLayerGraph));
-  if (!layer) {
-    releaseGRIP((gvizEmbeddedGraph *)state);
-    gvizSceneRelease(out);
-    return -1;
-  }
-  gvizViewport vp = {0, 0, 0, 0};
-  gvizLayerGraphInit(layer, (gvizEmbeddedGraph *)state, releaseGRIP, vp, 0);
+  gvizGraphRelease(&g);
   gvizSceneAddLayer(out, (gvizLayer *)layer);
   return 0;
 }
@@ -80,28 +62,17 @@ int gvizBuildGRIPCarpetScene(gvizScene *out, int depth) {
   if (gvizSceneInit2D(out) != 0)
     return -1;
 
-  gvizGraph *g = GVIZ_ALLOC(sizeof(gvizGraph));
-  if (!g) { gvizSceneRelease(out); return -1; }
-  *g = build_sierpinski_carpet(depth);
+  gvizGraph g = build_sierpinski_carpet(depth);
 
-  gvizGRIPState *state = GVIZ_ALLOC(sizeof(gvizGRIPState));
-  if (!state ||
-      gvizGRIPEmbeddingInit(state, g, (size_t)pow(2.0, (double)depth), 2) != 0) {
-    if (state) GVIZ_DEALLOC(state);
-    gvizGraphRelease(g); GVIZ_DEALLOC(g);
+  gvizLayerGRIPLive *layer = GVIZ_ALLOC(sizeof(gvizLayerGRIPLive));
+  if (!layer ||
+      gvizLayerGRIPLiveInit(layer, &g, (size_t)pow(2.0, (double)depth), 0) != 0) {
+    if (layer) GVIZ_DEALLOC(layer);
+    gvizGraphRelease(&g);
     gvizSceneRelease(out);
     return -1;
   }
-  gvizGRIPEmbeddingEmbed(state);
-
-  gvizLayerGraph *layer = GVIZ_ALLOC(sizeof(gvizLayerGraph));
-  if (!layer) {
-    releaseGRIP((gvizEmbeddedGraph *)state);
-    gvizSceneRelease(out);
-    return -1;
-  }
-  gvizViewport vp = {0, 0, 0, 0};
-  gvizLayerGraphInit(layer, (gvizEmbeddedGraph *)state, releaseGRIP, vp, 0);
+  gvizGraphRelease(&g);
   gvizSceneAddLayer(out, (gvizLayer *)layer);
   return 0;
 }
@@ -145,29 +116,41 @@ int gvizBuildSceneFromTreeFile(gvizScene *out, const char *path) {
   return 0;
 }
 
-/* ---- Tutte spider-web demo ------------------------------------------------ */
+/* ---- Tutte random small graph demo ---------------------------------------- */
 
-#define TUTTE_SPOKES 6
-#define TUTTE_RINGS 5
+#define TUTTE_N 8
+#define TUTTE_BOUNDARY 3
+#define TUTTE_EXTRA_EDGES 5
 #define TUTTE_RADIUS 300.0
 
-static gvizGraph buildSpiderWeb(void) {
-  int totalVerts = TUTTE_RINGS * TUTTE_SPOKES + 1;
+static int hasEdge(gvizGraph *g, int a, int b) {
+  gvizArray *nb = gvizGraphGetVertexNeighbors(g, (size_t)a);
+  if (!nb) return 0;
+  for (size_t i = 0; i < nb->count; i++)
+    if (*(size_t *)gvizArrayAtIndex(nb, i) == (size_t)b)
+      return 1;
+  return 0;
+}
+
+static gvizGraph buildRandomSmallGraph(void) {
   gvizGraph g;
   gvizGraphInit(&g, 0);
-  for (int i = 0; i < totalVerts; i++)
+  for (int i = 0; i < TUTTE_N; i++)
     gvizGraphAddVertex(&g, NULL, NULL, NULL);
-  for (int r = 0; r < TUTTE_RINGS; r++)
-    for (int s = 0; s < TUTTE_SPOKES; s++)
-      gvizGraphAddEdge(&g, (size_t)(r * TUTTE_SPOKES + s),
-                       (size_t)(r * TUTTE_SPOKES + (s + 1) % TUTTE_SPOKES));
-  for (int r = 0; r < TUTTE_RINGS - 1; r++)
-    for (int s = 0; s < TUTTE_SPOKES; s++)
-      gvizGraphAddEdge(&g, (size_t)(r * TUTTE_SPOKES + s),
-                       (size_t)((r + 1) * TUTTE_SPOKES + s));
-  size_t hub = (size_t)(TUTTE_RINGS * TUTTE_SPOKES);
-  for (int s = 0; s < TUTTE_SPOKES; s++)
-    gvizGraphAddEdge(&g, (size_t)((TUTTE_RINGS - 1) * TUTTE_SPOKES + s), hub);
+
+  /* Random spanning tree: vertex i attaches to a random earlier vertex */
+  for (int i = 1; i < TUTTE_N; i++) {
+    int j = rand() % i;
+    gvizGraphAddEdge(&g, (size_t)i, (size_t)j);
+  }
+
+  /* Extra random edges */
+  for (int k = 0; k < TUTTE_EXTRA_EDGES; k++) {
+    int a = rand() % TUTTE_N;
+    int b = rand() % TUTTE_N;
+    if (a != b && !hasEdge(&g, a, b))
+      gvizGraphAddEdge(&g, (size_t)a, (size_t)b);
+  }
   return g;
 }
 
@@ -175,14 +158,11 @@ int gvizBuildTutteDemoScene(gvizScene *out) {
   if (gvizSceneInit2D(out) != 0)
     return -1;
 
-  gvizGraph g = buildSpiderWeb();
+  gvizGraph g = buildRandomSmallGraph();
 
-  size_t boundary[TUTTE_SPOKES];
-  for (int i = 0; i < TUTTE_SPOKES; i++)
-    boundary[i] = (size_t)i;
-
+  size_t boundary[TUTTE_BOUNDARY] = {0, 1, 2};
   gvizLayerTutte *tlayer = GVIZ_ALLOC(sizeof(gvizLayerTutte));
-  if (!tlayer || gvizLayerTutteInit(tlayer, &g, boundary, TUTTE_SPOKES,
+  if (!tlayer || gvizLayerTutteInit(tlayer, &g, boundary, TUTTE_BOUNDARY,
                                     TUTTE_RADIUS, 0) != 0) {
     if (tlayer)
       GVIZ_DEALLOC(tlayer);
@@ -208,6 +188,47 @@ static void buildRandomTree(gvizGraph *tree, size_t root, int depth,
     gvizGraphAddEdge(tree, root, child);
     buildRandomTree(tree, child, depth + 1, maxDepth);
   }
+}
+
+/* ---- Polyhedral Tutte demo (octahedron edge graph) ----------------------- */
+
+static gvizGraph buildOctahedronGraph(void) {
+  /* 8 triangular faces; planar drawing uses an outer triangle 0-1-2. */
+  gvizGraph g;
+  gvizGraphInit(&g, 0);
+  for (int i = 0; i < 6; i++)
+    gvizGraphAddVertex(&g, NULL, NULL, NULL);
+  /* Outer triangle 0-1-2; vertex 3 inside between 0/1, vertex 4 inside between
+   * 1/2, vertex 5 inside between 2/0; vertices 3-4-5 form an inner triangle. */
+  size_t edges[][2] = {
+      {0, 1}, {1, 2}, {2, 0},
+      {0, 3}, {1, 3},
+      {1, 4}, {2, 4},
+      {2, 5}, {0, 5},
+      {3, 4}, {4, 5}, {5, 3},
+  };
+  for (size_t i = 0; i < sizeof(edges) / sizeof(edges[0]); i++)
+    gvizGraphAddEdge(&g, edges[i][0], edges[i][1]);
+  return g;
+}
+
+int gvizBuildPolyTutteDemoScene(gvizScene *out) {
+  if (gvizSceneInit2D(out) != 0)
+    return -1;
+
+  gvizGraph g = buildOctahedronGraph();
+  size_t outerTri[3] = {0, 1, 2};
+
+  gvizLayerPolyTutte *layer = GVIZ_ALLOC(sizeof(gvizLayerPolyTutte));
+  if (!layer || gvizLayerPolyTutteInit(layer, &g, outerTri, 0) != 0) {
+    if (layer) GVIZ_DEALLOC(layer);
+    gvizGraphRelease(&g);
+    gvizSceneRelease(out);
+    return -1;
+  }
+  gvizGraphRelease(&g);
+  gvizSceneAddLayer(out, (gvizLayer *)layer);
+  return 0;
 }
 
 int gvizBuildTreeDemoScene(gvizScene *out) {

@@ -21,4 +21,11 @@ int gvizBuildTreeDemoScene(gvizScene *out);
 /* 2D scene loaded from a tree JSON file. */
 int gvizBuildSceneFromTreeFile(gvizScene *out, const char *path);
 
+/*
+ * 2D scene: polyhedral Tutte demo. Builds a small 3-connected planar mesh
+ * (octahedron edge graph), pins an initial face, and runs Tutte. Press
+ * SPACE in-scene to scan all faces and re-embed with the largest as outer.
+ */
+int gvizBuildPolyTutteDemoScene(gvizScene *out);
+
 #endif
