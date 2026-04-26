@@ -205,7 +205,7 @@ int gvizLayerPolyTutteInit(gvizLayerPolyTutte *layer, gvizGraph *mesh,
     layer->phase = GVIZ_POLY_TUTTE_INITIAL;
     layer->scanFaceIdx = 0;
     layer->bestFaceIdx = 0;
-    layer->bestFaceArea = -DBL_MAX;
+    layer->bestFaceVertCount = 0;
     layer->boundaryRadius = 300.0;
     layer->scanTimer = 0.0f;
     gvizArrayInit(&layer->faces, sizeof(gvizArray));
@@ -286,11 +286,8 @@ void gvizLayerPolyTutteUpdate(void *layerV, float dt) {
             gvizArray *face = (gvizArray *)gvizArrayAtIndex(&self->faces,
                                                             self->scanFaceIdx);
             size_t n = face->count;
-            size_t *verts = (size_t *)face->arr;
-            double area = polygonArea2D(verts, n,
-                                        (gvizEmbeddedGraph *)&self->tutte);
-            if (area > self->bestFaceArea) {
-                self->bestFaceArea = area;
+            if (n > self->bestFaceVertCount) {
+                self->bestFaceVertCount = n;
                 self->bestFaceIdx = self->scanFaceIdx;
             }
         }
@@ -444,7 +441,7 @@ int gvizLayerPolyTutteHandleEvent(void *layerV, const gvizEvent *event) {
         self->phase = GVIZ_POLY_TUTTE_SCANNING;
         self->scanFaceIdx = 0;
         self->bestFaceIdx = 0;
-        self->bestFaceArea = -DBL_MAX;
+        self->bestFaceVertCount = 0;
         self->scanTimer = 0.0f;
         if (self->faces.count > 0)
             pt_highlightFace(self, 0);
@@ -477,7 +474,7 @@ int gvizLayerPolyTutteHandleEvent(void *layerV, const gvizEvent *event) {
         self->phase = GVIZ_POLY_TUTTE_INITIAL;
         self->selectedFaceIdx = SIZE_MAX;
         self->scanFaceIdx = 0;
-        self->bestFaceArea = -DBL_MAX;
+        self->bestFaceVertCount = 0;
         self->scanTimer = 0.0f;
         return 1;
     }
@@ -509,7 +506,7 @@ int gvizLayerPolyTutteHandleEvent(void *layerV, const gvizEvent *event) {
         pt_clearHighlights(self);
         self->phase = GVIZ_POLY_TUTTE_INITIAL;
         self->scanFaceIdx = 0;
-        self->bestFaceArea = -DBL_MAX;
+        self->bestFaceVertCount = 0;
         self->scanTimer = 0.0f;
         return 1;
     }

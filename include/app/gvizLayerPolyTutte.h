@@ -42,7 +42,7 @@ typedef struct gvizLayerPolyTutte {
     gvizLayerPolyTuttePhase phase;
     size_t scanFaceIdx;
     size_t bestFaceIdx;
-    double bestFaceArea;
+    size_t bestFaceVertCount;
     size_t selectedFaceIdx;   /* SIZE_MAX = none */
     gvizArray faces;          /* gvizArray of gvizArray<size_t> */
 

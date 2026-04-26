@@ -1,59 +1,30 @@
 # TASKS
 
-## Epic 1: Fix permanent highlight residue
+## Epic 1: Change face-scan maximizing criterion to vertex count
 
-`pt_clearHighlights` memsets based on `vertexHighlightBits`/`edgeHighlightBits`, but after
-`pt_rebuildIndex` those counts can change while the old GPU color buffer still holds stale data.
-The fix: always track allocated unit counts separately so memset covers the full allocation,
-and always upload the cleared state to the GPU immediately.
+SPACE currently picks the face with the largest area (`bestFaceArea` / `polygonArea2D`).
+Change it to pick the face with the most vertices.
 
-- [x] Add `size_t vertexHighlightUnits` and `size_t edgeHighlightUnits` fields to
-  `gvizLayerPolyTutte` in `include/app/gvizLayerPolyTutte.h`. These store the actual
-  number of `GVIZ_BIT_UNIT` words allocated (independent of the logical bit count).
-- [x] In `pt_rebuildIndex` (`src/app/gvizLayerPolyTutte.c`), after each realloc set the
-  corresponding `*Units` field to the allocated unit count before the memset, so the
-  memset always covers the full allocation.
-- [x] Rewrite `pt_clearHighlights` to memset using the `*Units` fields (not recomputing
-  from bit counts): `memset(self->vertexHighlight, 0, self->vertexHighlightUnits * sizeof(GVIZ_BIT_UNIT))`.
-  After zeroing both arrays, call `pt_writeColors` directly (don't just set `highlightDirty`)
-  so the GPU color buffer is updated in the same call — this eliminates the one-frame lag
-  where stale GPU data is visible. Keep `highlightDirty = 0` after the upload.
-- [x] In `gvizLayerPolyTutteRelease`, zero out the new fields (no alloc change needed, just init).
+- [x] In `include/app/gvizLayerPolyTutte.h`, rename `double bestFaceArea` → `size_t bestFaceVertCount`. Update the comment if any.
+- [x] In `src/app/gvizLayerPolyTutte.c`:
+  - In `gvizLayerPolyTutteInit`: initialize `bestFaceVertCount = 0` instead of `-DBL_MAX`.
+  - In the SCANNING branch of `gvizLayerPolyTutteUpdate`: replace the `polygonArea2D` call with a direct comparison of `n` (the face vertex count): `if (n > self->bestFaceVertCount) { self->bestFaceVertCount = n; self->bestFaceIdx = self->scanFaceIdx; }`.
+  - In every reset site that sets `bestFaceArea = -DBL_MAX` (KEY_ENTER, KEY_R, KEY_SPACE handlers), change to `self->bestFaceVertCount = 0`.
 
----
+## Epic 2: Fix right-click world-coordinate conversion
 
-## Epic 2: Right-click to highlight face under cursor
+The event's pre-filled `wx/wy` are resolved by the scene's camera at input time, which may
+not match the layer's draw-time transform. Fix: cache the camera pointer in the layer and
+redo the screen→world conversion in the event handler using `gvizCameraScreenToWorld2D`.
+Also add fprintf debug lines so the coordinates are visible.
 
-When the user right-clicks, find which enumerated face contains the world-space click
-point and highlight it. If no face contains the point (clicked outside the embedding),
-highlight the "outer" face (the largest-area face, which wraps the unbounded region).
-Store the selected face index for Enter to act on.
-
-- [x] Add `size_t selectedFaceIdx` (SIZE_MAX = none) to `gvizLayerPolyTutte` in the header.
-  Initialize to `SIZE_MAX` in `gvizLayerPolyTutteInit`.
-- [x] Add a static helper `pt_pointInFace(const size_t *verts, size_t n, double px, double py, gvizEmbeddedGraph *eg) -> int` in `src/app/gvizLayerPolyTutte.c` using the ray-casting point-in-polygon test: cast a horizontal ray rightward from `(px, py)` and count crossings of each face edge; return 1 if odd.
-- [x] Add a static helper `pt_findOuterFace(gvizLayerPolyTutte *self) -> size_t` that returns the index of the face with the largest area (using `polygonArea2D`). This is the outer/unbounded face in the Tutte drawing. Returns `SIZE_MAX` if `faces.count == 0`.
-- [x] In `gvizLayerPolyTutteHandleEvent`, add a `GVIZ_EVENT_MOUSE_DOWN` + `GVIZ_MOUSE_RIGHT` case:
-  1. If `self->faces.count == 0`: lazily enumerate faces (same rotation-system + face-enum code as SPACE/R; set `gpuDirty = 2`). If still 0 after enumeration, return 1.
-  2. World coordinates are in `event->mouse.wx`, `event->mouse.wy`.
-  3. Iterate all faces; for each call `pt_pointInFace`. Take the first face that contains the point.
-  4. If no face contains the point: call `pt_findOuterFace` and use that index.
-  5. Set `self->selectedFaceIdx` to the found index.
-  6. Call `pt_clearHighlights(self)` then `pt_highlightFace(self, self->selectedFaceIdx)`.
-  7. Return 1.
-- [x] Update the keybinding HUD string in `gvizLayerPolyTutteDraw` for the INITIAL phase to include: `"right-click  select face   ENTER  fix & re-embed"`.
-
----
-
-## Epic 3: Enter fixes selected face and re-embeds
-
-- [ ] In `gvizLayerPolyTutteHandleEvent`, add a `KEY_ENTER` case:
-  1. If `self->selectedFaceIdx == SIZE_MAX` or `self->faces.count == 0`, return 0 (nothing selected).
-  2. Get the face verts from `self->faces[self->selectedFaceIdx]`. If `n < 3`, return 1.
-  3. Release and re-init TutteSolve: `gvizTutteSolveEmbeddingRelease`, `gvizTutteSolveEmbeddingInit(&self->tutte, &self->graph, 2, 0)`, `gvizTutteSolveFixConvexPolygon(&self->tutte, bv, bn, self->boundaryRadius)`, `gvizTutteSolveEmbeddingStep(&self->tutte, 0)`. Set `self->hasTutte = 1`.
-  4. `pt_rebuildIndex(self)`, `pt_clearHighlights(self)`.
-  5. Set `gpuDirty = 2`, `phase = GVIZ_POLY_TUTTE_INITIAL`, `selectedFaceIdx = SIZE_MAX`, `scanFaceIdx = 0`, `bestFaceArea = -DBL_MAX`, `scanTimer = 0`.
-  6. Return 1.
+- [ ] Add `const gvizCamera *lastCamera` to `gvizLayerPolyTutte` in `include/app/gvizLayerPolyTutte.h`. Initialize to NULL in `gvizLayerPolyTutteInit`. Include `"core/gvizCamera.h"` in the header if not already present.
+- [ ] In `gvizLayerPolyTutteDraw` (`src/app/gvizLayerPolyTutte.c`), at the top of the function assign `self->lastCamera = camera`.
+- [ ] In the `GVIZ_EVENT_MOUSE_DOWN` + `GVIZ_MOUSE_RIGHT` handler:
+  - Compute world coordinates manually: if `self->lastCamera != NULL`, call `Vector2 w = gvizCameraScreenToWorld2D(self->lastCamera, (Vector2){event->mouse.sx, event->mouse.sy})` and use `w.x / w.y` as `px / py`; otherwise fall back to `event->mouse.wx / wy`.
+  - Add `fprintf(stderr, "[PolyTutte] right-click screen=(%.1f,%.1f) world=(%.2f,%.2f) faces=%zu\n", event->mouse.sx, event->mouse.sy, px, py, self->faces.count);` immediately after computing `px/py`.
+  - After the face search loop, add `fprintf(stderr, "[PolyTutte] hit face=%zu (SIZE_MAX=%d)\n", hit, hit == SIZE_MAX);`.
+- [ ] In `pt_pointInFace`, add a one-shot debug print for the first invocation per right-click: pass an extra `int faceIdx` parameter and print face vertex positions for face 0 only (guard with `if (faceIdx == 0)` so it doesn't flood). Actually simpler: just add a `fprintf` at the top of `pt_pointInFace` that prints `n`, `px`, `py`, and the first vertex position — gate it with `if (n > 0)` so it prints once per face per click. This is debug-only; the adventurer can remove the gate after verifying.
 
 ## Build
 - [ ] `cd build && cmake .. && make`, fix any errors.
