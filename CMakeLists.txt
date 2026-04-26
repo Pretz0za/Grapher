@@ -44,6 +44,7 @@ add_library(graphvis STATIC
     src/utils/serializers.c
     src/utils/helpers.c
     src/utils/gvizTreeIO.c
+    src/utils/gvizOBJLoader.c
 )
 
 target_include_directories(graphvis 

@@ -3,7 +3,9 @@
 #include "core/gvizScene.h"
 #include "raylib.h"
 #include "renderer/layers/gvizLayerMainMenu.h"
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define WINDOW_W 1280
 #define WINDOW_H 800
@@ -68,6 +70,22 @@ int main(void) {
         /* TODO: raygui text-input file picker. */
         gvizBuildBlankScene(&scene);
         break;
+      case GVIZ_MENU_LOAD_OBJ_TUTTE: {
+        char path[512];
+        printf("Enter .obj path: ");
+        fflush(stdout);
+        if (!fgets(path, sizeof(path), stdin)) {
+          gvizBuildBlankScene(&scene);
+          break;
+        }
+        size_t len = strlen(path);
+        while (len > 0 && (path[len - 1] == '\n' || path[len - 1] == '\r' ||
+                           path[len - 1] == ' ' || path[len - 1] == '\t'))
+          path[--len] = '\0';
+        if (len == 0 || gvizBuildPolyTutteFromOBJScene(&scene, path) != 0)
+          gvizBuildBlankScene(&scene);
+        break;
+      }
       default:
         gvizBuildBlankScene(&scene);
         break;

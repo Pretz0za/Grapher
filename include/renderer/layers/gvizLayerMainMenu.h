@@ -16,6 +16,7 @@ typedef enum gvizMainMenuAction {
   GVIZ_MENU_DEMO_TUTTE,
   GVIZ_MENU_DEMO_POLY_TUTTE,
   GVIZ_MENU_DEMO_TREE,
+  GVIZ_MENU_LOAD_OBJ_TUTTE,
   GVIZ_MENU_BLANK_SCENE,
 } gvizMainMenuAction;
 

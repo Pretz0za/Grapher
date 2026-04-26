@@ -1,79 +1,50 @@
 # TASKS
 
-## Epic 1: Highlights + dynamic mutation in gvizLayerGraph
+## Epic 1: .obj mesh loader -> PolyTutte scene
 
-Add per-vertex and per-edge red-highlight overlays driven by bitarrays, plus runtime add/remove of vertices and edges. Highlights must NOT trigger geometry rebuilds — they ride a parallel per-endpoint color stream. Mutations resize bitarrays and the edge-bit index.
+### OBJ parser (new utility module)
+- [x] Create `include/utils/gvizOBJLoader.h` declaring:
+  - `int gvizLoadOBJAsGraph(const char *path, gvizGraph *outGraph, size_t outerTriangle[3]);`
+  - Returns 0 on success, -1 on parse/IO/alloc failure. On success, `outGraph` is initialized as an undirected `gvizGraph` and `outerTriangle` is filled with the first three vertex indices of face 0 (1-based -> 0-based).
+- [x] Create `src/utils/gvizOBJLoader.c`:
+  - Open the file with `fopen`; read line-by-line into a fixed buffer (`MAX_LINE_SIZE`).
+  - Skip blank lines and comments (`#`).
+  - For each `v ` line, increment a vertex counter (positions are not stored; PolyTutte computes its own embedding).
+  - Pre-pass to count `v` lines, then `gvizGraphInit(outGraph, 0)` and `gvizGraphAddVertex` for each vertex.
+  - For each `f ` line, parse face indices. Tokens may be `idx`, `idx/uv`, `idx/uv/n`, or `idx//n`; take the integer before the first `/`. Convert from 1-based to 0-based.
+  - For each consecutive pair `(face[i], face[(i+1) % faceLen])`, call `gvizGraphAddEdge` only if not already present (use `gvizGraphEdgeExists` to dedupe).
+  - On the FIRST face encountered, save its first three indices into `outerTriangle` before processing edges.
+  - Free the line buffer; return 0. On any failure, `gvizGraphRelease` and return -1.
+- [x] Add `src/utils/gvizOBJLoader.c` to the `graphvis` static library sources list in `CMakeLists.txt`.
 
-### Highlight storage on gvizLayerGraph
+### Scene builder
+- [x] Add to `include/app/gvizSceneBuilders.h`:
+  - `int gvizBuildPolyTutteFromOBJScene(gvizScene *out, const char *objPath);`
+- [x] Add implementation in `src/app/gvizSceneBuilders.c` mirroring `gvizBuildPolyTutteDemoScene`:
+  - `gvizSceneInit2D`, call `gvizLoadOBJAsGraph` to build the graph + outer triangle.
+  - Allocate `gvizLayerPolyTutte`, call `gvizLayerPolyTutteInit` with the graph + outer triangle.
+  - On any failure, release intermediate state and return -1; on success `gvizGraphRelease` (the layer cloned it) and `gvizSceneAddLayer`.
+- [x] `#include "utils/gvizOBJLoader.h"` at the top of `gvizSceneBuilders.c`.
 
-- [x] Add `GVIZ_BIT_UNIT *vertexHighlight` and `size_t vertexHighlightBits` fields to `gvizLayerGraph` (`include/renderer/layers/gvizLayerGraph.h`); allocate to `GVIZ_ARRAY_UNITS(N)` in `gvizLayerGraphInit` and zero-fill.
-- [x] Add `GVIZ_BIT_UNIT *edgeHighlight`, `size_t edgeHighlightBits`, and `size_t *edgeStartIdx` (length = N+1, last entry = total directed-edge count) to `gvizLayerGraph`; allocate and zero-fill in init.
-- [x] Add helper `static size_t computeEdgeStartIdx(gvizGraph *g, size_t *out)` (in `src/renderer/layers/gvizLayerGraph.c`) that walks vertex neighbor counts to fill prefix sums and returns total directed-edge count.
-- [x] Free `vertexHighlight`, `edgeHighlight`, and `edgeStartIdx` in `gvizLayerGraphRelease`.
+### Main menu wiring
+- [x] Add `GVIZ_MENU_LOAD_OBJ_TUTTE` to the `gvizMainMenuAction` enum in `include/renderer/layers/gvizLayerMainMenu.h`.
+- [x] In `src/renderer/layers/gvizLayerMainMenu.c`, add a "Load OBJ mesh (Tutte)" button that sets `requestedAction = GVIZ_MENU_LOAD_OBJ_TUTTE` and writes the chosen path into `layer->loadPath` (use the same path-input pattern already used by `GVIZ_MENU_LOAD_SCENE`; if a raygui text-input is not yet implemented there, prompt via `stdin` like other path-loading entry points).
+- [x] In `src/app/main.c`, handle the new case: call `gvizBuildPolyTutteFromOBJScene(&scene, menu->loadPath)`; on failure fall back to `gvizBuildBlankScene`.
 
-### Highlight public API
+## Epic 2: Fix SCANNING-phase highlight bug
 
-- [x] Add `gvizLayerGraphSetVertexHighlight(gvizLayerGraph *, size_t v, int on)` and `gvizLayerGraphClearVertexHighlights(gvizLayerGraph *)` to header + impl.
-- [x] Add `gvizLayerGraphSetEdgeHighlight(gvizLayerGraph *, size_t u, size_t v, int on)` that resolves the bit index via `edgeStartIdx[u] + indexOf(neighbors(u), v)`; for undirected graphs also sets the symmetric (v,u) bit.
-- [x] Add `gvizLayerGraphClearEdgeHighlights(gvizLayerGraph *)` (memset edge bits to 0).
-- [x] Add `gvizLayerGraphRebuildEdgeIndex(gvizLayerGraph *)` that recomputes `edgeStartIdx`, resizes `edgeHighlight` to the new bit count, and zeroes new bits — called after any topology mutation.
+### Diagnose
+- [ ] Confirm root cause in `src/app/gvizLayerPolyTutte.c`:
+  - `gvizLayerPolyTutteHandleEvent` calls `gvizComputeRotationSystem` (which mutates `self->tutte.graph` / `&self->graph` by adding any missing reverse edges to form a proper rotation system) and then `pt_rebuildIndex(self)` to recompute `edgeStartIdx` against the now-doubled adjacency.
+  - The VBO's color buffer was sized for the ORIGINAL adjacency and is not rebuilt (no `gpuDirty = 2` is set in HandleEvent), so `edgeStartIdx` no longer aligns with the VBO's iteration order. As a result `pt_writeColors` walks the new (doubled) graph and falls into the `fi + 6 > colorsCount` early-return path, leaving stale or mis-mapped color entries -> "all edges red, no vertices".
+- [ ] Confirm `gvizLayerGraphSetEdgeHighlight` / `findEdgeBit` index arithmetic is correct: bit = `edgeStartIdx[u] + indexOf(neighbors(u), v)` matches the VBO's iteration `for u in 0..N: for j in nbrs(u): write 2 endpoints`. No fix required there; the bug is the synchronization with topology mutations.
 
-### VBO color-stream support
+### Fix
+- [ ] In `gvizLayerPolyTutteHandleEvent`, after `gvizComputeRotationSystem` and `pt_rebuildIndex`, set `self->gpuDirty = 2` so the next `Draw` rebuilds the VBO (and thus the colors buffer) to match the new edge index.
+- [ ] In `gvizLayerPolyTutteUpdate`'s SCANNING branch, do NOT call `pt_clearHighlights` followed by per-face highlight setting on the same frame for ALL faces in one tick. Current loop is correct (one face per frame), but make highlights visible: gate scanning by a small accumulator (e.g. `scanTimer += dt; if scanTimer < 0.2f return;`) so each face is shown for ~200ms before advancing. Add a `float scanTimer;` field in `gvizLayerPolyTutte` and reset it to 0 when entering SCANNING and after each advance.
+- [ ] Ensure `pt_clearHighlights` is called exactly once at the start of each SCANNING frame BEFORE setting that frame's face highlights (already done) — verify no other code path leaves stale bits when the phase transitions to FINAL: the FINAL branch already calls `pt_clearHighlights` before re-init; keep it.
+- [ ] When SCANNING completes (`scanFaceIdx >= faces.count`), call `pt_clearHighlights` before transitioning to `GVIZ_POLY_TUTTE_FINAL` (current code transitions without clearing — add the clear).
+- [ ] Verify `pt_setVertexHL` and `pt_setEdgeHL` operate against the rebuilt index after the rotation system was added (now correct because `pt_rebuildIndex` ran in HandleEvent and the VBO will be rebuilt this frame thanks to `gpuDirty = 2`).
 
-- [x] Extend `gvizGraphVBO` (`include/renderer/layers/gvizGraphVBO.h`, `src/renderer/layers/gvizGraphVBO.c`) with `unsigned int vboColors` (per-endpoint vec3 stream) and `float *colors` CPU mirror sized `2 * totalDirectedEdges * 3`.
-- [x] In `rebuildEdges`, after creating the position VBO, allocate the color buffer (default = black per endpoint) and bind as vertex attribute 1 (`rlSetVertexAttribute(1, 3, RL_FLOAT, ...)`); enable attribute 1 in the VAO.
-- [x] Replace the hardcoded black uniform draw path in `gvizGraphVBODraw` with a custom inline shader (singleton, in the style of the disc shader) that takes per-vertex color and emits it.
-- [x] Add `gvizGraphVBOUploadEndpointColors(gvizGraphVBO *, const float *rgba2N)` that uploads via `rlUpdateVertexBuffer`. Call `glBufferSubData`-equivalent path so highlight changes do NOT require topology rebuild.
-- [x] Release the colors VBO and CPU buffer in `gvizGraphVBORelease`.
-
-### Wiring highlights into draw path
-
-- [x] In `gvizLayerGraphDraw`, before calling `gvizGraphVBODraw`, walk `(u, j)` over directed neighbor pairs in the same order as `buildExpandedVerts` and write a color per endpoint: red `(1,0,0)` if `vertexHighlight[u]` set OR the edge bit at `edgeStartIdx[u]+j` is set; otherwise black. Upload via `gvizGraphVBOUploadEndpointColors`.
-- [x] Track a `highlightDirty` flag on `gvizLayerGraph` so the color buffer is only rewritten when highlights or topology actually changed.
-
-### Dynamic graph mutations
-
-- [x] Add `gvizLayerGraphAddVertex(gvizLayerGraph *, const double *startPos)` — calls `gvizGraphAddVertex` on the underlying graph, grows the embedding's `vertexPositions` array, writes `startPos` into the new slot, grows `vertexHighlight` (one extra bit, zeroed), calls `gvizLayerGraphRebuildEdgeIndex`, and sets `gpuDirty = 2`.
-- [x] Add `gvizLayerGraphRemoveVertex(gvizLayerGraph *, size_t v)` — removes incident edges, removes the vertex from `gvizGraph` (extend `gvizGraph` with a `gvizGraphRemoveVertex` if not present), compacts `vertexPositions` and `vertexHighlight`, rebuilds edge index, sets `gpuDirty = 2`.
-- [x] Add `gvizLayerGraphAddEdge(gvizLayerGraph *, size_t u, size_t v)` — calls `gvizGraphAddEdge`, then `gvizLayerGraphRebuildEdgeIndex`, sets `gpuDirty = 2`.
-- [x] Add `gvizLayerGraphRemoveEdge(gvizLayerGraph *, size_t u, size_t v)` — calls `gvizGraphRemoveEdge`, then `gvizLayerGraphRebuildEdgeIndex`, sets `gpuDirty = 2`.
-- [x] After each mutation, request the owning embedding to incorporate the change: add a `void (*onTopologyChanged)(gvizEmbeddedGraph *)` hook on `gvizLayerGraph` (NULL = no-op). Tutte/PolyTutte layers set this to re-seed/re-fix; trees/GRIP can ignore.
-
-### gvizGraph removal primitive (only if missing)
-
-- [x] Verify `gvizGraphRemoveVertex` exists in `include/dsa/gvizGraph.h`; if not, add it (removes from vertex array, drops all incident edges, decrements neighbor indices that referenced shifted vertices). Implement in `src/dsa/gvizGraph.c`.
-
-## Epic 2: Polyhedral Tutte re-embedding layer
-
-New layer that runs Tutte on a 3-connected planar mesh, then on user input scans all faces (highlighting each as it goes) and re-embeds with the largest face as the outer boundary. Lives in `include/app/gvizLayerPolyTutte.h` and `src/app/gvizLayerPolyTutte.c`.
-
-### Layer scaffolding
-
-- [ ] Create `include/app/gvizLayerPolyTutte.h` defining `gvizLayerPolyTutte` (first member `gvizLayer layer`, then owned `gvizGraph graph`, `gvizTutteEmbedding tutte`, `gvizGraphVBO vbo`, plus state fields: `int phase` = {INITIAL, SCANNING, FINAL}, `size_t scanFaceIdx`, `size_t bestFaceIdx`, `double bestFaceArea`, `gvizArray faces` of `gvizArray<size_t>` per face).
-- [ ] Declare `gvizLayerPolyTutteInit(gvizLayerPolyTutte *, gvizGraph *mesh, const size_t *outerTriangle, size_t z)`, `Draw`, `Update`, `Release`, `HandleEvent`, and `GVIZ_LAYER_POLY_TUTTE_VTABLE`.
-- [ ] Implement init: clone graph, init Tutte with `outerTriangle` as the fixed boundary (radius matching existing demo), seed interior, init VBO with `EDGES | DISCS`, set `phase = INITIAL`.
-- [ ] Implement Update: while `phase == INITIAL`, run `gvizTutteEmbeddingStep` until converged; while `phase == SCANNING`, advance one face per Update tick (so the user sees each highlighted face for one frame).
-- [ ] Implement Draw mirroring `gvizLayerTutteDraw` (rebuild VBO on `gpuDirty >= 2`, upload positions on `== 1`, then draw).
-- [ ] Implement Release: free faces array + inner arrays, release Tutte, VBO, graph.
-
-### Rotation system extraction
-
-- [ ] Add `void gvizComputeRotationSystem(gvizEmbeddedGraph *eg)` to a shared header (e.g. `include/renderer/embeddings/gvizPlanarRotation.h`) and `.c` file. For each vertex u, compute `atan2(p[v].y - p[u].y, p[v].x - p[u].x)` for each neighbor v, then sort u's `neighbors` array (in `gvizGraph`) clockwise (descending angle, or ascending depending on screen-y convention — pick clockwise relative to +x axis with y-down screen).
-- [ ] Sort in place using `qsort` with a thread-unsafe context global or a comparator that reads positions from a file-static pointer set just before the call (consistent with project's no-`qsort_r` style).
-
-### Face iteration
-
-- [ ] Locate existing face-iteration utility in the codebase (search `include/renderer/embeddings/` and `src/renderer/embeddings/` for "face" / "rotation" — likely tied to planar embeddings). If one exists, use it. If not, add `gvizEnumerateFaces(gvizGraph *g, gvizArray *outFaces)` that, given a graph whose adjacency lists are already in clockwise rotation order, walks each directed half-edge once via the "next around face" rule (`next(u→v) = v→prev_in_rotation(v, u)`), accumulating vertex-cycles into `outFaces`.
-- [ ] Add `static double polygonArea2D(const size_t *faceVerts, size_t n, gvizEmbeddedGraph *eg)` (shoelace formula) to `gvizLayerPolyTutte.c`.
-
-### User-triggered largest-face scan
-
-- [ ] In `HandleEvent`, on `KEY_SPACE` while `phase == INITIAL`: call `gvizComputeRotationSystem` on the embedded graph, run face enumeration into `self->faces`, set `phase = SCANNING`, `scanFaceIdx = 0`, `bestFaceArea = -inf`.
-- [ ] In `Update` while `phase == SCANNING`: clear vertex/edge highlights via the new `gvizLayerGraph`-style API (Poly-Tutte will use the same highlight buffers — either inherit by reusing a `gvizLayerGraph` sub-struct, or duplicate the minimal highlight fields here). Set highlights for the current face's vertices and edges. Compute area; if larger than `bestFaceArea`, update best. Increment `scanFaceIdx`. When done, transition to FINAL.
-- [ ] On `phase == FINAL`: clear highlights, release current Tutte state, re-init Tutte with `bestFace` vertices as the new outer boundary (use boundary radius matching original), re-seed interior, set `gpuDirty = 2`.
-
-### Integration / scene builder
-
-- [ ] Add a scene builder `gvizBuildPolyTutteDemoScene(gvizScene *out)` in `src/app/gvizSceneBuilders.c` and declare in `gvizSceneBuilders.h`. Build a small polyhedral mesh (e.g. octahedron or icosahedron edge-graph from existing utils, or a hand-coded 3-connected planar graph) and pass an initial outer triangle.
-- [ ] Add a `GVIZ_MENU_DEMO_POLY_TUTTE` entry to the main menu enum and route it through `main.c`'s switch.
-- [ ] Update `CMakeLists.txt` to include the new source files (`src/app/gvizLayerPolyTutte.c`, plus the rotation-system helper if placed in its own file).
+### Verify
+- [ ] Build with `cmake --build build` and run `./build/grapher`; pick the PolyTutte demo, press SPACE, observe each face turning red one-at-a-time (vertices + edges of the current face only), then the largest face becoming the new outer boundary on FINAL.

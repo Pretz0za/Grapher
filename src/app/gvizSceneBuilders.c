@@ -6,6 +6,7 @@
 #include "renderer/embeddings/gvizEmbeddedTree.h"
 #include "renderer/layers/gvizLayerGraph.h"
 #include "utils/graphs.h"
+#include "utils/gvizOBJLoader.h"
 #include "utils/gvizTreeIO.h"
 #include <math.h>
 #include <stdlib.h>
@@ -218,6 +219,30 @@ int gvizBuildPolyTutteDemoScene(gvizScene *out) {
 
   gvizGraph g = buildOctahedronGraph();
   size_t outerTri[3] = {0, 1, 2};
+
+  gvizLayerPolyTutte *layer = GVIZ_ALLOC(sizeof(gvizLayerPolyTutte));
+  if (!layer || gvizLayerPolyTutteInit(layer, &g, outerTri, 0) != 0) {
+    if (layer) GVIZ_DEALLOC(layer);
+    gvizGraphRelease(&g);
+    gvizSceneRelease(out);
+    return -1;
+  }
+  gvizGraphRelease(&g);
+  gvizSceneAddLayer(out, (gvizLayer *)layer);
+  return 0;
+}
+
+int gvizBuildPolyTutteFromOBJScene(gvizScene *out, const char *objPath) {
+  if (!out || !objPath) return -1;
+  if (gvizSceneInit2D(out) != 0)
+    return -1;
+
+  gvizGraph g;
+  size_t outerTri[3] = {0, 0, 0};
+  if (gvizLoadOBJAsGraph(objPath, &g, outerTri) != 0) {
+    gvizSceneRelease(out);
+    return -1;
+  }
 
   gvizLayerPolyTutte *layer = GVIZ_ALLOC(sizeof(gvizLayerPolyTutte));
   if (!layer || gvizLayerPolyTutteInit(layer, &g, outerTri, 0) != 0) {

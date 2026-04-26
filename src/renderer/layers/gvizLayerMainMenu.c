@@ -6,7 +6,7 @@
 #define PANEL_W 320
 #define BTN_H   40
 #define BTN_GAP 10
-#define BTN_COUNT 7
+#define BTN_COUNT 8
 #define PANEL_H (48 + BTN_COUNT * (BTN_H + BTN_GAP) - BTN_GAP + 16)
 
 void gvizLayerMainMenuInit(gvizLayerMainMenu *layer,
@@ -40,6 +40,7 @@ void gvizLayerMainMenuDraw(void *layerV, const gvizCamera *camera) {
   MBTN("Demo: Tutte Spider-Web",  GVIZ_MENU_DEMO_TUTTE)
   MBTN("Demo: Polyhedral Tutte",  GVIZ_MENU_DEMO_POLY_TUTTE)
   MBTN("Demo: Random Tree",       GVIZ_MENU_DEMO_TREE)
+  MBTN("Load OBJ mesh (Tutte)",   GVIZ_MENU_LOAD_OBJ_TUTTE)
   MBTN("Blank Scene",             GVIZ_MENU_BLANK_SCENE)
 #undef MBTN
 }

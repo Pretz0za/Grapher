@@ -28,4 +28,11 @@ int gvizBuildSceneFromTreeFile(gvizScene *out, const char *path);
  */
 int gvizBuildPolyTutteDemoScene(gvizScene *out);
 
+/*
+ * 2D scene: polyhedral Tutte on a mesh loaded from a Wavefront .obj file.
+ * The first face of the .obj is used as the outer boundary.
+ * Returns 0 on success, -1 on parse / IO / allocation failure.
+ */
+int gvizBuildPolyTutteFromOBJScene(gvizScene *out, const char *objPath);
+
 #endif
