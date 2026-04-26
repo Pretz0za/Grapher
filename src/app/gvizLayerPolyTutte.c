@@ -261,7 +261,7 @@ void gvizLayerPolyTutteDraw(void *layerV, const gvizCamera *camera) {
         break;
     case GVIZ_POLY_TUTTE_INITIAL:
     default:
-        hud = "SPACE  scan all faces   R  random face   scroll/drag  pan+zoom";
+        hud = "SPACE  scan all faces   R  random face   right-click  select face   ENTER  fix & re-embed";
         break;
     }
     DrawText(hud, 10, 10, 18, DARKGRAY);
@@ -346,6 +346,38 @@ void gvizLayerPolyTutteRelease(void *layerV) {
     self->edgeStartIdx = NULL;
 }
 
+static int pt_pointInFace(const size_t *verts, size_t n, double px, double py,
+                          gvizEmbeddedGraph *eg) {
+    if (n < 3) return 0;
+    int inside = 0;
+    for (size_t i = 0, j = n - 1; i < n; j = i++) {
+        double *pa = gvizEmbeddedGraphGetVPosition(eg, verts[i]);
+        double *pb = gvizEmbeddedGraphGetVPosition(eg, verts[j]);
+        double xi = pa[0], yi = pa[1];
+        double xj = pb[0], yj = pb[1];
+        if (((yi > py) != (yj > py)) &&
+            (px < (xj - xi) * (py - yi) / (yj - yi) + xi))
+            inside = !inside;
+    }
+    return inside;
+}
+
+static size_t pt_findOuterFace(gvizLayerPolyTutte *self) {
+    if (self->faces.count == 0) return SIZE_MAX;
+    gvizEmbeddedGraph *eg = (gvizEmbeddedGraph *)&self->tutte;
+    size_t bestIdx = 0;
+    double bestArea = -DBL_MAX;
+    for (size_t i = 0; i < self->faces.count; i++) {
+        gvizArray *f = (gvizArray *)gvizArrayAtIndex(&self->faces, i);
+        double a = polygonArea2D((size_t *)f->arr, f->count, eg);
+        if (a > bestArea) {
+            bestArea = a;
+            bestIdx = i;
+        }
+    }
+    return bestIdx;
+}
+
 static int pt_enumerateFaces(gvizLayerPolyTutte *self) {
     gvizComputeRotationSystem((gvizEmbeddedGraph *)&self->tutte);
     pt_rebuildIndex(self);
@@ -375,6 +407,34 @@ static int pt_enumerateFaces(gvizLayerPolyTutte *self) {
 
 int gvizLayerPolyTutteHandleEvent(void *layerV, const gvizEvent *event) {
     gvizLayerPolyTutte *self = (gvizLayerPolyTutte *)layerV;
+
+    if (event->type == GVIZ_EVENT_MOUSE_DOWN &&
+        event->mouse.button == GVIZ_MOUSE_RIGHT) {
+        if (self->faces.count == 0) {
+            if (pt_enumerateFaces(self) != 0) return 1;
+        }
+        if (self->faces.count == 0) return 1;
+
+        double px = (double)event->mouse.wx;
+        double py = (double)event->mouse.wy;
+        gvizEmbeddedGraph *eg = (gvizEmbeddedGraph *)&self->tutte;
+
+        size_t hit = SIZE_MAX;
+        for (size_t i = 0; i < self->faces.count; i++) {
+            gvizArray *f = (gvizArray *)gvizArrayAtIndex(&self->faces, i);
+            if (pt_pointInFace((size_t *)f->arr, f->count, px, py, eg)) {
+                hit = i;
+                break;
+            }
+        }
+        if (hit == SIZE_MAX) hit = pt_findOuterFace(self);
+
+        self->selectedFaceIdx = hit;
+        pt_clearHighlights(self);
+        pt_highlightFace(self, hit);
+        return 1;
+    }
+
     if (event->type != GVIZ_EVENT_KEY_DOWN) return 0;
 
     if (event->key.key == KEY_SPACE) {

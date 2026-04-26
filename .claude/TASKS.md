@@ -29,11 +29,11 @@ point and highlight it. If no face contains the point (clicked outside the embed
 highlight the "outer" face (the largest-area face, which wraps the unbounded region).
 Store the selected face index for Enter to act on.
 
-- [ ] Add `size_t selectedFaceIdx` (SIZE_MAX = none) to `gvizLayerPolyTutte` in the header.
+- [x] Add `size_t selectedFaceIdx` (SIZE_MAX = none) to `gvizLayerPolyTutte` in the header.
   Initialize to `SIZE_MAX` in `gvizLayerPolyTutteInit`.
-- [ ] Add a static helper `pt_pointInFace(const size_t *verts, size_t n, double px, double py, gvizEmbeddedGraph *eg) -> int` in `src/app/gvizLayerPolyTutte.c` using the ray-casting point-in-polygon test: cast a horizontal ray rightward from `(px, py)` and count crossings of each face edge; return 1 if odd.
-- [ ] Add a static helper `pt_findOuterFace(gvizLayerPolyTutte *self) -> size_t` that returns the index of the face with the largest area (using `polygonArea2D`). This is the outer/unbounded face in the Tutte drawing. Returns `SIZE_MAX` if `faces.count == 0`.
-- [ ] In `gvizLayerPolyTutteHandleEvent`, add a `GVIZ_EVENT_MOUSE_DOWN` + `GVIZ_MOUSE_RIGHT` case:
+- [x] Add a static helper `pt_pointInFace(const size_t *verts, size_t n, double px, double py, gvizEmbeddedGraph *eg) -> int` in `src/app/gvizLayerPolyTutte.c` using the ray-casting point-in-polygon test: cast a horizontal ray rightward from `(px, py)` and count crossings of each face edge; return 1 if odd.
+- [x] Add a static helper `pt_findOuterFace(gvizLayerPolyTutte *self) -> size_t` that returns the index of the face with the largest area (using `polygonArea2D`). This is the outer/unbounded face in the Tutte drawing. Returns `SIZE_MAX` if `faces.count == 0`.
+- [x] In `gvizLayerPolyTutteHandleEvent`, add a `GVIZ_EVENT_MOUSE_DOWN` + `GVIZ_MOUSE_RIGHT` case:
   1. If `self->faces.count == 0`: lazily enumerate faces (same rotation-system + face-enum code as SPACE/R; set `gpuDirty = 2`). If still 0 after enumeration, return 1.
   2. World coordinates are in `event->mouse.wx`, `event->mouse.wy`.
   3. Iterate all faces; for each call `pt_pointInFace`. Take the first face that contains the point.
@@ -41,7 +41,7 @@ Store the selected face index for Enter to act on.
   5. Set `self->selectedFaceIdx` to the found index.
   6. Call `pt_clearHighlights(self)` then `pt_highlightFace(self, self->selectedFaceIdx)`.
   7. Return 1.
-- [ ] Update the keybinding HUD string in `gvizLayerPolyTutteDraw` for the INITIAL phase to include: `"right-click  select face   ENTER  fix & re-embed"`.
+- [x] Update the keybinding HUD string in `gvizLayerPolyTutteDraw` for the INITIAL phase to include: `"right-click  select face   ENTER  fix & re-embed"`.
 
 ---
 
