@@ -8,6 +8,7 @@
 #include "renderer/embeddings/gvizPlanarEmbedding.h"
 #include "renderer/embeddings/gvizPlanarRotation.h"
 #include "renderer/layers/gvizGraphVBO.h"
+#include "raymath.h"
 
 #include <float.h>
 #include <math.h>
@@ -208,6 +209,7 @@ int gvizLayerPolyTutteInit(gvizLayerPolyTutte *layer, gvizGraph *mesh,
     layer->bestFaceVertCount = 0;
     layer->boundaryRadius = 300.0;
     layer->scanTimer = 0.0f;
+    layer->lastCamera = NULL;
     gvizArrayInit(&layer->faces, sizeof(gvizArray));
 
     if (gvizGraphClone(&layer->graph, mesh) != 0) return -1;
@@ -231,6 +233,7 @@ int gvizLayerPolyTutteInit(gvizLayerPolyTutte *layer, gvizGraph *mesh,
 
 void gvizLayerPolyTutteDraw(void *layerV, const gvizCamera *camera) {
     gvizLayerPolyTutte *self = (gvizLayerPolyTutte *)layerV;
+    self->lastCamera = camera;
     if (self->graph.vertices.count == 0) { self->gpuDirty = 0; return; }
 
     gvizEmbeddedGraph *eg = (gvizEmbeddedGraph *)&self->tutte;
@@ -345,6 +348,11 @@ void gvizLayerPolyTutteRelease(void *layerV) {
 
 static int pt_pointInFace(const size_t *verts, size_t n, double px, double py,
                           gvizEmbeddedGraph *eg) {
+    if (n > 0) {
+        double *p0 = gvizEmbeddedGraphGetVPosition(eg, verts[0]);
+        fprintf(stderr, "[PolyTutte] pt_pointInFace n=%zu px=%.2f py=%.2f v0=(%.2f,%.2f)\n",
+                n, px, py, p0[0], p0[1]);
+    }
     if (n < 3) return 0;
     int inside = 0;
     for (size_t i = 0, j = n - 1; i < n; j = i++) {
@@ -412,8 +420,19 @@ int gvizLayerPolyTutteHandleEvent(void *layerV, const gvizEvent *event) {
         }
         if (self->faces.count == 0) return 1;
 
-        double px = (double)event->mouse.wx;
-        double py = (double)event->mouse.wy;
+        double px, py;
+        if (self->lastCamera != NULL) {
+            Vector2 w = gvizCameraScreenToWorld2D(self->lastCamera,
+                            (Vector2){event->mouse.sx, event->mouse.sy});
+            px = (double)w.x;
+            py = (double)w.y;
+        } else {
+            px = (double)event->mouse.wx;
+            py = (double)event->mouse.wy;
+        }
+        fprintf(stderr,
+                "[PolyTutte] right-click screen=(%.1f,%.1f) world=(%.2f,%.2f) faces=%zu\n",
+                event->mouse.sx, event->mouse.sy, px, py, self->faces.count);
         gvizEmbeddedGraph *eg = (gvizEmbeddedGraph *)&self->tutte;
 
         size_t hit = SIZE_MAX;
@@ -424,6 +443,8 @@ int gvizLayerPolyTutteHandleEvent(void *layerV, const gvizEvent *event) {
                 break;
             }
         }
+        fprintf(stderr, "[PolyTutte] hit face=%zu (SIZE_MAX=%d)\n",
+                hit, hit == SIZE_MAX);
         if (hit == SIZE_MAX) hit = pt_findOuterFace(self);
 
         self->selectedFaceIdx = hit;

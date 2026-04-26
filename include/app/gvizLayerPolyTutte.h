@@ -51,6 +51,10 @@ typedef struct gvizLayerPolyTutte {
 
     /* Per-face dwell timer (seconds) used during SCANNING. */
     float scanTimer;
+
+    /* Camera last used to draw this layer (cached so right-click handlers
+     * can re-resolve screen→world using the same transform as the draw). */
+    const gvizCamera *lastCamera;
 } gvizLayerPolyTutte;
 
 int gvizLayerPolyTutteInit(gvizLayerPolyTutte *layer, gvizGraph *mesh,
