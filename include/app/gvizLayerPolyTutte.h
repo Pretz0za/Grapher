@@ -4,7 +4,7 @@
 #include "dsa/gvizArray.h"
 #include "dsa/gvizBitArray.h"
 #include "dsa/gvizGraph.h"
-#include "renderer/embeddings/gvizTutteEmbedding.h"
+#include "renderer/embeddings/gvizTutteSolveEmbedding.h"
 #include "renderer/layers/gvizGraphVBO.h"
 #include "renderer/layers/gvizLayer.h"
 
@@ -23,7 +23,7 @@ typedef enum gvizLayerPolyTuttePhase {
 typedef struct gvizLayerPolyTutte {
     gvizLayer layer;          /* MUST be first */
     gvizGraph graph;
-    gvizTutteState tutte;
+    gvizTutteSolveState tutte;
     gvizGraphVBO vbo;
     int gpuDirty;             /* 2=topology, 1=positions, 0=clean */
     int highlightDirty;

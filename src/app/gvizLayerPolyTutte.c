@@ -206,15 +206,14 @@ int gvizLayerPolyTutteInit(gvizLayerPolyTutte *layer, gvizGraph *mesh,
 
     if (gvizGraphClone(&layer->graph, mesh) != 0) return -1;
 
-    if (gvizTutteEmbeddingInit(&layer->tutte, &layer->graph, 2, 1e-5) != 0) {
+    if (gvizTutteSolveEmbeddingInit(&layer->tutte, &layer->graph, 2, 0) != 0) {
         gvizGraphRelease(&layer->graph);
         return -1;
     }
-    layer->tutte.relaxationRate = 10.0;
 
-    gvizTutteFixConvexPolygon(&layer->tutte, outerFace, outerFaceLen,
-                              layer->boundaryRadius);
-    gvizTutteEmbeddingSeedInterior(&layer->tutte);
+    gvizTutteSolveFixConvexPolygon(&layer->tutte, outerFace, outerFaceLen,
+                                   layer->boundaryRadius);
+    gvizTutteSolveEmbeddingStep(&layer->tutte, 0);
     layer->hasTutte = 1;
 
     gvizGraphVBOInit(&layer->vbo);
@@ -250,12 +249,7 @@ void gvizLayerPolyTutteDraw(void *layerV, const gvizCamera *camera) {
 void gvizLayerPolyTutteUpdate(void *layerV, float dt) {
     gvizLayerPolyTutte *self = (gvizLayerPolyTutte *)layerV;
 
-    if (self->phase == GVIZ_POLY_TUTTE_INITIAL && self->hasTutte &&
-        self->tutte.numInterior > 0 && !self->tutte.converged) {
-        gvizTutteEmbeddingStep(&self->tutte, dt);
-        if (self->gpuDirty < 1) self->gpuDirty = 1;
-        return;
-    }
+    (void)dt;
 
     if (self->phase == GVIZ_POLY_TUTTE_SCANNING) {
         self->scanTimer += dt;
@@ -297,14 +291,13 @@ void gvizLayerPolyTutteUpdate(void *layerV, float dt) {
             if (bn >= 3) {
                 size_t *bv = (size_t *)best->arr;
                 if (self->hasTutte) {
-                    gvizTutteEmbeddingRelease(&self->tutte);
+                    gvizTutteSolveEmbeddingRelease(&self->tutte);
                     self->hasTutte = 0;
                 }
-                if (gvizTutteEmbeddingInit(&self->tutte, &self->graph, 2, 1e-5) == 0) {
-                    self->tutte.relaxationRate = 10.0;
-                    gvizTutteFixConvexPolygon(&self->tutte, bv, bn,
-                                              self->boundaryRadius);
-                    gvizTutteEmbeddingSeedInterior(&self->tutte);
+                if (gvizTutteSolveEmbeddingInit(&self->tutte, &self->graph, 2, 0) == 0) {
+                    gvizTutteSolveFixConvexPolygon(&self->tutte, bv, bn,
+                                                   self->boundaryRadius);
+                    gvizTutteSolveEmbeddingStep(&self->tutte, 0);
                     self->hasTutte = 1;
                     self->gpuDirty = 2;
                 }
@@ -318,7 +311,7 @@ void gvizLayerPolyTutteUpdate(void *layerV, float dt) {
 void gvizLayerPolyTutteRelease(void *layerV) {
     gvizLayerPolyTutte *self = (gvizLayerPolyTutte *)layerV;
     gvizGraphVBORelease(&self->vbo);
-    if (self->hasTutte) gvizTutteEmbeddingRelease(&self->tutte);
+    if (self->hasTutte) gvizTutteSolveEmbeddingRelease(&self->tutte);
     releaseFaces(self);
     gvizArrayRelease(&self->faces);
     gvizGraphRelease(&self->graph);
