@@ -451,6 +451,37 @@ int gvizLayerPolyTutteHandleEvent(void *layerV, const gvizEvent *event) {
         return 1;
     }
 
+    if (event->key.key == KEY_ENTER) {
+        if (self->selectedFaceIdx == SIZE_MAX || self->faces.count == 0) return 0;
+        if (self->selectedFaceIdx >= self->faces.count) return 1;
+        gvizArray *face = (gvizArray *)gvizArrayAtIndex(&self->faces,
+                                                        self->selectedFaceIdx);
+        size_t bn = face->count;
+        if (bn < 3) return 1;
+        size_t *bv = (size_t *)face->arr;
+
+        if (self->hasTutte) {
+            gvizTutteSolveEmbeddingRelease(&self->tutte);
+            self->hasTutte = 0;
+        }
+        if (gvizTutteSolveEmbeddingInit(&self->tutte, &self->graph, 2, 0) == 0) {
+            gvizTutteSolveFixConvexPolygon(&self->tutte, bv, bn,
+                                           self->boundaryRadius);
+            gvizTutteSolveEmbeddingStep(&self->tutte, 0);
+            self->hasTutte = 1;
+        }
+
+        pt_rebuildIndex(self);
+        pt_clearHighlights(self);
+        self->gpuDirty = 2;
+        self->phase = GVIZ_POLY_TUTTE_INITIAL;
+        self->selectedFaceIdx = SIZE_MAX;
+        self->scanFaceIdx = 0;
+        self->bestFaceArea = -DBL_MAX;
+        self->scanTimer = 0.0f;
+        return 1;
+    }
+
     if (event->key.key == KEY_R) {
         if (self->faces.count == 0) {
             if (pt_enumerateFaces(self) != 0) return 1;
