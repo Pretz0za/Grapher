@@ -44,6 +44,7 @@ typedef struct gvizLayerPolyTutte {
     size_t bestFaceIdx;
     size_t bestFaceVertCount;
     size_t selectedFaceIdx;   /* SIZE_MAX = none */
+    size_t outerFaceIdx;      /* SIZE_MAX = unknown */
     gvizArray faces;          /* gvizArray of gvizArray<size_t> */
 
     /* Cached boundary radius from initial init */

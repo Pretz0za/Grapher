@@ -8,7 +8,6 @@
 #include "renderer/embeddings/gvizPlanarEmbedding.h"
 #include "renderer/embeddings/gvizPlanarRotation.h"
 #include "renderer/layers/gvizGraphVBO.h"
-#include "raymath.h"
 
 #include <float.h>
 #include <math.h>
@@ -203,6 +202,7 @@ int gvizLayerPolyTutteInit(gvizLayerPolyTutte *layer, gvizGraph *mesh,
     layer->edgeHighlightUnits = 0;
     layer->edgeStartIdx = NULL;
     layer->selectedFaceIdx = SIZE_MAX;
+    layer->outerFaceIdx = SIZE_MAX;
     layer->phase = GVIZ_POLY_TUTTE_INITIAL;
     layer->scanFaceIdx = 0;
     layer->bestFaceIdx = 0;
@@ -348,12 +348,8 @@ void gvizLayerPolyTutteRelease(void *layerV) {
 
 static int pt_pointInFace(const size_t *verts, size_t n, double px, double py,
                           gvizEmbeddedGraph *eg) {
-    if (n > 0) {
-        double *p0 = gvizEmbeddedGraphGetVPosition(eg, verts[0]);
-        fprintf(stderr, "[PolyTutte] pt_pointInFace n=%zu px=%.2f py=%.2f v0=(%.2f,%.2f)\n",
-                n, px, py, p0[0], p0[1]);
-    }
     if (n < 3) return 0;
+    py += 1e-10;
     int inside = 0;
     for (size_t i = 0, j = n - 1; i < n; j = i++) {
         double *pa = gvizEmbeddedGraphGetVPosition(eg, verts[i]);
@@ -407,6 +403,7 @@ static int pt_enumerateFaces(gvizLayerPolyTutte *self) {
         gvizArrayPush(&self->faces, &dst);
     }
     gvizFaceIteratorRelease(&ctx);
+    self->outerFaceIdx = pt_findOuterFace(self);
     return 0;
 }
 
@@ -437,6 +434,7 @@ int gvizLayerPolyTutteHandleEvent(void *layerV, const gvizEvent *event) {
 
         size_t hit = SIZE_MAX;
         for (size_t i = 0; i < self->faces.count; i++) {
+            if (i == self->outerFaceIdx) continue;
             gvizArray *f = (gvizArray *)gvizArrayAtIndex(&self->faces, i);
             if (pt_pointInFace((size_t *)f->arr, f->count, px, py, eg)) {
                 hit = i;
@@ -445,7 +443,7 @@ int gvizLayerPolyTutteHandleEvent(void *layerV, const gvizEvent *event) {
         }
         fprintf(stderr, "[PolyTutte] hit face=%zu (SIZE_MAX=%d)\n",
                 hit, hit == SIZE_MAX);
-        if (hit == SIZE_MAX) hit = pt_findOuterFace(self);
+        if (hit == SIZE_MAX) hit = self->outerFaceIdx;
 
         self->selectedFaceIdx = hit;
         pt_clearHighlights(self);
@@ -491,6 +489,8 @@ int gvizLayerPolyTutteHandleEvent(void *layerV, const gvizEvent *event) {
 
         pt_rebuildIndex(self);
         pt_clearHighlights(self);
+        releaseFaces(self);
+        self->outerFaceIdx = SIZE_MAX;
         self->gpuDirty = 2;
         self->phase = GVIZ_POLY_TUTTE_INITIAL;
         self->selectedFaceIdx = SIZE_MAX;
@@ -525,6 +525,8 @@ int gvizLayerPolyTutteHandleEvent(void *layerV, const gvizEvent *event) {
         }
 
         pt_clearHighlights(self);
+        releaseFaces(self);
+        self->outerFaceIdx = SIZE_MAX;
         self->phase = GVIZ_POLY_TUTTE_INITIAL;
         self->scanFaceIdx = 0;
         self->bestFaceVertCount = 0;
