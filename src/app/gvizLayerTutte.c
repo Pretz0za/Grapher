@@ -6,7 +6,6 @@
 #include "renderer/embeddings/gvizEmbeddedGraph.h"
 #include "renderer/layers/gvizGraphVBO.h"
 
-#include <math.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -128,7 +127,6 @@ int gvizLayerTutteInitEmpty(gvizLayerTutte *layer, size_t z) {
 }
 
 void gvizLayerTutteDraw(void *layerV, const gvizCamera *camera) {
-  (void)camera;
   gvizLayerTutte *self = (gvizLayerTutte *)layerV;
 
   gvizEmbeddedGraph tmpEG;
@@ -154,22 +152,16 @@ void gvizLayerTutteDraw(void *layerV, const gvizCamera *camera) {
   self->gpuDirty = 0;
 
   gvizGraphVBODraw(&self->vbo);
+
+  EndMode2D();
+  DrawText("SPACE  pause   S  single step   R  reseed   right-click  add vertex/edge   scroll/drag  pan+zoom",
+           10, 10, 18, DARKGRAY);
+  if (camera->kind == GVIZ_CAMERA_2D)
+    BeginMode2D(camera->c2d);
 }
 
 void gvizLayerTutteUpdate(void *layerV, float dt) {
   gvizLayerTutte *self = (gvizLayerTutte *)layerV;
-
-  if (!self->hasTutte && self->graph.vertices.count >= 1) {
-    if (self->tutte.matrixBuilt || self->tutte.isBoundary)
-      gvizTutteEmbeddingRelease(&self->tutte);
-    if (gvizTutteEmbeddingInit(&self->tutte, &self->graph, 2, 1e-5) == 0) {
-      self->tutte.relaxationRate = 10.0;
-      copyPositionsIntoTutte(self);
-      gvizTutteEmbeddingBuildMatrix(&self->tutte);
-      self->hasTutte = 1;
-      self->gpuDirty = 2;
-    }
-  }
 
   if (self->hasTutte && !self->paused && self->tutte.numInterior > 0 &&
       !self->tutte.converged) {

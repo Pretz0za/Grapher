@@ -224,7 +224,6 @@ int gvizLayerPolyTutteInit(gvizLayerPolyTutte *layer, gvizGraph *mesh,
 }
 
 void gvizLayerPolyTutteDraw(void *layerV, const gvizCamera *camera) {
-    (void)camera;
     gvizLayerPolyTutte *self = (gvizLayerPolyTutte *)layerV;
     if (self->graph.vertices.count == 0) { self->gpuDirty = 0; return; }
 
@@ -244,6 +243,24 @@ void gvizLayerPolyTutteDraw(void *layerV, const gvizCamera *camera) {
     }
 
     gvizGraphVBODraw(&self->vbo);
+
+    EndMode2D();
+    const char *hud;
+    switch (self->phase) {
+    case GVIZ_POLY_TUTTE_SCANNING:
+        hud = "scanning faces...   R  stop & pick random";
+        break;
+    case GVIZ_POLY_TUTTE_FINAL:
+        hud = "embedding...   SPACE  scan again   R  new random face";
+        break;
+    case GVIZ_POLY_TUTTE_INITIAL:
+    default:
+        hud = "SPACE  scan all faces   R  random face   scroll/drag  pan+zoom";
+        break;
+    }
+    DrawText(hud, 10, 10, 18, DARKGRAY);
+    if (camera->kind == GVIZ_CAMERA_2D)
+        BeginMode2D(camera->c2d);
 }
 
 void gvizLayerPolyTutteUpdate(void *layerV, float dt) {
