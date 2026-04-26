@@ -15,13 +15,16 @@
  * `idx//n`; only the integer before the first `/` is consumed. The .obj
  * format uses 1-based indices; these are converted to 0-based.
  *
- * The first three vertex indices of the first `f` line are written to
- * @p outerTriangle (1-based -> 0-based) for use as a Tutte outer face.
+ * The first vertices of the first `f` line are written to @p outerTriangle
+ * (1-based -> 0-based) for use as a Tutte outer face. The full length of that
+ * first face (capped at 8) is written to @p outerFaceLen so callers can pin
+ * the entire outer polygon, not just three vertices. @p outerTriangle must be
+ * sized to at least 8 entries.
  *
  * Returns 0 on success, -1 on parse / IO / allocation failure. On failure
  * @p outGraph is left uninitialized (any partial state is released).
  */
 int gvizLoadOBJAsGraph(const char *path, gvizGraph *outGraph,
-                       size_t outerTriangle[3]);
+                       size_t outerTriangle[8], size_t *outerFaceLen);
 
 #endif

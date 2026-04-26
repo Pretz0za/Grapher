@@ -221,7 +221,7 @@ int gvizBuildPolyTutteDemoScene(gvizScene *out) {
   size_t outerTri[3] = {0, 1, 2};
 
   gvizLayerPolyTutte *layer = GVIZ_ALLOC(sizeof(gvizLayerPolyTutte));
-  if (!layer || gvizLayerPolyTutteInit(layer, &g, outerTri, 0) != 0) {
+  if (!layer || gvizLayerPolyTutteInit(layer, &g, outerTri, 3, 0) != 0) {
     if (layer) GVIZ_DEALLOC(layer);
     gvizGraphRelease(&g);
     gvizSceneRelease(out);
@@ -238,14 +238,15 @@ int gvizBuildPolyTutteFromOBJScene(gvizScene *out, const char *objPath) {
     return -1;
 
   gvizGraph g;
-  size_t outerTri[3] = {0, 0, 0};
-  if (gvizLoadOBJAsGraph(objPath, &g, outerTri) != 0) {
+  size_t outerFace[8] = {0};
+  size_t outerFaceLen = 0;
+  if (gvizLoadOBJAsGraph(objPath, &g, outerFace, &outerFaceLen) != 0) {
     gvizSceneRelease(out);
     return -1;
   }
 
   gvizLayerPolyTutte *layer = GVIZ_ALLOC(sizeof(gvizLayerPolyTutte));
-  if (!layer || gvizLayerPolyTutteInit(layer, &g, outerTri, 0) != 0) {
+  if (!layer || gvizLayerPolyTutteInit(layer, &g, outerFace, outerFaceLen, 0) != 0) {
     if (layer) GVIZ_DEALLOC(layer);
     gvizGraphRelease(&g);
     gvizSceneRelease(out);

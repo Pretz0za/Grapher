@@ -158,7 +158,9 @@ static void releaseFaces(gvizLayerPolyTutte *self) {
 /* ---- Lifecycle ----------------------------------------------------------- */
 
 int gvizLayerPolyTutteInit(gvizLayerPolyTutte *layer, gvizGraph *mesh,
-                           const size_t *outerTriangle, size_t z) {
+                           const size_t *outerFace, size_t outerFaceLen,
+                           size_t z) {
+    if (outerFaceLen < 3) outerFaceLen = 3;
     gvizLayerInit((gvizLayer *)layer, (gvizViewport){0, 0, 0, 0},
                   &GVIZ_LAYER_POLY_TUTTE_VTABLE, z);
     layer->layer.flags = GVIZ_LAYER_VISIBLE;
@@ -186,7 +188,7 @@ int gvizLayerPolyTutteInit(gvizLayerPolyTutte *layer, gvizGraph *mesh,
     }
     layer->tutte.relaxationRate = 10.0;
 
-    gvizTutteFixConvexPolygon(&layer->tutte, outerTriangle, 3,
+    gvizTutteFixConvexPolygon(&layer->tutte, outerFace, outerFaceLen,
                               layer->boundaryRadius);
     gvizTutteEmbeddingSeedInterior(&layer->tutte);
     layer->hasTutte = 1;

@@ -51,7 +51,8 @@ typedef struct gvizLayerPolyTutte {
 } gvizLayerPolyTutte;
 
 int gvizLayerPolyTutteInit(gvizLayerPolyTutte *layer, gvizGraph *mesh,
-                           const size_t *outerTriangle, size_t z);
+                           const size_t *outerFace, size_t outerFaceLen,
+                           size_t z);
 
 void gvizLayerPolyTutteDraw(void *layer, const gvizCamera *camera);
 void gvizLayerPolyTutteUpdate(void *layer, float dt);

@@ -10,6 +10,34 @@
 #define WINDOW_W 1280
 #define WINDOW_H 800
 
+/* #define GVIZ_OBJ_TEST_PATH "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/build/face.obj" */
+
+static char *gvizOpenFileDialog(void) {
+  const char *cmd =
+      "osascript -e 'POSIX path of (choose file with prompt \"Select OBJ mesh\""
+      " of type {\"obj\", \"OBJ\"})' 2>/dev/null";
+  FILE *fp = popen(cmd, "r");
+  if (!fp)
+    return NULL;
+  char buf[1024];
+  if (!fgets(buf, sizeof(buf), fp)) {
+    pclose(fp);
+    return NULL;
+  }
+  pclose(fp);
+  size_t len = strlen(buf);
+  while (len > 0 && (buf[len - 1] == '\n' || buf[len - 1] == '\r' ||
+                     buf[len - 1] == ' ' || buf[len - 1] == '\t'))
+    buf[--len] = '\0';
+  if (len == 0)
+    return NULL;
+  char *out = (char *)GVIZ_ALLOC(len + 1);
+  if (!out)
+    return NULL;
+  memcpy(out, buf, len + 1);
+  return out;
+}
+
 /*
  * Build a scene that contains only the main menu layer (screen-space).
  * The menu's `requestedAction` is checked each frame by the main loop.
@@ -71,19 +99,16 @@ int main(void) {
         gvizBuildBlankScene(&scene);
         break;
       case GVIZ_MENU_LOAD_OBJ_TUTTE: {
-        char path[512];
-        printf("Enter .obj path: ");
-        fflush(stdout);
-        if (!fgets(path, sizeof(path), stdin)) {
+#ifdef GVIZ_OBJ_TEST_PATH
+        if (gvizBuildPolyTutteFromOBJScene(&scene, GVIZ_OBJ_TEST_PATH) != 0)
           gvizBuildBlankScene(&scene);
-          break;
-        }
-        size_t len = strlen(path);
-        while (len > 0 && (path[len - 1] == '\n' || path[len - 1] == '\r' ||
-                           path[len - 1] == ' ' || path[len - 1] == '\t'))
-          path[--len] = '\0';
-        if (len == 0 || gvizBuildPolyTutteFromOBJScene(&scene, path) != 0)
+#else
+        char *path = gvizOpenFileDialog();
+        if (!path || gvizBuildPolyTutteFromOBJScene(&scene, path) != 0)
           gvizBuildBlankScene(&scene);
+        if (path)
+          GVIZ_DEALLOC(path);
+#endif
         break;
       }
       default:

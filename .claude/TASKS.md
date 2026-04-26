@@ -1,50 +1,53 @@
 # TASKS
 
-## Epic 1: .obj mesh loader -> PolyTutte scene
+## Epic 1: Fix OBJ loading
 
-### OBJ parser (new utility module)
-- [x] Create `include/utils/gvizOBJLoader.h` declaring:
-  - `int gvizLoadOBJAsGraph(const char *path, gvizGraph *outGraph, size_t outerTriangle[3]);`
-  - Returns 0 on success, -1 on parse/IO/alloc failure. On success, `outGraph` is initialized as an undirected `gvizGraph` and `outerTriangle` is filled with the first three vertex indices of face 0 (1-based -> 0-based).
-- [x] Create `src/utils/gvizOBJLoader.c`:
-  - Open the file with `fopen`; read line-by-line into a fixed buffer (`MAX_LINE_SIZE`).
-  - Skip blank lines and comments (`#`).
-  - For each `v ` line, increment a vertex counter (positions are not stored; PolyTutte computes its own embedding).
-  - Pre-pass to count `v` lines, then `gvizGraphInit(outGraph, 0)` and `gvizGraphAddVertex` for each vertex.
-  - For each `f ` line, parse face indices. Tokens may be `idx`, `idx/uv`, `idx/uv/n`, or `idx//n`; take the integer before the first `/`. Convert from 1-based to 0-based.
-  - For each consecutive pair `(face[i], face[(i+1) % faceLen])`, call `gvizGraphAddEdge` only if not already present (use `gvizGraphEdgeExists` to dedupe).
-  - On the FIRST face encountered, save its first three indices into `outerTriangle` before processing edges.
-  - Free the line buffer; return 0. On any failure, `gvizGraphRelease` and return -1.
-- [x] Add `src/utils/gvizOBJLoader.c` to the `graphvis` static library sources list in `CMakeLists.txt`.
+### Replace stdin prompt with macOS file dialog
+- [x] In `src/app/main.c`, replace the `fgets(stdin)` block inside `GVIZ_MENU_LOAD_OBJ_TUTTE` with a call to a new helper `char *gvizOpenFileDialog(void)` (returns heap-allocated path or NULL). Implement that helper in `src/app/main.c` (static, no header needed) using `popen` with the AppleScript command: `osascript -e 'POSIX path of (choose file with prompt "Select OBJ mesh" of type {"obj", "OBJ"})'`. Trim the trailing newline from the result. On failure/cancel, return NULL and fall back to `gvizBuildBlankScene`.
+- [x] For quick testing, also add a `#define GVIZ_OBJ_TEST_PATH` at the top of `main.c` defaulting to `"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/build/face.obj"`. If defined, skip the dialog and use this path directly (guarded by `#ifdef GVIZ_OBJ_TEST_PATH`). Leave the define commented out after verifying loading works.
 
-### Scene builder
-- [x] Add to `include/app/gvizSceneBuilders.h`:
-  - `int gvizBuildPolyTutteFromOBJScene(gvizScene *out, const char *objPath);`
-- [x] Add implementation in `src/app/gvizSceneBuilders.c` mirroring `gvizBuildPolyTutteDemoScene`:
-  - `gvizSceneInit2D`, call `gvizLoadOBJAsGraph` to build the graph + outer triangle.
-  - Allocate `gvizLayerPolyTutte`, call `gvizLayerPolyTutteInit` with the graph + outer triangle.
-  - On any failure, release intermediate state and return -1; on success `gvizGraphRelease` (the layer cloned it) and `gvizSceneAddLayer`.
-- [x] `#include "utils/gvizOBJLoader.h"` at the top of `gvizSceneBuilders.c`.
+### Add printf debug to OBJ loader
+- [x] In `gvizLoadOBJAsGraph` (`src/utils/gvizOBJLoader.c`), add `fprintf(stderr, ...)` prints.
 
-### Main menu wiring
-- [x] Add `GVIZ_MENU_LOAD_OBJ_TUTTE` to the `gvizMainMenuAction` enum in `include/renderer/layers/gvizLayerMainMenu.h`.
-- [x] In `src/renderer/layers/gvizLayerMainMenu.c`, add a "Load OBJ mesh (Tutte)" button that sets `requestedAction = GVIZ_MENU_LOAD_OBJ_TUTTE` and writes the chosen path into `layer->loadPath` (use the same path-input pattern already used by `GVIZ_MENU_LOAD_SCENE`; if a raygui text-input is not yet implemented there, prompt via `stdin` like other path-loading entry points).
-- [x] In `src/app/main.c`, handle the new case: call `gvizBuildPolyTutteFromOBJScene(&scene, menu->loadPath)`; on failure fall back to `gvizBuildBlankScene`.
+### Fix outer face selection
+- [x] Change `gvizLoadOBJAsGraph` signature to also return the full first face length.
+- [x] In `gvizBuildPolyTutteFromOBJScene` pass `outerFaceLen` to `gvizLayerPolyTutteInit`.
 
-## Epic 2: Fix SCANNING-phase highlight bug
+---
 
-### Diagnose
-- [ ] Confirm root cause in `src/app/gvizLayerPolyTutte.c`:
-  - `gvizLayerPolyTutteHandleEvent` calls `gvizComputeRotationSystem` (which mutates `self->tutte.graph` / `&self->graph` by adding any missing reverse edges to form a proper rotation system) and then `pt_rebuildIndex(self)` to recompute `edgeStartIdx` against the now-doubled adjacency.
-  - The VBO's color buffer was sized for the ORIGINAL adjacency and is not rebuilt (no `gpuDirty = 2` is set in HandleEvent), so `edgeStartIdx` no longer aligns with the VBO's iteration order. As a result `pt_writeColors` walks the new (doubled) graph and falls into the `fi + 6 > colorsCount` early-return path, leaving stale or mis-mapped color entries -> "all edges red, no vertices".
-- [ ] Confirm `gvizLayerGraphSetEdgeHighlight` / `findEdgeBit` index arithmetic is correct: bit = `edgeStartIdx[u] + indexOf(neighbors(u), v)` matches the VBO's iteration `for u in 0..N: for j in nbrs(u): write 2 endpoints`. No fix required there; the bug is the synchronization with topology mutations.
+## Epic 2: Fix face-scan highlighting
 
-### Fix
-- [ ] In `gvizLayerPolyTutteHandleEvent`, after `gvizComputeRotationSystem` and `pt_rebuildIndex`, set `self->gpuDirty = 2` so the next `Draw` rebuilds the VBO (and thus the colors buffer) to match the new edge index.
-- [ ] In `gvizLayerPolyTutteUpdate`'s SCANNING branch, do NOT call `pt_clearHighlights` followed by per-face highlight setting on the same frame for ALL faces in one tick. Current loop is correct (one face per frame), but make highlights visible: gate scanning by a small accumulator (e.g. `scanTimer += dt; if scanTimer < 0.2f return;`) so each face is shown for ~200ms before advancing. Add a `float scanTimer;` field in `gvizLayerPolyTutte` and reset it to 0 when entering SCANNING and after each advance.
-- [ ] Ensure `pt_clearHighlights` is called exactly once at the start of each SCANNING frame BEFORE setting that frame's face highlights (already done) — verify no other code path leaves stale bits when the phase transitions to FINAL: the FINAL branch already calls `pt_clearHighlights` before re-init; keep it.
-- [ ] When SCANNING completes (`scanFaceIdx >= faces.count`), call `pt_clearHighlights` before transitioning to `GVIZ_POLY_TUTTE_FINAL` (current code transitions without clearing — add the clear).
-- [ ] Verify `pt_setVertexHL` and `pt_setEdgeHL` operate against the rebuilt index after the rotation system was added (now correct because `pt_rebuildIndex` ran in HandleEvent and the VBO will be rebuilt this frame thanks to `gpuDirty = 2`).
+### Add debug prints to understand face count
+- [ ] In `gvizLayerPolyTutteHandleEvent` (`src/app/gvizLayerPolyTutte.c`), after the face enumeration loop, add: `fprintf(stderr, "[PolyTutte] faces enumerated: %zu\n", self->faces.count);`
+- [ ] In `gvizLayerPolyTutteUpdate` SCANNING branch, at the start of each timer tick (after timer fires), add: `fprintf(stderr, "[PolyTutte] scanning face %zu / %zu\n", self->scanFaceIdx, self->faces.count);`
 
-### Verify
-- [ ] Build with `cmake --build build` and run `./build/grapher`; pick the PolyTutte demo, press SPACE, observe each face turning red one-at-a-time (vertices + edges of the current face only), then the largest face becoming the new outer boundary on FINAL.
+### Fix clear-after-display logic
+- [ ] The current scan loop clears highlights at the START of each timer tick (i.e. immediately overwrites the previous face before showing the new one). Restructure so each face is shown for a full 0.2s dwell THEN cleared before the next. New logic:
+  ```
+  scanTimer += dt;
+  if (scanTimer < 0.2f) return;   // show current face for 0.2s
+  scanTimer = 0.0f;
+  pt_clearHighlights(self);        // clear AFTER the dwell
+  self->scanFaceIdx++;
+  if (self->scanFaceIdx > self->faces.count) {
+      self->phase = GVIZ_POLY_TUTTE_FINAL;
+      return;
+  }
+  // set highlights for the new current face (scanFaceIdx - 1 already processed; now show scanFaceIdx)
+  ```
+  Actually the cleanest restructure: on entering SCANNING (scanFaceIdx=0), immediately set face 0 highlights (no timer wait). Then each timer tick: compute area for current face, clear highlights, increment scanFaceIdx, set highlights for next face (or transition to FINAL if done). This way the CLEAR of the just-shown face happens explicitly before setting the next face.
+
+  Concretely, split into two sub-steps per tick:
+  1. When entering SCANNING (or after transitioning), immediately highlight face `scanFaceIdx` — call this from HandleEvent right after setting phase=SCANNING so face 0 is visible from frame 1.
+  2. Each 0.2s timer tick in Update: compute area for current face `scanFaceIdx`, call `pt_clearHighlights`, increment `scanFaceIdx`, if done → FINAL, else highlight new face and reset timer.
+
+- [ ] Extract a helper `pt_highlightFace(gvizLayerPolyTutte *self, size_t faceIdx)` that clears all highlights, then sets vertex and edge highlights for `self->faces[faceIdx]`. Call it from HandleEvent (for face 0) and from Update after each increment.
+
+### Fix vertex disc highlight (discs always draw with uniform color)
+- [ ] In `gvizGraphVBODraw` (`src/renderer/layers/gvizGraphVBO.c`), the disc pass calls `gvizVertexDiscVBODraw(&vbo->discs, discColor, vbo->discFill)` with a hardcoded black color for ALL discs. Vertex highlights therefore never turn red for the disc circles.
+- [ ] Read `include/renderer/layers/gvizVertexDiscVBO.h` and `src/renderer/layers/gvizVertexDiscVBO.c` to understand the disc shader. Then add a `float *highlightMask` array (one float per vertex, 1.0 = highlighted, 0.0 = normal) to `gvizGraphVBO` — allocated in `gvizGraphVBORebuild`, freed in `gvizGraphVBORelease`.
+- [ ] Add `gvizGraphVBOSetDiscHighlights(gvizGraphVBO *vbo, const float *mask, size_t n)` that stores the mask. In `gvizGraphVBODraw`, draw discs in TWO passes: first `glDrawArraysInstanced` (or equivalent) for non-highlighted vertices with black color, then for highlighted vertices with red `{1,0,0,1}` — OR, simpler: if the disc shader has a per-instance color attribute, upload a per-instance color array. Pick the simpler approach after reading the disc VBO code.
+- [ ] Wire `pt_writeColors` (or a new `pt_writeDiscColors`) in `gvizLayerPolyTutte.c` to update the disc highlight mask whenever `highlightDirty` is set: walk the vertex highlight bitarray and fill a float mask array, then call `gvizGraphVBOSetDiscHighlights`.
+
+### Build and verify
+- [ ] Build with `cd build && cmake .. && make` and fix any errors.
