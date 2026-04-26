@@ -26,14 +26,16 @@ void gvizVertexDiscVBOInit(gvizVertexDiscVBO *vbo) {
     vbo->vboCorners = 0;
     vbo->vboCenters = 0;
     vbo->vboRadii = 0;
+    vbo->vboHighlights = 0;
     vbo->instanceCount = 0;
 }
 
 void gvizVertexDiscVBORelease(gvizVertexDiscVBO *vbo) {
-    if (vbo->vboCorners) { rlUnloadVertexBuffer(vbo->vboCorners); vbo->vboCorners = 0; }
-    if (vbo->vboCenters) { rlUnloadVertexBuffer(vbo->vboCenters); vbo->vboCenters = 0; }
-    if (vbo->vboRadii)   { rlUnloadVertexBuffer(vbo->vboRadii);   vbo->vboRadii   = 0; }
-    if (vbo->vaoId)      { rlUnloadVertexArray(vbo->vaoId);       vbo->vaoId      = 0; }
+    if (vbo->vboCorners)    { rlUnloadVertexBuffer(vbo->vboCorners);    vbo->vboCorners = 0; }
+    if (vbo->vboCenters)    { rlUnloadVertexBuffer(vbo->vboCenters);    vbo->vboCenters = 0; }
+    if (vbo->vboRadii)      { rlUnloadVertexBuffer(vbo->vboRadii);      vbo->vboRadii   = 0; }
+    if (vbo->vboHighlights) { rlUnloadVertexBuffer(vbo->vboHighlights); vbo->vboHighlights = 0; }
+    if (vbo->vaoId)         { rlUnloadVertexArray(vbo->vaoId);          vbo->vaoId      = 0; }
     vbo->instanceCount = 0;
 }
 
@@ -81,6 +83,16 @@ void gvizVertexDiscVBORebuild(gvizVertexDiscVBO *vbo, gvizEmbeddedGraph *eg,
     rlEnableVertexAttribute(2);
     glVertexAttribDivisor(2, 0);
 
+    float *zeros = GVIZ_ALLOC(N * sizeof(float));
+    if (zeros) {
+        for (size_t i = 0; i < N; i++) zeros[i] = 0.0f;
+        vbo->vboHighlights = rlLoadVertexBuffer(zeros, (int)(N * sizeof(float)), true);
+        rlSetVertexAttribute(3, 1, RL_FLOAT, false, 0, 0);
+        rlEnableVertexAttribute(3);
+        glVertexAttribDivisor(3, 1);
+        GVIZ_DEALLOC(zeros);
+    }
+
     rlDisableVertexArray();
 
     vbo->instanceCount = (int)N;
@@ -101,6 +113,13 @@ void gvizVertexDiscVBOUploadRadii(gvizVertexDiscVBO *vbo, const float *radii,
                                   size_t n) {
     if (!vbo->vboRadii || !radii) return;
     rlUpdateVertexBuffer(vbo->vboRadii, radii, (int)(n * sizeof(float)), 0);
+}
+
+void gvizVertexDiscVBOUploadHighlights(gvizVertexDiscVBO *vbo,
+                                       const float *highlights, size_t n) {
+    if (!vbo->vboHighlights || !highlights) return;
+    rlUpdateVertexBuffer(vbo->vboHighlights, highlights,
+                         (int)(n * sizeof(float)), 0);
 }
 
 void gvizVertexDiscVBODraw(const gvizVertexDiscVBO *vbo, const float color[4],

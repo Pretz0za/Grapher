@@ -101,6 +101,20 @@ static void pt_setEdgeHL(gvizLayerPolyTutte *self, size_t u, size_t v) {
     self->highlightDirty = 1;
 }
 
+static void pt_highlightFace(gvizLayerPolyTutte *self, size_t faceIdx) {
+    pt_clearHighlights(self);
+    if (faceIdx >= self->faces.count) return;
+    gvizArray *face = (gvizArray *)gvizArrayAtIndex(&self->faces, faceIdx);
+    size_t n = face->count;
+    size_t *verts = (size_t *)face->arr;
+    for (size_t i = 0; i < n; i++) pt_setVertexHL(self, verts[i]);
+    for (size_t i = 0; i < n; i++) {
+        size_t a = verts[i];
+        size_t b = verts[(i + 1) % n];
+        pt_setEdgeHL(self, a, b);
+    }
+}
+
 static void pt_writeColors(gvizLayerPolyTutte *self, gvizEmbeddedGraph *eg) {
     if (self->vbo.colorsCount == 0 || !self->vbo.colors) return;
     gvizGraph *g = eg->graph;
@@ -128,6 +142,16 @@ static void pt_writeColors(gvizLayerPolyTutte *self, gvizEmbeddedGraph *eg) {
         }
     }
     gvizGraphVBOUploadEndpointColors(&self->vbo, self->vbo.colors);
+
+    if (self->vbo.discHighlights && self->vbo.radiiCount == N) {
+        for (size_t u = 0; u < N; u++) {
+            int hi = (self->vertexHighlight && u < self->vertexHighlightBits)
+                         ? (gvizTestBit(self->vertexHighlight, u) ? 1 : 0)
+                         : 0;
+            self->vbo.discHighlights[u] = hi ? 1.0f : 0.0f;
+        }
+        gvizGraphVBOSetDiscHighlights(&self->vbo, self->vbo.discHighlights, N);
+    }
 }
 
 /* ---- Faces / area -------------------------------------------------------- */
@@ -238,29 +262,29 @@ void gvizLayerPolyTutteUpdate(void *layerV, float dt) {
         if (self->scanTimer < 0.2f) return;
         self->scanTimer = 0.0f;
 
+        fprintf(stderr, "[PolyTutte] scanning face %zu / %zu\n",
+                self->scanFaceIdx, self->faces.count);
+
+        if (self->scanFaceIdx < self->faces.count) {
+            gvizArray *face = (gvizArray *)gvizArrayAtIndex(&self->faces,
+                                                            self->scanFaceIdx);
+            size_t n = face->count;
+            size_t *verts = (size_t *)face->arr;
+            double area = polygonArea2D(verts, n,
+                                        (gvizEmbeddedGraph *)&self->tutte);
+            if (area > self->bestFaceArea) {
+                self->bestFaceArea = area;
+                self->bestFaceIdx = self->scanFaceIdx;
+            }
+        }
+
         pt_clearHighlights(self);
+        self->scanFaceIdx++;
         if (self->scanFaceIdx >= self->faces.count) {
-            pt_clearHighlights(self);
             self->phase = GVIZ_POLY_TUTTE_FINAL;
             return;
         }
-        gvizArray *face = (gvizArray *)gvizArrayAtIndex(&self->faces,
-                                                        self->scanFaceIdx);
-        size_t n = face->count;
-        size_t *verts = (size_t *)face->arr;
-        for (size_t i = 0; i < n; i++) pt_setVertexHL(self, verts[i]);
-        for (size_t i = 0; i < n; i++) {
-            size_t a = verts[i];
-            size_t b = verts[(i + 1) % n];
-            pt_setEdgeHL(self, a, b);
-        }
-        double area = polygonArea2D(verts, n,
-                                    (gvizEmbeddedGraph *)&self->tutte);
-        if (area > self->bestFaceArea) {
-            self->bestFaceArea = area;
-            self->bestFaceIdx = self->scanFaceIdx;
-        }
-        self->scanFaceIdx++;
+        pt_highlightFace(self, self->scanFaceIdx);
         return;
     }
 
@@ -338,10 +362,14 @@ int gvizLayerPolyTutteHandleEvent(void *layerV, const gvizEvent *event) {
     }
     gvizFaceIteratorRelease(&ctx);
 
+    fprintf(stderr, "[PolyTutte] faces enumerated: %zu\n", self->faces.count);
+
     self->phase = GVIZ_POLY_TUTTE_SCANNING;
     self->scanFaceIdx = 0;
     self->bestFaceIdx = 0;
     self->bestFaceArea = -DBL_MAX;
     self->scanTimer = 0.0f;
+    if (self->faces.count > 0)
+        pt_highlightFace(self, 0);
     return 1;
 }

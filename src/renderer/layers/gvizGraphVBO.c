@@ -78,6 +78,7 @@ void gvizGraphVBOInit(gvizGraphVBO *vbo) {
     vbo->mode = GVIZ_GRAPH_VBO_EDGES;
     vbo->radii = NULL;
     vbo->radiiCount = 0;
+    vbo->discHighlights = NULL;
     vbo->discFill = 0.0f;
     vbo->lastEG = NULL;
 }
@@ -94,6 +95,7 @@ void gvizGraphVBORelease(gvizGraphVBO *vbo) {
     gvizVertexDiscVBORelease(&vbo->discs);
     if (vbo->radii) { GVIZ_DEALLOC(vbo->radii); vbo->radii = NULL; }
     vbo->radiiCount = 0;
+    if (vbo->discHighlights) { GVIZ_DEALLOC(vbo->discHighlights); vbo->discHighlights = NULL; }
     vbo->lastEG = NULL;
 }
 
@@ -175,9 +177,15 @@ static void ensureRadii(gvizGraphVBO *vbo, size_t N) {
         if (vbo->radii) GVIZ_DEALLOC(vbo->radii);
         vbo->radii = (N > 0) ? (float *)GVIZ_ALLOC(N * sizeof(float)) : NULL;
         vbo->radiiCount = vbo->radii ? N : 0;
+        if (vbo->discHighlights) { GVIZ_DEALLOC(vbo->discHighlights); vbo->discHighlights = NULL; }
+        if (N > 0)
+            vbo->discHighlights = (float *)GVIZ_ALLOC(N * sizeof(float));
     }
     for (size_t i = 0; i < vbo->radiiCount; i++)
         vbo->radii[i] = GVIZ_GRAPH_VBO_DEFAULT_RADIUS;
+    if (vbo->discHighlights)
+        for (size_t i = 0; i < vbo->radiiCount; i++)
+            vbo->discHighlights[i] = 0.0f;
 }
 
 void gvizGraphVBORebuild(gvizGraphVBO *vbo, gvizEmbeddedGraph *eg) {
@@ -231,6 +239,14 @@ void gvizGraphVBOUploadEndpointColors(gvizGraphVBO *vbo, const float *rgb2N) {
     for (size_t i = 0; i < vbo->colorsCount; i++) vbo->colors[i] = rgb2N[i];
     rlUpdateVertexBuffer(vbo->vboColors, vbo->colors,
                          (int)(vbo->colorsCount * sizeof(float)), 0);
+}
+
+void gvizGraphVBOSetDiscHighlights(gvizGraphVBO *vbo, const float *mask,
+                                   size_t n) {
+    if (!vbo->discHighlights || !mask || n != vbo->radiiCount) return;
+    for (size_t i = 0; i < n; i++) vbo->discHighlights[i] = mask[i];
+    if (vbo->discs.vaoId)
+        gvizVertexDiscVBOUploadHighlights(&vbo->discs, vbo->discHighlights, n);
 }
 
 void gvizGraphVBOSetAllRadii(gvizGraphVBO *vbo, float radius) {

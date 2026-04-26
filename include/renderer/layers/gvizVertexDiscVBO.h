@@ -19,6 +19,7 @@ typedef struct gvizVertexDiscVBO {
     unsigned int vboCorners;
     unsigned int vboCenters;
     unsigned int vboRadii;
+    unsigned int vboHighlights;
     int instanceCount;
 } gvizVertexDiscVBO;
 
@@ -36,6 +37,13 @@ void gvizVertexDiscVBOUploadPositions(gvizVertexDiscVBO *vbo,
 /* Re-upload only the per-instance radii. @p n must equal instanceCount. */
 void gvizVertexDiscVBOUploadRadii(gvizVertexDiscVBO *vbo, const float *radii,
                                   size_t n);
+
+/*
+ * Re-upload only the per-instance highlight mask (1.0 = red, 0.0 = base
+ * uniform color). @p n must equal instanceCount.
+ */
+void gvizVertexDiscVBOUploadHighlights(gvizVertexDiscVBO *vbo,
+                                       const float *highlights, size_t n);
 
 /* Bind disc shader, set MVP/MV/P/color uniforms, and issue the instanced draw. */
 void gvizVertexDiscVBODraw(const gvizVertexDiscVBO *vbo, const float color[4],

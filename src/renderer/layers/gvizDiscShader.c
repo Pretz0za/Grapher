@@ -15,19 +15,23 @@ static const char *DISC_VS_SRC =
     "layout(location=0) in vec3 aCenter;\n"
     "layout(location=1) in float aRadius;\n"
     "layout(location=2) in vec2 aCorner;\n"
+    "layout(location=3) in float aHighlight;\n"
     "uniform mat4 uMVP;\n"
     "uniform vec2 uViewport;\n"
     "out vec2 vLocal;\n"
+    "out float vHighlight;\n"
     "void main() {\n"
     "    vec4 clip = uMVP * vec4(aCenter, 1.0);\n"
     "    clip.xy += aCorner * (aRadius * 2.0 / uViewport) * clip.w;\n"
     "    gl_Position = clip;\n"
     "    vLocal = aCorner;\n"
+    "    vHighlight = aHighlight;\n"
     "}\n";
 
 static const char *DISC_FS_SRC =
     "#version 330 core\n"
     "in vec2 vLocal;\n"
+    "in float vHighlight;\n"
     "uniform vec4 uColor;\n"
     "uniform float uFill;\n"
     "out vec4 fragColor;\n"
@@ -37,7 +41,8 @@ static const char *DISC_FS_SRC =
     "    if (uFill < 0.5 && d < 0.65) discard;\n"
     "    float aa = fwidth(d);\n"
     "    float alpha = 1.0 - smoothstep(1.0 - aa, 1.0, d);\n"
-    "    fragColor = vec4(uColor.rgb, 1.0);\n"
+    "    vec3 base = mix(uColor.rgb, vec3(1.0, 0.0, 0.0), step(0.5, vHighlight));\n"
+    "    fragColor = vec4(base, 1.0);\n"
     "}\n";
 
 static gvizDiscShader g_shader = {0};

@@ -35,6 +35,7 @@ typedef struct gvizGraphVBO {
   unsigned int mode; /* bitmask of gvizGraphVBOMode */
   float *radii;      /* CPU-side, length radiiCount */
   size_t radiiCount;
+  float *discHighlights;     /* CPU mirror, length radiiCount; 1.0 = red */
   float discFill;            /* 0.0=ring (default), 1.0=filled disc */
   gvizEmbeddedGraph *lastEG; /* borrowed; set by Rebuild for lazy disc build */
 } gvizGraphVBO;
@@ -68,6 +69,14 @@ void gvizGraphVBOSetAllRadii(gvizGraphVBO *vbo, float radius);
  * color change does NOT trigger a topology rebuild.
  */
 void gvizGraphVBOUploadEndpointColors(gvizGraphVBO *vbo, const float *rgb2N);
+
+/*
+ * Upload a per-vertex disc highlight mask (1.0 = red, 0.0 = base color).
+ * @p n must equal the vertex count (radiiCount). No-op if discs are not
+ * built or @p mask is NULL.
+ */
+void gvizGraphVBOSetDiscHighlights(gvizGraphVBO *vbo, const float *mask,
+                                   size_t n);
 
 /*
  * Draw according to @c mode: edges first (GL_LINES), then discs on top.
