@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #define WINDOW_W 1280
 #define WINDOW_H 800
@@ -53,6 +54,7 @@ static gvizLayerMainMenu *installMainMenu(gvizScene *scene) {
 }
 
 int main(void) {
+  srand((unsigned)time(NULL));
   SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_MSAA_4X_HINT);
   InitWindow(WINDOW_W, WINDOW_H, "Grapher");
   SetTargetFPS(60);

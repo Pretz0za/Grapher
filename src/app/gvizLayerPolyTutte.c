@@ -340,13 +340,7 @@ void gvizLayerPolyTutteRelease(void *layerV) {
     self->edgeStartIdx = NULL;
 }
 
-int gvizLayerPolyTutteHandleEvent(void *layerV, const gvizEvent *event) {
-    gvizLayerPolyTutte *self = (gvizLayerPolyTutte *)layerV;
-    if (event->type != GVIZ_EVENT_KEY_DOWN) return 0;
-    if (event->key.key != KEY_SPACE) return 0;
-    if (self->phase != GVIZ_POLY_TUTTE_INITIAL) return 0;
-
-    /* Compute rotation and enumerate faces. */
+static int pt_enumerateFaces(gvizLayerPolyTutte *self) {
     gvizComputeRotationSystem((gvizEmbeddedGraph *)&self->tutte);
     pt_rebuildIndex(self);
     self->gpuDirty = 2;
@@ -358,12 +352,11 @@ int gvizLayerPolyTutteHandleEvent(void *layerV, const gvizEvent *event) {
     ps.kuratowskiSubdivision = NULL;
 
     gvizFaceIteratorContext ctx;
-    if (gvizFaceIteratorInit(&ps, &ctx) != 0) return 1;
+    if (gvizFaceIteratorInit(&ps, &ctx) != 0) return -1;
     if (gvizPlanarEmbeddingFaces(&ps, &ctx) != 0) {
         gvizFaceIteratorRelease(&ctx);
-        return 1;
+        return -1;
     }
-    /* Move ctx.faces into self->faces (deep copy of inner arrays). */
     for (size_t i = 0; i < ctx.faces.count; i++) {
         gvizArray *src = (gvizArray *)gvizArrayAtIndex(&ctx.faces, i);
         gvizArray dst;
@@ -371,15 +364,58 @@ int gvizLayerPolyTutteHandleEvent(void *layerV, const gvizEvent *event) {
         gvizArrayPush(&self->faces, &dst);
     }
     gvizFaceIteratorRelease(&ctx);
+    return 0;
+}
 
-    fprintf(stderr, "[PolyTutte] faces enumerated: %zu\n", self->faces.count);
+int gvizLayerPolyTutteHandleEvent(void *layerV, const gvizEvent *event) {
+    gvizLayerPolyTutte *self = (gvizLayerPolyTutte *)layerV;
+    if (event->type != GVIZ_EVENT_KEY_DOWN) return 0;
 
-    self->phase = GVIZ_POLY_TUTTE_SCANNING;
-    self->scanFaceIdx = 0;
-    self->bestFaceIdx = 0;
-    self->bestFaceArea = -DBL_MAX;
-    self->scanTimer = 0.0f;
-    if (self->faces.count > 0)
-        pt_highlightFace(self, 0);
-    return 1;
+    if (event->key.key == KEY_SPACE) {
+        if (self->phase != GVIZ_POLY_TUTTE_INITIAL) return 0;
+        if (pt_enumerateFaces(self) != 0) return 1;
+        fprintf(stderr, "[PolyTutte] faces enumerated: %zu\n", self->faces.count);
+        self->phase = GVIZ_POLY_TUTTE_SCANNING;
+        self->scanFaceIdx = 0;
+        self->bestFaceIdx = 0;
+        self->bestFaceArea = -DBL_MAX;
+        self->scanTimer = 0.0f;
+        if (self->faces.count > 0)
+            pt_highlightFace(self, 0);
+        return 1;
+    }
+
+    if (event->key.key == KEY_R) {
+        if (self->faces.count == 0) {
+            if (pt_enumerateFaces(self) != 0) return 1;
+        }
+        if (self->faces.count == 0) return 1;
+
+        size_t randIdx = (size_t)rand() % self->faces.count;
+        gvizArray *face = (gvizArray *)gvizArrayAtIndex(&self->faces, randIdx);
+        size_t n = face->count;
+        if (n < 3) return 1;
+        size_t *verts = (size_t *)face->arr;
+
+        if (self->hasTutte) {
+            gvizTutteSolveEmbeddingRelease(&self->tutte);
+            self->hasTutte = 0;
+        }
+        if (gvizTutteSolveEmbeddingInit(&self->tutte, &self->graph, 2, 0) == 0) {
+            gvizTutteSolveFixConvexPolygon(&self->tutte, verts, n,
+                                           self->boundaryRadius);
+            gvizTutteSolveEmbeddingStep(&self->tutte, 0);
+            self->hasTutte = 1;
+            self->gpuDirty = 2;
+        }
+
+        pt_clearHighlights(self);
+        self->phase = GVIZ_POLY_TUTTE_INITIAL;
+        self->scanFaceIdx = 0;
+        self->bestFaceArea = -DBL_MAX;
+        self->scanTimer = 0.0f;
+        return 1;
+    }
+
+    return 0;
 }
