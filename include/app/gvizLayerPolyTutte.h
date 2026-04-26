@@ -45,6 +45,9 @@ typedef struct gvizLayerPolyTutte {
 
     /* Cached boundary radius from initial init */
     double boundaryRadius;
+
+    /* Per-face dwell timer (seconds) used during SCANNING. */
+    float scanTimer;
 } gvizLayerPolyTutte;
 
 int gvizLayerPolyTutteInit(gvizLayerPolyTutte *layer, gvizGraph *mesh,

@@ -175,6 +175,7 @@ int gvizLayerPolyTutteInit(gvizLayerPolyTutte *layer, gvizGraph *mesh,
     layer->bestFaceIdx = 0;
     layer->bestFaceArea = -DBL_MAX;
     layer->boundaryRadius = 300.0;
+    layer->scanTimer = 0.0f;
     gvizArrayInit(&layer->faces, sizeof(gvizArray));
 
     if (gvizGraphClone(&layer->graph, mesh) != 0) return -1;
@@ -231,8 +232,13 @@ void gvizLayerPolyTutteUpdate(void *layerV, float dt) {
     }
 
     if (self->phase == GVIZ_POLY_TUTTE_SCANNING) {
+        self->scanTimer += dt;
+        if (self->scanTimer < 0.2f) return;
+        self->scanTimer = 0.0f;
+
         pt_clearHighlights(self);
         if (self->scanFaceIdx >= self->faces.count) {
+            pt_clearHighlights(self);
             self->phase = GVIZ_POLY_TUTTE_FINAL;
             return;
         }
@@ -307,6 +313,7 @@ int gvizLayerPolyTutteHandleEvent(void *layerV, const gvizEvent *event) {
     /* Compute rotation and enumerate faces. */
     gvizComputeRotationSystem((gvizEmbeddedGraph *)&self->tutte);
     pt_rebuildIndex(self);
+    self->gpuDirty = 2;
 
     releaseFaces(self);
 
@@ -333,5 +340,6 @@ int gvizLayerPolyTutteHandleEvent(void *layerV, const gvizEvent *event) {
     self->scanFaceIdx = 0;
     self->bestFaceIdx = 0;
     self->bestFaceArea = -DBL_MAX;
+    self->scanTimer = 0.0f;
     return 1;
 }
