@@ -1,44 +1,59 @@
 # TASKS
 
-## Epic 1: Switch PolyTutte to exact (non-realtime) solver
+## Epic 1: Fix permanent highlight residue
 
-The current layer uses `gvizTutteState` (iterative Jacobi, stepped each frame). Replace it with
-`gvizTutteSolveState` (Cholesky exact solve — one call produces final positions).
+`pt_clearHighlights` memsets based on `vertexHighlightBits`/`edgeHighlightBits`, but after
+`pt_rebuildIndex` those counts can change while the old GPU color buffer still holds stale data.
+The fix: always track allocated unit counts separately so memset covers the full allocation,
+and always upload the cleared state to the GPU immediately.
 
-- [x] In `include/app/gvizLayerPolyTutte.h`:
-  - Replace `#include "renderer/embeddings/gvizTutteEmbedding.h"` with `#include "renderer/embeddings/gvizTutteSolveEmbedding.h"`.
-  - Replace `gvizTutteState tutte` field with `gvizTutteSolveState tutte`.
-  - Remove the `hasTutte` field comment note about relaxation (it no longer applies); keep `hasTutte int` flag.
-- [x] In `src/app/gvizLayerPolyTutte.c`:
-  - In `gvizLayerPolyTutteInit`: replace `gvizTutteEmbeddingInit` → `gvizTutteSolveEmbeddingInit`, replace `gvizTutteFixConvexPolygon` → `gvizTutteSolveFixConvexPolygon`, replace `gvizTutteEmbeddingSeedInterior` call with `gvizTutteSolveEmbeddingStep(&layer->tutte, 0)` (one-shot solve; positions are exact after this call). Remove the `layer->tutte.relaxationRate = 10.0` line.
-  - In `gvizLayerPolyTutteUpdate` INITIAL branch: remove the `gvizTutteEmbeddingStep` call entirely. Since the solve runs in Init, by the time Update is called the positions are already exact — just mark `gpuDirty = 1` once to upload positions and return. Set a flag or check `self->tutte.converged` to avoid re-uploading every frame.
-  - In the FINAL branch: replace `gvizTutteEmbeddingRelease` + `gvizTutteEmbeddingInit` + `gvizTutteFixConvexPolygon` + `gvizTutteEmbeddingSeedInterior` with `gvizTutteSolveEmbeddingRelease` + `gvizTutteSolveEmbeddingInit` + `gvizTutteSolveFixConvexPolygon` + `gvizTutteSolveEmbeddingStep(&self->tutte, 0)`.
-  - Fix the `eg` cast: `(gvizEmbeddedGraph *)&self->tutte` still works because `gvizTutteSolveState` has `gvizEmbeddedGraph graph` as its first member (same layout). Verify the field name is `graph` (not `embedded` or similar) in the header.
+- [x] Add `size_t vertexHighlightUnits` and `size_t edgeHighlightUnits` fields to
+  `gvizLayerPolyTutte` in `include/app/gvizLayerPolyTutte.h`. These store the actual
+  number of `GVIZ_BIT_UNIT` words allocated (independent of the logical bit count).
+- [x] In `pt_rebuildIndex` (`src/app/gvizLayerPolyTutte.c`), after each realloc set the
+  corresponding `*Units` field to the allocated unit count before the memset, so the
+  memset always covers the full allocation.
+- [x] Rewrite `pt_clearHighlights` to memset using the `*Units` fields (not recomputing
+  from bit counts): `memset(self->vertexHighlight, 0, self->vertexHighlightUnits * sizeof(GVIZ_BIT_UNIT))`.
+  After zeroing both arrays, call `pt_writeColors` directly (don't just set `highlightDirty`)
+  so the GPU color buffer is updated in the same call — this eliminates the one-frame lag
+  where stale GPU data is visible. Keep `highlightDirty = 0` after the upload.
+- [x] In `gvizLayerPolyTutteRelease`, zero out the new fields (no alloc change needed, just init).
 
-## Epic 2: Keybindings HUD in every demo layer
+---
 
-Read `src/renderer/core/gvizScene.c` (or wherever `gvizSceneDraw` is implemented) to understand whether layer Draw callbacks are called inside or outside a camera mode. Then add a keybinding overlay to each demo layer's Draw function using raylib `DrawText` in screen coordinates.
+## Epic 2: Right-click to highlight face under cursor
 
-- [ ] Read `src/core/gvizScene.c` to check if BeginMode2D/EndMode2D wraps layer draws. If it does, each layer's Draw must call `EndMode2D()` before `DrawText`, then `BeginMode2D(camera)` after. If not, just call `DrawText` directly.
-- [ ] In `gvizLayerPolyTutteDraw` (`src/app/gvizLayerPolyTutte.c`), after `gvizGraphVBODraw`, render a keybinding string at screen position (10, 10) in font size 18, dark gray:
-  - Phase INITIAL (not yet scanned): `"SPACE  scan all faces   R  random face   scroll/drag  pan+zoom"`
-  - Phase SCANNING: `"scanning faces...   R  stop & pick random"`
-  - Phase FINAL (re-running): `"embedding...   SPACE  scan again   R  new random face"`
-- [ ] In `gvizLayerTutteDraw` (`src/app/gvizLayerTutte.c`), after the VBO draw, render at (10, 10):
-  - `"SPACE  add vertex   R  reset   S  save   scroll/drag  pan+zoom"` (or whatever keys exist — read `gvizLayerTutteHandleEvent` first and list only real keys).
-- [ ] In `gvizLayerGRIPLiveDraw` (or wherever the GRIP live layer draws, `src/app/gvizLayerGRIPLive.c`), add: `"scroll/drag  pan+zoom"` (or relevant keys found in its HandleEvent).
+When the user right-clicks, find which enumerated face contains the world-space click
+point and highlight it. If no face contains the point (clicked outside the embedding),
+highlight the "outer" face (the largest-area face, which wraps the unbounded region).
+Store the selected face index for Enter to act on.
 
-## Epic 3: R key picks a random face and re-embeds
-
-- [ ] In `gvizLayerPolyTutteHandleEvent`, add a `KEY_R` case that works in ANY phase:
-  1. If `self->faces.count == 0` (faces not yet enumerated): call `gvizComputeRotationSystem`, `pt_rebuildIndex`, enumerate faces into `self->faces` using `gvizPlanarEmbeddingFaces` (same code as the SPACE handler). Set `gpuDirty = 2`.
-  2. If `self->faces.count == 0` after enumeration: return 1 (no faces, nothing to do).
-  3. Pick `size_t randIdx = (size_t)rand() % self->faces.count`.
-  4. Get the face verts. If face has < 3 verts, return 1.
-  5. Release and re-init Tutte with that face as boundary: `gvizTutteSolveEmbeddingRelease`, `gvizTutteSolveEmbeddingInit`, `gvizTutteSolveFixConvexPolygon`, `gvizTutteSolveEmbeddingStep`. Set `hasTutte = 1`, `gpuDirty = 2`.
-  6. `pt_clearHighlights`, set `phase = GVIZ_POLY_TUTTE_INITIAL`, `scanFaceIdx = 0`, `bestFaceArea = -DBL_MAX`, `scanTimer = 0`.
+- [ ] Add `size_t selectedFaceIdx` (SIZE_MAX = none) to `gvizLayerPolyTutte` in the header.
+  Initialize to `SIZE_MAX` in `gvizLayerPolyTutteInit`.
+- [ ] Add a static helper `pt_pointInFace(const size_t *verts, size_t n, double px, double py, gvizEmbeddedGraph *eg) -> int` in `src/app/gvizLayerPolyTutte.c` using the ray-casting point-in-polygon test: cast a horizontal ray rightward from `(px, py)` and count crossings of each face edge; return 1 if odd.
+- [ ] Add a static helper `pt_findOuterFace(gvizLayerPolyTutte *self) -> size_t` that returns the index of the face with the largest area (using `polygonArea2D`). This is the outer/unbounded face in the Tutte drawing. Returns `SIZE_MAX` if `faces.count == 0`.
+- [ ] In `gvizLayerPolyTutteHandleEvent`, add a `GVIZ_EVENT_MOUSE_DOWN` + `GVIZ_MOUSE_RIGHT` case:
+  1. If `self->faces.count == 0`: lazily enumerate faces (same rotation-system + face-enum code as SPACE/R; set `gpuDirty = 2`). If still 0 after enumeration, return 1.
+  2. World coordinates are in `event->mouse.wx`, `event->mouse.wy`.
+  3. Iterate all faces; for each call `pt_pointInFace`. Take the first face that contains the point.
+  4. If no face contains the point: call `pt_findOuterFace` and use that index.
+  5. Set `self->selectedFaceIdx` to the found index.
+  6. Call `pt_clearHighlights(self)` then `pt_highlightFace(self, self->selectedFaceIdx)`.
   7. Return 1.
-- [ ] Seed the random number generator once in `main.c` with `srand((unsigned)time(NULL))` (add `#include <time.h>`).
+- [ ] Update the keybinding HUD string in `gvizLayerPolyTutteDraw` for the INITIAL phase to include: `"right-click  select face   ENTER  fix & re-embed"`.
+
+---
+
+## Epic 3: Enter fixes selected face and re-embeds
+
+- [ ] In `gvizLayerPolyTutteHandleEvent`, add a `KEY_ENTER` case:
+  1. If `self->selectedFaceIdx == SIZE_MAX` or `self->faces.count == 0`, return 0 (nothing selected).
+  2. Get the face verts from `self->faces[self->selectedFaceIdx]`. If `n < 3`, return 1.
+  3. Release and re-init TutteSolve: `gvizTutteSolveEmbeddingRelease`, `gvizTutteSolveEmbeddingInit(&self->tutte, &self->graph, 2, 0)`, `gvizTutteSolveFixConvexPolygon(&self->tutte, bv, bn, self->boundaryRadius)`, `gvizTutteSolveEmbeddingStep(&self->tutte, 0)`. Set `self->hasTutte = 1`.
+  4. `pt_rebuildIndex(self)`, `pt_clearHighlights(self)`.
+  5. Set `gpuDirty = 2`, `phase = GVIZ_POLY_TUTTE_INITIAL`, `selectedFaceIdx = SIZE_MAX`, `scanFaceIdx = 0`, `bestFaceArea = -DBL_MAX`, `scanTimer = 0`.
+  6. Return 1.
 
 ## Build
-- [ ] Build with `cd build && cmake .. && make` and fix any errors.
+- [ ] `cd build && cmake .. && make`, fix any errors.

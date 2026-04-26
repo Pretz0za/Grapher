@@ -32,8 +32,10 @@ typedef struct gvizLayerPolyTutte {
     /* Highlight buffers — same shape as gvizLayerGraph */
     GVIZ_BIT_UNIT *vertexHighlight;
     size_t vertexHighlightBits;
+    size_t vertexHighlightUnits;
     GVIZ_BIT_UNIT *edgeHighlight;
     size_t edgeHighlightBits;
+    size_t edgeHighlightUnits;
     size_t *edgeStartIdx;
 
     /* Scan state */
@@ -41,6 +43,7 @@ typedef struct gvizLayerPolyTutte {
     size_t scanFaceIdx;
     size_t bestFaceIdx;
     double bestFaceArea;
+    size_t selectedFaceIdx;   /* SIZE_MAX = none */
     gvizArray faces;          /* gvizArray of gvizArray<size_t> */
 
     /* Cached boundary radius from initial init */

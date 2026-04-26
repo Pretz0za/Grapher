@@ -15,6 +15,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+static void pt_writeColors(gvizLayerPolyTutte *self, gvizEmbeddedGraph *eg);
+
 /* ---- Internal highlight helpers (shape mirrors gvizLayerGraph) ----------- */
 
 static size_t pt_computeEdgeStartIdx(gvizGraph *g, size_t *out) {
@@ -42,6 +44,7 @@ static void pt_rebuildIndex(gvizLayerPolyTutte *self) {
                                                        eunits * sizeof(GVIZ_BIT_UNIT));
     if (neb) {
         self->edgeHighlight = neb;
+        self->edgeHighlightUnits = eunits;
         memset(self->edgeHighlight, 0, eunits * sizeof(GVIZ_BIT_UNIT));
     }
     self->edgeHighlightBits = total;
@@ -51,6 +54,7 @@ static void pt_rebuildIndex(gvizLayerPolyTutte *self) {
                                                        vunits * sizeof(GVIZ_BIT_UNIT));
     if (nvb) {
         self->vertexHighlight = nvb;
+        self->vertexHighlightUnits = vunits;
         memset(self->vertexHighlight, 0, vunits * sizeof(GVIZ_BIT_UNIT));
     }
     self->vertexHighlightBits = N;
@@ -58,15 +62,14 @@ static void pt_rebuildIndex(gvizLayerPolyTutte *self) {
 }
 
 static void pt_clearHighlights(gvizLayerPolyTutte *self) {
-    if (self->vertexHighlight) {
-        size_t u = GVIZ_ARRAY_UNITS(self->vertexHighlightBits ? self->vertexHighlightBits : 1);
-        memset(self->vertexHighlight, 0, u * sizeof(GVIZ_BIT_UNIT));
-    }
-    if (self->edgeHighlight) {
-        size_t u = GVIZ_ARRAY_UNITS(self->edgeHighlightBits ? self->edgeHighlightBits : 1);
-        memset(self->edgeHighlight, 0, u * sizeof(GVIZ_BIT_UNIT));
-    }
-    self->highlightDirty = 1;
+    if (self->vertexHighlight && self->vertexHighlightUnits)
+        memset(self->vertexHighlight, 0,
+               self->vertexHighlightUnits * sizeof(GVIZ_BIT_UNIT));
+    if (self->edgeHighlight && self->edgeHighlightUnits)
+        memset(self->edgeHighlight, 0,
+               self->edgeHighlightUnits * sizeof(GVIZ_BIT_UNIT));
+    pt_writeColors(self, (gvizEmbeddedGraph *)&self->tutte);
+    self->highlightDirty = 0;
 }
 
 static void pt_setVertexHL(gvizLayerPolyTutte *self, size_t v) {
@@ -193,9 +196,12 @@ int gvizLayerPolyTutteInit(gvizLayerPolyTutte *layer, gvizGraph *mesh,
     layer->hasTutte = 0;
     layer->vertexHighlight = NULL;
     layer->vertexHighlightBits = 0;
+    layer->vertexHighlightUnits = 0;
     layer->edgeHighlight = NULL;
     layer->edgeHighlightBits = 0;
+    layer->edgeHighlightUnits = 0;
     layer->edgeStartIdx = NULL;
+    layer->selectedFaceIdx = SIZE_MAX;
     layer->phase = GVIZ_POLY_TUTTE_INITIAL;
     layer->scanFaceIdx = 0;
     layer->bestFaceIdx = 0;
