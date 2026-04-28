@@ -123,6 +123,8 @@ add_executable(grapher
     src/app/gvizLayerPolyTutte.c
     src/app/gvizLayerGRIP.c
     src/app/gvizLayerGRIPLive.c
+    src/app/gvizLayerOBJ.c
+    src/app/gvizOBJLoadModal.c
     src/platform/macos_menu.m
 )
 set_source_files_properties(src/platform/macos_menu.m

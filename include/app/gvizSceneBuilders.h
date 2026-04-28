@@ -35,4 +35,17 @@ int gvizBuildPolyTutteDemoScene(gvizScene *out);
  */
 int gvizBuildPolyTutteFromOBJScene(gvizScene *out, const char *objPath);
 
+/*
+ * 3D scene: render the .obj as a textured mesh model only. No graph.
+ * Returns 0 on success, -1 on load failure.
+ */
+int gvizBuildOBJSceneFromFile(gvizScene *out, const char *objPath);
+
+/*
+ * Mixed scene with two layers side-by-side: an OBJ mesh layer (3D) and a
+ * PolyTutte graph layer (2D). The OBJ data is loaded twice — once as a
+ * Model for rendering, once as a gvizGraph for the embedding.
+ */
+int gvizBuildOBJAndPolyTutteSceneFromFile(gvizScene *out, const char *objPath);
+
 #endif

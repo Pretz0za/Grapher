@@ -181,43 +181,35 @@ Goal: A new `gvizLayer` type that loads a `.obj` and renders the 3D mesh
 itself (not the edge graph). Scene must be 3D for this layer to render.
 
 ### Saga 6.1: OBJ mesh loader
-- [ ] Add `gvizLoadOBJAsMesh(const char *path, Model *out)` in
-      `src/utils/gvizOBJLoader.c` (raylib already provides `LoadModel` for
-      .obj — wrap it). Return error code on failure.
-- [ ] Header entry in `include/utils/gvizOBJLoader.h`.
+- [x] `gvizLoadOBJAsMesh(const char *path, Model *out)` wraps raylib's
+      `LoadModel` and validates that at least one mesh was loaded.
+- [x] Declaration added to `include/utils/gvizOBJLoader.h`.
 
 ### Saga 6.2: gvizLayerOBJ
-- [ ] New header `include/app/gvizLayerOBJ.h`:
-      ```c
-      typedef struct gvizLayerOBJ {
-        gvizLayer layer;   // first
-        Model     model;
-        Vector3   position, scale;
-        float     rotationY;
-      } gvizLayerOBJ;
-      ```
-- [ ] New impl `src/app/gvizLayerOBJ.c` with vtable (`init`, `draw`, `update`,
-      `release`, `onEvent`).
-- [ ] `draw`: enter the layer's 3D camera mode and `DrawModel(model, ...)`.
-- [ ] `release`: `UnloadModel`.
-- [ ] Layer init forces its camera to 3D (`gvizCameraMake3D`).
+- [x] `include/app/gvizLayerOBJ.h` defines `gvizLayerOBJ` (Model + pos/
+      scale/rotY).
+- [x] `src/app/gvizLayerOBJ.c` implements vtable (init/draw/release/
+      getCamera).
+- [x] `draw` calls `DrawModelEx` and a debug `DrawGrid` reference plane;
+      scene runs `BeginMode3D` for the layer's 3D camera.
+- [x] `release` calls `UnloadModel` when `hasModel`.
+- [x] Layer init builds a 3D perspective camera via `gvizCameraMake3D`.
 
 ### Saga 6.3: OBJ open dialog flow
-- [ ] After menu fires "Open .obj…", show a small modal (raygui) asking the
-      user to choose: `OBJ only`, `PolyTutte only`, `Both`.
-- [ ] Build/append layers accordingly:
-      - `OBJ only` → ensure scene exists, add `gvizLayerOBJ`.
-      - `PolyTutte only` → existing `gvizBuildPolyTutteFromOBJScene`-style
-        path but additive (don't reset scene).
-      - `Both` → add an OBJ layer and a PolyTutte layer side-by-side
-        (slot subdivision from Epic 1 picks the layout).
-- [ ] Note: OBJ and PolyTutte layers do not share data; load the .obj twice
-      (once into a `Model`, once into a `gvizGraph`).
+- [x] `gvizOBJLoadModal` (new screen-space layer) shows a 3-button raygui
+      modal: OBJ only / PolyTutte only / Both. Esc/X cancels.
+- [x] `main.c` installs the modal when an .obj path arrives, then on
+      result drives the matching builder. Cancellation falls back to a
+      blank scene.
+- [x] OBJ and PolyTutte layers do not share data — the .obj is loaded
+      twice when "Both" is chosen (once as Model, once as gvizGraph).
 
 ### Saga 6.4: Builder helpers
-- [ ] Add `gvizBuildOBJSceneFromFile(scene, path)` and
-      `gvizBuildOBJAndPolyTutteSceneFromFile(scene, path)` in
-      `src/app/gvizSceneBuilders.c` and matching declarations in the header.
+- [x] `gvizBuildOBJSceneFromFile` (3D scene with one OBJ layer) and
+      `gvizBuildOBJAndPolyTutteSceneFromFile` (2D scene with one OBJ
+      layer + one PolyTutte layer) added to `gvizSceneBuilders.c` /
+      header. Slot subdivision from Epic 1 places the two layers
+      side-by-side automatically.
 
 ---
 

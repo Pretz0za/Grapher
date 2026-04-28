@@ -162,3 +162,14 @@ int gvizLoadOBJAsGraph(const char *path, gvizGraph *outGraph,
     fprintf(stderr, "[OBJ] done. vertices=%zu\n", vertexCount);
     return 0;
 }
+
+int gvizLoadOBJAsMesh(const char *path, Model *outModel) {
+    if (!path || !outModel) return -1;
+    Model m = LoadModel(path);
+    if (m.meshCount <= 0) {
+        UnloadModel(m);
+        return -1;
+    }
+    *outModel = m;
+    return 0;
+}

@@ -2,6 +2,7 @@
 #define _GVIZ_UTILS_OBJ_LOADER_H_
 
 #include "dsa/gvizGraph.h"
+#include "raylib.h"
 
 /*
  * Load a Wavefront .obj mesh as an undirected gvizGraph of its edge skeleton.
@@ -26,5 +27,18 @@
  */
 int gvizLoadOBJAsGraph(const char *path, gvizGraph *outGraph,
                        size_t outerTriangle[8], size_t *outerFaceLen);
+
+/*
+ * Load a Wavefront .obj file as a renderable raylib Model. Thin wrapper
+ * around raylib's `LoadModel` — kept here so callers can include a
+ * single project header rather than reaching into raylib directly, and
+ * so future loader behavior (e.g. centering, normalization) can be
+ * folded in without touching call sites.
+ *
+ * Returns 0 on success, -1 if raylib failed to load any meshes from
+ * the file. On success the caller owns @p outModel and must release it
+ * via raylib's `UnloadModel`.
+ */
+int gvizLoadOBJAsMesh(const char *path, Model *outModel);
 
 #endif

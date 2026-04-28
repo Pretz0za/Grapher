@@ -1,3 +1,4 @@
+#include "app/gvizOBJLoadModal.h"
 #include "app/gvizSceneBuilders.h"
 #include "core/alloc.h"
 #include "core/gvizScene.h"
@@ -12,10 +13,6 @@
 #define WINDOW_W 1280
 #define WINDOW_H 800
 
-/*
- * Build a scene that contains only the main menu layer (screen-space).
- * The menu's `requestedAction` is checked each frame by the main loop.
- */
 static gvizLayerMainMenu *installMainMenu(gvizScene *scene) {
   gvizLayerMainMenu *menu = GVIZ_ALLOC(sizeof(gvizLayerMainMenu));
   if (!menu)
@@ -24,6 +21,37 @@ static gvizLayerMainMenu *installMainMenu(gvizScene *scene) {
   gvizLayerMainMenuInit(menu, vp, 1000);
   gvizSceneAddLayer(scene, (gvizLayer *)menu);
   return menu;
+}
+
+static gvizOBJLoadModal *installOBJModal(gvizScene *scene, const char *path) {
+  gvizOBJLoadModal *m = GVIZ_ALLOC(sizeof(gvizOBJLoadModal));
+  if (!m) return NULL;
+  gvizOBJLoadModalInit(m, path, 2000);
+  gvizSceneAddLayer(scene, (gvizLayer *)m);
+  return m;
+}
+
+static void buildFromOBJChoice(gvizScene *scene, gvizOBJModalChoice choice,
+                               const char *path) {
+  gvizSceneRelease(scene);
+  switch (choice) {
+  case GVIZ_OBJ_MODAL_OBJ_ONLY:
+    if (gvizBuildOBJSceneFromFile(scene, path) != 0)
+      gvizBuildBlankScene(scene);
+    break;
+  case GVIZ_OBJ_MODAL_POLYTUTTE_ONLY:
+    if (gvizBuildPolyTutteFromOBJScene(scene, path) != 0)
+      gvizBuildBlankScene(scene);
+    break;
+  case GVIZ_OBJ_MODAL_BOTH:
+    if (gvizBuildOBJAndPolyTutteSceneFromFile(scene, path) != 0)
+      gvizBuildBlankScene(scene);
+    break;
+  case GVIZ_OBJ_MODAL_CANCELLED:
+  default:
+    gvizBuildBlankScene(scene);
+    break;
+  }
 }
 
 int main(void) {
@@ -37,19 +65,30 @@ int main(void) {
   gvizScene scene;
   gvizBuildBlankScene(&scene);
   gvizLayerMainMenu *menu = installMainMenu(&scene);
+  gvizOBJLoadModal *objModal = NULL;
 
   while (!WindowShouldClose()) {
     gvizSceneHandleInput(&scene);
     gvizSceneUpdate(&scene, GetFrameTime());
     gvizSceneDraw(&scene);
 
-    /* Drain any pending OBJ path picked from the macOS File menu. */
-    char *objPath = gvizPlatformMenuPollPendingOBJPath();
-    if (objPath) {
-      gvizSceneRelease(&scene);
-      if (gvizBuildPolyTutteFromOBJScene(&scene, objPath) != 0)
-        gvizBuildBlankScene(&scene);
-      gvizPlatformMenuFreePath(objPath);
+    /* Drain a freshly picked .obj path: present the layout-choice modal. */
+    if (!objModal) {
+      char *objPath = gvizPlatformMenuPollPendingOBJPath();
+      if (objPath) {
+        objModal = installOBJModal(&scene, objPath);
+        gvizPlatformMenuFreePath(objPath);
+      }
+    }
+
+    /* If the modal has resolved, dispatch to the right builder. */
+    if (objModal && objModal->result != GVIZ_OBJ_MODAL_PENDING) {
+      gvizOBJModalChoice choice = objModal->result;
+      char path[1024];
+      strncpy(path, objModal->objPath, sizeof(path));
+      path[sizeof(path) - 1] = '\0';
+      buildFromOBJChoice(&scene, choice, path);
+      objModal = NULL;
       menu = NULL;
     }
 
@@ -82,12 +121,10 @@ int main(void) {
           gvizBuildBlankScene(&scene);
         break;
       case GVIZ_MENU_LOAD_SCENE:
-        /* TODO: raygui text-input file picker. */
         gvizBuildBlankScene(&scene);
         break;
       case GVIZ_MENU_LOAD_OBJ_TUTTE:
-        /* The in-app menu's OBJ entry now defers to the macOS File menu;
-         * fall back to a blank scene if the user invokes it directly. */
+        /* In-app entry now defers to the macOS File menu. */
         gvizBuildBlankScene(&scene);
         break;
       default:

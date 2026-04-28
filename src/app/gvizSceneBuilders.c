@@ -1,5 +1,6 @@
 #include "app/gvizSceneBuilders.h"
 #include "app/gvizLayerGRIPLive.h"
+#include "app/gvizLayerOBJ.h"
 #include "app/gvizLayerPolyTutte.h"
 #include "app/gvizLayerTutte.h"
 #include "core/alloc.h"
@@ -352,5 +353,64 @@ int gvizBuildTreeDemoScene(gvizScene *out) {
   gvizLayerGraphBindHandle(layer, out, h, NULL);
   gvizSceneReleaseGraph(out, h);
   gvizSceneAddLayer(out, (gvizLayer *)layer);
+  return 0;
+}
+
+/* ---- OBJ mesh layers ----------------------------------------------------- */
+
+int gvizBuildOBJSceneFromFile(gvizScene *out, const char *objPath) {
+  if (!out || !objPath) return -1;
+  if (gvizSceneInit3D(out) != 0)
+    return -1;
+
+  gvizLayerOBJ *layer = GVIZ_ALLOC(sizeof(gvizLayerOBJ));
+  if (!layer || gvizLayerOBJInit(layer, objPath, 0) != 0) {
+    if (layer) GVIZ_DEALLOC(layer);
+    gvizSceneRelease(out);
+    return -1;
+  }
+  gvizSceneAddLayer(out, (gvizLayer *)layer);
+  return 0;
+}
+
+int gvizBuildOBJAndPolyTutteSceneFromFile(gvizScene *out, const char *objPath) {
+  if (!out || !objPath) return -1;
+  if (gvizSceneInit2D(out) != 0)
+    return -1;
+
+  gvizLayerOBJ *objLayer = GVIZ_ALLOC(sizeof(gvizLayerOBJ));
+  if (!objLayer || gvizLayerOBJInit(objLayer, objPath, 0) != 0) {
+    if (objLayer) GVIZ_DEALLOC(objLayer);
+    gvizSceneRelease(out);
+    return -1;
+  }
+  gvizSceneAddLayer(out, (gvizLayer *)objLayer);
+
+  gvizGraph stackG;
+  size_t outerFace[8] = {0};
+  size_t outerFaceLen = 0;
+  if (gvizLoadOBJAsGraph(objPath, &stackG, outerFace, &outerFaceLen) != 0) {
+    gvizSceneRelease(out);
+    return -1;
+  }
+  gvizGraph *g = graphToHeap(&stackG);
+  if (!g) { gvizSceneRelease(out); return -1; }
+  gvizSceneGraphHandle h = gvizSceneRegisterGraph(out, g);
+  if (h == GVIZ_SCENE_GRAPH_INVALID) {
+    gvizGraphRelease(g); GVIZ_DEALLOC(g);
+    gvizSceneRelease(out);
+    return -1;
+  }
+
+  gvizLayerPolyTutte *ptLayer = GVIZ_ALLOC(sizeof(gvizLayerPolyTutte));
+  if (!ptLayer ||
+      gvizLayerPolyTutteInit(ptLayer, g, outerFace, outerFaceLen, 1) != 0) {
+    if (ptLayer) GVIZ_DEALLOC(ptLayer);
+    gvizSceneRelease(out);
+    return -1;
+  }
+  gvizLayerPolyTutteBindHandle(ptLayer, out, h, NULL);
+  gvizSceneReleaseGraph(out, h);
+  gvizSceneAddLayer(out, (gvizLayer *)ptLayer);
   return 0;
 }
