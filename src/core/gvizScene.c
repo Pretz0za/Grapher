@@ -1,6 +1,7 @@
 #include "core/gvizScene.h"
 #include "core/alloc.h"
 #include "raylib.h"
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -34,6 +35,19 @@ static unsigned int currentModMask(void) {
   return m;
 }
 
+void gvizSceneComputeRegion(int sw, int sh, gvizViewport *out) {
+  int top = GVIZ_SCENE_MARGIN_TOP;
+  int bottomLimit = (int)(sh * 2.0f / 3.0f) - GVIZ_SCENE_MARGIN_BOTTOM;
+  int left = GVIZ_SCENE_MARGIN_L;
+  int right = sw - GVIZ_SCENE_MARGIN_R;
+  if (right < left) right = left;
+  if (bottomLimit < top) bottomLimit = top;
+  out->x = left;
+  out->y = top;
+  out->width = right - left;
+  out->height = bottomLimit - top;
+}
+
 static int commonInit(gvizScene *s) {
   if (gvizArrayInit(&s->layers, sizeof(gvizLayer *)) != 0)
     return -1;
@@ -46,6 +60,10 @@ static int commonInit(gvizScene *s) {
   s->bg[1] = 245;
   s->bg[2] = 245;
   s->bg[3] = 255;
+  s->layout.split = GVIZ_SPLIT_NONE;
+  s->layout.splitRatio = 0.5f;
+  gvizSceneComputeRegion(GetScreenWidth(), GetScreenHeight(), &s->layout.region);
+  s->dividerDragging = 0;
   return 0;
 }
 
@@ -55,7 +73,7 @@ int gvizSceneInit2D(gvizScene *s) {
   s->mode = GVIZ_SCENE_2D;
   Vector2 offset = {(float)GetScreenWidth() / 2.0f,
                     (float)GetScreenHeight() / 2.0f};
-  s->camera = gvizCameraMake2D((Vector2){0, 0}, offset, 0.0f, 1.0f);
+  s->defaultCamera = gvizCameraMake2D((Vector2){0, 0}, offset, 0.0f, 1.0f);
   return 0;
 }
 
@@ -63,7 +81,7 @@ int gvizSceneInit3D(gvizScene *s) {
   if (commonInit(s) != 0)
     return -1;
   s->mode = GVIZ_SCENE_3D;
-  s->camera =
+  s->defaultCamera =
       gvizCameraMake3D((Vector3){0, 0, 2000}, (Vector3){0, 0, 0},
                        (Vector3){0, 1, 0}, 45.0f, CAMERA_PERSPECTIVE);
   return 0;
@@ -87,6 +105,7 @@ int gvizSceneAddLayer(gvizScene *s, gvizLayer *layer) {
   if (gvizArrayPush(&s->layers, &layer) != 0)
     return -1;
   sortLayers(s);
+  gvizSceneRecomputeSlots(s);
   return 0;
 }
 
@@ -116,6 +135,7 @@ int gvizSceneBringToFront(gvizScene *s, gvizLayer *layer) {
 }
 
 static void flushPendingRemoves(gvizScene *s) {
+  int removed = 0;
   for (size_t i = 0; i < s->pendingRemove.count; i++) {
     gvizLayer *victim =
         *(gvizLayer **)gvizArrayAtIndex(&s->pendingRemove, i);
@@ -128,25 +148,122 @@ static void flushPendingRemoves(gvizScene *s) {
     if (victim->vtable && victim->vtable->release)
       victim->vtable->release(victim);
     GVIZ_DEALLOC(victim);
+    removed = 1;
   }
   s->pendingRemove.count = 0;
+  if (removed) gvizSceneRecomputeSlots(s);
 }
 
-static void update2DCamera(gvizScene *s, float wheel) {
-  Camera2D *c = &s->camera.c2d;
-  if (IsMouseButtonDown(MOUSE_BUTTON_LEFT) && !s->focused) {
-    Vector2 d = GetMouseDelta();
-    c->target.x -= d.x / c->zoom;
-    c->target.y -= d.y / c->zoom;
+static int isComponentLayer(const gvizLayer *l) {
+  return !(l->flags & GVIZ_LAYER_SCREEN_SPACE);
+}
+
+static size_t countComponentLayers(const gvizScene *s) {
+  size_t n = 0;
+  for (size_t i = 0; i < s->layers.count; i++) {
+    gvizLayer *l = *(gvizLayer **)gvizArrayAtIndex(&s->layers, i);
+    if (isComponentLayer(l)) n++;
   }
-  if (wheel != 0.0f) {
-    Vector2 m = GetMousePosition();
-    Vector2 before = GetScreenToWorld2D(m, *c);
-    c->zoom *= (1.0f + wheel * 0.1f);
-    Vector2 after = GetScreenToWorld2D(m, *c);
-    c->target.x += (before.x - after.x);
-    c->target.y += (before.y - after.y);
+  return n;
+}
+
+void gvizSceneRecomputeSlots(gvizScene *s) {
+  size_t n = countComponentLayers(s);
+  /* default split policy: 1 layer = none; 2 layers = horizontal */
+  if (n <= 1) s->layout.split = GVIZ_SPLIT_NONE;
+  else        s->layout.split = GVIZ_SPLIT_H;
+
+  gvizViewport r = s->layout.region;
+  size_t assigned = 0;
+  for (size_t i = 0; i < s->layers.count; i++) {
+    gvizLayer *l = *(gvizLayer **)gvizArrayAtIndex(&s->layers, i);
+    if (!isComponentLayer(l)) continue;
+    if (assigned >= 2 && n > 2) {
+      l->viewport = (gvizViewport){0, 0, 0, 0};
+      assigned++;
+      fprintf(stderr, "[scene] >2 component layers; extras hidden\n");
+      continue;
+    }
+    if (n <= 1) {
+      l->viewport = r;
+    } else if (s->layout.split == GVIZ_SPLIT_H) {
+      int firstW = (int)(r.width * s->layout.splitRatio);
+      if (assigned == 0)
+        l->viewport = (gvizViewport){r.x, r.y, firstW - GVIZ_SCENE_DIVIDER_GUTTER/2, r.height};
+      else
+        l->viewport = (gvizViewport){r.x + firstW + GVIZ_SCENE_DIVIDER_GUTTER/2,
+                                     r.y,
+                                     r.width - firstW - GVIZ_SCENE_DIVIDER_GUTTER/2,
+                                     r.height};
+    } else { /* SPLIT_V */
+      int firstH = (int)(r.height * s->layout.splitRatio);
+      if (assigned == 0)
+        l->viewport = (gvizViewport){r.x, r.y, r.width, firstH - GVIZ_SCENE_DIVIDER_GUTTER/2};
+      else
+        l->viewport = (gvizViewport){r.x,
+                                     r.y + firstH + GVIZ_SCENE_DIVIDER_GUTTER/2,
+                                     r.width,
+                                     r.height - firstH - GVIZ_SCENE_DIVIDER_GUTTER/2};
+    }
+    assigned++;
   }
+}
+
+static int viewportContains(const gvizViewport *vp, int sx, int sy) {
+  return sx >= vp->x && sx < vp->x + vp->width &&
+         sy >= vp->y && sy < vp->y + vp->height;
+}
+
+gvizLayer *gvizSceneFindLayerAt(gvizScene *s, int sx, int sy) {
+  for (size_t i = s->layers.count; i-- > 0;) {
+    gvizLayer *l = *(gvizLayer **)gvizArrayAtIndex(&s->layers, i);
+    if (!isComponentLayer(l)) continue;
+    if (!(l->flags & GVIZ_LAYER_VISIBLE)) continue;
+    if (viewportContains(&l->viewport, sx, sy)) return l;
+  }
+  return NULL;
+}
+
+/* ---- Divider gutter ----------------------------------------------------- */
+
+static int dividerGutterContains(const gvizScene *s, int sx, int sy,
+                                 int *cursorOut) {
+  if (s->layout.split == GVIZ_SPLIT_NONE) return 0;
+  gvizViewport r = s->layout.region;
+  if (s->layout.split == GVIZ_SPLIT_H) {
+    int gx = r.x + (int)(r.width * s->layout.splitRatio);
+    if (sx >= gx - GVIZ_SCENE_DIVIDER_GUTTER &&
+        sx <= gx + GVIZ_SCENE_DIVIDER_GUTTER &&
+        sy >= r.y && sy < r.y + r.height) {
+      if (cursorOut) *cursorOut = MOUSE_CURSOR_RESIZE_EW;
+      return 1;
+    }
+  } else {
+    int gy = r.y + (int)(r.height * s->layout.splitRatio);
+    if (sy >= gy - GVIZ_SCENE_DIVIDER_GUTTER &&
+        sy <= gy + GVIZ_SCENE_DIVIDER_GUTTER &&
+        sx >= r.x && sx < r.x + r.width) {
+      if (cursorOut) *cursorOut = MOUSE_CURSOR_RESIZE_NS;
+      return 1;
+    }
+  }
+  return 0;
+}
+
+static void dragDivider(gvizScene *s, int sx, int sy) {
+  gvizViewport r = s->layout.region;
+  float ratio;
+  if (s->layout.split == GVIZ_SPLIT_H) {
+    if (r.width <= 0) return;
+    ratio = (float)(sx - r.x) / (float)r.width;
+  } else {
+    if (r.height <= 0) return;
+    ratio = (float)(sy - r.y) / (float)r.height;
+  }
+  if (ratio < 0.1f) ratio = 0.1f;
+  if (ratio > 0.9f) ratio = 0.9f;
+  s->layout.splitRatio = ratio;
+  gvizSceneRecomputeSlots(s);
 }
 
 /*
@@ -168,9 +285,26 @@ static int dispatchEvent(gvizScene *s, const gvizEvent *ev) {
   return 0;
 }
 
+static void update2DCamera(gvizScene *s, float wheel) {
+  Camera2D *c = &s->defaultCamera.c2d;
+  if (IsMouseButtonDown(MOUSE_BUTTON_LEFT) && !s->focused) {
+    Vector2 d = GetMouseDelta();
+    c->target.x -= d.x / c->zoom;
+    c->target.y -= d.y / c->zoom;
+  }
+  if (wheel != 0.0f) {
+    Vector2 m = GetMousePosition();
+    Vector2 before = GetScreenToWorld2D(m, *c);
+    c->zoom *= (1.0f + wheel * 0.1f);
+    Vector2 after = GetScreenToWorld2D(m, *c);
+    c->target.x += (before.x - after.x);
+    c->target.y += (before.y - after.y);
+  }
+}
+
 static void fillMouseWorld(const gvizScene *s, float sx, float sy, float *wx,
                            float *wy) {
-  Vector2 w = gvizCameraScreenToWorld2D(&s->camera, (Vector2){sx, sy});
+  Vector2 w = gvizCameraScreenToWorld2D(&s->defaultCamera, (Vector2){sx, sy});
   *wx = w.x;
   *wy = w.y;
 }
@@ -188,9 +322,27 @@ void gvizSceneHandleInput(gvizScene *s) {
     ev.resize.height = GetScreenHeight();
     dispatchEvent(s, &ev);
     if (s->mode == GVIZ_SCENE_2D) {
-      s->camera.c2d.offset =
+      s->defaultCamera.c2d.offset =
           (Vector2){(float)ev.resize.width / 2.0f,
                     (float)ev.resize.height / 2.0f};
+    }
+    gvizSceneComputeRegion(ev.resize.width, ev.resize.height, &s->layout.region);
+    gvizSceneRecomputeSlots(s);
+  }
+
+  /* Cursor hint over divider */
+  int cursorKind = MOUSE_CURSOR_DEFAULT;
+  if (dividerGutterContains(s, (int)mp.x, (int)mp.y, &cursorKind))
+    SetMouseCursor(cursorKind);
+  else if (!s->dividerDragging)
+    SetMouseCursor(MOUSE_CURSOR_DEFAULT);
+
+  /* Divider drag */
+  if (s->dividerDragging) {
+    if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+      dragDivider(s, (int)mp.x, (int)mp.y);
+    } else {
+      s->dividerDragging = 0;
     }
   }
 
@@ -213,6 +365,12 @@ void gvizSceneHandleInput(gvizScene *s) {
                                GVIZ_MOUSE_MIDDLE};
   for (int i = 0; i < 3; i++) {
     if (IsMouseButtonPressed(btns[i])) {
+      /* Begin divider drag if applicable */
+      if (i == 0 && !s->dividerDragging &&
+          dividerGutterContains(s, (int)mp.x, (int)mp.y, NULL)) {
+        s->dividerDragging = 1;
+        continue;
+      }
       gvizEvent ev = {0};
       ev.type = GVIZ_EVENT_MOUSE_DOWN;
       ev.mouse.sx = mp.x;
@@ -247,7 +405,7 @@ void gvizSceneHandleInput(gvizScene *s) {
     if (!dispatchEvent(s, &ev) && s->mode == GVIZ_SCENE_2D) {
       update2DCamera(s, wheel);
     }
-  } else if (s->mode == GVIZ_SCENE_2D) {
+  } else if (s->mode == GVIZ_SCENE_2D && !s->dividerDragging) {
     update2DCamera(s, 0.0f);
   }
 
@@ -288,9 +446,9 @@ void gvizSceneDraw(gvizScene *s) {
 
   /* World-space pass */
   if (s->mode == GVIZ_SCENE_2D)
-    BeginMode2D(s->camera.c2d);
+    BeginMode2D(s->defaultCamera.c2d);
   else
-    BeginMode3D(s->camera.c3d);
+    BeginMode3D(s->defaultCamera.c3d);
 
   for (size_t i = 0; i < s->layers.count; i++) {
     gvizLayer *l = *(gvizLayer **)gvizArrayAtIndex(&s->layers, i);
@@ -299,7 +457,7 @@ void gvizSceneDraw(gvizScene *s) {
     if (l->flags & GVIZ_LAYER_SCREEN_SPACE)
       continue;
     if (l->vtable && l->vtable->draw)
-      l->vtable->draw(l, &s->camera);
+      l->vtable->draw(l, &s->defaultCamera);
   }
 
   if (s->mode == GVIZ_SCENE_2D)
@@ -315,7 +473,7 @@ void gvizSceneDraw(gvizScene *s) {
     if (!(l->flags & GVIZ_LAYER_SCREEN_SPACE))
       continue;
     if (l->vtable && l->vtable->draw)
-      l->vtable->draw(l, &s->camera);
+      l->vtable->draw(l, &s->defaultCamera);
   }
 
   EndDrawing();

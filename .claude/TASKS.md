@@ -1,31 +1,294 @@
 # TASKS
 
-## Epic 1: Fix right-click face detection
+GUI revamp Epic. Each Saga below is a logically grouped chunk; tasks within
+a Saga are ordered by dependency (do top-to-bottom).
 
-### Track outer face index after enumeration
-- [x] Add `size_t outerFaceIdx` (SIZE_MAX = unknown) to `gvizLayerPolyTutte` in the header.
-  Initialize to `SIZE_MAX` in `gvizLayerPolyTutteInit`.
-- [x] At the end of `pt_enumerateFaces` (after the face copy loop), compute and store
-  `self->outerFaceIdx = pt_findOuterFace(self)` so it is always consistent with the
-  current faces array.
+---
 
-### Skip outer face in the ray-cast loop
-- [x] In the right-click handler, change the face search loop to skip `self->outerFaceIdx`.
-- [x] If `hit == SIZE_MAX` after the loop: set `hit = self->outerFaceIdx`.
+## Epic 1: Scene region layout (top two-thirds)
 
-### Add epsilon jitter to ray-casting
-- [x] In `pt_pointInFace`, add `py += 1e-10;` at the top before the loop (after the
-  `n < 3` guard).
+Goal: Reserve top 2/3 of the window for layer slots with L/R margins; bottom
+1/3 stays empty for now. Slot subdivision happens regardless of layer count.
 
-### Clear stale faces after re-embedding
-- [x] In the `KEY_ENTER` handler, after `pt_clearHighlights`, call `releaseFaces(self)`
-  and set `self->outerFaceIdx = SIZE_MAX`.
-- [x] In the `KEY_R` handler, after `pt_clearHighlights`, call `releaseFaces(self)`
-  and set `self->outerFaceIdx = SIZE_MAX`.
+### Saga 1.1: Scene layout primitives
+- [x] Add `gvizSceneLayout` struct in `include/core/gvizScene.h` describing
+      the active region rect (x,y,w,h) plus L/R/bottom margins (constants).
+- [x] Add `gvizSceneComputeRegion(int sw, int sh, gvizRect *out)` helper that
+      returns the top-2/3 region with margins. Reused `gvizViewport`.
+- [x] Wire `gvizSceneInit2D/3D` and the resize handler in `src/core/gvizScene.c`
+      to recompute the active region whenever the window resizes.
 
-### Remove per-face debug flood
-- [x] Remove the `fprintf` inside `pt_pointInFace` that prints for every face on every
-  right-click.
+### Saga 1.2: Slot allocation policy
+- [x] Define `gvizSceneSlotSplit { GVIZ_SPLIT_NONE, GVIZ_SPLIT_H, GVIZ_SPLIT_V }`
+      stored on the scene with a `splitRatio` (0..1, default 0.5).
+- [x] Implement `gvizSceneRecomputeSlots(gvizScene *s)` (extras get zero-sized vp + stderr warning).
+- [x] Call `gvizSceneRecomputeSlots` after every add/remove and on resize.
 
-## Build
-- [x] `cd build && cmake .. && make`, fix any errors.
+### Saga 1.3: Drag-to-resize divider
+- [x] Detect mouse down/drag inside a configurable "divider gutter" between
+      slots in `gvizSceneHandleInput` and adjust `splitRatio` live.
+- [x] Clamp `splitRatio` to [0.1, 0.9] so neither slot collapses.
+- [x] Repaint cursor hint (e.g. raylib `MOUSE_CURSOR_RESIZE_EW/NS`) when over
+      the gutter.
+
+---
+
+## Epic 2: Off-screen layer rendering with per-layer cameras
+
+Goal: Each component layer renders to its own RenderTexture using its own
+camera, then the scene composites the textures into the slots.
+
+### Saga 2.1: Per-layer camera
+- [ ] Add `gvizCamera camera` field to `gvizLayer` struct OR (preferred) add it
+      only to component layers (subclasses) since menu/HUD layers do not need
+      one. Decide and document in `include/renderer/layers/gvizLayer.h`.
+- [ ] Move scene-level camera pan/zoom logic out of `gvizSceneHandleInput`
+      into a reusable helper `gvizCameraHandleInput2D(gvizCamera*, ...)` and
+      `gvizCameraHandleInput3D(...)` in `src/core/gvizCamera.c`.
+- [ ] Drop `gvizScene.camera` (or repurpose as default) — the active layer
+      under cursor uses its own camera for events.
+
+### Saga 2.2: RenderTexture per layer
+- [ ] Add `RenderTexture2D fbo` plus `int fboW, fboH` fields to component
+      layer structs (`gvizLayerGraph`, `gvizLayerTutte`, `gvizLayerPolyTutte`,
+      `gvizLayerGRIP`, `gvizLayerGRIPLive`, future `gvizLayerOBJ`).
+- [ ] Allocate/resize the FBO lazily when the assigned viewport size changes.
+      Add `gvizLayerEnsureFBO(gvizLayer *, int w, int h)` helper in
+      `src/renderer/layers/gvizLayer.c`.
+- [ ] Refactor each layer's `draw` to: `BeginTextureMode(fbo)` →
+      `BeginMode2D/3D(layer->camera)` → existing draw → end modes →
+      composite via `DrawTexturePro` in screen space.
+
+### Saga 2.3: Scene composite pass
+- [ ] Rewrite `gvizSceneDraw` in `src/core/gvizScene.c` to:
+      1. Clear background.
+      2. For each component layer: call its draw which fills its FBO and
+         blits to its slot.
+      3. Run screen-space layer pass on top (menus/HUD).
+- [ ] Remove the global `BeginMode2D`/`BeginMode3D` wrap in `gvizSceneDraw`
+      (each layer enters its own mode inside its FBO).
+
+### Saga 2.4: Input routing per slot
+- [ ] In `gvizSceneHandleInput`, when computing world coords, dispatch to the
+      layer whose viewport contains the cursor and resolve world coords via
+      that layer's camera (not the scene's).
+- [ ] Add `gvizSceneFindLayerAt(gvizScene *, int sx, int sy)` helper.
+- [ ] Update the focus tracking so dragging stays bound to the originating
+      layer even if the cursor leaves its slot.
+
+---
+
+## Epic 3: Scene-owned graph registry with shared-graph callbacks
+
+Goal: `gvizGraph` instances live in the scene and are reference-counted across
+layers. Mutations on one layer notify all peers sharing the same graph.
+
+### Saga 3.1: Graph registry data structure
+- [ ] Add `gvizSceneGraphHandle` to `include/core/gvizScene.h`:
+      ```c
+      typedef struct gvizSceneGraphEntry {
+        gvizGraph *graph;
+        size_t refCount;
+        gvizArray subscribers; // gvizGraphSubscriber values
+      } gvizSceneGraphEntry;
+      ```
+- [ ] Add `gvizArray graphs` (of `gvizSceneGraphEntry`) to `gvizScene`.
+- [ ] API:
+      - `gvizSceneRegisterGraph(gvizScene*, gvizGraph *) -> handle`
+      - `gvizSceneRetainGraph(gvizScene*, handle)`
+      - `gvizSceneReleaseGraph(gvizScene*, handle)` (frees + removes when
+        refCount hits 0)
+
+### Saga 3.2: Subscription / callback system
+- [ ] Define a callback type in a new `include/core/gvizGraphEvent.h`:
+      ```c
+      typedef enum { GVIZ_GRAPH_VERTEX_ADDED, GVIZ_GRAPH_VERTEX_REMOVED,
+                     GVIZ_GRAPH_EDGE_ADDED, GVIZ_GRAPH_EDGE_REMOVED,
+                     GVIZ_GRAPH_POSITIONS_CHANGED, GVIZ_GRAPH_TOPOLOGY_REBUILT }
+        gvizGraphEventKind;
+      typedef void (*gvizGraphCallback)(void *self, gvizGraphEventKind, ...);
+      ```
+- [ ] `gvizSceneSubscribeGraph(scene, handle, void *self, gvizGraphCallback)`
+      and matching unsubscribe.
+- [ ] `gvizSceneNotifyGraphChanged(scene, handle, kind, payload)` fans out to
+      every subscriber except the originator.
+
+### Saga 3.3: Rewire layers to use the registry
+- [ ] Remove `releaseGraph` from `gvizLayerGraph` (no longer owns the graph).
+      Replace with a `gvizSceneGraphHandle handle` field.
+- [ ] Same for `gvizLayerTutte`, `gvizLayerPolyTutte`, `gvizLayerGRIP*`:
+      replace embedded `gvizGraph graph` with a handle pointing into the
+      scene registry.
+- [ ] Update `gvizLayerXxxInit` signatures to take `(gvizScene *, handle, ...)`.
+- [ ] Update each layer's `release` to call `gvizSceneReleaseGraph` and
+      unsubscribe — never free the graph directly.
+- [ ] Update `gvizSceneRelease` to release any leftover registry entries
+      after all layers are gone.
+
+### Saga 3.4: Mutation fanout
+- [ ] In `gvizLayerGraphAddVertex/RemoveVertex/AddEdge/RemoveEdge`, after the
+      mutation, call `gvizSceneNotifyGraphChanged(...)`.
+- [ ] In each subscriber callback (per layer type) react appropriately:
+      - rebuild edge index, mark VBO topology dirty, re-seed embedding,
+        or trigger the embedding's `onTopologyChanged` hook.
+- [ ] Remove the existing `onTopologyChanged` field from `gvizLayerGraph`
+      once subscribers cover that path (keep only if a non-shared variant
+      still needs it).
+
+### Saga 3.5: Builder updates
+- [ ] Update every builder in `src/app/gvizSceneBuilders.c` to register the
+      graph with the scene first, then pass the handle to the layer init.
+- [ ] Drop the local `gvizGraphRelease(&g)` calls — ownership moves into
+      the registry.
+
+---
+
+## Epic 4: Stop algorithms from mutating the source graph
+
+Goal: Reingold-Tilford and Schnyder/triangulating algorithms must operate on
+auxiliary structures so a single shared graph can be embedded multiple ways.
+Planar embedding's adjacency reorder stays as-is.
+
+### Saga 4.1: Audit
+- [ ] In `src/renderer/embeddings/gvizEmbeddedTree.c`, document every mutation
+      to the source `gvizGraph` (the thread bit currently lives there). List
+      each call site in a comment block at the top of the file.
+- [ ] In `src/renderer/embeddings/gvizSchnyderWood.c`, list every mutation
+      and every dependency on the planar/triangulated graph.
+
+### Saga 4.2: Reingold-Tilford threads as side data
+- [ ] Move "thread next pointer" from the source graph into the
+      `gvizRTDecorators` struct (already has decorators; add `size_t thread`
+      and a `int hasThread` flag).
+- [ ] Replace contour-walk reads/writes in `iterateContour*` and any thread
+      mutators to use the decorators rather than the graph adjacency.
+- [ ] Remove the existing `GVIZ_BIT_ARRAY thread` from `gvizEmbeddedTree`
+      if it becomes redundant after decorator-based threads.
+
+### Saga 4.3: Schnyder Wood non-mutating triangulation
+- [ ] Add a triangulated-copy field to `gvizSchnyderWood`:
+      `gvizGraph triangulated;` plus a flag.
+- [ ] In `gvizSchnyderWoodInit`, build the triangulated copy from the source
+      graph (deep-copy adjacency, then triangulate the copy via existing
+      `gvizPlanarEmbeddingTriangulate`).
+- [ ] Switch all subsequent Schnyder logic to read from the triangulated copy.
+- [ ] Release the copy in `gvizSchnyderWoodRelease`.
+- [ ] Decision note: triangulated copy is preferred over a thread-style
+      side table because triangulation adds edges (not just metadata) and
+      large meshes amortize the copy cost once.
+
+### Saga 4.4: Planar embedding (no change)
+- [ ] Confirm and document in `gvizPlanarEmbedding.h` that adjacency-order
+      mutation is intentional (rotation system) and is allowed.
+
+---
+
+## Epic 5: macOS top menu bar (Apple menu)
+
+Goal: Add a real macOS menu with "Open .obj…" entry. Replace the current
+osascript-based file dialog usage path with a proper menu entry.
+
+### Saga 5.1: Cocoa menu bridge
+- [ ] Add a new file `src/platform/macos_menu.m` (Objective-C) implementing:
+      - `gvizPlatformMenuInit(void)` — installs an NSMenu with File →
+        "Open .obj…" mapped to `Cmd+O`.
+      - A C-callable callback registration `gvizPlatformMenuOnOpenOBJ(
+          void (*)(const char *path, void *userdata), void *userdata)`.
+- [ ] Add matching header `include/platform/macos_menu.h`.
+- [ ] Update `CMakeLists.txt` to compile the `.m` file and link `Cocoa`
+      framework (it is already linked but ensure ObjC compilation flags).
+- [ ] Wire `gvizPlatformMenuInit` into `main.c` after `InitWindow`.
+
+### Saga 5.2: File picker dispatch
+- [ ] When the menu fires, present `NSOpenPanel` filtered to `obj/OBJ` and
+      pass the chosen POSIX path to the registered callback.
+- [ ] In `main.c`, register a callback that pushes the path onto a small
+      pending-action queue (avoid mutating the scene from the menu thread —
+      drain in the main loop).
+- [ ] Remove the inline `osascript` `gvizOpenFileDialog` from
+      `src/app/gvizSceneBuilders.c` once the menu path is functional.
+
+---
+
+## Epic 6: OBJ layer (mesh rendering)
+
+Goal: A new `gvizLayer` type that loads a `.obj` and renders the 3D mesh
+itself (not the edge graph). Scene must be 3D for this layer to render.
+
+### Saga 6.1: OBJ mesh loader
+- [ ] Add `gvizLoadOBJAsMesh(const char *path, Model *out)` in
+      `src/utils/gvizOBJLoader.c` (raylib already provides `LoadModel` for
+      .obj — wrap it). Return error code on failure.
+- [ ] Header entry in `include/utils/gvizOBJLoader.h`.
+
+### Saga 6.2: gvizLayerOBJ
+- [ ] New header `include/app/gvizLayerOBJ.h`:
+      ```c
+      typedef struct gvizLayerOBJ {
+        gvizLayer layer;   // first
+        Model     model;
+        Vector3   position, scale;
+        float     rotationY;
+      } gvizLayerOBJ;
+      ```
+- [ ] New impl `src/app/gvizLayerOBJ.c` with vtable (`init`, `draw`, `update`,
+      `release`, `onEvent`).
+- [ ] `draw`: enter the layer's 3D camera mode and `DrawModel(model, ...)`.
+- [ ] `release`: `UnloadModel`.
+- [ ] Layer init forces its camera to 3D (`gvizCameraMake3D`).
+
+### Saga 6.3: OBJ open dialog flow
+- [ ] After menu fires "Open .obj…", show a small modal (raygui) asking the
+      user to choose: `OBJ only`, `PolyTutte only`, `Both`.
+- [ ] Build/append layers accordingly:
+      - `OBJ only` → ensure scene exists, add `gvizLayerOBJ`.
+      - `PolyTutte only` → existing `gvizBuildPolyTutteFromOBJScene`-style
+        path but additive (don't reset scene).
+      - `Both` → add an OBJ layer and a PolyTutte layer side-by-side
+        (slot subdivision from Epic 1 picks the layout).
+- [ ] Note: OBJ and PolyTutte layers do not share data; load the .obj twice
+      (once into a `Model`, once into a `gvizGraph`).
+
+### Saga 6.4: Builder helpers
+- [ ] Add `gvizBuildOBJSceneFromFile(scene, path)` and
+      `gvizBuildOBJAndPolyTutteSceneFromFile(scene, path)` in
+      `src/app/gvizSceneBuilders.c` and matching declarations in the header.
+
+---
+
+## Epic 7: Cleanup / overcomplication pass
+
+Goal: Trim cruft. Done last so it doesn't conflict with the structural work.
+
+### Saga 7.1: Layer-graph ownership cleanup
+- [ ] Remove the now-unused `releaseGraph` function pointer from
+      `gvizLayerGraph` and any of its callers (release callbacks like
+      `releaseEmbeddedTree` in `gvizSceneBuilders.c`).
+- [ ] Remove the `onTopologyChanged` field if Epic 3.4 superseded it.
+
+### Saga 7.2: Drop redundant per-layer highlight scaffolding
+- [ ] Audit `gvizLayerPolyTutte`'s duplicated highlight code (mirrors
+      `gvizLayerGraph`). If the graph registry + shared subscriber model
+      lets PolyTutte reuse `gvizLayerGraph`'s highlight buffers, factor
+      out a shared `gvizGraphHighlight` struct in
+      `include/renderer/layers/` and remove the duplication.
+
+### Saga 7.3: Consolidate `gvizLayerGRIP` and `gvizLayerGRIPLive`
+- [ ] These two layers differ only in advancement policy. Add a single
+      `gvizLayerGRIP` with an `auto` flag instead. Delete the `Live` files.
+      (Skip if it forces a major rewrite of demos.)
+
+### Saga 7.4: Delete dead Tutte-solve files (if confirmed unused)
+- [ ] After Epic 1 of the prior task list switched PolyTutte to
+      `gvizTutteEmbedding`, check whether `gvizTutteSolveEmbedding.{c,h}` has
+      remaining callers. If none, delete the pair and remove from CMake.
+
+### Saga 7.5: Strip the `osascript` open-file shim
+- [ ] After Epic 5 lands, remove `gvizOpenFileDialog` from
+      `src/app/gvizSceneBuilders.c` and the `GVIZ_OBJ_TEST_PATH` ifdef in
+      `main.c`.
+
+### Saga 7.6: Final build + smoke test
+- [ ] `mkdir -p build && cd build && cmake .. && make` succeeds.
+- [ ] Existing demo scenes still render correctly inside the new top-2/3
+      slot layout.

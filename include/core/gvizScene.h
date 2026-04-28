@@ -12,6 +12,43 @@ typedef enum gvizSceneMode {
 } gvizSceneMode;
 
 /*
+ * Scene region layout. The "active region" is the rect inside the window where
+ * component layers are laid out. Currently the top 2/3 of the window with
+ * left/right margins; the bottom 1/3 is reserved for future HUD/console.
+ */
+enum {
+  GVIZ_SCENE_MARGIN_L = 12,
+  GVIZ_SCENE_MARGIN_R = 12,
+  GVIZ_SCENE_MARGIN_TOP = 12,
+  /* The bottom of the active region sits at (screenH * 2/3); see
+   * gvizSceneComputeRegion. The constant below is the gap *below* the active
+   * region (i.e. between active region and the empty bottom 1/3). */
+  GVIZ_SCENE_MARGIN_BOTTOM = 8,
+  GVIZ_SCENE_DIVIDER_GUTTER = 8,
+};
+
+/*
+ * Compute the active layout region (top 2/3, with margins) for the given
+ * window size. Output rect uses gvizViewport.
+ */
+void gvizSceneComputeRegion(int sw, int sh, gvizViewport *out);
+
+/*
+ * Slot subdivision policy.
+ */
+typedef enum gvizSceneSlotSplit {
+  GVIZ_SPLIT_NONE = 0,
+  GVIZ_SPLIT_H,   /* split horizontally → left + right slot */
+  GVIZ_SPLIT_V,   /* split vertically   → top + bottom slot */
+} gvizSceneSlotSplit;
+
+typedef struct gvizSceneLayout {
+  gvizViewport region;          /* current active region */
+  gvizSceneSlotSplit split;     /* how slots are divided */
+  float splitRatio;             /* 0..1 size of first slot */
+} gvizSceneLayout;
+
+/*
  * A gvizScene owns a list of layers (pointers, z-ordered), a camera, and a
  * pending-destroy list for layers scheduled to be removed after the current
  * frame. Input is polled from raylib, translated into gvizEvents, and
@@ -19,7 +56,14 @@ typedef enum gvizSceneMode {
  */
 typedef struct gvizScene {
   gvizSceneMode mode;
-  gvizCamera camera;
+
+  /*
+   * Default camera. Used as a fallback only — once Saga 2.1 lands, every
+   * component layer carries its own gvizCamera and the scene's camera is
+   * obsolete. Kept here only as a transition shim for layers that have not
+   * yet been migrated; do not add new dependencies on it.
+   */
+  gvizCamera defaultCamera;
 
   /* gvizArray of `gvizLayer *` pointers, kept sorted by z ascending. */
   gvizArray layers;
@@ -31,8 +75,14 @@ typedef struct gvizScene {
    * May be NULL. */
   gvizLayer *focused;
 
+  /* Active region + slot policy. Recomputed on resize and on layer add/remove. */
+  gvizSceneLayout layout;
+
   /* Background clear color (RGBA). */
   unsigned char bg[4];
+
+  /* Internal: 1 while the user is dragging the slot divider. */
+  int dividerDragging;
 } gvizScene;
 
 /*
@@ -61,5 +111,19 @@ int gvizSceneBringToFront(gvizScene *s, gvizLayer *layer);
 void gvizSceneHandleInput(gvizScene *s);
 void gvizSceneUpdate(gvizScene *s, float dt);
 void gvizSceneDraw(gvizScene *s);
+
+/*
+ * Walks the scene's component layers (any layer that is not SCREEN_SPACE)
+ * and assigns each a viewport rect inside `layout.region` according to the
+ * current split policy. Excess layers (>2) are given zero-sized viewports
+ * for now and a warning is logged to stderr.
+ */
+void gvizSceneRecomputeSlots(gvizScene *s);
+
+/*
+ * Find the topmost component layer whose viewport contains screen point (sx,sy),
+ * or NULL if none. Screen-space layers are skipped.
+ */
+gvizLayer *gvizSceneFindLayerAt(gvizScene *s, int sx, int sy);
 
 #endif
