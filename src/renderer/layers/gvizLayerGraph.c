@@ -57,7 +57,6 @@ void gvizLayerGraphInit(gvizLayerGraph *layer, gvizEmbeddedGraph *graph,
   layer->graphHandle = GVIZ_SCENE_GRAPH_INVALID;
   layer->graph = graph;
   layer->releaseGraph = releaseGraph;
-  layer->onTopologyChanged = NULL;
   gvizGraphVBOInit(&layer->vbo);
   layer->vboMode = GVIZ_GRAPH_VBO_EDGES | GVIZ_GRAPH_VBO_DISCS;
   gvizGraphVBOSetMode(&layer->vbo, layer->vboMode);
@@ -301,7 +300,6 @@ int gvizLayerGraphAddVertex(gvizLayerGraph *layer, const double *startPos) {
 
   gvizLayerGraphRebuildEdgeIndex(layer);
   layer->gpuDirty = 2;
-  if (layer->onTopologyChanged) layer->onTopologyChanged(eg);
   if (layer->scene && layer->graphHandle != GVIZ_SCENE_GRAPH_INVALID) {
     gvizGraphVertexEvent ev = {newIdx};
     gvizSceneNotifyGraphChanged(layer->scene, layer->graphHandle, layer,
@@ -328,7 +326,6 @@ int gvizLayerGraphRemoveVertex(gvizLayerGraph *layer, size_t v) {
 
   gvizLayerGraphRebuildEdgeIndex(layer);
   layer->gpuDirty = 2;
-  if (layer->onTopologyChanged) layer->onTopologyChanged(eg);
   if (layer->scene && layer->graphHandle != GVIZ_SCENE_GRAPH_INVALID) {
     gvizGraphVertexEvent ev = {v};
     gvizSceneNotifyGraphChanged(layer->scene, layer->graphHandle, layer,
@@ -342,7 +339,6 @@ int gvizLayerGraphAddEdge(gvizLayerGraph *layer, size_t u, size_t v) {
   if (gvizGraphAddEdge(layer->graph->graph, u, v) != 0) return -1;
   gvizLayerGraphRebuildEdgeIndex(layer);
   layer->gpuDirty = 2;
-  if (layer->onTopologyChanged) layer->onTopologyChanged(layer->graph);
   if (layer->scene && layer->graphHandle != GVIZ_SCENE_GRAPH_INVALID) {
     gvizGraphEdgeEvent ev = {u, v};
     gvizSceneNotifyGraphChanged(layer->scene, layer->graphHandle, layer,
@@ -356,7 +352,6 @@ int gvizLayerGraphRemoveEdge(gvizLayerGraph *layer, size_t u, size_t v) {
   if (gvizGraphRemoveEdge(layer->graph->graph, u, v) != 0) return -1;
   gvizLayerGraphRebuildEdgeIndex(layer);
   layer->gpuDirty = 2;
-  if (layer->onTopologyChanged) layer->onTopologyChanged(layer->graph);
   if (layer->scene && layer->graphHandle != GVIZ_SCENE_GRAPH_INVALID) {
     gvizGraphEdgeEvent ev = {u, v};
     gvizSceneNotifyGraphChanged(layer->scene, layer->graphHandle, layer,

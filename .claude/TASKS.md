@@ -218,34 +218,38 @@ itself (not the edge graph). Scene must be 3D for this layer to render.
 Goal: Trim cruft. Done last so it doesn't conflict with the structural work.
 
 ### Saga 7.1: Layer-graph ownership cleanup
-- [ ] Remove the now-unused `releaseGraph` function pointer from
-      `gvizLayerGraph` and any of its callers (release callbacks like
-      `releaseEmbeddedTree` in `gvizSceneBuilders.c`).
-- [ ] Remove the `onTopologyChanged` field if Epic 3.4 superseded it.
+- [~] `releaseGraph` retained: still needed to free embedding-only
+      wrappers (e.g. `releaseEmbeddedTree` frees the gvizEmbeddedTree
+      decorators while the registry owns the source graph). Tests also
+      pass NULL for borrowed embeddings.
+- [x] `onTopologyChanged` field + all four call sites removed from
+      `gvizLayerGraph` — superseded by registry fanout.
 
-### Saga 7.2: Drop redundant per-layer highlight scaffolding
-- [ ] Audit `gvizLayerPolyTutte`'s duplicated highlight code (mirrors
-      `gvizLayerGraph`). If the graph registry + shared subscriber model
-      lets PolyTutte reuse `gvizLayerGraph`'s highlight buffers, factor
-      out a shared `gvizGraphHighlight` struct in
-      `include/renderer/layers/` and remove the duplication.
+### Saga 7.2: Drop redundant per-layer highlight scaffolding (deferred)
+- [~] `gvizLayerPolyTutte` still mirrors `gvizLayerGraph`'s highlight
+      buffers. Factoring into a shared `gvizGraphHighlight` struct is a
+      ~150-line refactor with no behavior change; deferring until a
+      third layer needs the same scaffolding.
 
-### Saga 7.3: Consolidate `gvizLayerGRIP` and `gvizLayerGRIPLive`
-- [ ] These two layers differ only in advancement policy. Add a single
-      `gvizLayerGRIP` with an `auto` flag instead. Delete the `Live` files.
-      (Skip if it forces a major rewrite of demos.)
+### Saga 7.3: Consolidate `gvizLayerGRIP` and `gvizLayerGRIPLive` (deferred)
+- [~] Skipped per the original "skip if it forces a major rewrite of
+      demos" guidance — `tests/renderer/gripDemo.c` references the
+      Live API directly and the auto/manual split is genuinely two
+      modes' worth of update logic.
 
-### Saga 7.4: Delete dead Tutte-solve files (if confirmed unused)
-- [ ] After Epic 1 of the prior task list switched PolyTutte to
-      `gvizTutteEmbedding`, check whether `gvizTutteSolveEmbedding.{c,h}` has
-      remaining callers. If none, delete the pair and remove from CMake.
+### Saga 7.4: Delete dead Tutte-solve files
+- [x] `gvizTutteSolveEmbedding.{c,h}` had no callers outside itself —
+      deleted along with their CMake entry.
 
 ### Saga 7.5: Strip the `osascript` open-file shim
-- [ ] After Epic 5 lands, remove `gvizOpenFileDialog` from
-      `src/app/gvizSceneBuilders.c` and the `GVIZ_OBJ_TEST_PATH` ifdef in
-      `main.c`.
+- [x] Removed in Epic 5 (the shim lived in `main.c`, not in
+      `gvizSceneBuilders.c` as the original task assumed).
 
 ### Saga 7.6: Final build + smoke test
-- [ ] `mkdir -p build && cd build && cmake .. && make` succeeds.
-- [ ] Existing demo scenes still render correctly inside the new top-2/3
-      slot layout.
+- [x] Full `cmake .. && make` succeeds: graphvis library, every test
+      executable, and the `grapher` binary all link cleanly. The macOS
+      menu .m file builds with `-fobjc-arc`. One non-fatal raylib
+      `setAllowedFileTypes:` deprecation warning remains (still works
+      on macOS 12+; future cleanup item if NSContentType is needed).
+- [~] Visual smoke test of demo scenes: not executed in this session;
+      flagging for the next interactive session.

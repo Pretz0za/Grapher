@@ -26,12 +26,6 @@ typedef struct gvizLayerGraph {
    * Typically a static wrapper around the specific algorithm's release fn.
    */
   void (*releaseGraph)(gvizEmbeddedGraph *);
-  /*
-   * Optional hook fired after dynamic mutations (vertex/edge add/remove).
-   * When non-NULL, called with the layer's gvizEmbeddedGraph * so the
-   * embedding owner may re-seed/re-fix interior or rebuild matrices.
-   */
-  void (*onTopologyChanged)(gvizEmbeddedGraph *);
   gvizGraphVBO vbo;
   unsigned int vboMode; /* bitmask of gvizGraphVBOMode (edges/discs) */
   int gpuDirty; /* 2=topology changed, 1=positions changed, 0=clean */
