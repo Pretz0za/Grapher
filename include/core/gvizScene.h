@@ -1,7 +1,6 @@
 #ifndef _GVIZ_CORE_SCENE_H_
 #define _GVIZ_CORE_SCENE_H_
 
-#include "core/gvizCamera.h"
 #include "core/gvizGraphEvent.h"
 #include "dsa/gvizArray.h"
 #include "dsa/gvizGraph.h"

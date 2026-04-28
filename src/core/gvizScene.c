@@ -106,26 +106,32 @@ void gvizSceneSetActiveLayer(gvizScene *s, gvizLayer *l) {
 }
 
 void gvizSceneRelease(gvizScene *s) {
-  for (size_t i = 0; i < s->layers.count; i++) {
-    gvizLayer *l = *(gvizLayer **)gvizArrayAtIndex(&s->layers, i);
-    if (l && l->vtable && l->vtable->release)
-      l->vtable->release(l);
-    GVIZ_DEALLOC(l);
-  }
-  gvizArrayRelease(&s->layers);
-  gvizArrayRelease(&s->pendingRemove);
-  /* Free any leftover registry entries (skip sentinel at index 0). */
-  for (size_t i = 1; i < s->graphs.count; i++) {
-    gvizSceneGraphEntry *e = (gvizSceneGraphEntry *)gvizArrayAtIndex(&s->graphs, i);
-    if (e->graph) {
-      gvizGraphRelease(e->graph);
-      GVIZ_DEALLOC(e->graph);
-      e->graph = NULL;
+  if (!s) return;
+  if (s->layers.arr) {
+    for (size_t i = 0; i < s->layers.count; i++) {
+      gvizLayer *l = *(gvizLayer **)gvizArrayAtIndex(&s->layers, i);
+      if (l && l->vtable && l->vtable->release)
+        l->vtable->release(l);
+      GVIZ_DEALLOC(l);
     }
-    if (e->subscribers.arr) gvizArrayRelease(&e->subscribers);
+    gvizArrayRelease(&s->layers);
   }
-  gvizArrayRelease(&s->graphs);
+  if (s->pendingRemove.arr)
+    gvizArrayRelease(&s->pendingRemove);
+  if (s->graphs.arr) {
+    for (size_t i = 1; i < s->graphs.count; i++) {
+      gvizSceneGraphEntry *e = (gvizSceneGraphEntry *)gvizArrayAtIndex(&s->graphs, i);
+      if (e->graph) {
+        gvizGraphRelease(e->graph);
+        GVIZ_DEALLOC(e->graph);
+        e->graph = NULL;
+      }
+      if (e->subscribers.arr) gvizArrayRelease(&e->subscribers);
+    }
+    gvizArrayRelease(&s->graphs);
+  }
   s->focused = NULL;
+  s->activeLayer = NULL;
 }
 
 /* ---- Graph registry ----------------------------------------------------- */

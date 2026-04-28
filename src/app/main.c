@@ -160,10 +160,11 @@ int main(void) {
       char path[1024];
       strncpy(path, objModal->objPath, sizeof(path));
       path[sizeof(path) - 1] = '\0';
-      buildFromOBJChoice(&scene, choice, path);
-      objModal = NULL;
+      /* Drop dangling pointers BEFORE the scene frees its layers. */
       app.menu = NULL;
       app.panel = NULL;
+      objModal = NULL;
+      buildFromOBJChoice(&scene, choice, path);
       scene.contextMenuUserdata    = &app;
       scene.onEmptyAreaContextMenu = onEmptyAreaContextMenu;
       scene.onLayerContextMenu     = onLayerContextMenu;

@@ -119,6 +119,9 @@ void gvizArrayDeleteAtIndex(gvizArray *v, size_t i) {
 void gvizArrayRelease(gvizArray *v) {
   if (v->arr)
     GVIZ_DEALLOC(v->arr);
+  v->arr = NULL;
+  v->count = 0;
+  v->capacity = 0;
 }
 
 int gvizArrayIsEmpty(const gvizArray *v) {
