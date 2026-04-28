@@ -2,6 +2,7 @@
 #define _GVIZ_LAYER_GRAPH_H_
 
 #include "core/gvizCamera.h"
+#include "core/gvizScene.h"
 #include "dsa/gvizBitArray.h"
 #include "renderer/embeddings/gvizEmbeddedGraph.h"
 #include "renderer/layers/gvizGraphVBO.h"
@@ -13,6 +14,11 @@ typedef struct gvizLayerGraph {
    * scene's input router resolves world coords through the camera of the
    * layer under the cursor. */
   gvizCamera camera;
+  /* Optional registry binding. Non-zero handle means the underlying
+   * gvizGraph is owned by the scene and the layer participates in the
+   * shared-graph subscriber fanout. */
+  gvizScene *scene;
+  gvizSceneGraphHandle graphHandle;
   gvizEmbeddedGraph *graph;
   /*
    * If non-NULL, called on release to tear down and free the embedding and
@@ -53,6 +59,14 @@ typedef struct gvizLayerGraph {
 void gvizLayerGraphInit(gvizLayerGraph *layer, gvizEmbeddedGraph *graph,
                         void (*releaseGraph)(gvizEmbeddedGraph *),
                         const gvizViewport viewport, size_t z);
+
+/*
+ * Bind this layer to a scene-registered graph handle. Retains the handle
+ * (the layer holds one ref) and subscribes to mutation events. Pass NULL
+ * for @p cb to skip subscription. Call after gvizLayerGraphInit.
+ */
+void gvizLayerGraphBindHandle(gvizLayerGraph *layer, gvizScene *scene,
+                              gvizSceneGraphHandle h, gvizGraphCallback cb);
 
 /* Update which render passes (edges, discs) the underlying VBO uses. */
 void gvizLayerGraphSetVBOMode(gvizLayerGraph *layer, unsigned int mode);

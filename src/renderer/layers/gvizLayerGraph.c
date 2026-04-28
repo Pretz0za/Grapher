@@ -53,6 +53,8 @@ void gvizLayerGraphInit(gvizLayerGraph *layer, gvizEmbeddedGraph *graph,
                                    (Vector2){viewport.x + viewport.width * 0.5f,
                                              viewport.y + viewport.height * 0.5f},
                                    0.0f, 1.0f);
+  layer->scene = NULL;
+  layer->graphHandle = GVIZ_SCENE_GRAPH_INVALID;
   layer->graph = graph;
   layer->releaseGraph = releaseGraph;
   layer->onTopologyChanged = NULL;
@@ -134,9 +136,23 @@ void gvizLayerGraphUpdate(void *layer, float dt) {
   (void)dt;
 }
 
+void gvizLayerGraphBindHandle(gvizLayerGraph *layer, gvizScene *scene,
+                              gvizSceneGraphHandle h, gvizGraphCallback cb) {
+  layer->scene = scene;
+  layer->graphHandle = h;
+  gvizSceneRetainGraph(scene, h);
+  if (cb) gvizSceneSubscribeGraph(scene, h, layer, cb);
+}
+
 void gvizLayerGraphRelease(void *layer) {
   gvizLayerGraph *self = (gvizLayerGraph *)layer;
   gvizGraphVBORelease(&self->vbo);
+  if (self->scene && self->graphHandle != GVIZ_SCENE_GRAPH_INVALID) {
+    gvizSceneUnsubscribeGraph(self->scene, self->graphHandle, self);
+    gvizSceneReleaseGraph(self->scene, self->graphHandle);
+    self->scene = NULL;
+    self->graphHandle = GVIZ_SCENE_GRAPH_INVALID;
+  }
   if (self->releaseGraph && self->graph)
     self->releaseGraph(self->graph);
   self->graph = NULL;
@@ -286,6 +302,11 @@ int gvizLayerGraphAddVertex(gvizLayerGraph *layer, const double *startPos) {
   gvizLayerGraphRebuildEdgeIndex(layer);
   layer->gpuDirty = 2;
   if (layer->onTopologyChanged) layer->onTopologyChanged(eg);
+  if (layer->scene && layer->graphHandle != GVIZ_SCENE_GRAPH_INVALID) {
+    gvizGraphVertexEvent ev = {newIdx};
+    gvizSceneNotifyGraphChanged(layer->scene, layer->graphHandle, layer,
+                                GVIZ_GRAPH_VERTEX_ADDED, &ev);
+  }
   return 0;
 }
 
@@ -308,6 +329,11 @@ int gvizLayerGraphRemoveVertex(gvizLayerGraph *layer, size_t v) {
   gvizLayerGraphRebuildEdgeIndex(layer);
   layer->gpuDirty = 2;
   if (layer->onTopologyChanged) layer->onTopologyChanged(eg);
+  if (layer->scene && layer->graphHandle != GVIZ_SCENE_GRAPH_INVALID) {
+    gvizGraphVertexEvent ev = {v};
+    gvizSceneNotifyGraphChanged(layer->scene, layer->graphHandle, layer,
+                                GVIZ_GRAPH_VERTEX_REMOVED, &ev);
+  }
   return 0;
 }
 
@@ -317,6 +343,11 @@ int gvizLayerGraphAddEdge(gvizLayerGraph *layer, size_t u, size_t v) {
   gvizLayerGraphRebuildEdgeIndex(layer);
   layer->gpuDirty = 2;
   if (layer->onTopologyChanged) layer->onTopologyChanged(layer->graph);
+  if (layer->scene && layer->graphHandle != GVIZ_SCENE_GRAPH_INVALID) {
+    gvizGraphEdgeEvent ev = {u, v};
+    gvizSceneNotifyGraphChanged(layer->scene, layer->graphHandle, layer,
+                                GVIZ_GRAPH_EDGE_ADDED, &ev);
+  }
   return 0;
 }
 
@@ -326,5 +357,10 @@ int gvizLayerGraphRemoveEdge(gvizLayerGraph *layer, size_t u, size_t v) {
   gvizLayerGraphRebuildEdgeIndex(layer);
   layer->gpuDirty = 2;
   if (layer->onTopologyChanged) layer->onTopologyChanged(layer->graph);
+  if (layer->scene && layer->graphHandle != GVIZ_SCENE_GRAPH_INVALID) {
+    gvizGraphEdgeEvent ev = {u, v};
+    gvizSceneNotifyGraphChanged(layer->scene, layer->graphHandle, layer,
+                                GVIZ_GRAPH_EDGE_REMOVED, &ev);
+  }
   return 0;
 }
