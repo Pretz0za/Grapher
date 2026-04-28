@@ -102,10 +102,14 @@ layers. Mutations on one layer notify all peers sharing the same graph.
       no two layers share a graph today. Wire real callbacks once a scene
       embeds the same graph in two layers simultaneously.
 
-### Saga 3.5: Builder updates  (PENDING)
-- [ ] Builders in `gvizSceneBuilders.c` still pass an inline cloned graph
-      to each layer. Migration to register-then-bind awaits the per-layer
-      bindings above.
+### Saga 3.5: Builder updates
+- [x] Every builder now: heap-allocates the source graph, registers it
+      with the scene (transfers ownership), inits the layer, then calls
+      `BindHandle(layer, scene, h, NULL)` and drops the register-time
+      ref. Scene registry is the single owner of the source graph;
+      layers still hold local clones internally for their embeddings.
+- [x] Removed source-graph free from `releaseEmbeddedTree` callback —
+      registry owns it now.
 
 ---
 
