@@ -55,6 +55,14 @@ static int commonInit(gvizScene *s) {
     gvizArrayRelease(&s->layers);
     return -1;
   }
+  if (gvizArrayInit(&s->graphs, sizeof(gvizSceneGraphEntry)) != 0) {
+    gvizArrayRelease(&s->layers);
+    gvizArrayRelease(&s->pendingRemove);
+    return -1;
+  }
+  /* Push a sentinel entry so handle 0 is reserved as invalid. */
+  gvizSceneGraphEntry sentinel = {0};
+  gvizArrayPush(&s->graphs, &sentinel);
   s->focused = NULL;
   s->bg[0] = 245;
   s->bg[1] = 245;
@@ -96,7 +104,100 @@ void gvizSceneRelease(gvizScene *s) {
   }
   gvizArrayRelease(&s->layers);
   gvizArrayRelease(&s->pendingRemove);
+  /* Free any leftover registry entries (skip sentinel at index 0). */
+  for (size_t i = 1; i < s->graphs.count; i++) {
+    gvizSceneGraphEntry *e = (gvizSceneGraphEntry *)gvizArrayAtIndex(&s->graphs, i);
+    if (e->graph) {
+      gvizGraphRelease(e->graph);
+      GVIZ_DEALLOC(e->graph);
+      e->graph = NULL;
+    }
+    if (e->subscribers.arr) gvizArrayRelease(&e->subscribers);
+  }
+  gvizArrayRelease(&s->graphs);
   s->focused = NULL;
+}
+
+/* ---- Graph registry ----------------------------------------------------- */
+
+static gvizSceneGraphEntry *entryFor(gvizScene *s, gvizSceneGraphHandle h) {
+  if (h == GVIZ_SCENE_GRAPH_INVALID || h >= s->graphs.count) return NULL;
+  return (gvizSceneGraphEntry *)gvizArrayAtIndex(&s->graphs, h);
+}
+
+gvizSceneGraphHandle gvizSceneRegisterGraph(gvizScene *s, gvizGraph *graph) {
+  if (!graph) return GVIZ_SCENE_GRAPH_INVALID;
+  gvizSceneGraphEntry e;
+  e.graph = graph;
+  e.refCount = 1;
+  if (gvizArrayInit(&e.subscribers, sizeof(gvizGraphSubscriber)) != 0)
+    return GVIZ_SCENE_GRAPH_INVALID;
+  if (gvizArrayPush(&s->graphs, &e) != 0) {
+    gvizArrayRelease(&e.subscribers);
+    return GVIZ_SCENE_GRAPH_INVALID;
+  }
+  return s->graphs.count - 1;
+}
+
+void gvizSceneRetainGraph(gvizScene *s, gvizSceneGraphHandle h) {
+  gvizSceneGraphEntry *e = entryFor(s, h);
+  if (e) e->refCount++;
+}
+
+void gvizSceneReleaseGraph(gvizScene *s, gvizSceneGraphHandle h) {
+  gvizSceneGraphEntry *e = entryFor(s, h);
+  if (!e || e->refCount == 0) return;
+  e->refCount--;
+  if (e->refCount == 0) {
+    if (e->graph) {
+      gvizGraphRelease(e->graph);
+      GVIZ_DEALLOC(e->graph);
+      e->graph = NULL;
+    }
+    if (e->subscribers.arr) gvizArrayRelease(&e->subscribers);
+    /* Slot left as a tombstone — handles never get reused. */
+  }
+}
+
+gvizGraph *gvizSceneGetGraph(gvizScene *s, gvizSceneGraphHandle h) {
+  gvizSceneGraphEntry *e = entryFor(s, h);
+  return e ? e->graph : NULL;
+}
+
+int gvizSceneSubscribeGraph(gvizScene *s, gvizSceneGraphHandle h,
+                            void *self, gvizGraphCallback cb) {
+  gvizSceneGraphEntry *e = entryFor(s, h);
+  if (!e) return -1;
+  gvizGraphSubscriber sub = {self, cb};
+  return gvizArrayPush(&e->subscribers, &sub);
+}
+
+void gvizSceneUnsubscribeGraph(gvizScene *s, gvizSceneGraphHandle h,
+                               void *self) {
+  gvizSceneGraphEntry *e = entryFor(s, h);
+  if (!e) return;
+  for (size_t i = 0; i < e->subscribers.count; i++) {
+    gvizGraphSubscriber *sub =
+        (gvizGraphSubscriber *)gvizArrayAtIndex(&e->subscribers, i);
+    if (sub->self == self) {
+      gvizArrayDeleteAtIndex(&e->subscribers, i);
+      return;
+    }
+  }
+}
+
+void gvizSceneNotifyGraphChanged(gvizScene *s, gvizSceneGraphHandle h,
+                                 void *originator,
+                                 gvizGraphEventKind kind,
+                                 const void *payload) {
+  gvizSceneGraphEntry *e = entryFor(s, h);
+  if (!e) return;
+  for (size_t i = 0; i < e->subscribers.count; i++) {
+    gvizGraphSubscriber *sub =
+        (gvizGraphSubscriber *)gvizArrayAtIndex(&e->subscribers, i);
+    if (sub->self == originator) continue;
+    if (sub->cb) sub->cb(sub->self, kind, payload);
+  }
 }
 
 int gvizSceneAddLayer(gvizScene *s, gvizLayer *layer) {

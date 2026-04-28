@@ -3,8 +3,28 @@
 
 #include "core/event.h"
 #include "core/gvizCamera.h"
+#include "core/gvizGraphEvent.h"
 #include "dsa/gvizArray.h"
+#include "dsa/gvizGraph.h"
 #include "renderer/layers/gvizLayer.h"
+
+/*
+ * Handle into the scene's graph registry. 0 is reserved as invalid; valid
+ * handles are 1-based indices into the entries array.
+ */
+typedef size_t gvizSceneGraphHandle;
+#define GVIZ_SCENE_GRAPH_INVALID ((gvizSceneGraphHandle)0)
+
+typedef struct gvizGraphSubscriber {
+  void *self;
+  gvizGraphCallback cb;
+} gvizGraphSubscriber;
+
+typedef struct gvizSceneGraphEntry {
+  gvizGraph *graph;        /* heap-owned */
+  size_t refCount;
+  gvizArray subscribers;   /* gvizGraphSubscriber values */
+} gvizSceneGraphEntry;
 
 typedef enum gvizSceneMode {
   GVIZ_SCENE_2D,
@@ -78,6 +98,10 @@ typedef struct gvizScene {
   /* Active region + slot policy. Recomputed on resize and on layer add/remove. */
   gvizSceneLayout layout;
 
+  /* Graph registry: array of gvizSceneGraphEntry. Index 0 is unused so that
+   * handle 0 can serve as invalid. */
+  gvizArray graphs;
+
   /* Background clear color (RGBA). */
   unsigned char bg[4];
 
@@ -125,5 +149,38 @@ void gvizSceneRecomputeSlots(gvizScene *s);
  * or NULL if none. Screen-space layers are skipped.
  */
 gvizLayer *gvizSceneFindLayerAt(gvizScene *s, int sx, int sy);
+
+/* ---- Graph registry ----------------------------------------------------- */
+
+/*
+ * Register an existing heap-allocated graph with the scene. The scene takes
+ * ownership and frees it once refCount drops to 0. Returns a handle (>=1)
+ * or GVIZ_SCENE_GRAPH_INVALID on allocation failure.
+ */
+gvizSceneGraphHandle gvizSceneRegisterGraph(gvizScene *s, gvizGraph *graph);
+
+/* Bump refCount on a registered graph. */
+void gvizSceneRetainGraph(gvizScene *s, gvizSceneGraphHandle h);
+
+/* Decrement refCount; frees + clears entry when it hits 0. */
+void gvizSceneReleaseGraph(gvizScene *s, gvizSceneGraphHandle h);
+
+/* Resolve a handle to its underlying gvizGraph. Returns NULL if invalid. */
+gvizGraph *gvizSceneGetGraph(gvizScene *s, gvizSceneGraphHandle h);
+
+/* Subscribe / unsubscribe to graph mutation events. */
+int  gvizSceneSubscribeGraph(gvizScene *s, gvizSceneGraphHandle h,
+                             void *self, gvizGraphCallback cb);
+void gvizSceneUnsubscribeGraph(gvizScene *s, gvizSceneGraphHandle h,
+                               void *self);
+
+/*
+ * Fan out an event to all subscribers of @p h, skipping @p originator
+ * (pass NULL to notify everyone).
+ */
+void gvizSceneNotifyGraphChanged(gvizScene *s, gvizSceneGraphHandle h,
+                                 void *originator,
+                                 gvizGraphEventKind kind,
+                                 const void *payload);
 
 #endif
