@@ -33,4 +33,22 @@ gvizCamera gvizCameraMake3D(Vector3 position, Vector3 target, Vector3 up,
  */
 Vector2 gvizCameraScreenToWorld2D(const gvizCamera *cam, Vector2 screen);
 
+/*
+ * Reusable input helpers — handle pan/zoom/rotation for a camera bound to a
+ * specific viewport rect. Caller supplies current mouse position (screen px),
+ * mouse delta, wheel delta, and whether left-button is held. The viewport
+ * (vx,vy,vw,vh) lets the helper set up a sensible 2D offset and reject input
+ * that originated outside the layer.
+ *
+ * `interactive` should be 0 when the layer is not under cursor — the helper
+ * still updates aspect-ratio-bound state (for 2D, the offset on resize) but
+ * skips pan/zoom.
+ */
+void gvizCameraHandleInput2D(gvizCamera *cam, int vx, int vy, int vw, int vh,
+                             float mx, float my, float mdx, float mdy,
+                             float wheel, int leftHeld, int interactive);
+void gvizCameraHandleInput3D(gvizCamera *cam, int vx, int vy, int vw, int vh,
+                             float mdx, float mdy, float wheel,
+                             int leftHeld, int rightHeld, int interactive);
+
 #endif

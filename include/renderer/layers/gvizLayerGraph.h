@@ -1,6 +1,7 @@
 #ifndef _GVIZ_LAYER_GRAPH_H_
 #define _GVIZ_LAYER_GRAPH_H_
 
+#include "core/gvizCamera.h"
 #include "dsa/gvizBitArray.h"
 #include "renderer/embeddings/gvizEmbeddedGraph.h"
 #include "renderer/layers/gvizGraphVBO.h"
@@ -8,6 +9,10 @@
 
 typedef struct gvizLayerGraph {
   gvizLayer layer;
+  /* Per-layer camera. Component layers always carry their own camera; the
+   * scene's input router resolves world coords through the camera of the
+   * layer under the cursor. */
+  gvizCamera camera;
   gvizEmbeddedGraph *graph;
   /*
    * If non-NULL, called on release to tear down and free the embedding and
@@ -57,6 +62,7 @@ void gvizLayerGraphUpdate(void *layer, float dt);
 void gvizLayerGraphRelease(void *layer);
 int gvizLayerGraphHandleEvent(void *layer, const gvizEvent *event);
 int gvizLayerGraphHitTest(void *layer, float wx, float wy);
+struct gvizCamera *gvizLayerGraphGetCamera(void *layer);
 
 /* ---- Highlight API ------------------------------------------------------- */
 
@@ -114,6 +120,7 @@ static const gvizLayerVTable GVIZ_LAYER_GRAPH_VTABLE = {
     .onEvent = gvizLayerGraphHandleEvent,
     .release = gvizLayerGraphRelease,
     .hitTest = gvizLayerGraphHitTest,
+    .getCamera = gvizLayerGraphGetCamera,
 };
 
 #endif

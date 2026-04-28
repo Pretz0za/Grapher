@@ -12,10 +12,10 @@
  *
  * On boundary setup, the N_I × N_I averaging matrix M_II (= D^{-1} * A_II)
  * and the constant boundary contribution rhs (= D^{-1} * A_IB * x_B) are
- * precomputed. Each call to gvizTutteEmbeddingStep performs one Jacobi
- * relaxation pass via cblas_dgemv:
+ * precomputed. Each call to gvizTutteEmbeddingStep performs one pure Jacobi
+ * sweep via cblas_dgemv:
  *   bary = M_II * x_I + rhs   (full neighbor barycenter for each interior vertex)
- *   x_I += alpha * (bary - x_I)
+ *   x_I  = bary               (direct assignment, no blend)
  *
  * The first field MUST remain gvizEmbeddedGraph so that a pointer to this
  * struct may be safely cast to gvizEmbeddedGraph * for renderer/layer code.
@@ -36,9 +36,7 @@ typedef struct gvizTutteState {
     size_t iteration;
     double lastMaxDelta;
     int converged;
-    int useGaussSeidel;          /* reserved */
     double epsilon;
-    double relaxationRate;       /* blend factor per second (default 5.0) */
 } gvizTutteState;
 
 /**
@@ -76,16 +74,16 @@ int gvizTutteEmbeddingSetBoundary(gvizTutteState *s, const size_t *boundary,
 void gvizTutteEmbeddingSeedInterior(gvizTutteState *s);
 
 /**
- * Advances the embedding by one dt-weighted Jacobi relaxation pass using
- * cblas_dgemv. For each coordinate dimension:
+ * Advances the embedding by one pure Jacobi sweep using cblas_dgemv.
+ * For each coordinate dimension:
  *   bary = M_II * x_I + rhs  (full neighbor barycenter via matrix multiply)
- *   x_I += clamp(relaxationRate * dt, 0, 1) * (bary - x_I)
+ *   x_I  = bary              (direct assignment)
  * Returns the maximum per-vertex L2 displacement, or 0 if matrix not built.
  */
-double gvizTutteEmbeddingStep(gvizTutteState *s, double dt);
+double gvizTutteEmbeddingStep(gvizTutteState *s);
 
 /**
- * Runs until converged or @p maxIters steps taken (dt=1 per step).
+ * Runs until converged or @p maxIters steps taken.
  * Returns iteration count used, or -1 if state is invalid.
  */
 int gvizTutteEmbeddingRun(gvizTutteState *s, size_t maxIters);

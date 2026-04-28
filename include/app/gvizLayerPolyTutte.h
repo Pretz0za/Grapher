@@ -1,10 +1,11 @@
 #ifndef _GVIZ_APP_LAYER_POLY_TUTTE_H_
 #define _GVIZ_APP_LAYER_POLY_TUTTE_H_
 
+#include "core/gvizCamera.h"
 #include "dsa/gvizArray.h"
 #include "dsa/gvizBitArray.h"
 #include "dsa/gvizGraph.h"
-#include "renderer/embeddings/gvizTutteSolveEmbedding.h"
+#include "renderer/embeddings/gvizTutteEmbedding.h"
 #include "renderer/layers/gvizGraphVBO.h"
 #include "renderer/layers/gvizLayer.h"
 
@@ -22,8 +23,9 @@ typedef enum gvizLayerPolyTuttePhase {
  */
 typedef struct gvizLayerPolyTutte {
     gvizLayer layer;          /* MUST be first */
+    gvizCamera camera;
     gvizGraph graph;
-    gvizTutteSolveState tutte;
+    gvizTutteState tutte;
     gvizGraphVBO vbo;
     int gpuDirty;             /* 2=topology, 1=positions, 0=clean */
     int highlightDirty;
@@ -66,6 +68,7 @@ void gvizLayerPolyTutteDraw(void *layer, const gvizCamera *camera);
 void gvizLayerPolyTutteUpdate(void *layer, float dt);
 void gvizLayerPolyTutteRelease(void *layer);
 int gvizLayerPolyTutteHandleEvent(void *layer, const gvizEvent *event);
+struct gvizCamera *gvizLayerPolyTutteGetCamera(void *layer);
 
 static const gvizLayerVTable GVIZ_LAYER_POLY_TUTTE_VTABLE = {
     .draw    = gvizLayerPolyTutteDraw,
@@ -73,6 +76,7 @@ static const gvizLayerVTable GVIZ_LAYER_POLY_TUTTE_VTABLE = {
     .release = gvizLayerPolyTutteRelease,
     .onEvent = gvizLayerPolyTutteHandleEvent,
     .hitTest = NULL,
+    .getCamera = gvizLayerPolyTutteGetCamera,
 };
 
 #endif

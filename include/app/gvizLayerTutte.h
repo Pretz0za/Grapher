@@ -1,6 +1,7 @@
 #ifndef _GVIZ_APP_LAYER_TUTTE_H_
 #define _GVIZ_APP_LAYER_TUTTE_H_
 
+#include "core/gvizCamera.h"
 #include "dsa/gvizGraph.h"
 #include "renderer/embeddings/gvizTutteEmbedding.h"
 #include "renderer/layers/gvizGraphVBO.h"
@@ -13,6 +14,7 @@
  */
 typedef struct gvizLayerTutte {
     gvizLayer layer;     /* MUST be first */
+    gvizCamera camera;
     gvizGraph graph;
     gvizTutteState tutte;
     gvizGraphVBO vbo;
@@ -47,6 +49,7 @@ void gvizLayerTutteDraw(void *layer, const gvizCamera *camera);
 void gvizLayerTutteUpdate(void *layer, float dt);
 void gvizLayerTutteRelease(void *layer);
 int gvizLayerTutteHandleEvent(void *layer, const gvizEvent *event);
+struct gvizCamera *gvizLayerTutteGetCamera(void *layer);
 
 static const gvizLayerVTable GVIZ_LAYER_TUTTE_VTABLE = {
     .draw    = gvizLayerTutteDraw,
@@ -54,6 +57,7 @@ static const gvizLayerVTable GVIZ_LAYER_TUTTE_VTABLE = {
     .release = gvizLayerTutteRelease,
     .onEvent = gvizLayerTutteHandleEvent,
     .hitTest = NULL,
+    .getCamera = gvizLayerTutteGetCamera,
 };
 
 #endif

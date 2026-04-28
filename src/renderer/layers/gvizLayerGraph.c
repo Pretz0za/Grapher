@@ -49,6 +49,10 @@ void gvizLayerGraphInit(gvizLayerGraph *layer, gvizEmbeddedGraph *graph,
                         void (*releaseGraph)(gvizEmbeddedGraph *),
                         const gvizViewport viewport, size_t z) {
   gvizLayerInit((gvizLayer *)layer, viewport, &GVIZ_LAYER_GRAPH_VTABLE, z);
+  layer->camera = gvizCameraMake2D((Vector2){0, 0},
+                                   (Vector2){viewport.x + viewport.width * 0.5f,
+                                             viewport.y + viewport.height * 0.5f},
+                                   0.0f, 1.0f);
   layer->graph = graph;
   layer->releaseGraph = releaseGraph;
   layer->onTopologyChanged = NULL;
@@ -148,6 +152,10 @@ int gvizLayerGraphHandleEvent(void *layer, const gvizEvent *event) {
   (void)layer;
   (void)event;
   return 0;
+}
+
+struct gvizCamera *gvizLayerGraphGetCamera(void *layer) {
+  return &((gvizLayerGraph *)layer)->camera;
 }
 
 int gvizLayerGraphHitTest(void *layer, float wx, float wy) {

@@ -438,10 +438,10 @@ void placeLayerVertices(gvizGRIPState *state, size_t layer,
     assert(!gvizTestBit(placedVertices, state->misFiltration[i]));
 
     // printf("placing vertex %zu\n", state->misFiltration[i]);
-    gvizFoundVertex found[32];
+    gvizFoundVertex found[8];
 
     size_t count = gvizGraphKNearestNeighbors(
-        embedding->graph, found, 32, state->misFiltration[i], placedVertices);
+        embedding->graph, found, 8, state->misFiltration[i], placedVertices);
 
     assert(count > 0);
 
@@ -540,8 +540,8 @@ void calculateSpringForces(gvizGRIPState *state, size_t v, gvizArray *knn,
   return;
 }
 
-void refineGRIPPositions(gvizGRIPState *state, size_t layer,
-                         GVIZ_BIT_ARRAY placedVertices) {
+gvizArray *gvizGRIPPrepareLayerKNNs(gvizGRIPState *state, size_t layer,
+                                    GVIZ_BIT_UNIT *placed) {
   gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
 
   memset(state->dispCalculated, 0,
@@ -558,73 +558,72 @@ void refineGRIPPositions(gvizGRIPState *state, size_t layer,
   }
 
   gvizArray *knns = GVIZ_ALLOC(sizeof(gvizArray) * state->misBorder[layer]);
-  // gvizArray knns[state->misBorder[layer]];
+  if (!knns)
+    return NULL;
   for (size_t i = 0; i < state->misBorder[layer]; i++) {
-    gvizArrayInitAtCapacity(&knns[i], sizeof(gvizFoundVertex), 128);
-    knns[i].count =
-        gvizGraphKNearestNeighbors(embedding->graph, knns[i].arr, 128,
-                                   state->misFiltration[i], placedVertices);
+    gvizArrayInitAtCapacity(&knns[i], sizeof(gvizFoundVertex), 32);
+    knns[i].count = gvizGraphKNearestNeighbors(
+        embedding->graph, knns[i].arr, 32, state->misFiltration[i], placed);
+  }
+  return knns;
+}
+
+void gvizGRIPRefineOneRound(gvizGRIPState *state, size_t layer,
+                            gvizArray *knns) {
+  gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
+
+  for (size_t i = 0; i < state->misBorder[layer]; i++) {
+    size_t curr = state->misFiltration[i];
+    gvizGRIPDecorators *dec = state->dec + curr;
+
+    cblas_dcopy(embedding->embedding.dim, dec->disp, 1, dec->oldDisp, 1);
+
+    calculateSpringForces(state, curr, knns + i, layer, state->dispCalculated);
+
+    if (!gvizTestBit(state->dispCalculated, curr)) {
+      gvizSetBit(state->dispCalculated, curr);
+      dec->heat = GVIZ_EDGE_LENGTH / 6.0;
+    } else
+      updateLocalTemp(state, curr);
+
+    dec->heat = fmin(dec->heat, GVIZ_EDGE_LENGTH * 10);
+    dec->heat = fmax(dec->heat, GVIZ_EDGE_LENGTH * 1e-4);
+
+    double nrm = cblas_dnrm2(embedding->embedding.dim, dec->disp, 1);
+    if (nrm > gvizNumericEpsilon) {
+      cblas_dscal(embedding->embedding.dim, dec->heat / nrm, dec->disp, 1);
+    }
   }
 
-  // TODO: implement rounds instead of hardcoding
-  for (size_t r = 0; r < 36; r++) {
-    printf("Refining layer %zu... round %zu\n", layer, r);
-    // calculate normalized displacements
-    for (size_t i = 0; i < state->misBorder[layer]; i++) {
-      size_t curr = state->misFiltration[i];
-      gvizGRIPDecorators *dec = state->dec + curr;
+  for (size_t i = 0; i < state->misBorder[layer]; i++) {
+    size_t curr = state->misFiltration[i];
+    gvizGRIPDecorators *dec = state->dec + curr;
+    gvizEmbeddedGraphAddVPosition(embedding, curr, dec->disp);
 
-      // oldDisp = disp
-      cblas_dcopy(embedding->embedding.dim, dec->disp, 1, dec->oldDisp, 1);
-
-      calculateSpringForces(state, curr, knns + i, layer, placedVertices);
-
-      if (!gvizTestBit(state->dispCalculated, curr)) {
-        gvizSetBit(state->dispCalculated, curr);
-        dec->heat = GVIZ_EDGE_LENGTH / 6.0;
-      } else
-        updateLocalTemp(state, curr);
-
-      dec->heat = fmin(dec->heat, GVIZ_EDGE_LENGTH * 10);
-      dec->heat = fmax(dec->heat, GVIZ_EDGE_LENGTH * 1e-4);
-
-      double nrm = cblas_dnrm2(embedding->embedding.dim, dec->disp, 1);
-      // avoid division by zero here:
-      if (nrm > gvizNumericEpsilon) {
-        cblas_dscal(embedding->embedding.dim, dec->heat / nrm, dec->disp, 1);
-      }
-    }
-
-    size_t nonzero, zero;
-    zero = nonzero = 0;
-
-    // update positions, pos = pos + disp
-    for (size_t i = 0; i < state->misBorder[layer]; i++) {
-      size_t curr = state->misFiltration[i];
-      gvizGRIPDecorators *dec = state->dec + curr;
-      gvizEmbeddedGraphAddVPosition(embedding, curr, dec->disp);
-
-      double nrm = cblas_dnrm2(embedding->embedding.dim, dec->disp, 1);
-      if (nrm > gvizNumericEpsilon)
-        nonzero++;
-      else
-        zero++;
-
-      assert(!isnan(gvizEmbeddedGraphGetVPosition(embedding, curr)[0]) &&
-             !isnan((gvizEmbeddedGraphGetVPosition(embedding, curr)[1])));
-    }
-
-    // printf("layer %zu, round %zu. zero vector disp count: %zu, non-zero
-    // vector "
-    //        "disp count: %zu\n",
-    // layer, r, zero, nonzero);
+    assert(!isnan(gvizEmbeddedGraphGetVPosition(embedding, curr)[0]) &&
+           !isnan((gvizEmbeddedGraphGetVPosition(embedding, curr)[1])));
   }
+}
 
-  // clean up
+void gvizGRIPReleaseLayerKNNs(gvizGRIPState *state, size_t layer,
+                              gvizArray *knns) {
+  if (!knns)
+    return;
   for (size_t i = 0; i < state->misBorder[layer]; i++) {
     gvizArrayRelease(&knns[i]);
   }
   GVIZ_DEALLOC(knns);
+}
+
+void refineGRIPPositions(gvizGRIPState *state, size_t layer,
+                         GVIZ_BIT_ARRAY placedVertices) {
+  gvizArray *knns = gvizGRIPPrepareLayerKNNs(state, layer, placedVertices);
+  if (!knns)
+    return;
+  for (size_t r = 0; r < 24; r++) {
+    gvizGRIPRefineOneRound(state, layer, knns);
+  }
+  gvizGRIPReleaseLayerKNNs(state, layer, knns);
 }
 
 int gvizGRIPRefineEmbedding(gvizGRIPState *state) {
@@ -687,7 +686,7 @@ int gvizGRIPEmbeddingEmbed(gvizGRIPState *state) {
              state->misBorder[layerCount - 1]);
       // first layer placement
       double simplex[embedding->embedding.dim * (embedding->embedding.dim + 1)];
-      makeRegularSimplex(embedding->embedding.dim, GVIZ_EDGE_LENGTH * 1000,
+      makeRegularSimplex(embedding->embedding.dim, GVIZ_EDGE_LENGTH * 10000,
                          simplex);
       // makeEquilateralTriangle2(triangle, GVIZ_EDGE_LENGTH * 1000);
       for (size_t j = 0; j < embedding->embedding.dim + 1; j++) {

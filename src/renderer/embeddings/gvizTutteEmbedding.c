@@ -54,9 +54,7 @@ int gvizTutteEmbeddingInit(gvizTutteState *s, gvizGraph *g, size_t dimension,
     s->iteration = 0;
     s->lastMaxDelta = 0.0;
     s->converged = 0;
-    s->useGaussSeidel = 0;
     s->epsilon = (epsilon > 0.0) ? epsilon : GVIZ_TUTTE_DEFAULT_EPSILON;
-    s->relaxationRate = 5.0;
 
     return 0;
 }
@@ -214,16 +212,12 @@ int gvizTutteEmbeddingBuildMatrix(gvizTutteState *s) {
 
 /* ---- step ----------------------------------------------------------------- */
 
-double gvizTutteEmbeddingStep(gvizTutteState *s, double dt) {
+double gvizTutteEmbeddingStep(gvizTutteState *s) {
     if (!s->matrixBuilt)
         return 0.0;
 
     size_t NI = s->numInterior;
     size_t d = dim(s);
-
-    double alpha = s->relaxationRate * dt;
-    if (alpha <= 0.0) return 0.0;
-    if (alpha > 1.0)  alpha = 1.0;
 
     /* Accumulate squared displacement per interior vertex across all dims. */
     double deltaSum[NI];
@@ -244,10 +238,9 @@ double gvizTutteEmbeddingStep(gvizTutteState *s, double dt) {
         /* baryBuf += rhs[:,k]  (precomputed boundary contribution, stride=d). */
         cblas_daxpy((int)NI, 1.0, s->rhs + k, (int)d, s->baryBuf, 1);
 
-        /* Relaxation: x[i][k] += alpha * (bary[i] - x[i][k]). */
         for (size_t i = 0; i < NI; i++) {
-            double diff = alpha * (s->baryBuf[i] - s->xiBuf[i]);
-            livePos(s, s->interiorIdx[i])[k] += diff;
+            double diff = s->baryBuf[i] - s->xiBuf[i];
+            livePos(s, s->interiorIdx[i])[k] = s->baryBuf[i];
             deltaSum[i] += diff * diff;
         }
     }
@@ -271,7 +264,7 @@ int gvizTutteEmbeddingRun(gvizTutteState *s, size_t maxIters) {
         return -1;
 
     while (!s->converged && s->iteration < maxIters)
-        gvizTutteEmbeddingStep(s, 1.0);
+        gvizTutteEmbeddingStep(s);
 
     return (int)s->iteration;
 }

@@ -79,6 +79,7 @@ int gvizLayerTutteInit(gvizLayerTutte *layer, gvizGraph *g,
                        double boundaryRadius, size_t z) {
   gvizLayerInit((gvizLayer *)layer, (gvizViewport){0, 0, 0, 0},
                 &GVIZ_LAYER_TUTTE_VTABLE, z);
+  layer->camera = gvizCameraMake2D((Vector2){0, 0}, (Vector2){0, 0}, 0.0f, 1.0f);
   layer->layer.flags = GVIZ_LAYER_VISIBLE;
   layer->paused = 0;
   layer->pendingVertex = SIZE_MAX;
@@ -92,8 +93,6 @@ int gvizLayerTutteInit(gvizLayerTutte *layer, gvizGraph *g,
     gvizGraphRelease(&layer->graph);
     return -1;
   }
-  layer->tutte.relaxationRate = 10.0;
-
   gvizTutteFixConvexPolygon(&layer->tutte, boundary, boundaryCount,
                             boundaryRadius);
   gvizTutteEmbeddingSeedInterior(&layer->tutte);
@@ -110,6 +109,7 @@ int gvizLayerTutteInit(gvizLayerTutte *layer, gvizGraph *g,
 int gvizLayerTutteInitEmpty(gvizLayerTutte *layer, size_t z) {
   gvizLayerInit((gvizLayer *)layer, (gvizViewport){0, 0, 0, 0},
                 &GVIZ_LAYER_TUTTE_VTABLE, z);
+  layer->camera = gvizCameraMake2D((Vector2){0, 0}, (Vector2){0, 0}, 0.0f, 1.0f);
   layer->layer.flags = GVIZ_LAYER_VISIBLE;
   layer->paused = 0;
   layer->hasTutte = 0;
@@ -165,11 +165,15 @@ void gvizLayerTutteUpdate(void *layerV, float dt) {
 
   if (self->hasTutte && !self->paused && self->tutte.numInterior > 0 &&
       !self->tutte.converged) {
-    gvizTutteEmbeddingStep(&self->tutte, dt);
+    gvizTutteEmbeddingStep(&self->tutte);
     syncPositionsFromTutte(self);
     if (self->gpuDirty < 1)
       self->gpuDirty = 1;
   }
+}
+
+struct gvizCamera *gvizLayerTutteGetCamera(void *layer) {
+  return &((gvizLayerTutte *)layer)->camera;
 }
 
 void gvizLayerTutteRelease(void *layerV) {
@@ -194,7 +198,7 @@ int gvizLayerTutteHandleEvent(void *layerV, const gvizEvent *event) {
       return 1;
     case KEY_S:
       if (self->hasTutte) {
-        gvizTutteEmbeddingStep(&self->tutte, 1.0f / 60.0f);
+        gvizTutteEmbeddingStep(&self->tutte);
         syncPositionsFromTutte(self);
         self->gpuDirty = 1;
       }

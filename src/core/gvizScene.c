@@ -285,26 +285,21 @@ static int dispatchEvent(gvizScene *s, const gvizEvent *ev) {
   return 0;
 }
 
-static void update2DCamera(gvizScene *s, float wheel) {
-  Camera2D *c = &s->defaultCamera.c2d;
-  if (IsMouseButtonDown(MOUSE_BUTTON_LEFT) && !s->focused) {
-    Vector2 d = GetMouseDelta();
-    c->target.x -= d.x / c->zoom;
-    c->target.y -= d.y / c->zoom;
-  }
-  if (wheel != 0.0f) {
-    Vector2 m = GetMousePosition();
-    Vector2 before = GetScreenToWorld2D(m, *c);
-    c->zoom *= (1.0f + wheel * 0.1f);
-    Vector2 after = GetScreenToWorld2D(m, *c);
-    c->target.x += (before.x - after.x);
-    c->target.y += (before.y - after.y);
-  }
+static gvizCamera *layerCamera(gvizLayer *l) {
+  if (!l || !l->vtable || !l->vtable->getCamera) return NULL;
+  return l->vtable->getCamera(l);
 }
 
-static void fillMouseWorld(const gvizScene *s, float sx, float sy, float *wx,
+static gvizCamera *cameraAt(gvizScene *s, int sx, int sy) {
+  gvizLayer *l = gvizSceneFindLayerAt(s, sx, sy);
+  gvizCamera *cam = layerCamera(l);
+  return cam ? cam : &s->defaultCamera;
+}
+
+static void fillMouseWorld(gvizScene *s, float sx, float sy, float *wx,
                            float *wy) {
-  Vector2 w = gvizCameraScreenToWorld2D(&s->defaultCamera, (Vector2){sx, sy});
+  gvizCamera *cam = cameraAt(s, (int)sx, (int)sy);
+  Vector2 w = gvizCameraScreenToWorld2D(cam, (Vector2){sx, sy});
   *wx = w.x;
   *wy = w.y;
 }
@@ -392,7 +387,7 @@ void gvizSceneHandleInput(gvizScene *s) {
     }
   }
 
-  /* Mouse wheel + camera pan/zoom (2D) */
+  /* Mouse wheel + per-layer camera pan/zoom (2D) */
   float wheel = GetMouseWheelMove();
   if (wheel != 0.0f) {
     gvizEvent ev = {0};
@@ -403,10 +398,24 @@ void gvizSceneHandleInput(gvizScene *s) {
     ev.wheel.dy = wheel;
     ev.wheel.mods = mods;
     if (!dispatchEvent(s, &ev) && s->mode == GVIZ_SCENE_2D) {
-      update2DCamera(s, wheel);
+      gvizLayer *l = gvizSceneFindLayerAt(s, (int)mp.x, (int)mp.y);
+      gvizCamera *cam = layerCamera(l);
+      if (cam && cam->kind == GVIZ_CAMERA_2D)
+        gvizCameraHandleInput2D(cam, l->viewport.x, l->viewport.y,
+                                l->viewport.width, l->viewport.height,
+                                mp.x, mp.y, md.x, md.y, wheel,
+                                IsMouseButtonDown(MOUSE_BUTTON_LEFT), 1);
     }
   } else if (s->mode == GVIZ_SCENE_2D && !s->dividerDragging) {
-    update2DCamera(s, 0.0f);
+    /* No wheel: only pan if left-button is held */
+    if (IsMouseButtonDown(MOUSE_BUTTON_LEFT) && !s->focused) {
+      gvizLayer *l = gvizSceneFindLayerAt(s, (int)mp.x, (int)mp.y);
+      gvizCamera *cam = layerCamera(l);
+      if (cam && cam->kind == GVIZ_CAMERA_2D)
+        gvizCameraHandleInput2D(cam, l->viewport.x, l->viewport.y,
+                                l->viewport.width, l->viewport.height,
+                                mp.x, mp.y, md.x, md.y, 0.0f, 1, 1);
+    }
   }
 
   /* Text input */
@@ -444,34 +453,39 @@ void gvizSceneDraw(gvizScene *s) {
   BeginDrawing();
   ClearBackground((Color){s->bg[0], s->bg[1], s->bg[2], s->bg[3]});
 
-  /* World-space pass */
-  if (s->mode == GVIZ_SCENE_2D)
-    BeginMode2D(s->defaultCamera.c2d);
-  else
-    BeginMode3D(s->defaultCamera.c3d);
-
+  /* Component layers: each in its own viewport scissor + per-layer camera. */
   for (size_t i = 0; i < s->layers.count; i++) {
     gvizLayer *l = *(gvizLayer **)gvizArrayAtIndex(&s->layers, i);
-    if (!(l->flags & GVIZ_LAYER_VISIBLE))
-      continue;
-    if (l->flags & GVIZ_LAYER_SCREEN_SPACE)
-      continue;
-    if (l->vtable && l->vtable->draw)
-      l->vtable->draw(l, &s->defaultCamera);
+    if (!(l->flags & GVIZ_LAYER_VISIBLE)) continue;
+    if (l->flags & GVIZ_LAYER_SCREEN_SPACE) continue;
+    if (!l->vtable || !l->vtable->draw) continue;
+
+    gvizCamera *cam = layerCamera(l);
+    if (!cam) cam = &s->defaultCamera;
+    /* Recenter 2D camera offset to the viewport centre so world-(0,0)
+     * lands at the slot's middle. */
+    if (cam->kind == GVIZ_CAMERA_2D) {
+      cam->c2d.offset = (Vector2){l->viewport.x + l->viewport.width * 0.5f,
+                                  l->viewport.y + l->viewport.height * 0.5f};
+    }
+
+    if (l->viewport.width > 0 && l->viewport.height > 0)
+      BeginScissorMode(l->viewport.x, l->viewport.y,
+                       l->viewport.width, l->viewport.height);
+    if (cam->kind == GVIZ_CAMERA_2D) BeginMode2D(cam->c2d);
+    else                              BeginMode3D(cam->c3d);
+    l->vtable->draw(l, cam);
+    if (cam->kind == GVIZ_CAMERA_2D) EndMode2D();
+    else                              EndMode3D();
+    if (l->viewport.width > 0 && l->viewport.height > 0)
+      EndScissorMode();
   }
 
-  if (s->mode == GVIZ_SCENE_2D)
-    EndMode2D();
-  else
-    EndMode3D();
-
-  /* Screen-space pass */
+  /* Screen-space layers (menus, HUD) drawn last in raw screen coords. */
   for (size_t i = 0; i < s->layers.count; i++) {
     gvizLayer *l = *(gvizLayer **)gvizArrayAtIndex(&s->layers, i);
-    if (!(l->flags & GVIZ_LAYER_VISIBLE))
-      continue;
-    if (!(l->flags & GVIZ_LAYER_SCREEN_SPACE))
-      continue;
+    if (!(l->flags & GVIZ_LAYER_VISIBLE)) continue;
+    if (!(l->flags & GVIZ_LAYER_SCREEN_SPACE)) continue;
     if (l->vtable && l->vtable->draw)
       l->vtable->draw(l, &s->defaultCamera);
   }
