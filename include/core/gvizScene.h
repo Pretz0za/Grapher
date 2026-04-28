@@ -36,8 +36,8 @@ typedef enum gvizSceneMode {
  * left/right margins; the bottom 1/3 is reserved for future HUD/console.
  */
 enum {
-  GVIZ_SCENE_MARGIN_L = 12,
-  GVIZ_SCENE_MARGIN_R = 12,
+  GVIZ_SCENE_MARGIN_L = 48,
+  GVIZ_SCENE_MARGIN_R = 48,
   GVIZ_SCENE_MARGIN_TOP = 12,
   /* The bottom of the active region sits at (screenH * 2/3); see
    * gvizSceneComputeRegion. The constant below is the gap *below* the active
@@ -68,21 +68,15 @@ typedef struct gvizSceneLayout {
 } gvizSceneLayout;
 
 /*
- * A gvizScene owns a list of layers (pointers, z-ordered), a camera, and a
+ * A gvizScene owns a list of layers (pointers, z-ordered) and a
  * pending-destroy list for layers scheduled to be removed after the current
  * frame. Input is polled from raylib, translated into gvizEvents, and
- * dispatched top-down by z (highest z first).
+ * dispatched through the active component layer (with screen-space layers
+ * receiving fall-through). Component layers carry their own gvizCamera via
+ * the vtable getCamera accessor; the scene itself owns no camera.
  */
 typedef struct gvizScene {
   gvizSceneMode mode;
-
-  /*
-   * Default camera. Used as a fallback only — once Saga 2.1 lands, every
-   * component layer carries its own gvizCamera and the scene's camera is
-   * obsolete. Kept here only as a transition shim for layers that have not
-   * yet been migrated; do not add new dependencies on it.
-   */
-  gvizCamera defaultCamera;
 
   /* gvizArray of `gvizLayer *` pointers, kept sorted by z ascending. */
   gvizArray layers;
@@ -93,6 +87,18 @@ typedef struct gvizScene {
   /* The layer the most recent mouse-down was delivered to (for drag tracking).
    * May be NULL. */
   gvizLayer *focused;
+
+  /* The currently active component layer — receives input first and is
+   * highlighted with a border. NULL when there are no component layers. */
+  gvizLayer *activeLayer;
+
+  /* Right-click context-menu callbacks. Invoked from gvizSceneHandleInput on
+   * a right-click press inside layout.region. Either may be NULL. */
+  void (*onEmptyAreaContextMenu)(struct gvizScene *s, int sx, int sy,
+                                 void *userdata);
+  void (*onLayerContextMenu)(struct gvizScene *s, gvizLayer *layer,
+                             int sx, int sy, void *userdata);
+  void *contextMenuUserdata;
 
   /* Active region + slot policy. Recomputed on resize and on layer add/remove. */
   gvizSceneLayout layout;
@@ -113,7 +119,17 @@ typedef struct gvizScene {
  */
 int gvizSceneInit2D(gvizScene *s);
 int gvizSceneInit3D(gvizScene *s);
+/*
+ * Same as gvizSceneInit2D but the scene starts with no layers — the layer-
+ * creation panel chooses the mode when the first layer is added. Defaults
+ * to GVIZ_SCENE_2D so 2D math (slot layout etc.) keeps working.
+ */
+int gvizSceneInitEmpty(gvizScene *s);
 void gvizSceneRelease(gvizScene *s);
+
+/* Set the active component layer (the one receiving input + highlighted).
+ * NULL is allowed (deactivates input routing). */
+void gvizSceneSetActiveLayer(gvizScene *s, gvizLayer *l);
 
 /*
  * Ownership: the scene holds raw `gvizLayer *` pointers but does NOT free

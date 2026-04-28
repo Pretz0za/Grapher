@@ -33,7 +33,6 @@ add_library(graphvis STATIC
 
     src/renderer/layers/gvizLayer.c
     src/renderer/layers/gvizLayerGraph.c
-    src/renderer/layers/gvizLayerMainMenu.c
     src/renderer/layers/gvizGraphVBO.c
     src/renderer/layers/gvizDiscShader.c
     src/renderer/layers/gvizVertexDiscVBO.c

@@ -64,6 +64,10 @@ static int commonInit(gvizScene *s) {
   gvizSceneGraphEntry sentinel = {0};
   gvizArrayPush(&s->graphs, &sentinel);
   s->focused = NULL;
+  s->activeLayer = NULL;
+  s->onEmptyAreaContextMenu = NULL;
+  s->onLayerContextMenu = NULL;
+  s->contextMenuUserdata = NULL;
   s->bg[0] = 245;
   s->bg[1] = 245;
   s->bg[2] = 245;
@@ -79,9 +83,6 @@ int gvizSceneInit2D(gvizScene *s) {
   if (commonInit(s) != 0)
     return -1;
   s->mode = GVIZ_SCENE_2D;
-  Vector2 offset = {(float)GetScreenWidth() / 2.0f,
-                    (float)GetScreenHeight() / 2.0f};
-  s->defaultCamera = gvizCameraMake2D((Vector2){0, 0}, offset, 0.0f, 1.0f);
   return 0;
 }
 
@@ -89,10 +90,19 @@ int gvizSceneInit3D(gvizScene *s) {
   if (commonInit(s) != 0)
     return -1;
   s->mode = GVIZ_SCENE_3D;
-  s->defaultCamera =
-      gvizCameraMake3D((Vector3){0, 0, 2000}, (Vector3){0, 0, 0},
-                       (Vector3){0, 1, 0}, 45.0f, CAMERA_PERSPECTIVE);
   return 0;
+}
+
+int gvizSceneInitEmpty(gvizScene *s) {
+  if (commonInit(s) != 0)
+    return -1;
+  s->mode = GVIZ_SCENE_2D;
+  return 0;
+}
+
+void gvizSceneSetActiveLayer(gvizScene *s, gvizLayer *l) {
+  if (!s) return;
+  s->activeLayer = l;
 }
 
 void gvizSceneRelease(gvizScene *s) {
@@ -207,6 +217,8 @@ int gvizSceneAddLayer(gvizScene *s, gvizLayer *layer) {
     return -1;
   sortLayers(s);
   gvizSceneRecomputeSlots(s);
+  if (!s->activeLayer && !(layer->flags & GVIZ_LAYER_SCREEN_SPACE))
+    s->activeLayer = layer;
   return 0;
 }
 
@@ -246,10 +258,23 @@ static void flushPendingRemoves(gvizScene *s) {
     gvizArrayDeleteAtIndex(&s->layers, (size_t)idx);
     if (s->focused == victim)
       s->focused = NULL;
+    int wasActive = (s->activeLayer == victim);
+    if (wasActive)
+      s->activeLayer = NULL;
     if (victim->vtable && victim->vtable->release)
       victim->vtable->release(victim);
     GVIZ_DEALLOC(victim);
     removed = 1;
+    if (wasActive) {
+      /* Pick the topmost remaining component layer. */
+      for (size_t k = s->layers.count; k-- > 0;) {
+        gvizLayer *cand = *(gvizLayer **)gvizArrayAtIndex(&s->layers, k);
+        if (!(cand->flags & GVIZ_LAYER_SCREEN_SPACE)) {
+          s->activeLayer = cand;
+          break;
+        }
+      }
+    }
   }
   s->pendingRemove.count = 0;
   if (removed) gvizSceneRecomputeSlots(s);
@@ -270,6 +295,9 @@ static size_t countComponentLayers(const gvizScene *s) {
 
 void gvizSceneRecomputeSlots(gvizScene *s) {
   size_t n = countComponentLayers(s);
+  /* 0 component layers: nothing to lay out — empty-region placeholder is
+   * drawn by gvizSceneDraw. Early-return is implicit: the loop below skips
+   * non-component layers and assigns nothing. */
   /* default split policy: 1 layer = none; 2 layers = horizontal */
   if (n <= 1) s->layout.split = GVIZ_SPLIT_NONE;
   else        s->layout.split = GVIZ_SPLIT_H;
@@ -368,19 +396,26 @@ static void dragDivider(gvizScene *s, int sx, int sy) {
 }
 
 /*
- * Dispatch an event to layers in top-down z order. Stops at the first
- * handler that returns 1.
+ * Dispatch an event. Screen-space layers (modals/HUD) get first dibs in
+ * top-down z order — they pre-empt active routing. If none consume, the
+ * scene's activeLayer (the focused component layer) receives the event.
  */
 static int dispatchEvent(gvizScene *s, const gvizEvent *ev) {
   for (size_t i = s->layers.count; i-- > 0;) {
     gvizLayer *l = *(gvizLayer **)gvizArrayAtIndex(&s->layers, i);
-    if (!(l->flags & GVIZ_LAYER_VISIBLE))
-      continue;
+    if (!(l->flags & GVIZ_LAYER_VISIBLE)) continue;
+    if (!(l->flags & GVIZ_LAYER_SCREEN_SPACE)) continue;
     if (l->vtable && l->vtable->onEvent) {
       if (l->vtable->onEvent(l, ev))
         return 1;
     }
     if (l->flags & GVIZ_LAYER_CAPTURES_INPUT)
+      return 1;
+  }
+  gvizLayer *al = s->activeLayer;
+  if (al && (al->flags & GVIZ_LAYER_VISIBLE) &&
+      al->vtable && al->vtable->onEvent) {
+    if (al->vtable->onEvent(al, ev))
       return 1;
   }
   return 0;
@@ -393,13 +428,17 @@ static gvizCamera *layerCamera(gvizLayer *l) {
 
 static gvizCamera *cameraAt(gvizScene *s, int sx, int sy) {
   gvizLayer *l = gvizSceneFindLayerAt(s, sx, sy);
-  gvizCamera *cam = layerCamera(l);
-  return cam ? cam : &s->defaultCamera;
+  return layerCamera(l);
 }
 
 static void fillMouseWorld(gvizScene *s, float sx, float sy, float *wx,
                            float *wy) {
   gvizCamera *cam = cameraAt(s, (int)sx, (int)sy);
+  if (!cam) {
+    *wx = sx;
+    *wy = sy;
+    return;
+  }
   Vector2 w = gvizCameraScreenToWorld2D(cam, (Vector2){sx, sy});
   *wx = w.x;
   *wy = w.y;
@@ -417,11 +456,6 @@ void gvizSceneHandleInput(gvizScene *s) {
     ev.resize.width = GetScreenWidth();
     ev.resize.height = GetScreenHeight();
     dispatchEvent(s, &ev);
-    if (s->mode == GVIZ_SCENE_2D) {
-      s->defaultCamera.c2d.offset =
-          (Vector2){(float)ev.resize.width / 2.0f,
-                    (float)ev.resize.height / 2.0f};
-    }
     gvizSceneComputeRegion(ev.resize.width, ev.resize.height, &s->layout.region);
     gvizSceneRecomputeSlots(s);
   }
@@ -467,6 +501,38 @@ void gvizSceneHandleInput(gvizScene *s) {
         s->dividerDragging = 1;
         continue;
       }
+      /* Right-click → context-menu hooks (only when no screen-space layer
+       * is up to absorb it; we approximate by always firing — modals can
+       * still pre-empt via dispatchEvent below). */
+      int sxI = (int)mp.x, syI = (int)mp.y;
+      int inRegion = sxI >= s->layout.region.x &&
+                     sxI < s->layout.region.x + s->layout.region.width &&
+                     syI >= s->layout.region.y &&
+                     syI < s->layout.region.y + s->layout.region.height;
+      if (gbtns[i] == GVIZ_MOUSE_RIGHT && inRegion) {
+        gvizLayer *hit = gvizSceneFindLayerAt(s, sxI, syI);
+        int hasModal = 0;
+        for (size_t k = s->layers.count; k-- > 0;) {
+          gvizLayer *ll = *(gvizLayer **)gvizArrayAtIndex(&s->layers, k);
+          if (ll->flags & GVIZ_LAYER_SCREEN_SPACE) { hasModal = 1; break; }
+        }
+        if (!hasModal) {
+          if (!hit && s->onEmptyAreaContextMenu) {
+            s->onEmptyAreaContextMenu(s, sxI, syI, s->contextMenuUserdata);
+            continue;
+          }
+          if (hit && s->onLayerContextMenu) {
+            s->onLayerContextMenu(s, hit, sxI, syI, s->contextMenuUserdata);
+            continue;
+          }
+        }
+      }
+      /* Left-click on a different component layer flips activeLayer first. */
+      if (gbtns[i] == GVIZ_MOUSE_LEFT) {
+        gvizLayer *hit = gvizSceneFindLayerAt(s, sxI, syI);
+        if (hit && hit != s->activeLayer)
+          s->activeLayer = hit;
+      }
       gvizEvent ev = {0};
       ev.type = GVIZ_EVENT_MOUSE_DOWN;
       ev.mouse.sx = mp.x;
@@ -499,7 +565,7 @@ void gvizSceneHandleInput(gvizScene *s) {
     ev.wheel.dy = wheel;
     ev.wheel.mods = mods;
     if (!dispatchEvent(s, &ev) && s->mode == GVIZ_SCENE_2D) {
-      gvizLayer *l = gvizSceneFindLayerAt(s, (int)mp.x, (int)mp.y);
+      gvizLayer *l = s->activeLayer;
       gvizCamera *cam = layerCamera(l);
       if (cam && cam->kind == GVIZ_CAMERA_2D)
         gvizCameraHandleInput2D(cam, l->viewport.x, l->viewport.y,
@@ -510,7 +576,7 @@ void gvizSceneHandleInput(gvizScene *s) {
   } else if (s->mode == GVIZ_SCENE_2D && !s->dividerDragging) {
     /* No wheel: only pan if left-button is held */
     if (IsMouseButtonDown(MOUSE_BUTTON_LEFT) && !s->focused) {
-      gvizLayer *l = gvizSceneFindLayerAt(s, (int)mp.x, (int)mp.y);
+      gvizLayer *l = s->activeLayer;
       gvizCamera *cam = layerCamera(l);
       if (cam && cam->kind == GVIZ_CAMERA_2D)
         gvizCameraHandleInput2D(cam, l->viewport.x, l->viewport.y,
@@ -554,6 +620,8 @@ void gvizSceneDraw(gvizScene *s) {
   BeginDrawing();
   ClearBackground((Color){s->bg[0], s->bg[1], s->bg[2], s->bg[3]});
 
+  size_t componentCount = 0;
+
   /* Component layers: each in its own viewport scissor + per-layer camera. */
   for (size_t i = 0; i < s->layers.count; i++) {
     gvizLayer *l = *(gvizLayer **)gvizArrayAtIndex(&s->layers, i);
@@ -562,7 +630,7 @@ void gvizSceneDraw(gvizScene *s) {
     if (!l->vtable || !l->vtable->draw) continue;
 
     gvizCamera *cam = layerCamera(l);
-    if (!cam) cam = &s->defaultCamera;
+    if (!cam) continue;
     /* Recenter 2D camera offset to the viewport centre so world-(0,0)
      * lands at the slot's middle. */
     if (cam->kind == GVIZ_CAMERA_2D) {
@@ -580,6 +648,23 @@ void gvizSceneDraw(gvizScene *s) {
     else                              EndMode3D();
     if (l->viewport.width > 0 && l->viewport.height > 0)
       EndScissorMode();
+
+    if (l == s->activeLayer && l->viewport.width > 0 && l->viewport.height > 0) {
+      Rectangle r = {(float)l->viewport.x, (float)l->viewport.y,
+                     (float)l->viewport.width, (float)l->viewport.height};
+      DrawRectangleLinesEx(r, 2.0f, (Color){70, 140, 255, 200});
+    }
+    componentCount++;
+  }
+
+  /* Empty-region placeholder. */
+  if (componentCount == 0) {
+    const char *msg = "No current scene, create scene";
+    int fontSize = 22;
+    int tw = MeasureText(msg, fontSize);
+    int cx = s->layout.region.x + s->layout.region.width / 2 - tw / 2;
+    int cy = s->layout.region.y + s->layout.region.height / 2 - fontSize / 2;
+    DrawText(msg, cx, cy, fontSize, (Color){140, 140, 140, 255});
   }
 
   /* Screen-space layers (menus, HUD) drawn last in raw screen coords. */
@@ -588,7 +673,7 @@ void gvizSceneDraw(gvizScene *s) {
     if (!(l->flags & GVIZ_LAYER_VISIBLE)) continue;
     if (!(l->flags & GVIZ_LAYER_SCREEN_SPACE)) continue;
     if (l->vtable && l->vtable->draw)
-      l->vtable->draw(l, &s->defaultCamera);
+      l->vtable->draw(l, NULL);
   }
 
   EndDrawing();

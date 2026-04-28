@@ -33,7 +33,8 @@ enum {
 typedef int(HitTestFunction)(void *self, float wx, float wy);
 
 /* Component layers expose their per-layer camera through this accessor.
- * Menu/HUD layers leave it NULL (and the scene uses its default camera). */
+ * Screen-space (menu/HUD/modal) layers leave it NULL — they draw in raw
+ * screen coordinates and receive NULL as the camera argument to draw(). */
 struct gvizCamera;
 typedef struct gvizCamera *(GetCameraFunction)(void *self);
 

@@ -1,255 +1,210 @@
 # TASKS
 
-GUI revamp Epic. Each Saga below is a logically grouped chunk; tasks within
-a Saga are ordered by dependency (do top-to-bottom).
+GUI revamp Epic 2: empty-scene startup, active-layer routing, right-click
+context menus, scene-camera removal, main-menu removal, wider margins.
+Sagas are ordered by dependency; tasks within each Saga are top-to-bottom.
 
 ---
 
-## Epic 1: Scene region layout (top two-thirds)
+## Epic A: Strip the main menu and scene-owned camera
 
-Goal: Reserve top 2/3 of the window for layer slots with L/R margins; bottom
-1/3 stays empty for now. Slot subdivision happens regardless of layer count.
+Goal: Reach a clean baseline where the app starts straight into the main
+interface and the scene no longer carries a camera at all (every layer
+already owns one).
 
-### Saga 1.1: Scene layout primitives
-- [x] Add `gvizSceneLayout` struct in `include/core/gvizScene.h` describing
-      the active region rect (x,y,w,h) plus L/R/bottom margins (constants).
-- [x] Add `gvizSceneComputeRegion(int sw, int sh, gvizRect *out)` helper that
-      returns the top-2/3 region with margins. Reused `gvizViewport`.
-- [x] Wire `gvizSceneInit2D/3D` and the resize handler in `src/core/gvizScene.c`
-      to recompute the active region whenever the window resizes.
+### Saga A.1: Remove the main menu layer
+- [x] In `src/app/main.c`, drop `installMainMenu`, the `menu` local, the
+      whole `if (menu && menu->requestedAction != ...)` block, and the
+      `#include "renderer/layers/gvizLayerMainMenu.h"`.
+- [x] Boot path: replace `gvizBuildBlankScene(&scene)` + `installMainMenu`
+      with a new `gvizSceneInitEmpty(&scene)` (no layers, see Saga B.1).
+- [x] Delete `src/renderer/layers/gvizLayerMainMenu.c` and
+      `include/renderer/layers/gvizLayerMainMenu.h`.
+- [x] Remove the `gvizLayerMainMenu.c` entry from `CMakeLists.txt`.
+- [x] Remove menu-only enums (`GVIZ_MENU_*`) from any remaining headers
+      and any `gvizMainMenuAction` references.
 
-### Saga 1.2: Slot allocation policy
-- [x] Define `gvizSceneSlotSplit { GVIZ_SPLIT_NONE, GVIZ_SPLIT_H, GVIZ_SPLIT_V }`
-      stored on the scene with a `splitRatio` (0..1, default 0.5).
-- [x] Implement `gvizSceneRecomputeSlots(gvizScene *s)` (extras get zero-sized vp + stderr warning).
-- [x] Call `gvizSceneRecomputeSlots` after every add/remove and on resize.
-
-### Saga 1.3: Drag-to-resize divider
-- [x] Detect mouse down/drag inside a configurable "divider gutter" between
-      slots in `gvizSceneHandleInput` and adjust `splitRatio` live.
-- [x] Clamp `splitRatio` to [0.1, 0.9] so neither slot collapses.
-- [x] Repaint cursor hint (e.g. raylib `MOUSE_CURSOR_RESIZE_EW/NS`) when over
-      the gutter.
-
----
-
-## Epic 2: Off-screen layer rendering with per-layer cameras
-
-Goal: Each component layer renders to its own RenderTexture using its own
-camera, then the scene composites the textures into the slots.
-
-### Saga 2.1: Per-layer camera
-- [x] Added `gvizCamera camera` to component layer subclasses
-      (gvizLayerGraph, gvizLayerTutte, gvizLayerPolyTutte, gvizLayerGRIP,
-      gvizLayerGRIPLive). Vtable extended with `getCamera` accessor; menu/HUD
-      layers leave it NULL.
-- [x] Added `gvizCameraHandleInput2D` and `gvizCameraHandleInput3D` in
-      `src/core/gvizCamera.c`.
-- [x] Renamed `gvizScene.camera` → `defaultCamera`; documented as fallback.
-
-### Saga 2.2: RenderTexture per layer (deferred — scissor approach used)
-- [~] Decision: opted for `BeginScissorMode(viewport) + BeginMode2D(layer->camera)`
-      per-layer in `gvizSceneDraw` instead of per-layer FBOs. Same user-visible
-      behavior at lower memory + rebind cost. Revisit only if post-processing
-      or off-screen capture is required.
-
-### Saga 2.3: Scene composite pass
-- [x] `gvizSceneDraw` now scissors each component layer to its viewport,
-      enters that layer's camera, draws, and unwinds. The global BeginMode2D
-      wrap is gone. Screen-space layers run last in raw pixel coords.
-
-### Saga 2.4: Input routing per slot
-- [x] World coords are now resolved through the camera of the layer under
-      cursor (`gvizSceneFindLayerAt` → `getCamera` → `ScreenToWorld2D`).
-- [x] `gvizSceneFindLayerAt` added to public API.
-- [~] Drag focus tracking — existing `s->focused` set on mouse-down already
-      survives cursor leaving the slot since events route by focus when set.
-      Verified via Tutte's pendingVertex flow.
+### Saga A.2: Remove `defaultCamera` from `gvizScene`
+- [x] Delete `defaultCamera` field from `gvizScene` in
+      `include/core/gvizScene.h` and update the doc comment.
+- [x] In `src/core/gvizScene.c`:
+      - Drop the `gvizCameraMake2D/3D` calls in `gvizSceneInit2D/3D`.
+      - In `cameraAt`, return `NULL` instead of falling back to
+        `&s->defaultCamera`; callers must already null-check.
+      - In `fillMouseWorld`, when no camera is found, write `wx=sx, wy=sy`
+        (screen-space passthrough) so events still flow when there are
+        zero layers.
+      - In `gvizSceneDraw`, skip layers whose `getCamera` returns NULL
+        (component layers must always have a camera now); screen-space
+        layers' `draw` no longer receives `&s->defaultCamera` — pass NULL
+        and update vtable doc.
+      - In the resize handler, remove the `defaultCamera.c2d.offset`
+        update.
+- [x] Audit every `s->defaultCamera` / `scene->defaultCamera` reference
+      across `src/` and `tests/` and convert or delete each.
+- [x] Update screen-space layer `draw` signatures' doc comment in
+      `gvizLayer.h` to note that `camera` may be NULL for screen-space.
 
 ---
 
-## Epic 3: Scene-owned graph registry with shared-graph callbacks
+## Epic B: Empty-scene startup state
 
-Goal: `gvizGraph` instances live in the scene and are reference-counted across
-layers. Mutations on one layer notify all peers sharing the same graph.
+Goal: App launches into a true empty scene that displays "No current
+scene, create scene" centered in the active region.
 
-### Saga 3.1: Graph registry data structure
-- [x] Added `gvizSceneGraphHandle` (typedef size_t, 0 = invalid).
-- [x] Added `gvizArray graphs` to `gvizScene` with sentinel at index 0.
-- [x] API: register / retain / release / get implemented.
+### Saga B.1: Empty scene initializer
+- [x] Add `int gvizSceneInitEmpty(gvizScene *s)` to `gvizScene.h/.c` —
+      same as `gvizSceneInit2D` but does not pick a mode yet (default to
+      `GVIZ_SCENE_2D` since mode is selected when the first layer is
+      created via the layer-creation panel).
+- [x] `gvizSceneRecomputeSlots` already handles 0 layers — verify and
+      add an explicit early-return comment.
 
-### Saga 3.2: Subscription / callback system
-- [x] `include/core/gvizGraphEvent.h` with kinds + callback typedef.
-- [x] subscribe / unsubscribe / notify with originator-skip.
+### Saga B.2: Empty-region placeholder text
+- [x] In `gvizSceneDraw`, after the component-layer loop, if there are
+      zero component layers draw centered text "No current scene, create
+      scene" inside `s->layout.region` using raylib `DrawText` (screen
+      coords, no camera).
+- [x] Pick a muted color (e.g. `(Color){140,140,140,255}`) and size from
+      `MeasureText` so it stays centered on resize.
 
-### Saga 3.3: Rewire layers to use the registry  (additive)
-- [x] Opt-in `BindHandle(layer, scene, handle, cb)` added to all layers
-      (gvizLayerGraph, gvizLayerTutte, gvizLayerPolyTutte, gvizLayerGRIP,
-      gvizLayerGRIPLive). Each retains the handle, subscribes the layer
-      to mutation events, and releases on layer teardown. Layers keep
-      their local graph clone (true ownership-drop deferred — embedding
-      structs hold internal references).
-- [x] `gvizSceneRelease` now releases leftover registry entries.
-
-### Saga 3.4: Mutation fanout
-- [x] `gvizLayerGraphAddVertex/RemoveVertex/AddEdge/RemoveEdge` now fan out
-      `GVIZ_GRAPH_VERTEX/EDGE_ADDED/REMOVED` through `gvizSceneNotifyGraphChanged`
-      when a handle is bound. `onTopologyChanged` retained as the local hook for
-      non-shared layers.
-- [~] Subscriber-side callbacks: hooks are wired (BindHandle accepts a cb)
-      but no concrete subscriber callbacks for Tutte/PolyTutte/GRIP* are
-      registered yet — they will be passed `NULL` by current builders since
-      no two layers share a graph today. Wire real callbacks once a scene
-      embeds the same graph in two layers simultaneously.
-
-### Saga 3.5: Builder updates
-- [x] Every builder now: heap-allocates the source graph, registers it
-      with the scene (transfers ownership), inits the layer, then calls
-      `BindHandle(layer, scene, h, NULL)` and drops the register-time
-      ref. Scene registry is the single owner of the source graph;
-      layers still hold local clones internally for their embeddings.
-- [x] Removed source-graph free from `releaseEmbeddedTree` callback —
-      registry owns it now.
+### Saga B.3: main.c boot path
+- [x] `main.c` calls `gvizSceneInitEmpty(&scene)` once, drops the
+      `gvizBuildBlankScene` call. The OBJ-modal flow keeps working
+      because it operates on whichever scene exists.
 
 ---
 
-## Epic 4: Stop algorithms from mutating the source graph
+## Epic C: Wider L/R margins
 
-Goal: Reingold-Tilford and Schnyder/triangulating algorithms must operate on
-auxiliary structures so a single shared graph can be embedded multiple ways.
-Planar embedding's adjacency reorder stays as-is.
+Goal: More generous left/right margins around the active region, sized
+for a video-editing-style layout.
 
-### Saga 4.1: Audit
-- [ ] In `src/renderer/embeddings/gvizEmbeddedTree.c`, document every mutation
-      to the source `gvizGraph` (the thread bit currently lives there). List
-      each call site in a comment block at the top of the file.
-- [ ] In `src/renderer/embeddings/gvizSchnyderWood.c`, list every mutation
-      and every dependency on the planar/triangulated graph.
-
-### Saga 4.2: Reingold-Tilford threads as side data
-- [ ] Move "thread next pointer" from the source graph into the
-      `gvizRTDecorators` struct (already has decorators; add `size_t thread`
-      and a `int hasThread` flag).
-- [ ] Replace contour-walk reads/writes in `iterateContour*` and any thread
-      mutators to use the decorators rather than the graph adjacency.
-- [ ] Remove the existing `GVIZ_BIT_ARRAY thread` from `gvizEmbeddedTree`
-      if it becomes redundant after decorator-based threads.
-
-### Saga 4.3: Schnyder Wood non-mutating triangulation
-- [ ] Add a triangulated-copy field to `gvizSchnyderWood`:
-      `gvizGraph triangulated;` plus a flag.
-- [ ] In `gvizSchnyderWoodInit`, build the triangulated copy from the source
-      graph (deep-copy adjacency, then triangulate the copy via existing
-      `gvizPlanarEmbeddingTriangulate`).
-- [ ] Switch all subsequent Schnyder logic to read from the triangulated copy.
-- [ ] Release the copy in `gvizSchnyderWoodRelease`.
-- [ ] Decision note: triangulated copy is preferred over a thread-style
-      side table because triangulation adds edges (not just metadata) and
-      large meshes amortize the copy cost once.
-
-### Saga 4.4: Planar embedding (no change)
-- [ ] Confirm and document in `gvizPlanarEmbedding.h` that adjacency-order
-      mutation is intentional (rotation system) and is allowed.
+### Saga C.1: Bump margin constants
+- [x] In `include/core/gvizScene.h`, raise `GVIZ_SCENE_MARGIN_L` and
+      `GVIZ_SCENE_MARGIN_R` from 12 to 48 (roughly 4x — judgment call;
+      revisit if it looks too thick at narrow widths).
+- [x] No other code change needed: `gvizSceneComputeRegion` already
+      reads the constants and the resize path recomputes the region.
 
 ---
 
-## Epic 5: macOS top menu bar (Apple menu)
+## Epic D: Active-layer concept + input routing
 
-Goal: Add a real macOS menu with "Open .obj…" entry. Replace the current
-osascript-based file dialog usage path with a proper menu entry.
+Goal: Exactly one component layer is "active" and consumes mouse/key
+input; clicking inside another layer's viewport switches focus; the
+active layer gets a visible border highlight.
 
-### Saga 5.1: Cocoa menu bridge
-- [x] `src/platform/macos_menu.m` installs an NSMenu with App + File
-      submenus; "Open .obj…" mapped to Cmd+O.
-- [x] `include/platform/macos_menu.h` exposes init / callback /
-      pull-style poll APIs with C linkage.
-- [x] CMake compiles the `.m` with `-fobjc-arc`; Cocoa already linked.
-- [x] `gvizPlatformMenuInit()` called from `main.c` after `InitWindow`.
+### Saga D.1: Track active layer on the scene
+- [x] Add `gvizLayer *activeLayer` to `gvizScene` (NULL when no layers).
+- [x] In `gvizSceneAddLayer`, if `activeLayer` is NULL and the new layer
+      is a component layer, set it active.
+- [x] In `flushPendingRemoves`, if the removed layer was active, pick
+      the topmost remaining component layer (or NULL).
+- [x] Add `void gvizSceneSetActiveLayer(gvizScene *s, gvizLayer *l)` to
+      the public API.
 
-### Saga 5.2: File picker dispatch
-- [x] NSOpenPanel filtered to `obj`/`OBJ` shows on menu fire.
-- [x] Picked path queued via `gvizPlatformMenuPollPendingOBJPath`;
-      `main.c`'s loop drains and rebuilds the scene next frame.
-- [x] `osascript` shim removed from `main.c` (the previous in-app
-      file picker was located there, not in `gvizSceneBuilders.c`).
+### Saga D.2: Route input through the active layer
+- [x] Replace `dispatchEvent`'s top-down z walk for mouse-down/up/move,
+      wheel, key, and text events with: deliver to `s->activeLayer`
+      first; if it returns 0, fall through to screen-space layers (which
+      keep z-order semantics for modals).
+- [x] Mouse-down on a different component layer (found via
+      `gvizSceneFindLayerAt`) flips `activeLayer` to that layer BEFORE
+      dispatching the event so the new active layer receives the click.
+- [x] Camera pan/wheel fallback in `gvizSceneHandleInput` (the
+      non-event 2D-camera handling near the bottom) should target
+      `s->activeLayer`'s camera, not whatever's under the cursor.
+- [x] Divider drag and screen-space layer (modal) handling stay
+      unchanged — they pre-empt active routing.
 
----
-
-## Epic 6: OBJ layer (mesh rendering)
-
-Goal: A new `gvizLayer` type that loads a `.obj` and renders the 3D mesh
-itself (not the edge graph). Scene must be 3D for this layer to render.
-
-### Saga 6.1: OBJ mesh loader
-- [x] `gvizLoadOBJAsMesh(const char *path, Model *out)` wraps raylib's
-      `LoadModel` and validates that at least one mesh was loaded.
-- [x] Declaration added to `include/utils/gvizOBJLoader.h`.
-
-### Saga 6.2: gvizLayerOBJ
-- [x] `include/app/gvizLayerOBJ.h` defines `gvizLayerOBJ` (Model + pos/
-      scale/rotY).
-- [x] `src/app/gvizLayerOBJ.c` implements vtable (init/draw/release/
-      getCamera).
-- [x] `draw` calls `DrawModelEx` and a debug `DrawGrid` reference plane;
-      scene runs `BeginMode3D` for the layer's 3D camera.
-- [x] `release` calls `UnloadModel` when `hasModel`.
-- [x] Layer init builds a 3D perspective camera via `gvizCameraMake3D`.
-
-### Saga 6.3: OBJ open dialog flow
-- [x] `gvizOBJLoadModal` (new screen-space layer) shows a 3-button raygui
-      modal: OBJ only / PolyTutte only / Both. Esc/X cancels.
-- [x] `main.c` installs the modal when an .obj path arrives, then on
-      result drives the matching builder. Cancellation falls back to a
-      blank scene.
-- [x] OBJ and PolyTutte layers do not share data — the .obj is loaded
-      twice when "Both" is chosen (once as Model, once as gvizGraph).
-
-### Saga 6.4: Builder helpers
-- [x] `gvizBuildOBJSceneFromFile` (3D scene with one OBJ layer) and
-      `gvizBuildOBJAndPolyTutteSceneFromFile` (2D scene with one OBJ
-      layer + one PolyTutte layer) added to `gvizSceneBuilders.c` /
-      header. Slot subdivision from Epic 1 places the two layers
-      side-by-side automatically.
+### Saga D.3: Active-layer border highlight
+- [x] In `gvizSceneDraw`, after a component layer finishes drawing,
+      if it equals `s->activeLayer` draw a 2-px rectangle border around
+      its viewport in screen space (e.g. `(Color){70,140,255,200}`).
+      Use `DrawRectangleLinesEx` outside `BeginScissorMode`.
 
 ---
 
-## Epic 7: Cleanup / overcomplication pass
+## Epic E: Right-click context menus + layer-creation panel
 
-Goal: Trim cruft. Done last so it doesn't conflict with the structural work.
+Goal: Right-click on empty area or on a layer brings up a context menu;
+"Create new layer" / "Split H" / "Split V" all funnel into the same
+layer-creation panel.
 
-### Saga 7.1: Layer-graph ownership cleanup
-- [~] `releaseGraph` retained: still needed to free embedding-only
-      wrappers (e.g. `releaseEmbeddedTree` frees the gvizEmbeddedTree
-      decorators while the registry owns the source graph). Tests also
-      pass NULL for borrowed embeddings.
-- [x] `onTopologyChanged` field + all four call sites removed from
-      `gvizLayerGraph` — superseded by registry fanout.
+### Saga E.1: Layer-creation panel data model
+- [ ] Add `include/app/gvizLayerCreatePanel.h` defining a screen-space
+      modal layer with fields: target slot info (split direction +
+      parent layer to split, or "new in empty scene"), selected mode
+      (`GVIZ_SCENE_2D/3D`), selected algorithm enum
+      (`CREATE_TUTTE|GRIP|POLYTUTTE|RT|EMPTY`), selected source enum
+      (`SRC_DEMO_SIERPINSKI|SRC_DEMO_OCTAHEDRON|SRC_DEMO_RANDOM_TREE|`
+      `SRC_FROM_FILE`), filepath buffer, and a `result` enum
+      (`PENDING|CONFIRMED|CANCELLED`).
+- [ ] Implement `gvizLayerCreatePanelInit/Draw/HandleEvent/Release`
+      using raygui (mirror `gvizOBJLoadModal.c` style). Z high enough
+      to overlay everything; `GVIZ_LAYER_SCREEN_SPACE |
+      GVIZ_LAYER_CAPTURES_INPUT`.
 
-### Saga 7.2: Drop redundant per-layer highlight scaffolding (deferred)
-- [~] `gvizLayerPolyTutte` still mirrors `gvizLayerGraph`'s highlight
-      buffers. Factoring into a shared `gvizGraphHighlight` struct is a
-      ~150-line refactor with no behavior change; deferring until a
-      third layer needs the same scaffolding.
+### Saga E.2: Context-menu layer
+- [ ] Add `include/app/gvizContextMenu.h` — a small screen-space layer
+      drawn at a click location. Holds a list of `{label, actionId}`
+      entries and a `result` (selected actionId or -1 = cancelled,
+      0 = pending). Closes on outside click or Esc.
+- [ ] Empty-area menu builds a single "Create new layer" entry.
+- [ ] Layer-area menu builds two entries: "Split Horizontal", "Split
+      Vertical".
 
-### Saga 7.3: Consolidate `gvizLayerGRIP` and `gvizLayerGRIPLive` (deferred)
-- [~] Skipped per the original "skip if it forces a major rewrite of
-      demos" guidance — `tests/renderer/gripDemo.c` references the
-      Live API directly and the auto/manual split is genuinely two
-      modes' worth of update logic.
+### Saga E.3: Wire right-click in the scene
+- [ ] In `gvizSceneHandleInput`, on `MOUSE_BUTTON_RIGHT` press inside
+      `layout.region`:
+      - If `gvizSceneFindLayerAt(s, sx, sy)` returns NULL → emit a
+        scene-level callback `s->onEmptyAreaContextMenu(sx, sy)`.
+      - Otherwise → emit `s->onLayerContextMenu(layer, sx, sy)`.
+      Both callbacks are function pointers settable from `main.c`.
+- [ ] Suppress scene's normal mouse-down dispatch when the right-click
+      is consumed by a callback.
 
-### Saga 7.4: Delete dead Tutte-solve files
-- [x] `gvizTutteSolveEmbedding.{c,h}` had no callers outside itself —
-      deleted along with their CMake entry.
+### Saga E.4: main.c orchestration
+- [ ] In `main.c`, install the two callbacks: each pushes a
+      `gvizContextMenu` layer and stashes the click info.
+- [ ] Each frame, drain context-menu `result`: on "Create new layer" or
+      "Split H/V" push a `gvizLayerCreatePanel` configured with the
+      correct slot info.
+- [ ] On panel `CONFIRMED`, call into a new helper
+      `applyLayerCreate(scene, params)` (in main.c or a new
+      `gvizLayerCreate.c`) that:
+      - For empty-scene case: switches scene to 2D/3D as chosen, builds
+        the requested graph + layer (reusing existing builders or new
+        small helpers), adds it to the scene.
+      - For split case: sets `scene->layout.split` to H or V (split
+        ratio stays at 0.5), then constructs the second layer via the
+        same builder helpers and adds it.
+- [ ] On panel `CANCELLED`: discard, do nothing.
 
-### Saga 7.5: Strip the `osascript` open-file shim
-- [x] Removed in Epic 5 (the shim lived in `main.c`, not in
-      `gvizSceneBuilders.c` as the original task assumed).
+### Saga E.5: Algorithm/source builder mux
+- [ ] Add `int gvizCreateLayerFromParams(gvizScene *, const
+      gvizLayerCreateParams *, gvizLayer **out)` that switches on
+      algorithm + source and returns a heap-allocated layer ready to
+      add. Reuse internals from `gvizSceneBuilders.c` (extract small
+      helpers if needed; do NOT refactor the existing builders).
+- [ ] Sources: built-in demos (sierpinski-3, octahedron, random-tree-5)
+      and "load from file" (tree JSON for RT, .obj for PolyTutte/OBJ).
+      File path comes from the panel's text field; OBJ files reuse the
+      existing macOS file menu only if the user types nothing — for the
+      first cut, accept a typed path only.
 
-### Saga 7.6: Final build + smoke test
-- [x] Full `cmake .. && make` succeeds: graphvis library, every test
-      executable, and the `grapher` binary all link cleanly. The macOS
-      menu .m file builds with `-fobjc-arc`. One non-fatal raylib
-      `setAllowedFileTypes:` deprecation warning remains (still works
-      on macOS 12+; future cleanup item if NSContentType is needed).
-- [~] Visual smoke test of demo scenes: not executed in this session;
-      flagging for the next interactive session.
+---
+
+## Epic F: Smoke verification
+
+### Saga F.1: Build + manual verification
+- [ ] `cmake .. && make` clean.
+- [ ] App launches into empty scene; placeholder text visible.
+- [ ] Right-click empty area → "Create new layer" → choose 2D + Tutte +
+      octahedron → layer appears, active border drawn.
+- [ ] Right-click that layer → "Split Horizontal" → second layer
+      created, divider drag still works, clicking either layer flips
+      active border.
+- [ ] OBJ open via macOS File menu still works (modal dispatches to
+      builders unchanged).
