@@ -159,24 +159,19 @@ Goal: Add a real macOS menu with "Open .obj…" entry. Replace the current
 osascript-based file dialog usage path with a proper menu entry.
 
 ### Saga 5.1: Cocoa menu bridge
-- [ ] Add a new file `src/platform/macos_menu.m` (Objective-C) implementing:
-      - `gvizPlatformMenuInit(void)` — installs an NSMenu with File →
-        "Open .obj…" mapped to `Cmd+O`.
-      - A C-callable callback registration `gvizPlatformMenuOnOpenOBJ(
-          void (*)(const char *path, void *userdata), void *userdata)`.
-- [ ] Add matching header `include/platform/macos_menu.h`.
-- [ ] Update `CMakeLists.txt` to compile the `.m` file and link `Cocoa`
-      framework (it is already linked but ensure ObjC compilation flags).
-- [ ] Wire `gvizPlatformMenuInit` into `main.c` after `InitWindow`.
+- [x] `src/platform/macos_menu.m` installs an NSMenu with App + File
+      submenus; "Open .obj…" mapped to Cmd+O.
+- [x] `include/platform/macos_menu.h` exposes init / callback /
+      pull-style poll APIs with C linkage.
+- [x] CMake compiles the `.m` with `-fobjc-arc`; Cocoa already linked.
+- [x] `gvizPlatformMenuInit()` called from `main.c` after `InitWindow`.
 
 ### Saga 5.2: File picker dispatch
-- [ ] When the menu fires, present `NSOpenPanel` filtered to `obj/OBJ` and
-      pass the chosen POSIX path to the registered callback.
-- [ ] In `main.c`, register a callback that pushes the path onto a small
-      pending-action queue (avoid mutating the scene from the menu thread —
-      drain in the main loop).
-- [ ] Remove the inline `osascript` `gvizOpenFileDialog` from
-      `src/app/gvizSceneBuilders.c` once the menu path is functional.
+- [x] NSOpenPanel filtered to `obj`/`OBJ` shows on menu fire.
+- [x] Picked path queued via `gvizPlatformMenuPollPendingOBJPath`;
+      `main.c`'s loop drains and rebuilds the scene next frame.
+- [x] `osascript` shim removed from `main.c` (the previous in-app
+      file picker was located there, not in `gvizSceneBuilders.c`).
 
 ---
 

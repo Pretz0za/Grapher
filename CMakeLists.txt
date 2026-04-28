@@ -123,7 +123,10 @@ add_executable(grapher
     src/app/gvizLayerPolyTutte.c
     src/app/gvizLayerGRIP.c
     src/app/gvizLayerGRIPLive.c
+    src/platform/macos_menu.m
 )
+set_source_files_properties(src/platform/macos_menu.m
+    PROPERTIES COMPILE_FLAGS "-fobjc-arc")
 target_link_libraries(grapher PRIVATE graphvis)
 set_target_properties(grapher PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})

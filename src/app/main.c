@@ -1,6 +1,7 @@
 #include "app/gvizSceneBuilders.h"
 #include "core/alloc.h"
 #include "core/gvizScene.h"
+#include "platform/macos_menu.h"
 #include "raylib.h"
 #include "renderer/layers/gvizLayerMainMenu.h"
 #include <stdio.h>
@@ -10,34 +11,6 @@
 
 #define WINDOW_W 1280
 #define WINDOW_H 800
-
-/* #define GVIZ_OBJ_TEST_PATH "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/build/face.obj" */
-
-static char *gvizOpenFileDialog(void) {
-  const char *cmd =
-      "osascript -e 'POSIX path of (choose file with prompt \"Select OBJ mesh\""
-      " of type {\"obj\", \"OBJ\"})' 2>/dev/null";
-  FILE *fp = popen(cmd, "r");
-  if (!fp)
-    return NULL;
-  char buf[1024];
-  if (!fgets(buf, sizeof(buf), fp)) {
-    pclose(fp);
-    return NULL;
-  }
-  pclose(fp);
-  size_t len = strlen(buf);
-  while (len > 0 && (buf[len - 1] == '\n' || buf[len - 1] == '\r' ||
-                     buf[len - 1] == ' ' || buf[len - 1] == '\t'))
-    buf[--len] = '\0';
-  if (len == 0)
-    return NULL;
-  char *out = (char *)GVIZ_ALLOC(len + 1);
-  if (!out)
-    return NULL;
-  memcpy(out, buf, len + 1);
-  return out;
-}
 
 /*
  * Build a scene that contains only the main menu layer (screen-space).
@@ -59,6 +32,8 @@ int main(void) {
   InitWindow(WINDOW_W, WINDOW_H, "Grapher");
   SetTargetFPS(60);
 
+  gvizPlatformMenuInit();
+
   gvizScene scene;
   gvizBuildBlankScene(&scene);
   gvizLayerMainMenu *menu = installMainMenu(&scene);
@@ -67,6 +42,16 @@ int main(void) {
     gvizSceneHandleInput(&scene);
     gvizSceneUpdate(&scene, GetFrameTime());
     gvizSceneDraw(&scene);
+
+    /* Drain any pending OBJ path picked from the macOS File menu. */
+    char *objPath = gvizPlatformMenuPollPendingOBJPath();
+    if (objPath) {
+      gvizSceneRelease(&scene);
+      if (gvizBuildPolyTutteFromOBJScene(&scene, objPath) != 0)
+        gvizBuildBlankScene(&scene);
+      gvizPlatformMenuFreePath(objPath);
+      menu = NULL;
+    }
 
     if (menu && menu->requestedAction != GVIZ_MENU_NONE) {
       gvizMainMenuAction act = menu->requestedAction;
@@ -100,19 +85,11 @@ int main(void) {
         /* TODO: raygui text-input file picker. */
         gvizBuildBlankScene(&scene);
         break;
-      case GVIZ_MENU_LOAD_OBJ_TUTTE: {
-#ifdef GVIZ_OBJ_TEST_PATH
-        if (gvizBuildPolyTutteFromOBJScene(&scene, GVIZ_OBJ_TEST_PATH) != 0)
-          gvizBuildBlankScene(&scene);
-#else
-        char *path = gvizOpenFileDialog();
-        if (!path || gvizBuildPolyTutteFromOBJScene(&scene, path) != 0)
-          gvizBuildBlankScene(&scene);
-        if (path)
-          GVIZ_DEALLOC(path);
-#endif
+      case GVIZ_MENU_LOAD_OBJ_TUTTE:
+        /* The in-app menu's OBJ entry now defers to the macOS File menu;
+         * fall back to a blank scene if the user invokes it directly. */
+        gvizBuildBlankScene(&scene);
         break;
-      }
       default:
         gvizBuildBlankScene(&scene);
         break;
