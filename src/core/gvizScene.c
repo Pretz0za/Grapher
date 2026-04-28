@@ -298,9 +298,10 @@ void gvizSceneRecomputeSlots(gvizScene *s) {
   /* 0 component layers: nothing to lay out — empty-region placeholder is
    * drawn by gvizSceneDraw. Early-return is implicit: the loop below skips
    * non-component layers and assigns nothing. */
-  /* default split policy: 1 layer = none; 2 layers = horizontal */
+  /* split policy: 1 layer collapses to NONE; with 2+ layers, keep any
+   * user-set split (H or V), defaulting to H if not yet set. */
   if (n <= 1) s->layout.split = GVIZ_SPLIT_NONE;
-  else        s->layout.split = GVIZ_SPLIT_H;
+  else if (s->layout.split == GVIZ_SPLIT_NONE) s->layout.split = GVIZ_SPLIT_H;
 
   gvizViewport r = s->layout.region;
   size_t assigned = 0;
