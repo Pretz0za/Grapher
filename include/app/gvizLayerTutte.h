@@ -2,6 +2,7 @@
 #define _GVIZ_APP_LAYER_TUTTE_H_
 
 #include "core/gvizCamera.h"
+#include "core/gvizScene.h"
 #include "dsa/gvizGraph.h"
 #include "renderer/embeddings/gvizTutteEmbedding.h"
 #include "renderer/layers/gvizGraphVBO.h"
@@ -15,6 +16,11 @@
 typedef struct gvizLayerTutte {
     gvizLayer layer;     /* MUST be first */
     gvizCamera camera;
+    /* Optional registry binding. Non-zero handle means this layer participates
+     * in the scene's shared-graph subscriber fanout. Pure event hookup — the
+     * layer's local `graph` is still its own clone. */
+    gvizScene *scene;
+    gvizSceneGraphHandle graphHandle;
     gvizGraph graph;
     gvizTutteState tutte;
     gvizGraphVBO vbo;
@@ -44,6 +50,14 @@ int gvizLayerTutteInit(gvizLayerTutte *layer, gvizGraph *g,
  * via right-click events.
  */
 int gvizLayerTutteInitEmpty(gvizLayerTutte *layer, size_t z);
+
+/*
+ * Bind this layer to a scene-registered graph handle. Retains the handle
+ * and subscribes the layer to mutation events. The layer keeps its own
+ * graph clone — the binding only delivers shared-graph notifications.
+ */
+void gvizLayerTutteBindHandle(gvizLayerTutte *layer, gvizScene *scene,
+                              gvizSceneGraphHandle h, gvizGraphCallback cb);
 
 void gvizLayerTutteDraw(void *layer, const gvizCamera *camera);
 void gvizLayerTutteUpdate(void *layer, float dt);

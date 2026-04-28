@@ -63,19 +63,38 @@ All vector math is done using cblas vectors (double *) for flexibility and perfo
 ### 3. Renderer (`src/renderer/`, `include/renderer/`)
 - **gvizRenderer**: Wraps Raylib for windowed drawing. Manages a `VisState` containing a view stack for zoom/pan.
 - **gvizLayer / gvizLayerGraph**: Abstraction for multi-layer rendering with viewport management. Draws a `gvizEmbeddedGraph`.
+- **gvizGraphVBO** (`include/renderer/layers/gvizGraphVBO.h`, `src/renderer/layers/gvizGraphVBO.c`): Shared GPU buffer helper used by both `gvizLayerGraph` and `gvizLayerTutte`. Builds an expanded (non-indexed) VBO of edge endpoints (`float[3]` per endpoint, 2 per directed neighbor pair) and draws via `glDrawArrays(GL_LINES)`. Uses rlgl for VAO/VBO management and the default raylib shader with manual MVP matrix composition. `gpuDirty` flag (2=topology rebuild, 1=positions-only upload via `glBufferSubData`, 0=clean) drives update cost. The `|| !vbo.vaoId` guard in the draw path ensures a full rebuild if update ran before the first draw frame.
+- **Polymorphic embedding ownership**: `gvizLayerGraph` holds a `gvizEmbeddedGraph *` that may point directly into any algorithm state struct (e.g. `gvizGRIPState`, `gvizEmbeddedTree`) since all have `gvizEmbeddedGraph` as their first member. A `releaseGraph` function pointer on the layer handles algorithm-specific teardown; `NULL` means borrowed (no ownership).
+- **Platform**: macOS, OpenGL 3.3 Core Profile. Raw GL calls use `<OpenGL/gl3.h>` with `#define GL_SILENCE_DEPRECATION`. rlgl's `rlDrawVertexArray*` functions hardcode `GL_TRIANGLES` so `glDrawArrays` is called directly for lines.
 
 ### 4. Utilities (`src/utils/`, `include/utils/`)
 - **graphs.c**: Generates test graphs (Sierpinski triangles/tetrahedrons, grid meshes).
 - **serializers.c**: Saves/loads `Embedding` structs to disk.
 - **helpers.c**: Coordinate math, neighbor utilities, screen output.
 
-### Key types
+### 5. GUI (IMPORTANT: In progress):
+Start with this analogy. An infinite whiteboard app, like miro or figma, where objects live on the plane in specific positions and scales. the user can pan/zoom. The same should be of this GUI, but also supporting 3D. Consider creating a gvizScene struct that hold all objects, defines 2D or 3D world/camera, manages input and propogating to the correct objects. Objects are gvizLayer structs. they can be graphs, but also buttons, sliders, text, etc. HUD, sidebar, where the camera framebuffer renders to (By default this should be the whole screen but say for a debug view of algorithms it can be useful), and so on.
+
+Creating scnenes should NOT take a lot of code, and me mostly initializing and calling appropriate functions for type of scene and graph to be rendered.
+
+After opening a default window, the following should happen:
+- **main menu**: A menu comes up with options to 1) load a scene from disk, 2) open a demo scene (e.g. GRIP of a sierpinski triangle). 3) start a blank scene.
+- **scene**: Load the appropriate scene and graphs (if any) and render. The user can interact with the scene and graph just the analogy.
+- **new graph**: In an empty scene (or none empty one), the user can load a graph from disk and create an additional layer in the scene for it. Or they can command click to add vertices and edges (by clicking nothing or clicking two vertices, respectively). While the graph is being created, use the tutte realtime embedding! 
+- **changing embeddings**: The default embedding for a new graph layer is tutte, loaded graphs are different more on it later. Right clicking a graph layer on the screen creates a menu with options to change the embedding (tutte, GRIP, planar, etc). When the user selects a new embedding, the current embedding is released and the new one is initialized. If the embedding requires a kuratowski subdivision (e.g. planar), then this should be computed and stored in the `gvizPlanarEmbeddingState` struct for reuse in the future if the user switches back to planar embedding. The new embedding is then rendered in place of the old one. If the user switches back to an embedding that requires a kuratowski subdivision, the precomputed one is reused.
+
+### 6. Loading and Saving:
+- THE ONLY SUPPORTED GRAPH TYPE IS TREES. DONT IMPLEMENT ANY OTHER GRAPH SERIALIZATION AND IGNORE EXISTING ONES.
+- **Trees**: Trees are saved as JSON files with the tree structure. Use jq to parse and generate these files. The file should contain the vertex data (if any) and the edges (parent-child relationships). Parsing should create the gvizGraph that is a directed tree with a specific root node.
+
+- ### Key types
 
 ```c
 typedef struct { void *data; size_t elem_size; size_t length; size_t capacity; } gvizArray;
 typedef struct { void *data; gvizArray neighbors; } gvizVertex;
 typedef struct { gvizArray vertices; size_t *map; int directed; } gvizGraph;
-typedef struct { gvizGraph *graph; double *embedding; size_t dim; } gvizEmbeddedGraph;
+typedef struct { size_t dim; double *vertexPositions; } gvizEmbedding;
+typedef struct { gvizGraph *graph; gvizEmbedding embedding; } gvizEmbeddedGraph;
 typeded struct { gvizEmbeddedGraph embedding; gvizGraph *kuratowskiSubdivision; } gvizPlanarEmbeddingState;
 ```
 

@@ -2,6 +2,7 @@
 #define _GVIZ_APP_LAYER_POLY_TUTTE_H_
 
 #include "core/gvizCamera.h"
+#include "core/gvizScene.h"
 #include "dsa/gvizArray.h"
 #include "dsa/gvizBitArray.h"
 #include "dsa/gvizGraph.h"
@@ -24,6 +25,9 @@ typedef enum gvizLayerPolyTuttePhase {
 typedef struct gvizLayerPolyTutte {
     gvizLayer layer;          /* MUST be first */
     gvizCamera camera;
+    /* Optional registry binding. See gvizLayerPolyTutteBindHandle. */
+    gvizScene *scene;
+    gvizSceneGraphHandle graphHandle;
     gvizGraph graph;
     gvizTutteState tutte;
     gvizGraphVBO vbo;
@@ -63,6 +67,14 @@ typedef struct gvizLayerPolyTutte {
 int gvizLayerPolyTutteInit(gvizLayerPolyTutte *layer, gvizGraph *mesh,
                            const size_t *outerFace, size_t outerFaceLen,
                            size_t z);
+
+/*
+ * Bind this layer to a scene-registered graph handle. Retains the handle
+ * and subscribes the layer to mutation events (the layer keeps its own
+ * graph clone — the binding only delivers shared-graph notifications).
+ */
+void gvizLayerPolyTutteBindHandle(gvizLayerPolyTutte *layer, gvizScene *scene,
+                                  gvizSceneGraphHandle h, gvizGraphCallback cb);
 
 void gvizLayerPolyTutteDraw(void *layer, const gvizCamera *camera);
 void gvizLayerPolyTutteUpdate(void *layer, float dt);

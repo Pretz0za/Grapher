@@ -85,6 +85,8 @@ int gvizLayerTutteInit(gvizLayerTutte *layer, gvizGraph *g,
   layer->pendingVertex = SIZE_MAX;
   layer->positions = NULL;
   layer->positionsCap = 0;
+  layer->scene = NULL;
+  layer->graphHandle = GVIZ_SCENE_GRAPH_INVALID;
 
   if (gvizGraphClone(&layer->graph, g) != 0)
     return -1;
@@ -116,6 +118,8 @@ int gvizLayerTutteInitEmpty(gvizLayerTutte *layer, size_t z) {
   layer->pendingVertex = SIZE_MAX;
   layer->positions = NULL;
   layer->positionsCap = 0;
+  layer->scene = NULL;
+  layer->graphHandle = GVIZ_SCENE_GRAPH_INVALID;
 
   if (gvizGraphInit(&layer->graph, 0) != 0)
     return -1;
@@ -176,8 +180,22 @@ struct gvizCamera *gvizLayerTutteGetCamera(void *layer) {
   return &((gvizLayerTutte *)layer)->camera;
 }
 
+void gvizLayerTutteBindHandle(gvizLayerTutte *layer, gvizScene *scene,
+                              gvizSceneGraphHandle h, gvizGraphCallback cb) {
+  layer->scene = scene;
+  layer->graphHandle = h;
+  gvizSceneRetainGraph(scene, h);
+  if (cb) gvizSceneSubscribeGraph(scene, h, layer, cb);
+}
+
 void gvizLayerTutteRelease(void *layerV) {
   gvizLayerTutte *self = (gvizLayerTutte *)layerV;
+  if (self->scene && self->graphHandle != GVIZ_SCENE_GRAPH_INVALID) {
+    gvizSceneUnsubscribeGraph(self->scene, self->graphHandle, self);
+    gvizSceneReleaseGraph(self->scene, self->graphHandle);
+    self->scene = NULL;
+    self->graphHandle = GVIZ_SCENE_GRAPH_INVALID;
+  }
   gvizGraphVBORelease(&self->vbo);
   if (self->hasTutte)
     gvizTutteEmbeddingRelease(&self->tutte);

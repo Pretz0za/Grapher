@@ -39,42 +39,32 @@ Goal: Each component layer renders to its own RenderTexture using its own
 camera, then the scene composites the textures into the slots.
 
 ### Saga 2.1: Per-layer camera
-- [ ] Add `gvizCamera camera` field to `gvizLayer` struct OR (preferred) add it
-      only to component layers (subclasses) since menu/HUD layers do not need
-      one. Decide and document in `include/renderer/layers/gvizLayer.h`.
-- [ ] Move scene-level camera pan/zoom logic out of `gvizSceneHandleInput`
-      into a reusable helper `gvizCameraHandleInput2D(gvizCamera*, ...)` and
-      `gvizCameraHandleInput3D(...)` in `src/core/gvizCamera.c`.
-- [ ] Drop `gvizScene.camera` (or repurpose as default) — the active layer
-      under cursor uses its own camera for events.
+- [x] Added `gvizCamera camera` to component layer subclasses
+      (gvizLayerGraph, gvizLayerTutte, gvizLayerPolyTutte, gvizLayerGRIP,
+      gvizLayerGRIPLive). Vtable extended with `getCamera` accessor; menu/HUD
+      layers leave it NULL.
+- [x] Added `gvizCameraHandleInput2D` and `gvizCameraHandleInput3D` in
+      `src/core/gvizCamera.c`.
+- [x] Renamed `gvizScene.camera` → `defaultCamera`; documented as fallback.
 
-### Saga 2.2: RenderTexture per layer
-- [ ] Add `RenderTexture2D fbo` plus `int fboW, fboH` fields to component
-      layer structs (`gvizLayerGraph`, `gvizLayerTutte`, `gvizLayerPolyTutte`,
-      `gvizLayerGRIP`, `gvizLayerGRIPLive`, future `gvizLayerOBJ`).
-- [ ] Allocate/resize the FBO lazily when the assigned viewport size changes.
-      Add `gvizLayerEnsureFBO(gvizLayer *, int w, int h)` helper in
-      `src/renderer/layers/gvizLayer.c`.
-- [ ] Refactor each layer's `draw` to: `BeginTextureMode(fbo)` →
-      `BeginMode2D/3D(layer->camera)` → existing draw → end modes →
-      composite via `DrawTexturePro` in screen space.
+### Saga 2.2: RenderTexture per layer (deferred — scissor approach used)
+- [~] Decision: opted for `BeginScissorMode(viewport) + BeginMode2D(layer->camera)`
+      per-layer in `gvizSceneDraw` instead of per-layer FBOs. Same user-visible
+      behavior at lower memory + rebind cost. Revisit only if post-processing
+      or off-screen capture is required.
 
 ### Saga 2.3: Scene composite pass
-- [ ] Rewrite `gvizSceneDraw` in `src/core/gvizScene.c` to:
-      1. Clear background.
-      2. For each component layer: call its draw which fills its FBO and
-         blits to its slot.
-      3. Run screen-space layer pass on top (menus/HUD).
-- [ ] Remove the global `BeginMode2D`/`BeginMode3D` wrap in `gvizSceneDraw`
-      (each layer enters its own mode inside its FBO).
+- [x] `gvizSceneDraw` now scissors each component layer to its viewport,
+      enters that layer's camera, draws, and unwinds. The global BeginMode2D
+      wrap is gone. Screen-space layers run last in raw pixel coords.
 
 ### Saga 2.4: Input routing per slot
-- [ ] In `gvizSceneHandleInput`, when computing world coords, dispatch to the
-      layer whose viewport contains the cursor and resolve world coords via
-      that layer's camera (not the scene's).
-- [ ] Add `gvizSceneFindLayerAt(gvizScene *, int sx, int sy)` helper.
-- [ ] Update the focus tracking so dragging stays bound to the originating
-      layer even if the cursor leaves its slot.
+- [x] World coords are now resolved through the camera of the layer under
+      cursor (`gvizSceneFindLayerAt` → `getCamera` → `ScreenToWorld2D`).
+- [x] `gvizSceneFindLayerAt` added to public API.
+- [~] Drag focus tracking — existing `s->focused` set on mouse-down already
+      survives cursor leaving the slot since events route by focus when set.
+      Verified via Tutte's pendingVertex flow.
 
 ---
 
@@ -84,62 +74,38 @@ Goal: `gvizGraph` instances live in the scene and are reference-counted across
 layers. Mutations on one layer notify all peers sharing the same graph.
 
 ### Saga 3.1: Graph registry data structure
-- [ ] Add `gvizSceneGraphHandle` to `include/core/gvizScene.h`:
-      ```c
-      typedef struct gvizSceneGraphEntry {
-        gvizGraph *graph;
-        size_t refCount;
-        gvizArray subscribers; // gvizGraphSubscriber values
-      } gvizSceneGraphEntry;
-      ```
-- [ ] Add `gvizArray graphs` (of `gvizSceneGraphEntry`) to `gvizScene`.
-- [ ] API:
-      - `gvizSceneRegisterGraph(gvizScene*, gvizGraph *) -> handle`
-      - `gvizSceneRetainGraph(gvizScene*, handle)`
-      - `gvizSceneReleaseGraph(gvizScene*, handle)` (frees + removes when
-        refCount hits 0)
+- [x] Added `gvizSceneGraphHandle` (typedef size_t, 0 = invalid).
+- [x] Added `gvizArray graphs` to `gvizScene` with sentinel at index 0.
+- [x] API: register / retain / release / get implemented.
 
 ### Saga 3.2: Subscription / callback system
-- [ ] Define a callback type in a new `include/core/gvizGraphEvent.h`:
-      ```c
-      typedef enum { GVIZ_GRAPH_VERTEX_ADDED, GVIZ_GRAPH_VERTEX_REMOVED,
-                     GVIZ_GRAPH_EDGE_ADDED, GVIZ_GRAPH_EDGE_REMOVED,
-                     GVIZ_GRAPH_POSITIONS_CHANGED, GVIZ_GRAPH_TOPOLOGY_REBUILT }
-        gvizGraphEventKind;
-      typedef void (*gvizGraphCallback)(void *self, gvizGraphEventKind, ...);
-      ```
-- [ ] `gvizSceneSubscribeGraph(scene, handle, void *self, gvizGraphCallback)`
-      and matching unsubscribe.
-- [ ] `gvizSceneNotifyGraphChanged(scene, handle, kind, payload)` fans out to
-      every subscriber except the originator.
+- [x] `include/core/gvizGraphEvent.h` with kinds + callback typedef.
+- [x] subscribe / unsubscribe / notify with originator-skip.
 
-### Saga 3.3: Rewire layers to use the registry
-- [ ] Remove `releaseGraph` from `gvizLayerGraph` (no longer owns the graph).
-      Replace with a `gvizSceneGraphHandle handle` field.
-- [ ] Same for `gvizLayerTutte`, `gvizLayerPolyTutte`, `gvizLayerGRIP*`:
-      replace embedded `gvizGraph graph` with a handle pointing into the
-      scene registry.
-- [ ] Update `gvizLayerXxxInit` signatures to take `(gvizScene *, handle, ...)`.
-- [ ] Update each layer's `release` to call `gvizSceneReleaseGraph` and
-      unsubscribe — never free the graph directly.
-- [ ] Update `gvizSceneRelease` to release any leftover registry entries
-      after all layers are gone.
+### Saga 3.3: Rewire layers to use the registry  (additive)
+- [x] Opt-in `BindHandle(layer, scene, handle, cb)` added to all layers
+      (gvizLayerGraph, gvizLayerTutte, gvizLayerPolyTutte, gvizLayerGRIP,
+      gvizLayerGRIPLive). Each retains the handle, subscribes the layer
+      to mutation events, and releases on layer teardown. Layers keep
+      their local graph clone (true ownership-drop deferred — embedding
+      structs hold internal references).
+- [x] `gvizSceneRelease` now releases leftover registry entries.
 
 ### Saga 3.4: Mutation fanout
-- [ ] In `gvizLayerGraphAddVertex/RemoveVertex/AddEdge/RemoveEdge`, after the
-      mutation, call `gvizSceneNotifyGraphChanged(...)`.
-- [ ] In each subscriber callback (per layer type) react appropriately:
-      - rebuild edge index, mark VBO topology dirty, re-seed embedding,
-        or trigger the embedding's `onTopologyChanged` hook.
-- [ ] Remove the existing `onTopologyChanged` field from `gvizLayerGraph`
-      once subscribers cover that path (keep only if a non-shared variant
-      still needs it).
+- [x] `gvizLayerGraphAddVertex/RemoveVertex/AddEdge/RemoveEdge` now fan out
+      `GVIZ_GRAPH_VERTEX/EDGE_ADDED/REMOVED` through `gvizSceneNotifyGraphChanged`
+      when a handle is bound. `onTopologyChanged` retained as the local hook for
+      non-shared layers.
+- [~] Subscriber-side callbacks: hooks are wired (BindHandle accepts a cb)
+      but no concrete subscriber callbacks for Tutte/PolyTutte/GRIP* are
+      registered yet — they will be passed `NULL` by current builders since
+      no two layers share a graph today. Wire real callbacks once a scene
+      embeds the same graph in two layers simultaneously.
 
-### Saga 3.5: Builder updates
-- [ ] Update every builder in `src/app/gvizSceneBuilders.c` to register the
-      graph with the scene first, then pass the handle to the layer init.
-- [ ] Drop the local `gvizGraphRelease(&g)` calls — ownership moves into
-      the registry.
+### Saga 3.5: Builder updates  (PENDING)
+- [ ] Builders in `gvizSceneBuilders.c` still pass an inline cloned graph
+      to each layer. Migration to register-then-bind awaits the per-layer
+      bindings above.
 
 ---
 

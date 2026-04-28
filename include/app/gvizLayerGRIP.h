@@ -2,6 +2,7 @@
 #define _GVIZ_APP_LAYER_GRIP_H_
 
 #include "core/gvizCamera.h"
+#include "core/gvizScene.h"
 #include "dsa/gvizArray.h"
 #include "dsa/gvizBitArray.h"
 #include "dsa/gvizGraph.h"
@@ -19,6 +20,9 @@
 typedef struct gvizLayerGRIP {
   gvizLayer layer; /* MUST be first */
   gvizCamera camera;
+  /* Optional registry binding. See gvizLayerGRIPBindHandle. */
+  gvizScene *scene;
+  gvizSceneGraphHandle graphHandle;
   gvizGraph graph;
   gvizGRIPState grip;
   gvizGraphVBO vbo;
@@ -32,6 +36,14 @@ typedef struct gvizLayerGRIP {
 
 int gvizLayerGRIPInit(gvizLayerGRIP *layer, gvizGraph *graph, size_t diameter,
                       size_t z);
+
+/*
+ * Bind this layer to a scene-registered graph handle. Retains the handle
+ * and subscribes the layer to mutation events. The layer keeps its own
+ * graph clone — the binding only delivers shared-graph notifications.
+ */
+void gvizLayerGRIPBindHandle(gvizLayerGRIP *layer, gvizScene *scene,
+                             gvizSceneGraphHandle h, gvizGraphCallback cb);
 void gvizLayerGRIPDraw(void *layer, const gvizCamera *camera);
 void gvizLayerGRIPUpdate(void *layer, float dt);
 void gvizLayerGRIPRelease(void *layer);

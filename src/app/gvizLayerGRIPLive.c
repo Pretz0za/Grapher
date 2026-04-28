@@ -38,6 +38,8 @@ int gvizLayerGRIPLiveInit(gvizLayerGRIPLive *self, gvizGraph *graph,
   self->currentLayer = -1;
   self->currentRound = 0;
   self->gpuDirty = 2;
+  self->scene = NULL;
+  self->graphHandle = GVIZ_SCENE_GRAPH_INVALID;
 
   if (gvizGraphClone(&self->graph, graph) != 0)
     return -1;
@@ -165,8 +167,22 @@ struct gvizCamera *gvizLayerGRIPLiveGetCamera(void *layer) {
   return &((gvizLayerGRIPLive *)layer)->camera;
 }
 
+void gvizLayerGRIPLiveBindHandle(gvizLayerGRIPLive *layer, gvizScene *scene,
+                                 gvizSceneGraphHandle h, gvizGraphCallback cb) {
+  layer->scene = scene;
+  layer->graphHandle = h;
+  gvizSceneRetainGraph(scene, h);
+  if (cb) gvizSceneSubscribeGraph(scene, h, layer, cb);
+}
+
 void gvizLayerGRIPLiveRelease(void *layerV) {
   gvizLayerGRIPLive *self = (gvizLayerGRIPLive *)layerV;
+  if (self->scene && self->graphHandle != GVIZ_SCENE_GRAPH_INVALID) {
+    gvizSceneUnsubscribeGraph(self->scene, self->graphHandle, self);
+    gvizSceneReleaseGraph(self->scene, self->graphHandle);
+    self->scene = NULL;
+    self->graphHandle = GVIZ_SCENE_GRAPH_INVALID;
+  }
   if (self->layerKNNs && self->currentLayer >= 0) {
     gvizGRIPReleaseLayerKNNs(&self->grip, (size_t)self->currentLayer,
                              self->layerKNNs);

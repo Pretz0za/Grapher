@@ -228,7 +228,6 @@ int main(void) {
 
   gvizTutteState s;
   gvizTutteEmbeddingInit(&s, &g, 2, 1e-5);
-  s.relaxationRate = 10.0;
 
   /* Pin the outer hexagonal ring (ring 0, vertices 0..SPOKES-1). */
   size_t boundary[SPOKES];
@@ -259,7 +258,7 @@ int main(void) {
     if (IsKeyPressed(KEY_SPACE))
       paused = !paused;
     if (IsKeyPressed(KEY_S))
-      gvizTutteEmbeddingStep(&s, dt);
+      gvizTutteEmbeddingStep(&s);
     if (IsKeyPressed(KEY_R))
       seedRandom(&s);
     if (IsKeyPressed(KEY_G))
@@ -267,7 +266,7 @@ int main(void) {
     handleCamera(&camera);
 
     if (!paused && !s.converged)
-      gvizTutteEmbeddingStep(&s, dt);
+      gvizTutteEmbeddingStep(&s);
 
     uploadEdges(vbo, eg);
 

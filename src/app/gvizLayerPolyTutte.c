@@ -225,6 +225,8 @@ int gvizLayerPolyTutteInit(gvizLayerPolyTutte *layer, gvizGraph *mesh,
   layer->boundaryRadius = 300.0;
   layer->scanTimer = 0.0f;
   layer->lastCamera = NULL;
+  layer->scene = NULL;
+  layer->graphHandle = GVIZ_SCENE_GRAPH_INVALID;
   gvizArrayInit(&layer->faces, sizeof(gvizArray));
 
   if (gvizGraphClone(&layer->graph, mesh) != 0)
@@ -363,8 +365,22 @@ struct gvizCamera *gvizLayerPolyTutteGetCamera(void *layer) {
   return &((gvizLayerPolyTutte *)layer)->camera;
 }
 
+void gvizLayerPolyTutteBindHandle(gvizLayerPolyTutte *layer, gvizScene *scene,
+                                  gvizSceneGraphHandle h, gvizGraphCallback cb) {
+  layer->scene = scene;
+  layer->graphHandle = h;
+  gvizSceneRetainGraph(scene, h);
+  if (cb) gvizSceneSubscribeGraph(scene, h, layer, cb);
+}
+
 void gvizLayerPolyTutteRelease(void *layerV) {
   gvizLayerPolyTutte *self = (gvizLayerPolyTutte *)layerV;
+  if (self->scene && self->graphHandle != GVIZ_SCENE_GRAPH_INVALID) {
+    gvizSceneUnsubscribeGraph(self->scene, self->graphHandle, self);
+    gvizSceneReleaseGraph(self->scene, self->graphHandle);
+    self->scene = NULL;
+    self->graphHandle = GVIZ_SCENE_GRAPH_INVALID;
+  }
   gvizGraphVBORelease(&self->vbo);
   if (self->hasTutte)
     gvizTutteEmbeddingRelease(&self->tutte);

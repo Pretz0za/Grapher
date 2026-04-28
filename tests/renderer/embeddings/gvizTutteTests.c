@@ -77,7 +77,7 @@ void test_tutte_boundary_pinned(void) {
     }
 
     for (int i = 0; i < 50; i++)
-        gvizTutteEmbeddingStep(&s, 0.016);
+        gvizTutteEmbeddingStep(&s);
 
     for (int i = 0; i < 3; i++) {
         double *p = gvizEmbeddedGraphGetVPosition(eg, (size_t)i);
@@ -144,8 +144,6 @@ void test_tutte_jacobi_vs_gs(void) {
     gvizTutteEmbeddingSeedInterior(&sJ);
     gvizTutteFixConvexPolygon(&sGS, boundary, 3, 100.0);
     gvizTutteEmbeddingSeedInterior(&sGS);
-
-    sGS.useGaussSeidel = 1;
 
     gvizTutteEmbeddingRun(&sJ, 10000);
     gvizTutteEmbeddingRun(&sGS, 10000);

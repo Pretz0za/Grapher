@@ -79,6 +79,12 @@
 },
 {
   "directory": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/build",
+  "command": "/usr/bin/cc  -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/include\" -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/third-party\" -g -std=gnu11 -arch arm64 -o CMakeFiles/graphvis.dir/src/renderer/embeddings/gvizPlanarRotation.c.o -c \"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/renderer/embeddings/gvizPlanarRotation.c\"",
+  "file": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/renderer/embeddings/gvizPlanarRotation.c",
+  "output": "CMakeFiles/graphvis.dir/src/renderer/embeddings/gvizPlanarRotation.c.o"
+},
+{
+  "directory": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/build",
   "command": "/usr/bin/cc  -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/include\" -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/third-party\" -g -std=gnu11 -arch arm64 -o CMakeFiles/graphvis.dir/src/renderer/embeddings/gvizSchnyderWood.c.o -c \"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/renderer/embeddings/gvizSchnyderWood.c\"",
   "file": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/renderer/embeddings/gvizSchnyderWood.c",
   "output": "CMakeFiles/graphvis.dir/src/renderer/embeddings/gvizSchnyderWood.c.o"
@@ -121,6 +127,18 @@
 },
 {
   "directory": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/build",
+  "command": "/usr/bin/cc  -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/include\" -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/third-party\" -g -std=gnu11 -arch arm64 -o CMakeFiles/graphvis.dir/src/renderer/layers/gvizDiscShader.c.o -c \"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/renderer/layers/gvizDiscShader.c\"",
+  "file": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/renderer/layers/gvizDiscShader.c",
+  "output": "CMakeFiles/graphvis.dir/src/renderer/layers/gvizDiscShader.c.o"
+},
+{
+  "directory": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/build",
+  "command": "/usr/bin/cc  -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/include\" -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/third-party\" -g -std=gnu11 -arch arm64 -o CMakeFiles/graphvis.dir/src/renderer/layers/gvizVertexDiscVBO.c.o -c \"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/renderer/layers/gvizVertexDiscVBO.c\"",
+  "file": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/renderer/layers/gvizVertexDiscVBO.c",
+  "output": "CMakeFiles/graphvis.dir/src/renderer/layers/gvizVertexDiscVBO.c.o"
+},
+{
+  "directory": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/build",
   "command": "/usr/bin/cc  -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/include\" -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/third-party\" -g -std=gnu11 -arch arm64 -o CMakeFiles/graphvis.dir/src/utils/graphs.c.o -c \"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/utils/graphs.c\"",
   "file": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/utils/graphs.c",
   "output": "CMakeFiles/graphvis.dir/src/utils/graphs.c.o"
@@ -142,6 +160,12 @@
   "command": "/usr/bin/cc  -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/include\" -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/third-party\" -g -std=gnu11 -arch arm64 -o CMakeFiles/graphvis.dir/src/utils/gvizTreeIO.c.o -c \"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/utils/gvizTreeIO.c\"",
   "file": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/utils/gvizTreeIO.c",
   "output": "CMakeFiles/graphvis.dir/src/utils/gvizTreeIO.c.o"
+},
+{
+  "directory": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/build",
+  "command": "/usr/bin/cc  -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/include\" -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/third-party\" -g -std=gnu11 -arch arm64 -o CMakeFiles/graphvis.dir/src/utils/gvizOBJLoader.c.o -c \"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/utils/gvizOBJLoader.c\"",
+  "file": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/utils/gvizOBJLoader.c",
+  "output": "CMakeFiles/graphvis.dir/src/utils/gvizOBJLoader.c.o"
 },
 {
   "directory": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/build",
@@ -244,5 +268,23 @@
   "command": "/usr/bin/cc  -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/include\" -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/third-party\" -g -std=gnu11 -arch arm64 -o CMakeFiles/grapher.dir/src/app/gvizLayerTutte.c.o -c \"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/app/gvizLayerTutte.c\"",
   "file": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/app/gvizLayerTutte.c",
   "output": "CMakeFiles/grapher.dir/src/app/gvizLayerTutte.c.o"
+},
+{
+  "directory": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/build",
+  "command": "/usr/bin/cc  -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/include\" -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/third-party\" -g -std=gnu11 -arch arm64 -o CMakeFiles/grapher.dir/src/app/gvizLayerPolyTutte.c.o -c \"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/app/gvizLayerPolyTutte.c\"",
+  "file": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/app/gvizLayerPolyTutte.c",
+  "output": "CMakeFiles/grapher.dir/src/app/gvizLayerPolyTutte.c.o"
+},
+{
+  "directory": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/build",
+  "command": "/usr/bin/cc  -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/include\" -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/third-party\" -g -std=gnu11 -arch arm64 -o CMakeFiles/grapher.dir/src/app/gvizLayerGRIP.c.o -c \"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/app/gvizLayerGRIP.c\"",
+  "file": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/app/gvizLayerGRIP.c",
+  "output": "CMakeFiles/grapher.dir/src/app/gvizLayerGRIP.c.o"
+},
+{
+  "directory": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/build",
+  "command": "/usr/bin/cc  -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/include\" -I\"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/third-party\" -g -std=gnu11 -arch arm64 -o CMakeFiles/grapher.dir/src/app/gvizLayerGRIPLive.c.o -c \"/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/app/gvizLayerGRIPLive.c\"",
+  "file": "/Users/abdulazizalahmadi/Desktop/COMPSCI 163/Grapher/src/app/gvizLayerGRIPLive.c",
+  "output": "CMakeFiles/grapher.dir/src/app/gvizLayerGRIPLive.c.o"
 }
 ]
