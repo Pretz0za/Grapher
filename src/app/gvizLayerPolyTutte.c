@@ -277,7 +277,7 @@ void gvizLayerPolyTutteDraw(void *layerV, const gvizCamera *camera) {
 
   gvizGraphVBODraw(&self->vbo);
 
-  EndMode2D();
+  if (camera->kind == GVIZ_CAMERA_2D) EndMode2D(); else EndMode3D();
   const char *hud;
   switch (self->phase) {
   case GVIZ_POLY_TUTTE_SCANNING:
@@ -293,8 +293,8 @@ void gvizLayerPolyTutteDraw(void *layerV, const gvizCamera *camera) {
     break;
   }
   DrawText(hud, 10, 10, 18, DARKGRAY);
-  if (camera->kind == GVIZ_CAMERA_2D)
-    BeginMode2D(camera->c2d);
+  if (camera->kind == GVIZ_CAMERA_2D) BeginMode2D(camera->c2d);
+  else BeginMode3D(camera->c3d);
 }
 
 void gvizLayerPolyTutteUpdate(void *layerV, float dt) {

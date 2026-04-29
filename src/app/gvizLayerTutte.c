@@ -157,11 +157,11 @@ void gvizLayerTutteDraw(void *layerV, const gvizCamera *camera) {
 
   gvizGraphVBODraw(&self->vbo);
 
-  EndMode2D();
+  if (camera->kind == GVIZ_CAMERA_2D) EndMode2D(); else EndMode3D();
   DrawText("SPACE  pause   S  single step   R  reseed   right-click  add vertex/edge   scroll/drag  pan+zoom",
            10, 10, 18, DARKGRAY);
-  if (camera->kind == GVIZ_CAMERA_2D)
-    BeginMode2D(camera->c2d);
+  if (camera->kind == GVIZ_CAMERA_2D) BeginMode2D(camera->c2d);
+  else BeginMode3D(camera->c3d);
 }
 
 void gvizLayerTutteUpdate(void *layerV, float dt) {

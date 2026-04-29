@@ -183,7 +183,7 @@ void gvizLayerGRIPLiveDraw(void *layerV, const gvizCamera *camera) {
   gvizGraphVBODraw(&self->vbo);
 
   /* Draw HUD text in screen space. */
-  EndMode2D();
+  if (camera->kind == GVIZ_CAMERA_2D) EndMode2D(); else EndMode3D();
 
   char buf[128];
   if (self->currentLayer >= 0) {
@@ -198,9 +198,9 @@ void gvizLayerGRIPLiveDraw(void *layerV, const gvizCamera *camera) {
   }
   DrawText(buf, 10, 10, 18, DARKGRAY);
 
-  /* Restart 2D mode with the same camera so subsequent layers draw correctly. */
-  if (camera->kind == GVIZ_CAMERA_2D)
-    BeginMode2D(camera->c2d);
+  /* Restart the matching mode so subsequent layers draw correctly. */
+  if (camera->kind == GVIZ_CAMERA_2D) BeginMode2D(camera->c2d);
+  else BeginMode3D(camera->c3d);
 }
 
 struct gvizCamera *gvizLayerGRIPLiveGetCamera(void *layer) {
