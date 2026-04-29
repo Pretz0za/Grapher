@@ -9,6 +9,7 @@
 #include "utils/gvizOBJLoader.h"
 #include "utils/gvizTreeIO.h"
 #include <math.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -248,6 +249,13 @@ int gvizCreateLayerFromParams(gvizScene *scene,
                               gvizLayer **out) {
   if (!scene || !params || !out) return -1;
   *out = NULL;
+  if (params->mode == GVIZ_SCENE_3D) {
+    fprintf(stderr,
+            "[layer-create] mode=3D not yet supported for algo=%d; "
+            "Tutte/PolyTutte/RT/GRIP layers are 2D-only.\n",
+            (int)params->algo);
+    return -1;
+  }
   switch (params->algo) {
   case GVIZ_CREATE_TUTTE:     return buildTutteLayer(scene, params, out);
   case GVIZ_CREATE_GRIP:      return buildGRIPLayer(scene, params, out);

@@ -704,7 +704,7 @@ void gvizSceneHandleInput(gvizScene *s) {
     fillMouseWorld(s, mp.x, mp.y, &ev.wheel.wx, &ev.wheel.wy);
     ev.wheel.dy = wheel;
     ev.wheel.mods = mods;
-    if (!dispatchEvent(s, &ev) && s->mode == GVIZ_SCENE_2D) {
+    if (!dispatchEvent(s, &ev)) {
       gvizLayer *l = s->activeLayer;
       gvizCamera *cam = layerCamera(l);
       if (cam && cam->kind == GVIZ_CAMERA_2D)
@@ -712,16 +712,28 @@ void gvizSceneHandleInput(gvizScene *s) {
                                 l->viewport.width, l->viewport.height,
                                 mp.x, mp.y, md.x, md.y, wheel,
                                 IsMouseButtonDown(MOUSE_BUTTON_LEFT), 1);
+      else if (cam && cam->kind == GVIZ_CAMERA_3D)
+        gvizCameraHandleInput3D(cam, l->viewport.x, l->viewport.y,
+                                l->viewport.width, l->viewport.height,
+                                md.x, md.y, wheel,
+                                IsMouseButtonDown(MOUSE_BUTTON_LEFT),
+                                IsMouseButtonDown(MOUSE_BUTTON_RIGHT), 1);
     }
-  } else if (s->mode == GVIZ_SCENE_2D && !s->dividerDragging) {
-    /* No wheel: only pan if left-button is held */
-    if (IsMouseButtonDown(MOUSE_BUTTON_LEFT) && !s->focused) {
+  } else if (!s->dividerDragging) {
+    /* No wheel: only pan if a button is held */
+    int lh = IsMouseButtonDown(MOUSE_BUTTON_LEFT);
+    int rh = IsMouseButtonDown(MOUSE_BUTTON_RIGHT);
+    if ((lh || rh) && !s->focused) {
       gvizLayer *l = s->activeLayer;
       gvizCamera *cam = layerCamera(l);
-      if (cam && cam->kind == GVIZ_CAMERA_2D)
+      if (cam && cam->kind == GVIZ_CAMERA_2D && lh)
         gvizCameraHandleInput2D(cam, l->viewport.x, l->viewport.y,
                                 l->viewport.width, l->viewport.height,
                                 mp.x, mp.y, md.x, md.y, 0.0f, 1, 1);
+      else if (cam && cam->kind == GVIZ_CAMERA_3D)
+        gvizCameraHandleInput3D(cam, l->viewport.x, l->viewport.y,
+                                l->viewport.width, l->viewport.height,
+                                md.x, md.y, 0.0f, lh, rh, 1);
     }
   }
 

@@ -122,23 +122,24 @@ default algo for Sierpinski) is a 2D Tutte layer, so its camera is 2D.
 Fix the mux so a 3D request routes to a 3D-capable algorithm/layer.
 
 ### Saga 3.1: Decide the 3D path
-- [ ] Catalogue which existing layers expose a 3D camera:
-      `gvizLayerOBJ` (3D), `gvizLayerGRIPLive` (currently 2D? confirm by
-      reading its `getCamera`). If GRIPLive is 2D-only, identify or add
-      a 3D variant — but do NOT implement yet, just decide.
-- [ ] Decision point: for `mode=3D + source=Sierpinski`, route to
-      `GVIZ_CREATE_GRIP` with a 3D camera variant (preferred), or
-      reject the combination in the panel with a validation message.
-      Pick one and document the choice in this task before continuing.
+- [x] Catalogue which existing layers expose a 3D camera:
+      `gvizLayerOBJ` (3D). `gvizLayerGRIPLive` is 2D-only (its
+      `gvizCameraMake2D` constructor and hard-coded `dim=2` in
+      `gvizGRIPEmbeddingInit` confirm). Tutte/PolyTutte/RT are 2D.
+- [x] Decision: until a true 3D GRIP variant exists, the mux **rejects**
+      `mode == GVIZ_SCENE_3D` for every algorithm except OBJ (which is
+      not user-selectable from this panel). The 3D Sierpinski request
+      will return -1 with a clear stderr message and the panel should
+      surface the failure (Saga 3.3). A future saga will add a 3D
+      `gvizLayerGRIPLive` variant.
 
 ### Saga 3.2: Mux fix in gvizCreateLayerFromParams
-- [ ] In `src/app/gvizLayerCreate.c`, branch on `params->mode` for each
-      algo where 2D vs 3D matters. For Sierpinski-3D, build the GRIP
-      layer with a 3D camera (if the GRIPLive layer supports it) — or
-      return -1 and have the panel show an error.
-- [ ] Audit `buildTutteLayer`, `buildPolyTutteLayer`, `buildRTLayer`:
-      these are 2D-only. If `params->mode == GVIZ_SCENE_3D`, return
-      -1 with a clear stderr message; the panel surfaces the failure.
+- [x] In `src/app/gvizLayerCreate.c`, branch on `params->mode` for each
+      algo where 2D vs 3D matters. For now, mode==3D requests are
+      rejected at the top of `gvizCreateLayerFromParams` with a stderr
+      message (no 3D-capable algo wired in this panel yet).
+- [x] Audit `buildTutteLayer`, `buildPolyTutteLayer`, `buildRTLayer`:
+      these are 2D-only. The mux-level rejection covers them.
 
 ### Saga 3.3: Panel UX guard
 - [ ] In `gvizLayerCreatePanelDraw`, grey out the 3D toggle when the
@@ -157,20 +158,19 @@ slot is NULL and `update` is a stub, so mouse input never reaches the
 camera. `gvizSceneHandleInput` only auto-pans 2D cameras as a fallback.
 
 ### Saga 4.1: Add 3D fallback in scene input
-- [ ] In `gvizSceneHandleInput`, mirror the 2D camera fallback for 3D:
+- [x] In `gvizSceneHandleInput`, mirror the 2D camera fallback for 3D:
       when `dispatchEvent` returns 0 and the active layer's camera is
       `GVIZ_CAMERA_3D`, call `gvizCameraHandleInput3D` with the layer's
-      viewport, mouse delta, wheel, and L/R held flags.
-- [ ] Confirm `gvizCameraHandleInput3D` is implemented in
-      `src/core/gvizCamera.c`. If not, scope an implementation task here
-      (orbit on left-drag, pan on right/middle-drag, dolly on wheel).
+      viewport, mouse delta, wheel, and L/R held flags. Also drops the
+      `s->mode == GVIZ_SCENE_2D` gate on the no-wheel pan path so 3D
+      drags route correctly when the scene mode is 3D-or-empty.
+- [x] `gvizCameraHandleInput3D` is implemented in `src/core/gvizCamera.c`
+      (orbit on left-drag, pan on right-drag, dolly on wheel).
 
 ### Saga 4.2: OBJ layer onEvent (optional, layer-local hook)
-- [ ] Decide whether OBJ-specific input (e.g. R to reset camera) is
-      needed. If not, leave `onEvent = NULL` and rely on Saga 4.1.
-- [ ] If yes, add `gvizLayerOBJHandleEvent` that consumes layer-local
-      hotkeys and returns 0 for camera events so the scene fallback
-      still runs.
+- [x] Decision: leave `onEvent = NULL` on OBJ layer; the scene
+      fallback in Saga 4.1 covers orbit/pan/dolly. No layer-local
+      hotkeys needed at this time.
 
 ### Saga 4.3: Smoke
 - [ ] Build, open an .obj via the macOS file menu, choose OBJ-only.
