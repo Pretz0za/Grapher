@@ -72,11 +72,29 @@ static int commonInit(gvizScene *s) {
   s->bg[1] = 245;
   s->bg[2] = 245;
   s->bg[3] = 255;
-  s->layout.split = GVIZ_SPLIT_NONE;
-  s->layout.splitRatio = 0.5f;
+  s->layout.root = NULL;
   gvizSceneComputeRegion(GetScreenWidth(), GetScreenHeight(), &s->layout.region);
   s->dividerDragging = 0;
+  s->draggingNode = NULL;
   return 0;
+}
+
+gvizSlotNode *gvizSlotNodeNewLeaf(gvizLayer *l) {
+  gvizSlotNode *n = (gvizSlotNode *)GVIZ_ALLOC(sizeof(gvizSlotNode));
+  if (!n) return NULL;
+  n->split = GVIZ_SPLIT_NONE;
+  n->layer = l;
+  n->a = n->b = NULL;
+  n->ratio = 0.5f;
+  n->viewport = (gvizViewport){0, 0, 0, 0};
+  return n;
+}
+
+void gvizSlotNodeFree(gvizSlotNode *n) {
+  if (!n) return;
+  gvizSlotNodeFree(n->a);
+  gvizSlotNodeFree(n->b);
+  GVIZ_DEALLOC(n);
 }
 
 int gvizSceneInit2D(gvizScene *s) {
@@ -118,6 +136,10 @@ void gvizSceneRelease(gvizScene *s) {
   }
   if (s->pendingRemove.arr)
     gvizArrayRelease(&s->pendingRemove);
+  if (s->layout.root) {
+    gvizSlotNodeFree(s->layout.root);
+    s->layout.root = NULL;
+  }
   if (s->graphs.arr) {
     for (size_t i = 1; i < s->graphs.count; i++) {
       gvizSceneGraphEntry *e = (gvizSceneGraphEntry *)gvizArrayAtIndex(&s->graphs, i);
@@ -216,15 +238,98 @@ void gvizSceneNotifyGraphChanged(gvizScene *s, gvizSceneGraphHandle h,
   }
 }
 
+static int isComponentLayerFlags(unsigned f) {
+  return !(f & GVIZ_LAYER_SCREEN_SPACE);
+}
+
+static int isComponentLayer(const gvizLayer *l) {
+  return isComponentLayerFlags(l->flags);
+}
+
+static gvizSlotNode *findRightmostLeaf(gvizSlotNode *n) {
+  if (!n) return NULL;
+  if (n->split == GVIZ_SPLIT_NONE) return n;
+  return findRightmostLeaf(n->b);
+}
+
+static gvizSlotNode *findLeafForLayer(gvizSlotNode *n, const gvizLayer *l) {
+  if (!n) return NULL;
+  if (n->split == GVIZ_SPLIT_NONE) return (n->layer == l) ? n : NULL;
+  gvizSlotNode *r = findLeafForLayer(n->a, l);
+  if (r) return r;
+  return findLeafForLayer(n->b, l);
+}
+
+static gvizSlotNode *findParent(gvizSlotNode *n, const gvizSlotNode *child) {
+  if (!n || n->split == GVIZ_SPLIT_NONE) return NULL;
+  if (n->a == child || n->b == child) return n;
+  gvizSlotNode *r = findParent(n->a, child);
+  if (r) return r;
+  return findParent(n->b, child);
+}
+
 int gvizSceneAddLayer(gvizScene *s, gvizLayer *layer) {
   if (!layer)
     return -1;
   if (gvizArrayPush(&s->layers, &layer) != 0)
     return -1;
   sortLayers(s);
+  if (isComponentLayerFlags(layer->flags)) {
+    if (!s->layout.root) {
+      s->layout.root = gvizSlotNodeNewLeaf(layer);
+    } else if (!findLeafForLayer(s->layout.root, layer)) {
+      /* No explicit split: collapse into the rightmost leaf as a fallback. */
+      gvizSlotNode *rm = findRightmostLeaf(s->layout.root);
+      if (rm && !rm->layer) rm->layer = layer;
+    }
+  }
   gvizSceneRecomputeSlots(s);
-  if (!s->activeLayer && !(layer->flags & GVIZ_LAYER_SCREEN_SPACE))
+  if (!s->activeLayer && isComponentLayerFlags(layer->flags))
     s->activeLayer = layer;
+  return 0;
+}
+
+int gvizSceneSplitLayer(gvizScene *s, gvizLayer *target,
+                        gvizSceneSlotSplit dir, gvizLayer *newLayer) {
+  if (!s || !newLayer || dir == GVIZ_SPLIT_NONE) return -1;
+  /* Push the layer into s->layers first if not already there. */
+  int already = 0;
+  for (size_t i = 0; i < s->layers.count; i++) {
+    if (*(gvizLayer **)gvizArrayAtIndex(&s->layers, i) == newLayer) {
+      already = 1;
+      break;
+    }
+  }
+  if (!already) {
+    if (gvizArrayPush(&s->layers, &newLayer) != 0) return -1;
+    sortLayers(s);
+  }
+  if (!s->layout.root) {
+    s->layout.root = gvizSlotNodeNewLeaf(newLayer);
+    gvizSceneRecomputeSlots(s);
+    if (!s->activeLayer && isComponentLayerFlags(newLayer->flags))
+      s->activeLayer = newLayer;
+    return 0;
+  }
+  gvizSlotNode *leaf = target ? findLeafForLayer(s->layout.root, target) : NULL;
+  if (!leaf) leaf = findRightmostLeaf(s->layout.root);
+  if (!leaf) return -1;
+  /* Promote leaf into an internal node by giving it two children. */
+  gvizSlotNode *oldLeaf = gvizSlotNodeNewLeaf(leaf->layer);
+  gvizSlotNode *newLeaf = gvizSlotNodeNewLeaf(newLayer);
+  if (!oldLeaf || !newLeaf) {
+    if (oldLeaf) GVIZ_DEALLOC(oldLeaf);
+    if (newLeaf) GVIZ_DEALLOC(newLeaf);
+    return -1;
+  }
+  leaf->split = dir;
+  leaf->layer = NULL;
+  leaf->a = oldLeaf;
+  leaf->b = newLeaf;
+  leaf->ratio = 0.5f;
+  gvizSceneRecomputeSlots(s);
+  if (!s->activeLayer && isComponentLayerFlags(newLayer->flags))
+    s->activeLayer = newLayer;
   return 0;
 }
 
@@ -253,6 +358,37 @@ int gvizSceneBringToFront(gvizScene *s, gvizLayer *layer) {
   return 0;
 }
 
+static void removeLayerFromSlotTree(gvizScene *s, gvizLayer *l) {
+  if (!s->layout.root) return;
+  gvizSlotNode *leaf = findLeafForLayer(s->layout.root, l);
+  if (!leaf) return;
+  if (leaf == s->layout.root) {
+    gvizSlotNodeFree(s->layout.root);
+    s->layout.root = NULL;
+    s->draggingNode = NULL;
+    return;
+  }
+  gvizSlotNode *parent = findParent(s->layout.root, leaf);
+  if (!parent) return;
+  gvizSlotNode *sibling = (parent->a == leaf) ? parent->b : parent->a;
+  /* Splice sibling into the parent slot. */
+  gvizSlotNode *gp = findParent(s->layout.root, parent);
+  if (!gp) {
+    /* parent is root */
+    s->layout.root = sibling;
+  } else {
+    if (gp->a == parent) gp->a = sibling;
+    else                 gp->b = sibling;
+  }
+  parent->a = parent->b = NULL;
+  GVIZ_DEALLOC(parent);
+  GVIZ_DEALLOC(leaf);
+  if (s->draggingNode == parent || s->draggingNode == leaf) {
+    s->draggingNode = NULL;
+    s->dividerDragging = 0;
+  }
+}
+
 static void flushPendingRemoves(gvizScene *s) {
   int removed = 0;
   for (size_t i = 0; i < s->pendingRemove.count; i++) {
@@ -261,6 +397,8 @@ static void flushPendingRemoves(gvizScene *s) {
     int idx = findLayerIndex(&s->layers, victim);
     if (idx < 0)
       continue;
+    if (isComponentLayer(victim))
+      removeLayerFromSlotTree(s, victim);
     gvizArrayDeleteAtIndex(&s->layers, (size_t)idx);
     if (s->focused == victim)
       s->focused = NULL;
@@ -286,63 +424,41 @@ static void flushPendingRemoves(gvizScene *s) {
   if (removed) gvizSceneRecomputeSlots(s);
 }
 
-static int isComponentLayer(const gvizLayer *l) {
-  return !(l->flags & GVIZ_LAYER_SCREEN_SPACE);
-}
-
-static size_t countComponentLayers(const gvizScene *s) {
-  size_t n = 0;
-  for (size_t i = 0; i < s->layers.count; i++) {
-    gvizLayer *l = *(gvizLayer **)gvizArrayAtIndex(&s->layers, i);
-    if (isComponentLayer(l)) n++;
+static void layoutSlotTree(gvizSlotNode *n, gvizViewport r) {
+  if (!n) return;
+  n->viewport = r;
+  if (n->split == GVIZ_SPLIT_NONE) {
+    if (n->layer) n->layer->viewport = r;
+    return;
   }
-  return n;
+  int gutter = GVIZ_SCENE_DIVIDER_GUTTER;
+  if (n->split == GVIZ_SPLIT_H) {
+    int firstW = (int)(r.width * n->ratio);
+    gvizViewport ra = {r.x, r.y, firstW - gutter / 2, r.height};
+    gvizViewport rb = {r.x + firstW + gutter / 2, r.y,
+                       r.width - firstW - gutter / 2, r.height};
+    layoutSlotTree(n->a, ra);
+    layoutSlotTree(n->b, rb);
+  } else {
+    int firstH = (int)(r.height * n->ratio);
+    gvizViewport ra = {r.x, r.y, r.width, firstH - gutter / 2};
+    gvizViewport rb = {r.x, r.y + firstH + gutter / 2, r.width,
+                       r.height - firstH - gutter / 2};
+    layoutSlotTree(n->a, ra);
+    layoutSlotTree(n->b, rb);
+  }
 }
 
 void gvizSceneRecomputeSlots(gvizScene *s) {
-  size_t n = countComponentLayers(s);
-  /* 0 component layers: nothing to lay out — empty-region placeholder is
-   * drawn by gvizSceneDraw. Early-return is implicit: the loop below skips
-   * non-component layers and assigns nothing. */
-  /* split policy: 1 layer collapses to NONE; with 2+ layers, keep any
-   * user-set split (H or V), defaulting to H if not yet set. */
-  if (n <= 1) s->layout.split = GVIZ_SPLIT_NONE;
-  else if (s->layout.split == GVIZ_SPLIT_NONE) s->layout.split = GVIZ_SPLIT_H;
-
-  gvizViewport r = s->layout.region;
-  size_t assigned = 0;
+  /* Zero out viewports first so layers not represented in the tree
+   * don't draw with stale rects. */
   for (size_t i = 0; i < s->layers.count; i++) {
     gvizLayer *l = *(gvizLayer **)gvizArrayAtIndex(&s->layers, i);
-    if (!isComponentLayer(l)) continue;
-    if (assigned >= 2 && n > 2) {
+    if (isComponentLayer(l))
       l->viewport = (gvizViewport){0, 0, 0, 0};
-      assigned++;
-      fprintf(stderr, "[scene] >2 component layers; extras hidden\n");
-      continue;
-    }
-    if (n <= 1) {
-      l->viewport = r;
-    } else if (s->layout.split == GVIZ_SPLIT_H) {
-      int firstW = (int)(r.width * s->layout.splitRatio);
-      if (assigned == 0)
-        l->viewport = (gvizViewport){r.x, r.y, firstW - GVIZ_SCENE_DIVIDER_GUTTER/2, r.height};
-      else
-        l->viewport = (gvizViewport){r.x + firstW + GVIZ_SCENE_DIVIDER_GUTTER/2,
-                                     r.y,
-                                     r.width - firstW - GVIZ_SCENE_DIVIDER_GUTTER/2,
-                                     r.height};
-    } else { /* SPLIT_V */
-      int firstH = (int)(r.height * s->layout.splitRatio);
-      if (assigned == 0)
-        l->viewport = (gvizViewport){r.x, r.y, r.width, firstH - GVIZ_SCENE_DIVIDER_GUTTER/2};
-      else
-        l->viewport = (gvizViewport){r.x,
-                                     r.y + firstH + GVIZ_SCENE_DIVIDER_GUTTER/2,
-                                     r.width,
-                                     r.height - firstH - GVIZ_SCENE_DIVIDER_GUTTER/2};
-    }
-    assigned++;
   }
+  if (s->layout.root)
+    layoutSlotTree(s->layout.root, s->layout.region);
 }
 
 static int viewportContains(const gvizViewport *vp, int sx, int sy) {
@@ -362,43 +478,55 @@ gvizLayer *gvizSceneFindLayerAt(gvizScene *s, int sx, int sy) {
 
 /* ---- Divider gutter ----------------------------------------------------- */
 
-static int dividerGutterContains(const gvizScene *s, int sx, int sy,
-                                 int *cursorOut) {
-  if (s->layout.split == GVIZ_SPLIT_NONE) return 0;
-  gvizViewport r = s->layout.region;
-  if (s->layout.split == GVIZ_SPLIT_H) {
-    int gx = r.x + (int)(r.width * s->layout.splitRatio);
+static gvizSlotNode *hitInternalDivider(gvizSlotNode *n, int sx, int sy,
+                                        int *cursorOut) {
+  if (!n || n->split == GVIZ_SPLIT_NONE) return NULL;
+  /* Recurse depth-first so deeper (smaller) dividers win. */
+  gvizSlotNode *r = hitInternalDivider(n->a, sx, sy, cursorOut);
+  if (r) return r;
+  r = hitInternalDivider(n->b, sx, sy, cursorOut);
+  if (r) return r;
+  gvizViewport vp = n->viewport;
+  if (n->split == GVIZ_SPLIT_H) {
+    int gx = vp.x + (int)(vp.width * n->ratio);
     if (sx >= gx - GVIZ_SCENE_DIVIDER_GUTTER &&
         sx <= gx + GVIZ_SCENE_DIVIDER_GUTTER &&
-        sy >= r.y && sy < r.y + r.height) {
+        sy >= vp.y && sy < vp.y + vp.height) {
       if (cursorOut) *cursorOut = MOUSE_CURSOR_RESIZE_EW;
-      return 1;
+      return n;
     }
   } else {
-    int gy = r.y + (int)(r.height * s->layout.splitRatio);
+    int gy = vp.y + (int)(vp.height * n->ratio);
     if (sy >= gy - GVIZ_SCENE_DIVIDER_GUTTER &&
         sy <= gy + GVIZ_SCENE_DIVIDER_GUTTER &&
-        sx >= r.x && sx < r.x + r.width) {
+        sx >= vp.x && sx < vp.x + vp.width) {
       if (cursorOut) *cursorOut = MOUSE_CURSOR_RESIZE_NS;
-      return 1;
+      return n;
     }
   }
-  return 0;
+  return NULL;
+}
+
+static int dividerGutterContains(const gvizScene *s, int sx, int sy,
+                                 int *cursorOut) {
+  return hitInternalDivider(s->layout.root, sx, sy, cursorOut) != NULL;
 }
 
 static void dragDivider(gvizScene *s, int sx, int sy) {
-  gvizViewport r = s->layout.region;
+  gvizSlotNode *n = s->draggingNode;
+  if (!n) return;
+  gvizViewport vp = n->viewport;
   float ratio;
-  if (s->layout.split == GVIZ_SPLIT_H) {
-    if (r.width <= 0) return;
-    ratio = (float)(sx - r.x) / (float)r.width;
+  if (n->split == GVIZ_SPLIT_H) {
+    if (vp.width <= 0) return;
+    ratio = (float)(sx - vp.x) / (float)vp.width;
   } else {
-    if (r.height <= 0) return;
-    ratio = (float)(sy - r.y) / (float)r.height;
+    if (vp.height <= 0) return;
+    ratio = (float)(sy - vp.y) / (float)vp.height;
   }
   if (ratio < 0.1f) ratio = 0.1f;
   if (ratio > 0.9f) ratio = 0.9f;
-  s->layout.splitRatio = ratio;
+  n->ratio = ratio;
   gvizSceneRecomputeSlots(s);
 }
 
@@ -480,6 +608,7 @@ void gvizSceneHandleInput(gvizScene *s) {
       dragDivider(s, (int)mp.x, (int)mp.y);
     } else {
       s->dividerDragging = 0;
+      s->draggingNode = NULL;
     }
   }
 
@@ -503,10 +632,14 @@ void gvizSceneHandleInput(gvizScene *s) {
   for (int i = 0; i < 3; i++) {
     if (IsMouseButtonPressed(btns[i])) {
       /* Begin divider drag if applicable */
-      if (i == 0 && !s->dividerDragging &&
-          dividerGutterContains(s, (int)mp.x, (int)mp.y, NULL)) {
-        s->dividerDragging = 1;
-        continue;
+      if (i == 0 && !s->dividerDragging) {
+        gvizSlotNode *hit = hitInternalDivider(s->layout.root,
+                                               (int)mp.x, (int)mp.y, NULL);
+        if (hit) {
+          s->dividerDragging = 1;
+          s->draggingNode = hit;
+          continue;
+        }
       }
       /* Right-click → context-menu hooks (only when no screen-space layer
        * is up to absorb it; we approximate by always firing — modals can

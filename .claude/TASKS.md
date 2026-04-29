@@ -45,7 +45,7 @@ or an internal split (H or V) with two children + a ratio. Right-click
 child is the existing layer and right child is the new layer.
 
 ### Saga 2.1: Slot tree data model
-- [ ] In `include/core/gvizScene.h`, define:
+- [x] In `include/core/gvizScene.h`, define:
       ```
       typedef struct gvizSlotNode {
         gvizSceneSlotSplit split;   /* NONE = leaf, H/V = internal */
@@ -55,62 +55,62 @@ child is the existing layer and right child is the new layer.
         gvizViewport viewport;      /* recomputed each layout pass */
       } gvizSlotNode;
       ```
-- [ ] Replace `gvizSceneLayout`'s `split`/`splitRatio` with a single
+- [x] Replace `gvizSceneLayout`'s `split`/`splitRatio` with a single
       `gvizSlotNode *root` (NULL when no component layers). Keep the
       `region` viewport.
-- [ ] Add `gvizSlotNode *gvizSlotNodeNewLeaf(gvizLayer *l)` and a
+- [x] Add `gvizSlotNode *gvizSlotNodeNewLeaf(gvizLayer *l)` and a
       recursive `gvizSlotNodeFree(gvizSlotNode *)` (does not free layers
       — those are owned by `s->layers`).
 
 ### Saga 2.2: Layout pass rewrite
-- [ ] Rewrite `gvizSceneRecomputeSlots` to walk `layout.root`:
+- [x] Rewrite `gvizSceneRecomputeSlots` to walk `layout.root`:
       - leaf: assign `region` to the single layer's viewport
       - internal H: split width by `ratio` minus gutter, recurse
       - internal V: split height by `ratio` minus gutter, recurse
-- [ ] Drop the old "if n>2 hide extras" warning path.
-- [ ] On `gvizSceneAddLayer` for the FIRST component layer, set
+- [x] Drop the old "if n>2 hide extras" warning path.
+- [x] On `gvizSceneAddLayer` for the FIRST component layer, set
       `layout.root = newLeaf(layer)`. For subsequent adds without an
       explicit split request, do NOT auto-place — splits come from the
       context-menu path only.
 
 ### Saga 2.3: Splitting API
-- [ ] Add `int gvizSceneSplitLayer(gvizScene *s, gvizLayer *target,
+- [x] Add `int gvizSceneSplitLayer(gvizScene *s, gvizLayer *target,
       gvizSceneSlotSplit dir, gvizLayer *newLayer)`:
       - find the leaf node whose `layer == target`
       - replace it with a new internal node `{split=dir, a=oldLeaf,
         b=newLeaf(newLayer), ratio=0.5}`
       - call `gvizSceneRecomputeSlots`.
-- [ ] Add `int gvizSceneRemoveLayerFromTree(gvizScene *s, gvizLayer *l)`
+- [x] Add `int gvizSceneRemoveLayerFromTree(gvizScene *s, gvizLayer *l)`
       called from `flushPendingRemoves`:
       - find the leaf, find its parent
       - replace parent with the surviving sibling (collapse)
       - free the now-orphaned internal node.
 
 ### Saga 2.4: Divider hit-test + drag for arbitrary tree
-- [ ] Rewrite `dividerGutterContains` to walk the tree: for each
+- [x] Rewrite `dividerGutterContains` to walk the tree: for each
       internal node, test the gutter strip at its split line; return
       the deepest matching node + its split kind. Stash a
       `gvizSlotNode *draggingNode` on the scene during a drag.
-- [ ] Rewrite `dragDivider` to update only `draggingNode->ratio` using
+- [x] Rewrite `dragDivider` to update only `draggingNode->ratio` using
       that node's `viewport`, then `gvizSceneRecomputeSlots`.
 
 ### Saga 2.5: Wire main.c context-menu split path
-- [ ] In `gvizApplyLayerCreate`, replace the
+- [x] In `gvizApplyLayerCreate`, replace the
       `scene->layout.split = ...` writes with a call to
       `gvizSceneSplitLayer(scene, target, dir, newLayer)` — needs the
       panel/AppState to remember which layer was right-clicked.
-- [ ] Stash the right-clicked layer in `AppState` when opening the
+- [x] Stash the right-clicked layer in `AppState` when opening the
       context menu (already on `m->targetLayer`); copy it into the
       `gvizLayerCreatePanel` so `gvizApplyLayerCreate` can find it.
       Add `gvizLayer *targetLayer` to `gvizLayerCreateParams` (or pass
       separately).
-- [ ] Drop the legacy `GVIZ_SPLIT_NONE/H/V` defaulting on add — slots
+- [x] Drop the legacy `GVIZ_SPLIT_NONE/H/V` defaulting on add — slots
       come from the tree now.
 
 ### Saga 2.6: Cleanup of legacy split fields
-- [ ] After 2.1–2.5 land, delete `splitRatio` and the top-level `split`
+- [x] After 2.1–2.5 land, delete `splitRatio` and the top-level `split`
       reference. `gvizSceneSlotSplit` enum stays (used per-node).
-- [ ] `gvizSceneRelease` must call `gvizSlotNodeFree(layout.root)`.
+- [x] `gvizSceneRelease` must call `gvizSlotNodeFree(layout.root)`.
 
 ---
 

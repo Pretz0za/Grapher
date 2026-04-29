@@ -88,10 +88,12 @@ static void onLayerContextMenu(gvizScene *s, gvizLayer *layer, int sx, int sy,
 }
 
 static void openCreatePanel(gvizScene *scene, AppState *app,
-                            gvizCreateSlotKind slotKind) {
+                            gvizCreateSlotKind slotKind,
+                            gvizLayer *targetLayer) {
   gvizLayerCreatePanel *p = GVIZ_ALLOC(sizeof(gvizLayerCreatePanel));
   if (!p) return;
   gvizLayerCreatePanelInit(p, slotKind, 1800);
+  p->params.targetLayer = targetLayer;
   app->panel = p;
   app->pendingSlot = slotKind;
   gvizSceneAddLayer(scene, (gvizLayer *)p);
@@ -101,14 +103,15 @@ static void drainContextMenu(gvizScene *scene, AppState *app) {
   if (!app->menu) return;
   if (app->menu->result == 0) return;
   int result = app->menu->result;
+  gvizLayer *target = app->menu->targetLayer;
   gvizSceneRemoveLayer(scene, (gvizLayer *)app->menu);
   app->menu = NULL;
   if (result == ACT_CREATE_NEW)
-    openCreatePanel(scene, app, GVIZ_SLOT_NEW_EMPTY_SCENE);
+    openCreatePanel(scene, app, GVIZ_SLOT_NEW_EMPTY_SCENE, NULL);
   else if (result == ACT_SPLIT_H)
-    openCreatePanel(scene, app, GVIZ_SLOT_SPLIT_H);
+    openCreatePanel(scene, app, GVIZ_SLOT_SPLIT_H, target);
   else if (result == ACT_SPLIT_V)
-    openCreatePanel(scene, app, GVIZ_SLOT_SPLIT_V);
+    openCreatePanel(scene, app, GVIZ_SLOT_SPLIT_V, target);
 }
 
 static void drainCreatePanel(gvizScene *scene, AppState *app) {

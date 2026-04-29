@@ -265,14 +265,16 @@ int gvizApplyLayerCreate(gvizScene *scene, const gvizLayerCreateParams *p) {
   /* Set scene mode (only meaningful in empty case). */
   if (p->slotKind == GVIZ_SLOT_NEW_EMPTY_SCENE) {
     scene->mode = p->mode;
-  } else if (p->slotKind == GVIZ_SLOT_SPLIT_H) {
-    scene->layout.split = GVIZ_SPLIT_H;
-    scene->layout.splitRatio = 0.5f;
-  } else if (p->slotKind == GVIZ_SLOT_SPLIT_V) {
-    scene->layout.split = GVIZ_SPLIT_V;
-    scene->layout.splitRatio = 0.5f;
+    if (gvizSceneAddLayer(scene, layer) != 0) {
+      if (layer->vtable && layer->vtable->release) layer->vtable->release(layer);
+      GVIZ_DEALLOC(layer);
+      return -1;
+    }
+    return 0;
   }
-  if (gvizSceneAddLayer(scene, layer) != 0) {
+  gvizSceneSlotSplit dir =
+      (p->slotKind == GVIZ_SLOT_SPLIT_V) ? GVIZ_SPLIT_V : GVIZ_SPLIT_H;
+  if (gvizSceneSplitLayer(scene, p->targetLayer, dir, layer) != 0) {
     if (layer->vtable && layer->vtable->release) layer->vtable->release(layer);
     GVIZ_DEALLOC(layer);
     return -1;

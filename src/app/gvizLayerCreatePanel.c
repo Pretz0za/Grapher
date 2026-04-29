@@ -22,6 +22,7 @@ void gvizLayerCreatePanelInit(gvizLayerCreatePanel *p,
   p->params.algo = GVIZ_CREATE_TUTTE;
   p->params.source = GVIZ_SRC_DEMO_OCTAHEDRON;
   p->params.filepath[0] = '\0';
+  p->params.targetLayer = NULL;
   p->algoDropdownEdit = 0;
   p->sourceDropdownEdit = 0;
   p->filepathEdit = 0;

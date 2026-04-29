@@ -60,10 +60,27 @@ typedef enum gvizSceneSlotSplit {
   GVIZ_SPLIT_V,   /* split vertically   → top + bottom slot */
 } gvizSceneSlotSplit;
 
+/*
+ * Slot tree node. A leaf (`split == GVIZ_SPLIT_NONE`) holds a single
+ * component layer. An internal node (`split == H/V`) has two children
+ * `a` and `b` (left/top and right/bottom respectively) and a `ratio`
+ * giving the relative size of `a`. Each node caches its viewport from
+ * the most recent layout pass.
+ */
+typedef struct gvizSlotNode {
+  gvizSceneSlotSplit split;
+  struct gvizLayer  *layer;       /* leaf only */
+  struct gvizSlotNode *a, *b;     /* internal only */
+  float ratio;                    /* internal only, 0..1 */
+  gvizViewport viewport;
+} gvizSlotNode;
+
+gvizSlotNode *gvizSlotNodeNewLeaf(struct gvizLayer *l);
+void          gvizSlotNodeFree(gvizSlotNode *n);
+
 typedef struct gvizSceneLayout {
-  gvizViewport region;          /* current active region */
-  gvizSceneSlotSplit split;     /* how slots are divided */
-  float splitRatio;             /* 0..1 size of first slot */
+  gvizViewport  region;        /* current active region */
+  gvizSlotNode *root;          /* NULL when no component layers */
 } gvizSceneLayout;
 
 /*
@@ -109,9 +126,19 @@ typedef struct gvizScene {
   /* Background clear color (RGBA). */
   unsigned char bg[4];
 
-  /* Internal: 1 while the user is dragging the slot divider. */
+  /* Internal: 1 while the user is dragging a slot divider. */
   int dividerDragging;
+  gvizSlotNode *draggingNode;
 } gvizScene;
+
+/*
+ * Replace the leaf hosting @p target with an internal node of split
+ * direction @p dir, whose children are the existing leaf and a new leaf
+ * holding @p newLayer (added second so it sits in the right/bottom
+ * slot). Returns 0 on success.
+ */
+int gvizSceneSplitLayer(gvizScene *s, gvizLayer *target,
+                        gvizSceneSlotSplit dir, gvizLayer *newLayer);
 
 /*
  * Lifecycle.

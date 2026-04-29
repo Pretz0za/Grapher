@@ -43,6 +43,8 @@ typedef struct gvizLayerCreateParams {
   gvizCreateAlgo     algo;
   gvizCreateSource   source;
   char               filepath[512];
+  /* For SPLIT_H/V: the existing leaf layer that will be split. NULL otherwise. */
+  struct gvizLayer  *targetLayer;
 } gvizLayerCreateParams;
 
 typedef struct gvizLayerCreatePanel {
