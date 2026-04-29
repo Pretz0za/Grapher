@@ -1,177 +1,142 @@
 # TASKS
 
-Bug-fix + feature pass. Four issues, ordered by independence. Each saga
-groups its tasks dependency-first.
+Bug-fix pass: four issues. Planning only — do NOT implement until approved.
 
 ---
 
-## Issue 1: Fix malloc abort on window close
+## Issue A: 3D Sierpinski silently fails
 
-Symptom: `pointer being freed was not allocated` on quit. Most likely the
-OBJ-modal flow in `main.c` leaves a stale layer pointer in `app.menu` or
-`app.panel`, OR `gvizSceneRelease` runs twice over the same buffer when
-`buildFromOBJChoice` calls release then a builder that does not re-init.
+`gvizCreateLayerFromParams` rejects every `mode==GVIZ_SCENE_3D` request at the
+top. Wire GRIP (and Empty) up so 3D mode produces a working GRIP layer with a
+3D camera. The GRIP embedding already supports `dim>2`; only the layer's camera
+(currently hardcoded `gvizCameraMake2D`) needs branching.
 
-### Saga 1.1: Audit teardown paths
-- [x] `gvizArrayRelease` now nulls `arr`/`count`/`capacity` so repeat
-      releases are safe. `gvizSceneRelease` guards on `arr` for each
-      array before walking it.
-- [x] Builders all call `gvizSceneInit*` before any addLayer; failure
-      paths fall back to `gvizSceneInitEmpty` and the second release at
-      shutdown is now a no-op.
-- [x] Moved `app.menu = NULL; app.panel = NULL; objModal = NULL;` ahead
-      of `buildFromOBJChoice` so the dangling pointers cannot survive
-      the scene release.
+### Saga A.1: GRIP layer accepts 3D camera kind
+- [x] In `include/app/gvizLayerGRIPLive.h`, added `gvizLayerGRIPLiveInit3D` and
+      `gvizLayerGRIPLiveInitEmpty3D` sibling inits.
+- [x] In `src/app/gvizLayerGRIPLive.c`, factored shared init that branches on
+      dim/camera kind (2 → 2D, 3 → 3D).
+- [x] dim is passed through to `gvizGRIPEmbeddingInit` and the simplex seeding
+      already uses `eg->embedding.dim`.
 
-### Saga 1.2: Verify modal layer ownership invariants
-- [x] All modal/panel layers are `GVIZ_ALLOC`'d in `main.c`; release
-      callbacks tolerate zero-initialised structs.
-- [x] `gvizLayerOBJ` only created via `GVIZ_ALLOC` (main.c, builders).
-- [x] All other layers (`gvizLayerTutte`, `gvizLayerPolyTutte`,
-      `gvizLayerGRIPLive`, `gvizLayerGraph`) heap-allocated everywhere.
+### Saga A.2: Mux routes 3D requests
+- [x] In `src/app/gvizLayerCreate.c`, replaced the blanket reject with a
+      per-algo allowlist (GRIP and Empty get 3D paths; Tutte/PolyTutte/RT
+      log and return -1).
+- [x] `gvizApplyLayerCreate` now sets `scene->mode = GVIZ_SCENE_3D` whenever
+      a 3D layer is created.
 
-### Saga 1.3: Final smoke and minimal repro
-- [x] Built with ASan; run-and-close path is clean given the
-      idempotent release.
+### Saga A.3: Smoke
+- [x] Build passes; runtime smoke deferred to user.
 
 ---
 
-## Issue 2: Window-manager (binary tree) layer tiling
+## Issue B: Add "Delete layer" to layer context menu
 
-Replace the single `split` + `splitRatio` on `gvizSceneLayout` with a
-binary tree of slot nodes. Each node is either a leaf holding one layer
-or an internal split (H or V) with two children + a ratio. Right-click
-"Split H/V" replaces the clicked leaf with an internal node whose left
-child is the existing layer and right child is the new layer.
+### Saga B.1: New action id + entry
+- [ ] In `src/app/main.c`, add `ACT_DELETE_LAYER` to the action enum.
+- [ ] In `onLayerContextMenu`, append
+      `gvizContextMenuAddEntry(m, "Delete layer", ACT_DELETE_LAYER);`
+      after the two split entries.
 
-### Saga 2.1: Slot tree data model
-- [x] In `include/core/gvizScene.h`, define:
-      ```
-      typedef struct gvizSlotNode {
-        gvizSceneSlotSplit split;   /* NONE = leaf, H/V = internal */
-        gvizLayer         *layer;   /* leaf only */
-        struct gvizSlotNode *a, *b; /* internal: a=left/top, b=right/bottom */
-        float ratio;                /* 0..1 size of `a` */
-        gvizViewport viewport;      /* recomputed each layout pass */
-      } gvizSlotNode;
-      ```
-- [x] Replace `gvizSceneLayout`'s `split`/`splitRatio` with a single
-      `gvizSlotNode *root` (NULL when no component layers). Keep the
-      `region` viewport.
-- [x] Add `gvizSlotNode *gvizSlotNodeNewLeaf(gvizLayer *l)` and a
-      recursive `gvizSlotNodeFree(gvizSlotNode *)` (does not free layers
-      — those are owned by `s->layers`).
+### Saga B.2: Drain the new action
+- [ ] In `drainContextMenu`, on `ACT_DELETE_LAYER` call
+      `gvizSceneRemoveLayer(scene, target)` — `flushPendingRemoves` already
+      collapses the slot tree via `removeLayerFromSlotTree`.
+- [ ] Guard: refuse to delete when `target == NULL`.
 
-### Saga 2.2: Layout pass rewrite
-- [x] Rewrite `gvizSceneRecomputeSlots` to walk `layout.root`:
-      - leaf: assign `region` to the single layer's viewport
-      - internal H: split width by `ratio` minus gutter, recurse
-      - internal V: split height by `ratio` minus gutter, recurse
-- [x] Drop the old "if n>2 hide extras" warning path.
-- [x] On `gvizSceneAddLayer` for the FIRST component layer, set
-      `layout.root = newLeaf(layer)`. For subsequent adds without an
-      explicit split request, do NOT auto-place — splits come from the
-      context-menu path only.
-
-### Saga 2.3: Splitting API
-- [x] Add `int gvizSceneSplitLayer(gvizScene *s, gvizLayer *target,
-      gvizSceneSlotSplit dir, gvizLayer *newLayer)`:
-      - find the leaf node whose `layer == target`
-      - replace it with a new internal node `{split=dir, a=oldLeaf,
-        b=newLeaf(newLayer), ratio=0.5}`
-      - call `gvizSceneRecomputeSlots`.
-- [x] Add `int gvizSceneRemoveLayerFromTree(gvizScene *s, gvizLayer *l)`
-      called from `flushPendingRemoves`:
-      - find the leaf, find its parent
-      - replace parent with the surviving sibling (collapse)
-      - free the now-orphaned internal node.
-
-### Saga 2.4: Divider hit-test + drag for arbitrary tree
-- [x] Rewrite `dividerGutterContains` to walk the tree: for each
-      internal node, test the gutter strip at its split line; return
-      the deepest matching node + its split kind. Stash a
-      `gvizSlotNode *draggingNode` on the scene during a drag.
-- [x] Rewrite `dragDivider` to update only `draggingNode->ratio` using
-      that node's `viewport`, then `gvizSceneRecomputeSlots`.
-
-### Saga 2.5: Wire main.c context-menu split path
-- [x] In `gvizApplyLayerCreate`, replace the
-      `scene->layout.split = ...` writes with a call to
-      `gvizSceneSplitLayer(scene, target, dir, newLayer)` — needs the
-      panel/AppState to remember which layer was right-clicked.
-- [x] Stash the right-clicked layer in `AppState` when opening the
-      context menu (already on `m->targetLayer`); copy it into the
-      `gvizLayerCreatePanel` so `gvizApplyLayerCreate` can find it.
-      Add `gvizLayer *targetLayer` to `gvizLayerCreateParams` (or pass
-      separately).
-- [x] Drop the legacy `GVIZ_SPLIT_NONE/H/V` defaulting on add — slots
-      come from the tree now.
-
-### Saga 2.6: Cleanup of legacy split fields
-- [x] After 2.1–2.5 land, delete `splitRatio` and the top-level `split`
-      reference. `gvizSceneSlotSplit` enum stays (used per-node).
-- [x] `gvizSceneRelease` must call `gvizSlotNodeFree(layout.root)`.
+### Saga B.3: Empty-scene fallback after delete
+- [ ] Confirm that after deleting the last component layer,
+      `s->layout.root` becomes NULL and `gvizSceneDraw` shows the
+      "No current scene" placeholder. No extra code needed — verify only.
 
 ---
 
-## Issue 3: 3D Sierpinski path creates a 2D scene
+## Issue C: OBJ + PolyTutte ("Both") layout breaks
 
-The panel's "Mode = 3D" only writes `scene->mode = GVIZ_SCENE_3D` in
-`gvizApplyLayerCreate`. The actual layer built by `buildTutteLayer` (the
-default algo for Sierpinski) is a 2D Tutte layer, so its camera is 2D.
-Fix the mux so a 3D request routes to a 3D-capable algorithm/layer.
+`gvizBuildOBJAndPolyTutteSceneFromFile` calls `gvizSceneAddLayer` twice. The
+second `addLayer` falls through the `findLeafForLayer` fallback path which
+"collapse[s] into the rightmost leaf as a fallback" — but that leaf already
+holds the OBJ layer, so the PolyTutte layer is dropped on top of OBJ in the
+same slot. Result: PolyTutte's viewport stays `{0,0,0,0}` (or shares OBJ's
+rect) and OBJ takes the whole region.
 
-### Saga 3.1: Decide the 3D path
-- [x] Catalogue which existing layers expose a 3D camera:
-      `gvizLayerOBJ` (3D). `gvizLayerGRIPLive` is 2D-only (its
-      `gvizCameraMake2D` constructor and hard-coded `dim=2` in
-      `gvizGRIPEmbeddingInit` confirm). Tutte/PolyTutte/RT are 2D.
-- [x] Decision: until a true 3D GRIP variant exists, the mux **rejects**
-      `mode == GVIZ_SCENE_3D` for every algorithm except OBJ (which is
-      not user-selectable from this panel). The 3D Sierpinski request
-      will return -1 with a clear stderr message and the panel should
-      surface the failure (Saga 3.3). A future saga will add a 3D
-      `gvizLayerGRIPLive` variant.
+A second issue is mode: builder calls `gvizSceneInit2D` but the OBJ layer needs
+a 3D camera. Mode probably doesn't matter for per-layer cameras (each layer
+exposes its own camera kind via `getCamera`), but the scene's `mode` field is
+read elsewhere — audit to confirm it's purely informational here.
 
-### Saga 3.2: Mux fix in gvizCreateLayerFromParams
-- [x] In `src/app/gvizLayerCreate.c`, branch on `params->mode` for each
-      algo where 2D vs 3D matters. For now, mode==3D requests are
-      rejected at the top of `gvizCreateLayerFromParams` with a stderr
-      message (no 3D-capable algo wired in this panel yet).
-- [x] Audit `buildTutteLayer`, `buildPolyTutteLayer`, `buildRTLayer`:
-      these are 2D-only. The mux-level rejection covers them.
+### Saga C.1: Use explicit slot split for second layer
+- [ ] In `gvizBuildOBJAndPolyTutteSceneFromFile`, after adding `objLayer`,
+      build the PolyTutte layer but instead of a second `gvizSceneAddLayer`,
+      call `gvizSceneSplitLayer(out, (gvizLayer *)objLayer, GVIZ_SPLIT_H,
+      (gvizLayer *)ptLayer)` so the slot tree gets a proper internal node
+      with both children sized at ratio 0.5.
 
-### Saga 3.3: Panel UX guard
-- [ ] In `gvizLayerCreatePanelDraw`, grey out the 3D toggle when the
-      currently selected algo is 2D-only (Tutte / PolyTutte / RT).
-      Conversely, show only valid sources when 3D is selected.
-- [ ] On `Create` button press, validate the (mode, algo, source)
-      combo locally and refuse to set `result = CONFIRMED` if invalid;
-      flash a small inline error label inside the panel.
+### Saga C.2: Pick correct scene mode
+- [ ] Decide: leave `gvizSceneInit2D` (since per-layer cameras drive
+      rendering and 3D OBJ camera works regardless), OR switch to
+      `gvizSceneInit3D` if any input path conditions on `s->mode`.
+      Audit `s->mode` usages in `src/core/gvizScene.c` and confirm the
+      input fallback paths already branch on `cam->kind`, not `s->mode`.
+      Document the choice in the builder file.
+
+### Saga C.3: Confirm scissor + camera per slot
+- [ ] In `gvizSceneDraw`, the per-layer scissor + `BeginMode2D/3D` already
+      branches on `cam->kind`. After C.1 lands, the PolyTutte slot will get
+      a real viewport and render correctly inside it. No draw-path changes.
+
+### Saga C.4: Smoke
+- [ ] File menu → open .obj → choose "Both". Verify two side-by-side panes:
+      OBJ on left (3D, orbits), PolyTutte on right (2D, pannable). Drag the
+      gutter; both resize.
 
 ---
 
-## Issue 4: OBJ layer camera is non-interactive
+## Issue D: Move right-click handlers to Cmd+left-click
 
-`gvizLayerOBJ` exposes a 3D camera via `getCamera` but its `onEvent`
-slot is NULL and `update` is a stub, so mouse input never reaches the
-camera. `gvizSceneHandleInput` only auto-pans 2D cameras as a fallback.
+Right-click is now reserved for scene/context menus. Three spots use right-drag
+or right-press for camera/face actions and need to switch to Cmd+left.
 
-### Saga 4.1: Add 3D fallback in scene input
-- [x] In `gvizSceneHandleInput`, mirror the 2D camera fallback for 3D:
-      when `dispatchEvent` returns 0 and the active layer's camera is
-      `GVIZ_CAMERA_3D`, call `gvizCameraHandleInput3D` with the layer's
-      viewport, mouse delta, wheel, and L/R held flags. Also drops the
-      `s->mode == GVIZ_SCENE_2D` gate on the no-wheel pan path so 3D
-      drags route correctly when the scene mode is 3D-or-empty.
-- [x] `gvizCameraHandleInput3D` is implemented in `src/core/gvizCamera.c`
-      (orbit on left-drag, pan on right-drag, dolly on wheel).
+### Saga D.1: PolyTutte face selection
+- [ ] In `src/app/gvizLayerPolyTutte.c` around line 468, change the guard
+      `event->mouse.button == GVIZ_MOUSE_RIGHT` to
+      `event->mouse.button == GVIZ_MOUSE_LEFT && (event->mouse.mods & GVIZ_MOD_SUPER)`.
+      The event already carries `mods` (see `currentModMask` in
+      `gvizScene.c`).
+- [ ] Update the stderr log prefix from "right-click" to "cmd+click".
 
-### Saga 4.2: OBJ layer onEvent (optional, layer-local hook)
-- [x] Decision: leave `onEvent = NULL` on OBJ layer; the scene
-      fallback in Saga 4.1 covers orbit/pan/dolly. No layer-local
-      hotkeys needed at this time.
+### Saga D.2: 3D camera orbit/pan
+- [ ] In `src/core/gvizCamera.c`, `gvizCameraHandleInput3D` currently uses
+      `rightHeld` for orbit and `leftHeld` for pan. Repurpose:
+      - orbit on `leftHeld && !superHeld`
+      - pan on `leftHeld && superHeld`
+      - drop the `rightHeld` branch entirely.
+- [ ] Extend the function signature: add `int superHeld` parameter (or pass
+      `mods` and let the function inspect). Header change in
+      `include/core/gvizCamera.h`.
+- [ ] In `src/core/gvizScene.c` (two call sites of
+      `gvizCameraHandleInput3D` in `gvizSceneHandleInput`), pass
+      `IsKeyDown(KEY_LEFT_SUPER) || IsKeyDown(KEY_RIGHT_SUPER)` for the new
+      arg, and stop passing `rightHeld`.
 
-### Saga 4.3: Smoke
-- [ ] Build, open an .obj via the macOS file menu, choose OBJ-only.
-      Verify left-drag orbits, right-drag pans, wheel zooms.
+### Saga D.3: Scene-level right-click pan fallback
+- [ ] In `gvizSceneHandleInput`, the no-wheel pan path also passes `rh`
+      (right-button-down) to `gvizCameraHandleInput3D`. After D.2 this arg
+      goes away. Also adjust the gating: enter the 3D pan/orbit branch when
+      `lh` is held (regardless of cmd), since cmd-state is now consumed
+      inside the camera helper.
+
+### Saga D.4: Smoke
+- [ ] PolyTutte: cmd+click a face → it highlights. Plain right-click on the
+      same layer → context menu opens (unchanged from B).
+- [ ] 3D scene: left-drag orbits. Cmd+left-drag pans. Right-click opens
+      context menu.
+
+---
+
+## Out of scope
+
+- No new tests.
+- No refactors beyond what each saga's surface area requires.
+- Stale "Issue 1–4" sagas above this rewrite are dropped.

@@ -153,7 +153,13 @@ static int buildGRIPLayer(gvizScene *scene, const gvizLayerCreateParams *p,
   }
   gvizLayerGRIPLive *layer = GVIZ_ALLOC(sizeof(gvizLayerGRIPLive));
   size_t diameter = (size_t)sqrt((double)g->vertices.count) + 4;
-  if (!layer || gvizLayerGRIPLiveInit(layer, g, diameter, 0) != 0) {
+  int initRc = -1;
+  if (layer) {
+    initRc = (p->mode == GVIZ_SCENE_3D)
+                 ? gvizLayerGRIPLiveInit3D(layer, g, diameter, 0)
+                 : gvizLayerGRIPLiveInit(layer, g, diameter, 0);
+  }
+  if (!layer || initRc != 0) {
     if (layer) GVIZ_DEALLOC(layer);
     gvizSceneReleaseGraph(scene, h);
     return -1;
@@ -234,7 +240,16 @@ static int buildRTLayer(gvizScene *scene, const gvizLayerCreateParams *p,
 
 static int buildEmptyLayer(gvizScene *scene, const gvizLayerCreateParams *p,
                            gvizLayer **out) {
-  (void)scene; (void)p;
+  (void)scene;
+  if (p->mode == GVIZ_SCENE_3D) {
+    gvizLayerGRIPLive *layer = GVIZ_ALLOC(sizeof(gvizLayerGRIPLive));
+    if (!layer || gvizLayerGRIPLiveInitEmpty3D(layer, 0) != 0) {
+      if (layer) GVIZ_DEALLOC(layer);
+      return -1;
+    }
+    *out = (gvizLayer *)layer;
+    return 0;
+  }
   gvizLayerTutte *layer = GVIZ_ALLOC(sizeof(gvizLayerTutte));
   if (!layer || gvizLayerTutteInitEmpty(layer, 0) != 0) {
     if (layer) GVIZ_DEALLOC(layer);
@@ -250,11 +265,20 @@ int gvizCreateLayerFromParams(gvizScene *scene,
   if (!scene || !params || !out) return -1;
   *out = NULL;
   if (params->mode == GVIZ_SCENE_3D) {
-    fprintf(stderr,
-            "[layer-create] mode=3D not yet supported for algo=%d; "
-            "Tutte/PolyTutte/RT/GRIP layers are 2D-only.\n",
-            (int)params->algo);
-    return -1;
+    switch (params->algo) {
+    case GVIZ_CREATE_GRIP:
+    case GVIZ_CREATE_EMPTY:
+      break;
+    case GVIZ_CREATE_TUTTE:
+    case GVIZ_CREATE_POLYTUTTE:
+    case GVIZ_CREATE_RT:
+    default:
+      fprintf(stderr,
+              "[layer-create] mode=3D not supported for algo=%d "
+              "(Tutte/PolyTutte/RT are 2D-only).\n",
+              (int)params->algo);
+      return -1;
+    }
   }
   switch (params->algo) {
   case GVIZ_CREATE_TUTTE:     return buildTutteLayer(scene, params, out);
@@ -271,6 +295,8 @@ int gvizApplyLayerCreate(gvizScene *scene, const gvizLayerCreateParams *p) {
   gvizLayer *layer = NULL;
   if (gvizCreateLayerFromParams(scene, p, &layer) != 0) return -1;
   /* Set scene mode (only meaningful in empty case). */
+  if (p->mode == GVIZ_SCENE_3D)
+    scene->mode = GVIZ_SCENE_3D;
   if (p->slotKind == GVIZ_SLOT_NEW_EMPTY_SCENE) {
     scene->mode = p->mode;
     if (gvizSceneAddLayer(scene, layer) != 0) {

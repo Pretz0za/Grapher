@@ -40,6 +40,19 @@ int  gvizLayerGRIPLiveInit(gvizLayerGRIPLive *layer, gvizGraph *graph,
                            size_t diameter, size_t z);
 
 /*
+ * Like gvizLayerGRIPLiveInit but builds the embedding in 3D and gives the
+ * layer a 3D camera. The GRIP refinement is dimensionality-generic.
+ */
+int  gvizLayerGRIPLiveInit3D(gvizLayerGRIPLive *layer, gvizGraph *graph,
+                             size_t diameter, size_t z);
+
+/*
+ * Build an empty GRIP-Live layer (no graph) with either a 2D or 3D camera.
+ * Useful as a 3D blank canvas; extension to a real graph is left to callers.
+ */
+int  gvizLayerGRIPLiveInitEmpty3D(gvizLayerGRIPLive *layer, size_t z);
+
+/*
  * Bind this layer to a scene-registered graph handle. Retains the handle
  * and subscribes to mutation events. The layer keeps its own graph clone.
  */
