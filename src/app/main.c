@@ -20,6 +20,7 @@ enum {
   ACT_CREATE_NEW = 1,
   ACT_SPLIT_H,
   ACT_SPLIT_V,
+  ACT_DELETE_LAYER,
 };
 
 typedef struct AppState {
@@ -81,6 +82,7 @@ static void onLayerContextMenu(gvizScene *s, gvizLayer *layer, int sx, int sy,
   gvizContextMenuInit(m, sx, sy, 1500);
   gvizContextMenuAddEntry(m, "Split Horizontal", ACT_SPLIT_H);
   gvizContextMenuAddEntry(m, "Split Vertical",   ACT_SPLIT_V);
+  gvizContextMenuAddEntry(m, "Delete layer",     ACT_DELETE_LAYER);
   m->targetLayer = layer;
   m->clickSx = sx; m->clickSy = sy;
   app->menu = m;
@@ -112,6 +114,9 @@ static void drainContextMenu(gvizScene *scene, AppState *app) {
     openCreatePanel(scene, app, GVIZ_SLOT_SPLIT_H, target);
   else if (result == ACT_SPLIT_V)
     openCreatePanel(scene, app, GVIZ_SLOT_SPLIT_V, target);
+  else if (result == ACT_DELETE_LAYER) {
+    if (target) gvizSceneRemoveLayer(scene, target);
+  }
 }
 
 static void drainCreatePanel(gvizScene *scene, AppState *app) {

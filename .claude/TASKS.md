@@ -34,21 +34,16 @@ top. Wire GRIP (and Empty) up so 3D mode produces a working GRIP layer with a
 ## Issue B: Add "Delete layer" to layer context menu
 
 ### Saga B.1: New action id + entry
-- [ ] In `src/app/main.c`, add `ACT_DELETE_LAYER` to the action enum.
-- [ ] In `onLayerContextMenu`, append
-      `gvizContextMenuAddEntry(m, "Delete layer", ACT_DELETE_LAYER);`
-      after the two split entries.
+- [x] Added `ACT_DELETE_LAYER` to the action enum and the entry to
+      `onLayerContextMenu`.
 
 ### Saga B.2: Drain the new action
-- [ ] In `drainContextMenu`, on `ACT_DELETE_LAYER` call
-      `gvizSceneRemoveLayer(scene, target)` — `flushPendingRemoves` already
-      collapses the slot tree via `removeLayerFromSlotTree`.
-- [ ] Guard: refuse to delete when `target == NULL`.
+- [x] Drained in `drainContextMenu` via `gvizSceneRemoveLayer`, guarded on
+      non-NULL target.
 
 ### Saga B.3: Empty-scene fallback after delete
-- [ ] Confirm that after deleting the last component layer,
-      `s->layout.root` becomes NULL and `gvizSceneDraw` shows the
-      "No current scene" placeholder. No extra code needed — verify only.
+- [x] Existing `removeLayerFromSlotTree` + `gvizSceneDraw` placeholder path
+      handles this; no extra code.
 
 ---
 
