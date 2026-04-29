@@ -411,6 +411,9 @@ int gvizBuildOBJAndPolyTutteSceneFromFile(gvizScene *out, const char *objPath) {
   }
   gvizLayerPolyTutteBindHandle(ptLayer, out, h, NULL);
   gvizSceneReleaseGraph(out, h);
-  gvizSceneAddLayer(out, (gvizLayer *)ptLayer);
+  /* Split the OBJ slot horizontally rather than calling AddLayer (which
+   * would fall back to "rightmost leaf" and stomp the OBJ slot). */
+  gvizSceneSplitLayer(out, (gvizLayer *)objLayer, GVIZ_SPLIT_H,
+                      (gvizLayer *)ptLayer);
   return 0;
 }

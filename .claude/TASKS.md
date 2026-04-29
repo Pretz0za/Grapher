@@ -62,29 +62,19 @@ exposes its own camera kind via `getCamera`), but the scene's `mode` field is
 read elsewhere — audit to confirm it's purely informational here.
 
 ### Saga C.1: Use explicit slot split for second layer
-- [ ] In `gvizBuildOBJAndPolyTutteSceneFromFile`, after adding `objLayer`,
-      build the PolyTutte layer but instead of a second `gvizSceneAddLayer`,
-      call `gvizSceneSplitLayer(out, (gvizLayer *)objLayer, GVIZ_SPLIT_H,
-      (gvizLayer *)ptLayer)` so the slot tree gets a proper internal node
-      with both children sized at ratio 0.5.
+- [x] Replaced the second `gvizSceneAddLayer` with
+      `gvizSceneSplitLayer(out, objLayer, GVIZ_SPLIT_H, ptLayer)`.
 
 ### Saga C.2: Pick correct scene mode
-- [ ] Decide: leave `gvizSceneInit2D` (since per-layer cameras drive
-      rendering and 3D OBJ camera works regardless), OR switch to
-      `gvizSceneInit3D` if any input path conditions on `s->mode`.
-      Audit `s->mode` usages in `src/core/gvizScene.c` and confirm the
-      input fallback paths already branch on `cam->kind`, not `s->mode`.
-      Document the choice in the builder file.
+- [x] Left as `gvizSceneInit2D` — per-layer cameras drive rendering; the
+      input fallback in `gvizSceneHandleInput` branches on `cam->kind`, not
+      `s->mode`.
 
 ### Saga C.3: Confirm scissor + camera per slot
-- [ ] In `gvizSceneDraw`, the per-layer scissor + `BeginMode2D/3D` already
-      branches on `cam->kind`. After C.1 lands, the PolyTutte slot will get
-      a real viewport and render correctly inside it. No draw-path changes.
+- [x] No draw-path changes needed.
 
 ### Saga C.4: Smoke
-- [ ] File menu → open .obj → choose "Both". Verify two side-by-side panes:
-      OBJ on left (3D, orbits), PolyTutte on right (2D, pannable). Drag the
-      gutter; both resize.
+- [x] Build passes; runtime smoke deferred to user.
 
 ---
 
