@@ -27,16 +27,18 @@ static void applyRadiiMask(gvizLayerGRIPLive *self) {
 }
 
 static int gvizLayerGRIPLiveInitWithDim(gvizLayerGRIPLive *self, gvizGraph *graph,
-                                        size_t diameter, size_t z, size_t dim) {
+                                        size_t diameter, size_t z,
+                                        size_t embDim, size_t drawDim) {
   gvizLayerInit((gvizLayer *)self, (gvizViewport){0, 0, 0, 0},
                 &GVIZ_LAYER_GRIP_LIVE_VTABLE, z);
-  if (dim == 3) {
+  if (drawDim == 3) {
     self->camera = gvizCameraMake3D(
         (Vector3){0.0f, 0.0f, 1000.0f}, (Vector3){0.0f, 0.0f, 0.0f},
         (Vector3){0.0f, 1.0f, 0.0f}, 45.0f, CAMERA_PERSPECTIVE);
   } else {
     self->camera = gvizCameraMake2D((Vector2){0, 0}, (Vector2){0, 0}, 0.0f, 1.0f);
   }
+  self->drawDim = drawDim;
   self->layer.flags = GVIZ_LAYER_VISIBLE;
   self->placedBits = NULL;
   self->layerKNNs = NULL;
@@ -50,7 +52,7 @@ static int gvizLayerGRIPLiveInitWithDim(gvizLayerGRIPLive *self, gvizGraph *grap
   if (gvizGraphClone(&self->graph, graph) != 0)
     return -1;
 
-  if (gvizGRIPEmbeddingInit(&self->grip, &self->graph, diameter, dim) != 0) {
+  if (gvizGRIPEmbeddingInit(&self->grip, &self->graph, diameter, embDim) != 0) {
     gvizGraphRelease(&self->graph);
     return -1;
   }
@@ -68,13 +70,13 @@ static int gvizLayerGRIPLiveInitWithDim(gvizLayerGRIPLive *self, gvizGraph *grap
   memset(self->placedBits, 0, sizeof(GVIZ_BIT_UNIT) * units);
 
   gvizEmbeddedGraph *eg = (gvizEmbeddedGraph *)&self->grip;
-  size_t embDim = eg->embedding.dim;
-  double simplex[embDim * (embDim + 1)];
-  makeRegularSimplex(embDim, GVIZ_LAYER_GRIP_LIVE_SIMPLEX_SIDE, simplex);
-  for (size_t j = 0; j < embDim + 1; j++) {
+  size_t simplexDim = eg->embedding.dim;
+  double simplex[simplexDim * (simplexDim + 1)];
+  makeRegularSimplex(simplexDim, GVIZ_LAYER_GRIP_LIVE_SIMPLEX_SIDE, simplex);
+  for (size_t j = 0; j < simplexDim + 1; j++) {
     size_t v = self->grip.misFiltration[j];
     gvizSetBit(self->placedBits, v);
-    cblas_dcopy(embDim, simplex + j * embDim, 1,
+    cblas_dcopy(simplexDim, simplex + j * simplexDim, 1,
                 gvizEmbeddedGraphGetVPosition(eg, v), 1);
   }
 
@@ -85,6 +87,7 @@ static int gvizLayerGRIPLiveInitWithDim(gvizLayerGRIPLive *self, gvizGraph *grap
                                               self->placedBits);
 
   gvizGraphVBOInit(&self->vbo);
+  self->vbo.drawDim = (int)drawDim;
   self->vbo.discFill = 1.0f;
   gvizGraphVBOSetMode(&self->vbo, GVIZ_GRAPH_VBO_DISCS);
   self->gpuDirty = 2;
@@ -93,12 +96,21 @@ static int gvizLayerGRIPLiveInitWithDim(gvizLayerGRIPLive *self, gvizGraph *grap
 
 int gvizLayerGRIPLiveInit(gvizLayerGRIPLive *self, gvizGraph *graph,
                           size_t diameter, size_t z) {
-  return gvizLayerGRIPLiveInitWithDim(self, graph, diameter, z, 2);
+  return gvizLayerGRIPLiveInitWithDim(self, graph, diameter, z, 2, 2);
 }
 
 int gvizLayerGRIPLiveInit3D(gvizLayerGRIPLive *self, gvizGraph *graph,
                             size_t diameter, size_t z) {
-  return gvizLayerGRIPLiveInitWithDim(self, graph, diameter, z, 3);
+  return gvizLayerGRIPLiveInitWithDim(self, graph, diameter, z, 3, 3);
+}
+
+int gvizLayerGRIPLiveInitND(gvizLayerGRIPLive *self, gvizGraph *graph,
+                            size_t diameter, size_t z,
+                            size_t embDim, size_t drawDim) {
+  if (embDim < 2) embDim = 2;
+  if (drawDim != 2 && drawDim != 3) drawDim = 2;
+  if (embDim < drawDim) embDim = drawDim;
+  return gvizLayerGRIPLiveInitWithDim(self, graph, diameter, z, embDim, drawDim);
 }
 
 int gvizLayerGRIPLiveInitEmpty3D(gvizLayerGRIPLive *self, size_t z) {
@@ -107,6 +119,7 @@ int gvizLayerGRIPLiveInitEmpty3D(gvizLayerGRIPLive *self, size_t z) {
   self->camera = gvizCameraMake3D(
       (Vector3){0.0f, 0.0f, 1000.0f}, (Vector3){0.0f, 0.0f, 0.0f},
       (Vector3){0.0f, 1.0f, 0.0f}, 45.0f, CAMERA_PERSPECTIVE);
+  self->drawDim = 3;
   self->layer.flags = GVIZ_LAYER_VISIBLE;
   self->placedBits = NULL;
   self->layerKNNs = NULL;
@@ -120,6 +133,7 @@ int gvizLayerGRIPLiveInitEmpty3D(gvizLayerGRIPLive *self, size_t z) {
     return -1;
   memset(&self->grip, 0, sizeof(self->grip));
   gvizGraphVBOInit(&self->vbo);
+  self->vbo.drawDim = 3;
   self->vbo.discFill = 1.0f;
   gvizGraphVBOSetMode(&self->vbo, GVIZ_GRAPH_VBO_DISCS);
   return 0;

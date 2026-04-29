@@ -38,6 +38,13 @@ typedef struct gvizGraphVBO {
   float *discHighlights;     /* CPU mirror, length radiiCount; 1.0 = red */
   float discFill;            /* 0.0=ring (default), 1.0=filled disc */
   gvizEmbeddedGraph *lastEG; /* borrowed; set by Rebuild for lazy disc build */
+
+  /* Render-target dimension (2 or 3). When the bound embedding's dim
+   * exceeds drawDim, positions are PCA-projected into @c projScratch
+   * before GPU upload. */
+  int drawDim;
+  double *projScratch;       /* row-major double[N * drawDim] when active */
+  size_t projScratchCap;     /* doubles allocated in projScratch */
 } gvizGraphVBO;
 
 void gvizGraphVBOInit(gvizGraphVBO *vbo);

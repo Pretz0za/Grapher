@@ -34,6 +34,7 @@ typedef struct gvizLayerGRIPLive {
   int currentLayer; /* layerCount-1 down to 0; -1 = all done */
   int currentRound;
   int gpuDirty;
+  size_t drawDim;            /* 2 or 3; PCA target if embedding dim is higher */
 } gvizLayerGRIPLive;
 
 int  gvizLayerGRIPLiveInit(gvizLayerGRIPLive *layer, gvizGraph *graph,
@@ -45,6 +46,15 @@ int  gvizLayerGRIPLiveInit(gvizLayerGRIPLive *layer, gvizGraph *graph,
  */
 int  gvizLayerGRIPLiveInit3D(gvizLayerGRIPLive *layer, gvizGraph *graph,
                              size_t diameter, size_t z);
+
+/*
+ * General N-dimensional GRIP init. @p embDim is the GRIP embedding
+ * dimension (must be >= 2). @p drawDim is 2 or 3 — controls camera kind
+ * and the target dimension for PCA projection at GPU upload time.
+ */
+int  gvizLayerGRIPLiveInitND(gvizLayerGRIPLive *layer, gvizGraph *graph,
+                             size_t diameter, size_t z,
+                             size_t embDim, size_t drawDim);
 
 /*
  * Build an empty GRIP-Live layer (no graph) with either a 2D or 3D camera.

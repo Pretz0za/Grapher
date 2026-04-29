@@ -19,11 +19,23 @@ typedef enum gvizCreateAlgo {
 } gvizCreateAlgo;
 
 typedef enum gvizCreateSource {
-  GVIZ_SRC_DEMO_SIERPINSKI = 0,
-  GVIZ_SRC_DEMO_OCTAHEDRON,
-  GVIZ_SRC_DEMO_RANDOM_TREE,
+  GVIZ_SRC_DEMO = 0,
   GVIZ_SRC_FROM_FILE,
 } gvizCreateSource;
+
+typedef enum gvizDemoGraphType {
+  GVIZ_DEMO_SIERPINSKI_TRI = 0,
+  GVIZ_DEMO_SIERPINSKI_TET,
+  GVIZ_DEMO_CARPET,
+  GVIZ_DEMO_RECT_MESH,
+  GVIZ_DEMO_TET_MESH,
+  GVIZ_DEMO_EQ_TRI_MESH,
+  GVIZ_DEMO_KNOTTED_RECT,
+  GVIZ_DEMO_MOBIUS,
+  GVIZ_DEMO_KLEIN,
+  GVIZ_DEMO_RANDOM_TREE,
+  GVIZ_DEMO_GRAPH_TYPE_COUNT,
+} gvizDemoGraphType;
 
 typedef enum gvizCreateSlotKind {
   GVIZ_SLOT_NEW_EMPTY_SCENE = 0, /* scene currently has no component layers */
@@ -45,6 +57,12 @@ typedef struct gvizLayerCreateParams {
   char               filepath[512];
   /* For SPLIT_H/V: the existing leaf layer that will be split. NULL otherwise. */
   struct gvizLayer  *targetLayer;
+
+  /* Demo sub-form: which generator + parameters + GRIP embedding dim. */
+  gvizDemoGraphType  graphType;
+  int                graphParam1;  /* depth or rows or L (per type) */
+  int                graphParam2;  /* cols or W (per type, 0 if unused) */
+  int                embDim;       /* GRIP embedding dim (2..8); 0 = follow drawDim */
 } gvizLayerCreateParams;
 
 typedef struct gvizLayerCreatePanel {
@@ -55,7 +73,11 @@ typedef struct gvizLayerCreatePanel {
   /* internal raygui state */
   int  algoDropdownEdit;
   int  sourceDropdownEdit;
+  int  graphTypeDropdownEdit;
   int  filepathEdit;
+  int  param1Edit;
+  int  param2Edit;
+  int  embDimEdit;
 } gvizLayerCreatePanel;
 
 void gvizLayerCreatePanelInit(gvizLayerCreatePanel *p,

@@ -39,25 +39,25 @@ void gvizVertexDiscVBORelease(gvizVertexDiscVBO *vbo) {
     vbo->instanceCount = 0;
 }
 
-static float *buildCenters(gvizEmbeddedGraph *eg, size_t *outN) {
-    size_t N = eg->graph->vertices.count;
-    int dim3 = (eg->embedding.dim >= 3);
-    float *centers = GVIZ_ALLOC(N * 3 * sizeof(float));
-    if (!centers) { *outN = 0; return NULL; }
-    for (size_t i = 0; i < N; i++) {
-        double *p = gvizEmbeddedGraphGetVPosition(eg, i);
+static float *buildCentersXYZ(const double *positions, size_t n, size_t dim) {
+    if (n == 0) return NULL;
+    float *centers = GVIZ_ALLOC(n * 3 * sizeof(float));
+    if (!centers) return NULL;
+    int hasZ = (dim >= 3);
+    for (size_t i = 0; i < n; i++) {
+        const double *p = positions + i * dim;
         centers[i * 3 + 0] = (float)p[0];
         centers[i * 3 + 1] = (float)p[1];
-        centers[i * 3 + 2] = dim3 ? (float)p[2] : 0.0f;
+        centers[i * 3 + 2] = hasZ ? (float)p[2] : 0.0f;
     }
-    *outN = N;
     return centers;
 }
 
-void gvizVertexDiscVBORebuild(gvizVertexDiscVBO *vbo, gvizEmbeddedGraph *eg,
-                              const float *radii) {
-    size_t N = 0;
-    float *centers = buildCenters(eg, &N);
+void gvizVertexDiscVBORebuildXYZ(gvizVertexDiscVBO *vbo,
+                                 const double *positions, size_t n, size_t dim,
+                                 const float *radii) {
+    size_t N = n;
+    float *centers = buildCentersXYZ(positions, N, dim);
     if (!centers || N == 0) {
         if (centers) GVIZ_DEALLOC(centers);
         return;
@@ -99,14 +99,28 @@ void gvizVertexDiscVBORebuild(gvizVertexDiscVBO *vbo, gvizEmbeddedGraph *eg,
     GVIZ_DEALLOC(centers);
 }
 
+void gvizVertexDiscVBOUploadPositionsXYZ(gvizVertexDiscVBO *vbo,
+                                         const double *positions, size_t n,
+                                         size_t dim) {
+    if (!vbo->vboCenters || n == 0) return;
+    float *centers = buildCentersXYZ(positions, n, dim);
+    if (!centers) return;
+    rlUpdateVertexBuffer(vbo->vboCenters, centers, (int)(n * 3 * sizeof(float)), 0);
+    GVIZ_DEALLOC(centers);
+}
+
+void gvizVertexDiscVBORebuild(gvizVertexDiscVBO *vbo, gvizEmbeddedGraph *eg,
+                              const float *radii) {
+    gvizVertexDiscVBORebuildXYZ(vbo, eg->embedding.vertexPositions,
+                                eg->graph->vertices.count, eg->embedding.dim,
+                                radii);
+}
+
 void gvizVertexDiscVBOUploadPositions(gvizVertexDiscVBO *vbo,
                                       gvizEmbeddedGraph *eg) {
-    if (!vbo->vboCenters) return;
-    size_t N = 0;
-    float *centers = buildCenters(eg, &N);
-    if (!centers) return;
-    rlUpdateVertexBuffer(vbo->vboCenters, centers, (int)(N * 3 * sizeof(float)), 0);
-    GVIZ_DEALLOC(centers);
+    gvizVertexDiscVBOUploadPositionsXYZ(vbo, eg->embedding.vertexPositions,
+                                        eg->graph->vertices.count,
+                                        eg->embedding.dim);
 }
 
 void gvizVertexDiscVBOUploadRadii(gvizVertexDiscVBO *vbo, const float *radii,

@@ -43,6 +43,7 @@ add_library(graphvis STATIC
     src/utils/helpers.c
     src/utils/gvizTreeIO.c
     src/utils/gvizOBJLoader.c
+    src/utils/gvizPCA.c
 )
 
 target_include_directories(graphvis 

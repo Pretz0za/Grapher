@@ -31,21 +31,6 @@ static void releaseEmbeddedTree(gvizEmbeddedGraph *eg) {
   GVIZ_DEALLOC(t);
 }
 
-static gvizGraph buildOctahedronGraph(void) {
-  gvizGraph g;
-  gvizGraphInit(&g, 0);
-  for (int i = 0; i < 6; i++)
-    gvizGraphAddVertex(&g, NULL, NULL, NULL);
-  size_t edges[][2] = {
-      {0, 1}, {1, 2}, {2, 0}, {0, 3}, {1, 3},
-      {1, 4}, {2, 4}, {2, 5}, {0, 5},
-      {3, 4}, {4, 5}, {5, 3},
-  };
-  for (size_t i = 0; i < sizeof(edges) / sizeof(edges[0]); i++)
-    gvizGraphAddEdge(&g, edges[i][0], edges[i][1]);
-  return g;
-}
-
 static void buildRandomTree(gvizGraph *tree, size_t root, int depth, int maxDepth) {
   if (depth >= maxDepth) return;
   int children = 2 + rand() % 4;
@@ -59,29 +44,63 @@ static void buildRandomTree(gvizGraph *tree, size_t root, int depth, int maxDept
 
 /* ---- per-(algo, source) builders ----------------------------------------- */
 
+static int loadDemoGraph(const gvizLayerCreateParams *p, gvizGraph *out,
+                         size_t *outerFace, size_t *outerFaceLen,
+                         size_t *outRoot) {
+  int p1 = p->graphParam1 > 0 ? p->graphParam1 : 3;
+  int p2 = p->graphParam2 > 0 ? p->graphParam2 : 3;
+  switch (p->graphType) {
+  case GVIZ_DEMO_SIERPINSKI_TRI: {
+    SierpinskiTriangle st;
+    *out = createSierpinski(p1, &st);
+    if (outerFace && outerFaceLen) {
+      outerFace[0] = st.t; outerFace[1] = st.l; outerFace[2] = st.r;
+      *outerFaceLen = 3;
+    }
+    return 0;
+  }
+  case GVIZ_DEMO_SIERPINSKI_TET:
+    *out = createSierpinskiTetrahedron(p1, NULL);
+    return 0;
+  case GVIZ_DEMO_CARPET:
+    *out = build_sierpinski_carpet((size_t)p1);
+    return 0;
+  case GVIZ_DEMO_RECT_MESH:
+    *out = build_rect_mesh((size_t)p1, (size_t)p2);
+    return 0;
+  case GVIZ_DEMO_TET_MESH:
+    *out = build_tetrahedral_mesh((size_t)p1);
+    return 0;
+  case GVIZ_DEMO_EQ_TRI_MESH:
+    *out = build_equilateral_tri_mesh((size_t)p1);
+    return 0;
+  case GVIZ_DEMO_KNOTTED_RECT:
+    *out = build_knotted_rect_mesh((size_t)p1, (size_t)p2);
+    return 0;
+  case GVIZ_DEMO_MOBIUS:
+    *out = build_mobius_strip((size_t)p1, (size_t)p2);
+    return 0;
+  case GVIZ_DEMO_KLEIN:
+    *out = build_klein_bottle((size_t)p1, (size_t)p2);
+    return 0;
+  case GVIZ_DEMO_RANDOM_TREE:
+    gvizGraphInit(out, 1);
+    gvizGraphAddVertex(out, NULL, NULL, NULL);
+    buildRandomTree(out, 0, 0, p1);
+    if (outRoot) *outRoot = 0;
+    return 0;
+  default:
+    return -1;
+  }
+}
+
 static int loadGraphForSource(const gvizLayerCreateParams *p, gvizGraph *out,
                               size_t *outerFace, size_t *outerFaceLen,
                               size_t *outRoot) {
   gvizGraph stack;
   switch (p->source) {
-  case GVIZ_SRC_DEMO_SIERPINSKI:
-    stack = createSierpinski(3, NULL);
-    *out = stack;
-    return 0;
-  case GVIZ_SRC_DEMO_OCTAHEDRON:
-    stack = buildOctahedronGraph();
-    *out = stack;
-    if (outerFace && outerFaceLen) {
-      outerFace[0] = 0; outerFace[1] = 1; outerFace[2] = 2;
-      *outerFaceLen = 3;
-    }
-    return 0;
-  case GVIZ_SRC_DEMO_RANDOM_TREE:
-    gvizGraphInit(out, 1);
-    gvizGraphAddVertex(out, NULL, NULL, NULL);
-    buildRandomTree(out, 0, 0, 5);
-    if (outRoot) *outRoot = 0;
-    return 0;
+  case GVIZ_SRC_DEMO:
+    return loadDemoGraph(p, out, outerFace, outerFaceLen, outRoot);
   case GVIZ_SRC_FROM_FILE:
     if (!p->filepath[0]) return -1;
     /* Decide by extension. */
@@ -153,12 +172,12 @@ static int buildGRIPLayer(gvizScene *scene, const gvizLayerCreateParams *p,
   }
   gvizLayerGRIPLive *layer = GVIZ_ALLOC(sizeof(gvizLayerGRIPLive));
   size_t diameter = (size_t)sqrt((double)g->vertices.count) + 4;
+  size_t drawDim = (p->mode == GVIZ_SCENE_3D) ? 3 : 2;
+  size_t embDim = (p->embDim > 0) ? (size_t)p->embDim : drawDim;
+  if (embDim < drawDim) embDim = drawDim;
   int initRc = -1;
-  if (layer) {
-    initRc = (p->mode == GVIZ_SCENE_3D)
-                 ? gvizLayerGRIPLiveInit3D(layer, g, diameter, 0)
-                 : gvizLayerGRIPLiveInit(layer, g, diameter, 0);
-  }
+  if (layer)
+    initRc = gvizLayerGRIPLiveInitND(layer, g, diameter, 0, embDim, drawDim);
   if (!layer || initRc != 0) {
     if (layer) GVIZ_DEALLOC(layer);
     gvizSceneReleaseGraph(scene, h);

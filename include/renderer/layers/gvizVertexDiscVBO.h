@@ -34,6 +34,19 @@ void gvizVertexDiscVBORebuild(gvizVertexDiscVBO *vbo, gvizEmbeddedGraph *eg,
 void gvizVertexDiscVBOUploadPositions(gvizVertexDiscVBO *vbo,
                                       gvizEmbeddedGraph *eg);
 
+/*
+ * Lower-level rebuild + upload that read positions from a caller-supplied
+ * row-major double buffer (@p positions has @p n entries of @p dim doubles).
+ * @p dim may be less than 3 (z is zero-padded). Used for PCA-projected
+ * render paths.
+ */
+void gvizVertexDiscVBORebuildXYZ(gvizVertexDiscVBO *vbo,
+                                 const double *positions, size_t n, size_t dim,
+                                 const float *radii);
+void gvizVertexDiscVBOUploadPositionsXYZ(gvizVertexDiscVBO *vbo,
+                                         const double *positions, size_t n,
+                                         size_t dim);
+
 /* Re-upload only the per-instance radii. @p n must equal instanceCount. */
 void gvizVertexDiscVBOUploadRadii(gvizVertexDiscVBO *vbo, const float *radii,
                                   size_t n);
