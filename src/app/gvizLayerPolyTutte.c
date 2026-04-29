@@ -288,7 +288,7 @@ void gvizLayerPolyTutteDraw(void *layerV, const gvizCamera *camera) {
     break;
   case GVIZ_POLY_TUTTE_INITIAL:
   default:
-    hud = "SPACE  scan all faces   R  random face   right-click  select face   "
+    hud = "SPACE  scan all faces   R  random face   cmd-click  select face   "
           "ENTER  fix & re-embed";
     break;
   }
@@ -466,7 +466,8 @@ int gvizLayerPolyTutteHandleEvent(void *layerV, const gvizEvent *event) {
   gvizLayerPolyTutte *self = (gvizLayerPolyTutte *)layerV;
 
   if (event->type == GVIZ_EVENT_MOUSE_DOWN &&
-      event->mouse.button == GVIZ_MOUSE_RIGHT) {
+      event->mouse.button == GVIZ_MOUSE_LEFT &&
+      (event->mouse.mods & GVIZ_MOD_SUPER)) {
     if (self->faces.count == 0) {
       if (pt_enumerateFaces(self) != 0)
         return 1;
@@ -485,7 +486,7 @@ int gvizLayerPolyTutteHandleEvent(void *layerV, const gvizEvent *event) {
       py = (double)event->mouse.wy;
     }
     fprintf(stderr,
-            "[PolyTutte] right-click screen=(%.1f,%.1f) world=(%.2f,%.2f) "
+            "[PolyTutte] cmd+click screen=(%.1f,%.1f) world=(%.2f,%.2f) "
             "faces=%zu\n",
             event->mouse.sx, event->mouse.sy, px, py, self->faces.count);
     gvizEmbeddedGraph *eg = (gvizEmbeddedGraph *)&self->tutte;

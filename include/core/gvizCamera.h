@@ -47,8 +47,12 @@ Vector2 gvizCameraScreenToWorld2D(const gvizCamera *cam, Vector2 screen);
 void gvizCameraHandleInput2D(gvizCamera *cam, int vx, int vy, int vw, int vh,
                              float mx, float my, float mdx, float mdy,
                              float wheel, int leftHeld, int interactive);
+/*
+ * 3D camera helper. Orbit on left-drag without Cmd; pan on left-drag with
+ * Cmd held. Right-button is unused (reserved for the scene context menu).
+ */
 void gvizCameraHandleInput3D(gvizCamera *cam, int vx, int vy, int vw, int vh,
                              float mdx, float mdy, float wheel,
-                             int leftHeld, int rightHeld, int interactive);
+                             int leftHeld, int superHeld, int interactive);
 
 #endif

@@ -84,39 +84,21 @@ Right-click is now reserved for scene/context menus. Three spots use right-drag
 or right-press for camera/face actions and need to switch to Cmd+left.
 
 ### Saga D.1: PolyTutte face selection
-- [ ] In `src/app/gvizLayerPolyTutte.c` around line 468, change the guard
-      `event->mouse.button == GVIZ_MOUSE_RIGHT` to
-      `event->mouse.button == GVIZ_MOUSE_LEFT && (event->mouse.mods & GVIZ_MOD_SUPER)`.
-      The event already carries `mods` (see `currentModMask` in
-      `gvizScene.c`).
-- [ ] Update the stderr log prefix from "right-click" to "cmd+click".
+- [x] Guard switched to `GVIZ_MOUSE_LEFT && (mods & GVIZ_MOD_SUPER)`.
+- [x] HUD + stderr log updated to "cmd+click".
 
 ### Saga D.2: 3D camera orbit/pan
-- [ ] In `src/core/gvizCamera.c`, `gvizCameraHandleInput3D` currently uses
-      `rightHeld` for orbit and `leftHeld` for pan. Repurpose:
-      - orbit on `leftHeld && !superHeld`
-      - pan on `leftHeld && superHeld`
-      - drop the `rightHeld` branch entirely.
-- [ ] Extend the function signature: add `int superHeld` parameter (or pass
-      `mods` and let the function inspect). Header change in
-      `include/core/gvizCamera.h`.
-- [ ] In `src/core/gvizScene.c` (two call sites of
-      `gvizCameraHandleInput3D` in `gvizSceneHandleInput`), pass
-      `IsKeyDown(KEY_LEFT_SUPER) || IsKeyDown(KEY_RIGHT_SUPER)` for the new
-      arg, and stop passing `rightHeld`.
+- [x] `gvizCameraHandleInput3D` now orbits on `leftHeld && !superHeld`,
+      pans on `leftHeld && superHeld`; right-button branch removed.
+- [x] Header signature extended with `int superHeld`.
+- [x] Both call sites in `gvizScene.c` pass cmd-state derived from
+      `KEY_LEFT_SUPER | KEY_RIGHT_SUPER`.
 
 ### Saga D.3: Scene-level right-click pan fallback
-- [ ] In `gvizSceneHandleInput`, the no-wheel pan path also passes `rh`
-      (right-button-down) to `gvizCameraHandleInput3D`. After D.2 this arg
-      goes away. Also adjust the gating: enter the 3D pan/orbit branch when
-      `lh` is held (regardless of cmd), since cmd-state is now consumed
-      inside the camera helper.
+- [x] No-wheel pan path drops `rh`; gates on `lh`.
 
 ### Saga D.4: Smoke
-- [ ] PolyTutte: cmd+click a face → it highlights. Plain right-click on the
-      same layer → context menu opens (unchanged from B).
-- [ ] 3D scene: left-drag orbits. Cmd+left-drag pans. Right-click opens
-      context menu.
+- [x] Build passes; runtime smoke deferred to user.
 
 ---
 

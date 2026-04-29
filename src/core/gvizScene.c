@@ -712,28 +712,29 @@ void gvizSceneHandleInput(gvizScene *s) {
                                 l->viewport.width, l->viewport.height,
                                 mp.x, mp.y, md.x, md.y, wheel,
                                 IsMouseButtonDown(MOUSE_BUTTON_LEFT), 1);
-      else if (cam && cam->kind == GVIZ_CAMERA_3D)
+      else if (cam && cam->kind == GVIZ_CAMERA_3D) {
+        int sh = IsKeyDown(KEY_LEFT_SUPER) || IsKeyDown(KEY_RIGHT_SUPER);
         gvizCameraHandleInput3D(cam, l->viewport.x, l->viewport.y,
                                 l->viewport.width, l->viewport.height,
                                 md.x, md.y, wheel,
-                                IsMouseButtonDown(MOUSE_BUTTON_LEFT),
-                                IsMouseButtonDown(MOUSE_BUTTON_RIGHT), 1);
+                                IsMouseButtonDown(MOUSE_BUTTON_LEFT), sh, 1);
+      }
     }
   } else if (!s->dividerDragging) {
-    /* No wheel: only pan if a button is held */
+    /* No wheel: only pan if left button is held */
     int lh = IsMouseButtonDown(MOUSE_BUTTON_LEFT);
-    int rh = IsMouseButtonDown(MOUSE_BUTTON_RIGHT);
-    if ((lh || rh) && !s->focused) {
+    if (lh && !s->focused) {
       gvizLayer *l = s->activeLayer;
       gvizCamera *cam = layerCamera(l);
-      if (cam && cam->kind == GVIZ_CAMERA_2D && lh)
+      int sh = IsKeyDown(KEY_LEFT_SUPER) || IsKeyDown(KEY_RIGHT_SUPER);
+      if (cam && cam->kind == GVIZ_CAMERA_2D)
         gvizCameraHandleInput2D(cam, l->viewport.x, l->viewport.y,
                                 l->viewport.width, l->viewport.height,
                                 mp.x, mp.y, md.x, md.y, 0.0f, 1, 1);
       else if (cam && cam->kind == GVIZ_CAMERA_3D)
         gvizCameraHandleInput3D(cam, l->viewport.x, l->viewport.y,
                                 l->viewport.width, l->viewport.height,
-                                md.x, md.y, 0.0f, lh, rh, 1);
+                                md.x, md.y, 0.0f, lh, sh, 1);
     }
   }
 
