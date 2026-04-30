@@ -46,7 +46,7 @@ Key files touched, by area:
 
 ## Epic 2: gvizGraphView core
 
-- [ ] Saga: Define `gvizGraphView` in `include/dsa/gvizGraphView.h`:
+- [x] Saga: Define `gvizGraphView` in `include/dsa/gvizGraphView.h`:
       ```
       typedef struct gvizGraphView {
         gvizGraph *graph;            /* borrowed */
@@ -58,47 +58,47 @@ Key files touched, by area:
       ```
       Document the invariants: NULL/NULL = whole graph; vertex-only =
       induced subgraph; edge-only = edge-defined subgraph.
-- [ ] Saga: `gvizGraphViewInitFull(view, graph)` — both masks NULL,
+- [x] Saga: `gvizGraphViewInitFull(view, graph)` — both masks NULL,
       `count = graph->vertices.count`, `edgeStart` lazily NULL.
-- [ ] Saga: `gvizGraphViewInitFromVertices(view, graph, GVIZ_BIT_ARRAY mask)`
+- [x] Saga: `gvizGraphViewInitFromVertices(view, graph, GVIZ_BIT_ARRAY mask)`
       — borrow graph, allocate `vertexMask` copy, derive `count`, leave
       `edgeMask` NULL. Build `edgeStart` prefix sums lazily on first edge query.
-- [ ] Saga: `gvizGraphViewInitFromEdges(view, graph, edgeMask)` — borrow
+- [x] Saga: `gvizGraphViewInitFromEdges(view, graph, edgeMask)` — borrow
       edgeMask (clone), build `edgeStart`, derive `vertexMask` as union of
       endpoints (or leave NULL if edge-only semantics).
-- [ ] Saga: `gvizGraphViewRelease(view)` — frees masks and edgeStart only;
+- [x] Saga: `gvizGraphViewRelease(view)` — frees masks and edgeStart only;
       never touches `graph`.
 
 ## Epic 3: gvizGraphView read interface
 
-- [ ] Saga: `gvizGraphViewVertexCount(view)`,
+- [x] Saga: `gvizGraphViewVertexCount(view)`,
       `gvizGraphViewVertexInView(view, u)`,
       `gvizGraphViewEdgeInView(view, u, v)` — pure mask checks.
-- [ ] Saga: Neighbor iteration that respects masks —
+- [x] Saga: Neighbor iteration that respects masks —
       `gvizGraphViewNeighborsIter` struct + Init/Next, returning only
       neighbors `v` where both `vertexMask[v]` and the corresponding
       directed-edge bit (if edgeMask set) are present. Built on top of the
       underlying `gvizGraphGetVertexNeighbors`; never materializes a new array.
-- [ ] Saga: `gvizGraphViewVertexIter` — iterate vertex indices in the view
+- [x] Saga: `gvizGraphViewVertexIter` — iterate vertex indices in the view
       using `gvizBitArrayIter` when mask present, else simple counter.
-- [ ] Saga: `gvizGraphViewDegree(view, u)` (counts iter), and
+- [x] Saga: `gvizGraphViewDegree(view, u)` (counts iter), and
       `gvizGraphViewEdgeExists` for the masked sense.
-- [ ] Saga: Tests in `tests/dsa/gvizGraphViewTests.c` covering all four mask
+- [x] Saga: Tests in `tests/dsa/gvizGraphViewTests.c` covering all four mask
       modes (full, vertex-only, edge-only, both).
 
 ## Epic 4: gvizGraphView mutation interface
 
-- [ ] Saga: `gvizGraphViewAddVertex(view, u)` /
+- [x] Saga: `gvizGraphViewAddVertex(view, u)` /
       `gvizGraphViewRemoveVertex(view, u)` — flip bits in `vertexMask`
       (allocating it lazily if currently NULL), update `count`, mark
       `edgeStart` stale.
-- [ ] Saga: `gvizGraphViewAddEdge(view, u, v)` /
+- [x] Saga: `gvizGraphViewAddEdge(view, u, v)` /
       `gvizGraphViewRemoveEdge(view, u, v)` — flip the directed-edge bit
       computed via `edgeStart[u] + indexOf(neighbors(u), v)`. Allocate
       `edgeMask` lazily.
-- [ ] Saga: `gvizGraphViewRebuildEdgeStart(view)` — recompute prefix sums
+- [x] Saga: `gvizGraphViewRebuildEdgeStart(view)` — recompute prefix sums
       after underlying graph topology change; called when stale flag set.
-- [ ] Saga: Tests covering add/remove flipping bits and `count`/`edgeStart`
+- [x] Saga: Tests covering add/remove flipping bits and `count`/`edgeStart`
       consistency.
 
 ## Epic 5: BFS / DFS returning views
