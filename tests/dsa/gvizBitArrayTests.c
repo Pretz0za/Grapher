@@ -418,6 +418,189 @@ void test_random_access_pattern(void) {
 }
 
 // ============================================================================
+// ALLOC / FREE / CLONE / COUNT / CLEAR_ALL
+// ============================================================================
+
+void test_alloc_zero_returns_null(void) {
+  GVIZ_BIT_ARRAY arr = gvizBitArrayAlloc(0);
+  TEST_ASSERT_NULL(arr);
+}
+
+void test_alloc_zeroed(void) {
+  GVIZ_BIT_ARRAY arr = gvizBitArrayAlloc(64);
+  TEST_ASSERT_NOT_NULL(arr);
+  for (size_t i = 0; i < 64; i++) {
+    TEST_ASSERT_FALSE(gvizTestBit(arr, i));
+  }
+  gvizBitArrayFree(arr);
+}
+
+void test_free_null_safe(void) {
+  gvizBitArrayFree(NULL);
+}
+
+void test_clone_basic(void) {
+  GVIZ_BIT_ARRAY arr = gvizBitArrayAlloc(20);
+  gvizSetBit(arr, 1);
+  gvizSetBit(arr, 7);
+  gvizSetBit(arr, 15);
+
+  GVIZ_BIT_ARRAY copy = gvizBitArrayClone(arr, 20);
+  TEST_ASSERT_NOT_NULL(copy);
+  TEST_ASSERT_TRUE(gvizTestBit(copy, 1));
+  TEST_ASSERT_TRUE(gvizTestBit(copy, 7));
+  TEST_ASSERT_TRUE(gvizTestBit(copy, 15));
+  TEST_ASSERT_FALSE(gvizTestBit(copy, 0));
+
+  gvizSetBit(copy, 0);
+  TEST_ASSERT_FALSE(gvizTestBit(arr, 0));
+
+  gvizBitArrayFree(arr);
+  gvizBitArrayFree(copy);
+}
+
+void test_clone_null_returns_null(void) {
+  TEST_ASSERT_NULL(gvizBitArrayClone(NULL, 16));
+}
+
+void test_count_empty(void) {
+  GVIZ_BIT_ARRAY arr = gvizBitArrayAlloc(64);
+  TEST_ASSERT_EQUAL(0, gvizBitArrayCount(arr, 64));
+  gvizBitArrayFree(arr);
+}
+
+void test_count_basic(void) {
+  GVIZ_BIT_ARRAY arr = gvizBitArrayAlloc(64);
+  gvizSetBit(arr, 0);
+  gvizSetBit(arr, 17);
+  gvizSetBit(arr, 31);
+  gvizSetBit(arr, 63);
+  TEST_ASSERT_EQUAL(4, gvizBitArrayCount(arr, 64));
+  gvizBitArrayFree(arr);
+}
+
+void test_count_respects_nbits(void) {
+  GVIZ_BIT_ARRAY arr = gvizBitArrayAlloc(16);
+  for (size_t i = 0; i < 16; i++) {
+    gvizSetBit(arr, i);
+  }
+  TEST_ASSERT_EQUAL(13, gvizBitArrayCount(arr, 13));
+  TEST_ASSERT_EQUAL(16, gvizBitArrayCount(arr, 16));
+  gvizBitArrayFree(arr);
+}
+
+void test_clear_all(void) {
+  GVIZ_BIT_ARRAY arr = gvizBitArrayAlloc(40);
+  for (size_t i = 0; i < 40; i++) {
+    gvizSetBit(arr, i);
+  }
+  gvizBitArrayClearAll(arr, 40);
+  TEST_ASSERT_EQUAL(0, gvizBitArrayCount(arr, 40));
+  gvizBitArrayFree(arr);
+}
+
+// ============================================================================
+// ITERATOR
+// ============================================================================
+
+void test_iter_empty(void) {
+  GVIZ_BIT_ARRAY arr = gvizBitArrayAlloc(32);
+  gvizBitArrayIter it;
+  gvizBitArrayIterInit(&it, arr, 32);
+  size_t out = 0;
+  TEST_ASSERT_EQUAL(0, gvizBitArrayIterNext(&it, &out));
+  gvizBitArrayIterRelease(&it);
+  gvizBitArrayFree(arr);
+}
+
+void test_iter_sparse(void) {
+  GVIZ_BIT_ARRAY arr = gvizBitArrayAlloc(128);
+  gvizSetBit(arr, 3);
+  gvizSetBit(arr, 70);
+  gvizSetBit(arr, 127);
+
+  gvizBitArrayIter it;
+  gvizBitArrayIterInit(&it, arr, 128);
+
+  size_t out = 0;
+  TEST_ASSERT_EQUAL(1, gvizBitArrayIterNext(&it, &out));
+  TEST_ASSERT_EQUAL(3, out);
+  TEST_ASSERT_EQUAL(1, gvizBitArrayIterNext(&it, &out));
+  TEST_ASSERT_EQUAL(70, out);
+  TEST_ASSERT_EQUAL(1, gvizBitArrayIterNext(&it, &out));
+  TEST_ASSERT_EQUAL(127, out);
+  TEST_ASSERT_EQUAL(0, gvizBitArrayIterNext(&it, &out));
+
+  gvizBitArrayIterRelease(&it);
+  gvizBitArrayFree(arr);
+}
+
+void test_iter_dense_in_order(void) {
+  GVIZ_BIT_ARRAY arr = gvizBitArrayAlloc(40);
+  for (size_t i = 0; i < 40; i++) {
+    gvizSetBit(arr, i);
+  }
+  gvizBitArrayIter it;
+  gvizBitArrayIterInit(&it, arr, 40);
+
+  size_t expected = 0;
+  size_t out = 0;
+  while (gvizBitArrayIterNext(&it, &out)) {
+    TEST_ASSERT_EQUAL(expected, out);
+    expected++;
+  }
+  TEST_ASSERT_EQUAL(40, expected);
+
+  gvizBitArrayIterRelease(&it);
+  gvizBitArrayFree(arr);
+}
+
+void test_iter_off_the_end_nbits(void) {
+  // nbits not a multiple of 8 — bits past nbits must never appear.
+  GVIZ_BIT_ARRAY arr = gvizBitArrayAlloc(16);
+  // tamper with the storage past nbits=13 to ensure iter respects nbits
+  gvizSetBit(arr, 12);
+  gvizSetBit(arr, 13);
+  gvizSetBit(arr, 14);
+  gvizSetBit(arr, 15);
+
+  gvizBitArrayIter it;
+  gvizBitArrayIterInit(&it, arr, 13);
+  size_t out = 0;
+  TEST_ASSERT_EQUAL(1, gvizBitArrayIterNext(&it, &out));
+  TEST_ASSERT_EQUAL(12, out);
+  TEST_ASSERT_EQUAL(0, gvizBitArrayIterNext(&it, &out));
+  gvizBitArrayIterRelease(&it);
+  gvizBitArrayFree(arr);
+}
+
+void test_iter_does_not_mutate_source(void) {
+  GVIZ_BIT_ARRAY arr = gvizBitArrayAlloc(64);
+  gvizSetBit(arr, 1);
+  gvizSetBit(arr, 33);
+  gvizSetBit(arr, 60);
+
+  gvizBitArrayIter it1;
+  gvizBitArrayIterInit(&it1, arr, 64);
+  size_t out;
+  while (gvizBitArrayIterNext(&it1, &out)) {
+  }
+  gvizBitArrayIterRelease(&it1);
+
+  // source should be unchanged — second iteration sees the same bits
+  gvizBitArrayIter it2;
+  gvizBitArrayIterInit(&it2, arr, 64);
+  size_t expected[] = {1, 33, 60};
+  for (int i = 0; i < 3; i++) {
+    TEST_ASSERT_EQUAL(1, gvizBitArrayIterNext(&it2, &out));
+    TEST_ASSERT_EQUAL(expected[i], out);
+  }
+  TEST_ASSERT_EQUAL(0, gvizBitArrayIterNext(&it2, &out));
+  gvizBitArrayIterRelease(&it2);
+  gvizBitArrayFree(arr);
+}
+
+// ============================================================================
 // TEST RUNNER
 // ============================================================================
 
@@ -461,6 +644,22 @@ int main(void) {
   RUN_TEST(test_sparse_large_array);
   RUN_TEST(test_dense_large_array);
   RUN_TEST(test_random_access_pattern);
+
+  RUN_TEST(test_alloc_zero_returns_null);
+  RUN_TEST(test_alloc_zeroed);
+  RUN_TEST(test_free_null_safe);
+  RUN_TEST(test_clone_basic);
+  RUN_TEST(test_clone_null_returns_null);
+  RUN_TEST(test_count_empty);
+  RUN_TEST(test_count_basic);
+  RUN_TEST(test_count_respects_nbits);
+  RUN_TEST(test_clear_all);
+
+  RUN_TEST(test_iter_empty);
+  RUN_TEST(test_iter_sparse);
+  RUN_TEST(test_iter_dense_in_order);
+  RUN_TEST(test_iter_off_the_end_nbits);
+  RUN_TEST(test_iter_does_not_mutate_source);
 
   return UNITY_END();
 }

@@ -16,6 +16,7 @@ add_library(graphvis STATIC
     src/dsa/gvizTree.c
     src/dsa/gvizArray.c
     src/dsa/gvizDeque.c
+    src/dsa/gvizBitArray.c
 
     src/core/gvizCamera.c
     src/core/gvizScene.c

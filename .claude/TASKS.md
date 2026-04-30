@@ -1,159 +1,235 @@
-# TASKS
+# TASKS — gvizGraphView refactor
 
-Two epics. Planning only — do NOT implement until approved.
+Goal: introduce a non-materializing `gvizGraphView` over `gvizGraph`, route all
+read access / embedding / traversal / GUI through views, and add a left-panel
+graph/view tree to the scene.
 
----
-
-## Epic A: Fix 3D GRIP renders flat (Begin/EndMode mismatch)
-
-Layer draw functions hardcode `EndMode2D()` before the HUD text and only
-restart `BeginMode2D` if the camera is 2D. In 3D scenes the scene wraps the
-draw in `BeginMode3D`/`EndMode3D`, so the hardcoded `EndMode2D()` corrupts
-state and the matrix stack ends mismatched — the GRIP layer effectively
-projects flat.
-
-Fix: every layer that draws HUD text must end the *active* mode (matched to
-camera kind) before the HUD and restart the matching mode after.
-
-### Saga A.1: GRIPLive draw — kind-aware end/begin
-- [x] In `src/app/gvizLayerGRIPLive.c::gvizLayerGRIPLiveDraw`, replace the
-      unconditional `EndMode2D()` with:
-      `if (camera->kind == GVIZ_CAMERA_2D) EndMode2D(); else EndMode3D();`
-- [x] After the HUD `DrawText`, restart with the matching `BeginMode2D` /
-      `BeginMode3D(camera->c3d)` branch.
-
-### Saga A.2: PolyTutte draw — same fix
-- [x] In `src/app/gvizLayerPolyTutte.c::gvizLayerPolyTutteDraw`, apply the
-      same kind-aware end/begin pair around the HUD `DrawText`.
-
-### Saga A.3: Tutte draw — same fix
-- [x] In `src/app/gvizLayerTutte.c::gvizLayerTutteDraw`, apply the same
-      kind-aware end/begin pair around the HUD `DrawText`.
-
-### Saga A.4: Audit GRIP and OBJ for the same pattern
-- [x] `src/app/gvizLayerGRIP.c::gvizLayerGRIPDraw` — confirmed no HUD/EndMode2D.
-- [x] `src/app/gvizLayerOBJ.c::gvizLayerOBJDraw` — confirmed no HUD/EndMode2D.
-
-### Saga A.5: Smoke
-- [x] Build passes; runtime smoke deferred to user.
+Key files touched, by area:
+- DSA: `include/dsa/gvizGraph.h`, `src/dsa/gvizGraph.c`,
+        `include/dsa/gvizBitArray.h` (+ new `src/dsa/gvizBitArray.c`),
+        `tests/dsa/gvizGraphTests.c`, `tests/dsa/gvizBitArrayTests.c`
+- New view module: `include/dsa/gvizGraphView.h`,
+        `src/dsa/gvizGraphView.c` (new), `tests/dsa/gvizGraphViewTests.c` (new)
+- Embeddings: `include/renderer/embeddings/gvizEmbeddedGraph.h`,
+        `src/renderer/embeddings/gvizEmbeddedGraph.c`,
+        `gvivGRIPEmbedding.h` + `gvizGRIPEmbedding.c`,
+        `gvizTutteEmbedding.h` + `gvizTutteEmbedding.c`,
+        `gvizEmbeddedTree.h/.c`, `gvizForceDirected.h/.c`,
+        `gvizPlanarEmbedding.h/.c`, `gvizSchnyderWood.h/.c`
+- Renderer / layers: `include/renderer/layers/gvizLayerGraph.h`,
+        `src/renderer/layers/gvizLayerGraph.c`,
+        `gvizGraphVBO.h/.c`, `gvizVertexDiscVBO.h/.c`
+- App layers: `src/app/gvizLayerGRIP.c`, `gvizLayerGRIPLive.c`,
+        `gvizLayerTutte.c`, `gvizLayerPolyTutte.c`, `gvizLayerCreate.c`,
+        `gvizSceneBuilders.c`
+- Scene: `include/core/gvizScene.h`, `src/core/gvizScene.c`
+- New scene panel: `include/app/gvizLayerGraphTree.h`,
+        `src/app/gvizLayerGraphTree.c` (new)
 
 ---
 
-## Epic B: Enhanced demo panel + parametric graphs + N-D GRIP w/ PCA
+## Epic 1: gvizBitArray iterator + ergonomics
 
-Replace flat demo enum with a Demos sub-form (graph type + parameters +
-embedding dimension). When `embDim > drawDim`, project via PCA before GPU
-upload so high-dimensional GRIP runs render correctly in 2D/3D.
+- [x] Saga: Convert `gvizBitArray` from header-only macros to a real module —
+      add `src/dsa/gvizBitArray.c`, keep existing macros, add helpers
+      `gvizBitArrayAlloc(nbits)`, `gvizBitArrayFree`, `gvizBitArrayClone`,
+      `gvizBitArrayCount`, `gvizBitArrayClearAll` so callers stop hand-rolling
+      `GVIZ_ALLOC + memset`. Update CMake source list.
+- [x] Saga: Add `gvizBitArrayIter` struct + API
+      `gvizBitArrayIterInit(iter, src, nbits)` (copies the bit buffer),
+      `gvizBitArrayIterNext(iter, size_t *out)` (find lowest set bit, clear it,
+      return 1 or 0 when exhausted), `gvizBitArrayIterRelease(iter)`. Use
+      `__builtin_ctz`/`ctzll` per word for O(set-bit) cost.
+- [x] Saga: Tests in `tests/dsa/gvizBitArrayTests.c` — empty bitarray, sparse,
+      dense, off-the-end nbits not multiple of 8, double-iteration on copy
+      (source unchanged).
 
-### Saga B.1: Extend `gvizLayerCreateParams` schema
-- [x] In `include/app/gvizLayerCreatePanel.h`:
-  - [x] Add `gvizDemoGraphType` enum: `SIERPINSKI_TRI`, `SIERPINSKI_TET`,
-        `CARPET`, `RECT_MESH`, `TET_MESH`, `EQ_TRI_MESH`, `KNOTTED_RECT`,
-        `MOBIUS`, `KLEIN`, `RANDOM_TREE`.
-  - [x] Add fields to `gvizLayerCreateParams`: `gvizDemoGraphType graphType`,
-        `int graphParam1`, `int graphParam2`, `int embDim`.
-  - [x] Defaults: `graphType=SIERPINSKI_TRI`, `graphParam1=3`,
-        `graphParam2=3`, `embDim` set by mode (2 for 2D, 3 for 3D) at
-        panel init.
-- [x] In `gvizLayerCreatePanelInit`, initialize the new fields.
+## Epic 2: gvizGraphView core
 
-### Saga B.2: Panel UI — Demos sub-form
-- [x] In `src/app/gvizLayerCreatePanel.c`:
-  - [x] Add a `graphTypeDropdownEdit` field to the panel struct (header).
-  - [x] When source dropdown is "Demos" (renamed from per-demo entries),
-        render a `GuiDropdownBox` for graph type with all 10 entries.
-  - [x] Per type, render 0–2 `GuiSpinner` controls labelled appropriately
-        (e.g. depth for Sierpinski; L, W for rect mesh; rows, cols for
-        Möbius/Klein). Show only inputs relevant to the chosen type.
-  - [x] Add an "Embedding dim" `GuiSpinner` (min 2, max 8). Clamp on edit.
-  - [x] Drop the obsolete demo entries from the Source dropdown — collapse
-        to: "Demos;From file".
-- [x] Adjust `PANEL_H` upward to fit new rows; recompute layout offsets.
+- [ ] Saga: Define `gvizGraphView` in `include/dsa/gvizGraphView.h`:
+      ```
+      typedef struct gvizGraphView {
+        gvizGraph *graph;            /* borrowed */
+        GVIZ_BIT_ARRAY vertexMask;   /* NULL = all vertices */
+        GVIZ_BIT_ARRAY edgeMask;     /* NULL = all edges */
+        size_t *edgeStart;           /* len N+1, prefix sums into edgeMask */
+        size_t count;                /* vertices currently in view */
+      } gvizGraphView;
+      ```
+      Document the invariants: NULL/NULL = whole graph; vertex-only =
+      induced subgraph; edge-only = edge-defined subgraph.
+- [ ] Saga: `gvizGraphViewInitFull(view, graph)` — both masks NULL,
+      `count = graph->vertices.count`, `edgeStart` lazily NULL.
+- [ ] Saga: `gvizGraphViewInitFromVertices(view, graph, GVIZ_BIT_ARRAY mask)`
+      — borrow graph, allocate `vertexMask` copy, derive `count`, leave
+      `edgeMask` NULL. Build `edgeStart` prefix sums lazily on first edge query.
+- [ ] Saga: `gvizGraphViewInitFromEdges(view, graph, edgeMask)` — borrow
+      edgeMask (clone), build `edgeStart`, derive `vertexMask` as union of
+      endpoints (or leave NULL if edge-only semantics).
+- [ ] Saga: `gvizGraphViewRelease(view)` — frees masks and edgeStart only;
+      never touches `graph`.
 
-### Saga B.3: Dispatch demo graph type → generator
-- [x] In `src/app/gvizLayerCreate.c::loadGraphForSource`:
-  - [x] Replace the per-source switch arms for the old demo enums with a
-        single `GVIZ_SRC_DEMO` arm that switches on `params->graphType` and
-        calls the right `utils/graphs.h` generator with `graphParam1` /
-        `graphParam2`.
-  - [x] For `RANDOM_TREE`, keep the existing local `buildRandomTree`
-        helper, parameterized by `graphParam1` (max depth).
-- [x] Remove `GVIZ_SRC_DEMO_SIERPINSKI`, `GVIZ_SRC_DEMO_OCTAHEDRON`,
-      `GVIZ_SRC_DEMO_RANDOM_TREE` from the source enum (header).
-- [x] Drop `buildOctahedronGraph` (replaced by parametric generators) or
-      keep it only if a test still references it (verify via grep first).
+## Epic 3: gvizGraphView read interface
 
-### Saga B.4: Plumb `embDim` into GRIP layer init
-- [x] In `include/app/gvizLayerGRIPLive.h`, expose
-      `gvizLayerGRIPLiveInitWithDim` (currently file-static) so the mux can
-      call it with arbitrary dim.
-- [x] In `src/app/gvizLayerCreate.c::buildGRIPLayer`, when algo is GRIP
-      pass `params->embDim` into `gvizLayerGRIPLiveInitWithDim`. Camera
-      branch: if `embDim >= 3` use 3D camera (already handled inside the
-      init); otherwise 2D.
-- [x] Note: only GRIP supports `embDim > 3`. Tutte / PolyTutte / RT keep
-      hardcoded 2D init; panel should grey-out the dim spinner for those
-      algos (or just ignore the value).
+- [ ] Saga: `gvizGraphViewVertexCount(view)`,
+      `gvizGraphViewVertexInView(view, u)`,
+      `gvizGraphViewEdgeInView(view, u, v)` — pure mask checks.
+- [ ] Saga: Neighbor iteration that respects masks —
+      `gvizGraphViewNeighborsIter` struct + Init/Next, returning only
+      neighbors `v` where both `vertexMask[v]` and the corresponding
+      directed-edge bit (if edgeMask set) are present. Built on top of the
+      underlying `gvizGraphGetVertexNeighbors`; never materializes a new array.
+- [ ] Saga: `gvizGraphViewVertexIter` — iterate vertex indices in the view
+      using `gvizBitArrayIter` when mask present, else simple counter.
+- [ ] Saga: `gvizGraphViewDegree(view, u)` (counts iter), and
+      `gvizGraphViewEdgeExists` for the masked sense.
+- [ ] Saga: Tests in `tests/dsa/gvizGraphViewTests.c` covering all four mask
+      modes (full, vertex-only, edge-only, both).
 
-### Saga B.5: VBO `drawDim` field + scratch buffer
-- [x] In `include/renderer/layers/gvizGraphVBO.h`:
-  - [x] Add `int drawDim` field to `gvizGraphVBO` (2 or 3; defaults to 2).
-  - [x] Add `double *projScratch` and `size_t projScratchCap` for PCA
-        scratch (interleaved `drawDim`-vectors per vertex).
-  - [x] Add setter `gvizGraphVBOSetDrawDim(gvizGraphVBO *, int)`.
-- [x] In `gvizGraphVBOInit` / `gvizGraphVBORelease`, init/free new fields.
-- [x] Caller plumb: `gvizLayerGRIPLiveInitWithDim` calls
-      `gvizGraphVBOSetDrawDim(&self->vbo, dim==3 ? 3 : 2)` after init.
+## Epic 4: gvizGraphView mutation interface
 
-### Saga B.6: PCA projection helper
-- [x] New file `src/utils/gvizPCA.c` + `include/utils/gvizPCA.h`:
-  - [x] `int gvizPCAProject(const double *X, size_t N, size_t embDim,
-                            size_t drawDim, double *Y);`
-        — center X (N x embDim row-major), build embDim x embDim
-          covariance, call LAPACK `dsyev_` for eigen-decomposition, take
-          top `drawDim` eigenvectors, project X onto them into Y.
-- [x] CMake: confirm `LAPACK::LAPACK` (or whatever existing target the GRIP
-      planar code uses for `dsyev`) is on `graphvis`'s link line; add to
-      target_link_libraries if PCA TU isn't covered.
+- [ ] Saga: `gvizGraphViewAddVertex(view, u)` /
+      `gvizGraphViewRemoveVertex(view, u)` — flip bits in `vertexMask`
+      (allocating it lazily if currently NULL), update `count`, mark
+      `edgeStart` stale.
+- [ ] Saga: `gvizGraphViewAddEdge(view, u, v)` /
+      `gvizGraphViewRemoveEdge(view, u, v)` — flip the directed-edge bit
+      computed via `edgeStart[u] + indexOf(neighbors(u), v)`. Allocate
+      `edgeMask` lazily.
+- [ ] Saga: `gvizGraphViewRebuildEdgeStart(view)` — recompute prefix sums
+      after underlying graph topology change; called when stale flag set.
+- [ ] Saga: Tests covering add/remove flipping bits and `count`/`edgeStart`
+      consistency.
 
-### Saga B.7: Use PCA in `buildExpandedVerts` / disc upload
-- [x] In `src/renderer/layers/gvizGraphVBO.c`:
-  - [x] Modify `buildExpandedVerts` (and the analogous disc-position path
-        in `gvizVertexDiscVBOUploadPositions` / `Rebuild`) so that when
-        `eg->embedding.dim > vbo->drawDim`, it:
-        1. resizes `projScratch` to `N * drawDim` doubles,
-        2. runs `gvizPCAProject` on `eg->embedding.vertexPositions`,
-        3. reads endpoint coords from the projected scratch instead of `p`.
-  - [x] When `embDim <= drawDim`, keep the current direct-read fast path.
-- [x] `gvizVertexDiscVBO` similarly needs to read projected positions when
-      higher-dim. Easiest: have GraphVBO pre-project once per upload and
-      pass the projected buffer down via a new helper, rather than
-      duplicating PCA in DiscVBO. Add internal helper
-      `gvizGraphVBOPrepareProjectedPositions(vbo, eg)` returning a
-      `double *` (= `eg->embedding.vertexPositions` if no projection
-      needed, else `vbo->projScratch`). Use it in both rebuild and upload.
-- [x] DiscVBO change: extend its position-upload entry points to accept a
-      pre-projected `double *` + `dim` instead of pulling from `eg`
-      directly; or add a sibling entry that does. Keep existing entry as a
-      thin wrapper for non-projected callers.
+## Epic 5: BFS / DFS returning views
 
-### Saga B.8: Refresh during live GRIP refinement
-- [x] No extra work — `gvizLayerGRIPLiveUpdate` already bumps `gpuDirty=1`,
-      which triggers `gvizGraphVBOUploadPositions` next draw. PCA runs
-      inside that path so projection refreshes per-round automatically.
+- [ ] Saga: Add `gvizGraphDFSView(graph, source, gvizGraphView *out)` to
+      `gvizGraph.h/.c` — runs DFS, builds a vertex+edge mask of reached
+      vertices and tree edges, returns the view (no new graph).
+- [ ] Saga: Add `gvizGraphBFSView(graph, source, maxDepth, gvizGraphView *out)`
+      — same but BFS-tree edges only.
+- [ ] Saga: Mark `gvizGraphDFSTree` / `gvizGraphBFSTree` legacy in the header
+      (keep them — Reingold-Tilford uses tree shape). Don't delete.
+- [ ] Saga: Tests for both view-producing variants.
 
-### Saga B.9: Smoke
-- [x] Build passes.
-- [x] Manual: open Demos panel, pick Möbius strip 8x16 with embDim=5 in a
-      3D scene; confirm GRIP renders as a 3D PCA projection that converges.
-- [x] Manual: pick rect mesh with embDim=2 in a 2D scene; confirm fast
-      path (no PCA) still works.
+## Epic 6: gvizEmbeddedGraph holds a view
 
----
+- [ ] Saga: Refactor struct in `gvizEmbeddedGraph.h`:
+      ```
+      typedef enum { GVIZ_EMBED_FULL_GRAPH, GVIZ_EMBED_VIEW_ONLY }
+        gvizEmbeddingMode;
+      typedef struct gvizEmbeddedGraph {
+        gvizGraphView view;
+        gvizEmbeddingMode mode;
+        gvizEmbedding embedding;  /* sized to view (Mode B) or full N (Mode A) */
+      } gvizEmbeddedGraph;
+      ```
+- [ ] Saga: New init signature
+      `gvizEmbeddedGraphInitView(eg, view, mode, dim)`. Keep a thin compat
+      `gvizEmbeddedGraphInit(eg, graph, dim)` that builds a Full view + Mode A.
+- [ ] Saga: Position accessors must respect mode. In Mode A,
+      `vertexPositions[u * dim]` is indexed by raw vertex id. In Mode B, by
+      view-local index obtained from a `view→local` lookup table built on
+      init. Add `gvizEmbeddedGraphLocalIndex(eg, u)` helper.
+- [ ] Saga: Update `gvizEmbeddedGraphRelease` to release the view (which only
+      frees masks, never the graph) and the local-index table if any.
+- [ ] Saga: Update serializers (`gvizEmbeddedGraphSaveEmbedding/Load`) to
+      write/read view metadata so reload restores Mode A vs B correctly.
+
+## Epic 7: Refactor embedding algorithms onto views
+
+- [ ] Saga: GRIP (`gvivGRIPEmbedding.h`, `gvizGRIPEmbedding.c`) — replace
+      `gvizGraph *graph` parameter with `gvizGraphView *view`. Drop the
+      stand-alone `dispCalculated` bitarray that mirrors view membership
+      (subsumed by view masks). All neighbor walks go through
+      `gvizGraphViewNeighborsIter`. `gvizGRIPPrepareLayerKNNs` and
+      `placeLayerVertices` use view APIs instead of raw graph.
+- [ ] Saga: Tutte (`gvizTutteEmbedding.h/.c`) — accept view, build M_II /
+      `interiorIdx` / `vertexToInterior` against the view's vertex space.
+- [ ] Saga: Reingold-Tilford / `gvizEmbeddedTree.h/.c` — accept a view that
+      represents the tree (root vertex still passed separately).
+- [ ] Saga: Force-directed (`gvizForceDirected.h/.c`) — accept view; iterate
+      vertices via view iter so excluded vertices don't contribute forces.
+- [ ] Saga: Planar (`gvizPlanarEmbedding.h/.c`) — accept view; the cached
+      Kuratowski subdivision continues to live in the planar state struct
+      and is keyed off the same view.
+- [ ] Saga: Schnyder wood (`gvizSchnyderWood.h/.c`) — accept view (stub-level
+      change; algorithm is in progress upstream).
+- [ ] Saga: Update `gvizGraphKNearestNeighbors` to take a view (replaces the
+      `filter` bitarray parameter — view encodes both membership and graph).
+
+## Epic 8: Render layer wired through views (two modes)
+
+- [ ] Saga: Update `gvizLayerGraph` to consume `gvizEmbeddedGraph` whose
+      embedding may be view-sized (Mode B) or full-graph (Mode A). Edge VBO
+      build (`gvizGraphVBO.c::buildExpandedVerts`) walks
+      `gvizGraphViewNeighborsIter` and emits only edges in the view.
+- [ ] Saga: Vertex disc VBO (`gvizVertexDiscVBO.c`) — emit one disc per
+      vertex in the view, looking up positions through
+      `gvizEmbeddedGraphGetVPosition` (mode-aware).
+- [ ] Saga: Edge highlight bit indexing in `gvizLayerGraph` — replace the
+      hand-rolled `edgeStartIdx` / `edgeHighlight` pair with the view's
+      `edgeStart` + a parallel highlight bit array (separate concern from
+      view membership). `gvizLayerGraphRebuildEdgeIndex` becomes
+      `gvizGraphViewRebuildEdgeStart` + reallocation of highlight buffer.
+- [ ] Saga: `gvizLayerGraphAddVertex/RemoveVertex/AddEdge/RemoveEdge` keep
+      mutating the underlying registered graph (scene-shared) but now must
+      also update or invalidate any views attached. Notify subscribers via
+      existing `gvizSceneNotifyGraphChanged` so other layers refresh their
+      views.
+
+## Epic 9: Scene graph/view registry + left panel GUI
+
+- [ ] Saga: Extend `gvizSceneGraphEntry` with `gvizArray views` (each entry:
+      `{ gvizGraphView *view; gvizLayer *layer; const char *name; }`).
+      Add registry API: `gvizSceneRegisterView(scene, handle, view, layer,
+      name)`, `gvizSceneUnregisterView`, `gvizSceneGetGraphViews(handle)`.
+- [ ] Saga: Bump `GVIZ_SCENE_MARGIN_L` to make room (e.g. 240px) and
+      teach `gvizSceneComputeRegion` so component-layer slot layout starts
+      after the panel.
+- [ ] Saga: New `gvizLayerGraphTree` screen-space layer
+      (`include/app/gvizLayerGraphTree.h`, `src/app/gvizLayerGraphTree.c`):
+      full-height left strip, raygui-driven collapsible tree. Top level =
+      registered graphs (name + vertex count). Children = views of that
+      graph (name + vertex count + which `gvizLayer*` they're rendered on).
+- [ ] Saga: Hook the tree layer into scene init (`gvizSceneInit2D/3D/Empty`)
+      and re-layout on graph register/unregister + view register/unregister.
+- [ ] Saga: When layer creation panel (`gvizLayerCreate.c`) builds a new
+      graph layer, auto-register a default Full-graph view for the new
+      `gvizLayerGraph` so the panel sees it immediately.
+- [ ] Saga: Click handling in the tree — selecting a view sets the matching
+      `gvizLayer` as the scene's `activeLayer` (existing API). Right-click
+      a view: stub menu hooks (rename / delete / change embedding) — wire
+      "delete view" only; embedding swap goes through existing context menu.
+
+## Epic 10: Codebase sweep — replace ad-hoc graph+bitarray patterns
+
+- [ ] Saga: Audit. Grep for callers passing both a `gvizGraph *` and a
+      `GVIZ_BIT_ARRAY` filter side-by-side. Known sites:
+      - `gvizGRIPState.dispCalculated`
+      - `gvizGraphKNearestNeighbors(... filter)`
+      - `gvizGRIPPrepareLayerKNNs(state, layer, placed)`
+      - `placeLayerVertices(state, layer, placedVertices)`
+      Produce a checklist of every additional site found.
+- [ ] Saga: Replace each found site with a `gvizGraphView` parameter. Where
+      the bitarray meant "scratch / progress" (e.g. `placedVertices`) and
+      isn't really a view, leave it but document why; the test is whether
+      its membership is queried as part of a graph walk.
+- [ ] Saga: Final compile + test sweep. Run `ctest`, `gripDemo`, `treeDemo`
+      and confirm the Tutte live-create flow still works end to end.
+
+## Epic 11: Documentation + cleanup
+
+- [ ] Saga: Update `CLAUDE.md` "Key types" block to reflect
+      `gvizGraphView` and the view-aware `gvizEmbeddedGraph`.
+- [ ] Saga: Delete dead helpers replaced by views (any `gvizGraphCopy*` /
+      filter-driven helpers that no longer have callers — confirm via grep
+      first; do not refactor speculatively).
 
 ## Out of scope
 
-- No new tests (tests skill not requested).
-- No refactors beyond what each saga's surface area requires.
-- Not touching the planar / Schnyder / Reingold-Tilford embeddings.
-- Old "Issue A–D" entries above are dropped.
+- No new embedding algorithms.
+- Not introducing tests beyond the ones explicitly listed above for the new
+  view + bitarray-iter modules (those are required to lock in the contract).
+- Not touching planar third-party internals beyond the wrapper signature.
+- Not changing tree (de)serialization formats.
