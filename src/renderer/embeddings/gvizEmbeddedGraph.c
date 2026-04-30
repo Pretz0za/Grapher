@@ -3,153 +3,206 @@
 #include "core/alloc.h"
 #include "dsa/gvizArray.h"
 #include "dsa/gvizGraph.h"
+#include "dsa/gvizGraphView.h"
 #include "raylib.h"
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
-int gvizEmbeddedGraphInit(gvizEmbeddedGraph *embedding, gvizGraph *graph,
-                          size_t n) {
-  embedding->graph = graph;
-  embedding->embedding.dim = n;
-  embedding->embedding.vertexPositions =
-      GVIZ_ALLOC(sizeof(double) * graph->vertices.count * n);
-  if (!embedding->embedding.vertexPositions)
+static int allocPositions(gvizEmbeddedGraph *eg, size_t count, size_t dim) {
+  if (count == 0 || dim == 0) {
+    eg->embedding.vertexPositions = NULL;
+    return 0;
+  }
+  eg->embedding.vertexPositions =
+      GVIZ_ALLOC(sizeof(double) * count * dim);
+  if (!eg->embedding.vertexPositions) {
     return -1;
-  memset(embedding->embedding.vertexPositions, 0,
-         sizeof(double) * graph->vertices.count * n);
-
-  // Count the edges in the graph to avoid overallocating later.
-  // O(1) initializtion doable by making an n * n 2d bit array, where we
-  // have:
-  //                arr[idx(u, v)] = uv visted ? 1 : 0;
-  // The disadvantage in this in that we are allocating memory for
-  // non-existent edges. In fact, in most cases, of the n * n array will be
-  // unused.
-  //
-  // Alternative is only allocating for the number of edges we have. This is
-  // O(n) instead. Additionally, it requires to keep track of where each
-  // vertex's half edges list is stored. This is a natural side-effect of
-  // managing an array of variable-sized arrays. In total this requires:
-  //
-  //          2*m bits for the bit array (2 halves to each edge) +
-  //               8*n bits for the offsets arr (sizeof(size_t)) =
-  //                          O(m + n) memory compared to O(n^2) ;
-  //
-  // Additionally, to do anything that useful with an embedded graph it'll
-  // ususally be an algorithm thats O(n) in time at least. Which, makes this
-  // O(n) for initialization less costly in the big picture.
-
-  // size_t *offsets = GVIZ_ALLOC(sizeof(size_t) * graph->vertices.count);
-  // size_t edgeCount = 0;
-  // if (!offsets)
-  //   return -1;
-  // for (size_t i = 0; i < graph->vertices.count; i++) {
-  //   offsets[i] = edgeCount;
-  //   edgeCount += (gvizGraphGetVertexNeighbors(graph, i)->count);
-  // }
-  //
-  // size_t size = sizeof(GVIZ_BIT_UNIT) * GVIZ_ARRAY_UNITS(edgeCount);
-  // GVIZ_BIT_ARRAY arr = GVIZ_ALLOC(size);
-  // if (!arr)
-  //   return -1;
-  // memset(arr, 0, size);
-
+  }
+  memset(eg->embedding.vertexPositions, 0, sizeof(double) * count * dim);
   return 0;
 }
 
-size_t gvizIterateSearch(gvizEmbeddedGraph *embedding,
-                         gvizFaceSearchState *state); //{
-//   gvizArray *neighbors =
-//       gvizGraphGetVertexNeighbors(embedding->graph, state->currVertex);
-//   size_t *last = gvizArrayFindOne(neighbors, &(state->lastVertex));
-//   state->lastVertex = state->currVertex;
-//   size_t idx = last - (size_t *)neighbors->arr;
-//   idx = idx == neighbors->count - 1 ? 0 : idx + 1;
-//   state->currVertex = idx;
-//   return idx;
-// }
-//
-// int gvizEmbeddedGraphNextFace(gvizEmbeddedGraph *embedding,
-//                               gvizFaceSearchState *state) {
-//   size_t nextVertex = gvizIterateSearch(embedding, state);
-//   if (GVI) {
-//     return int(nextVertex);
-//   }
-//   return gvizEmbeddedGraphNextFace(embedding, state);
-// }
-//
-
-void gvizEmbeddedGraphRelease(gvizEmbeddedGraph *embedding) {
-  if (embedding->embedding.vertexPositions) {
-    GVIZ_DEALLOC(embedding->embedding.vertexPositions);
-  }
-}
-
-double *gvizEmbeddedGraphGetVPosition(gvizEmbeddedGraph *embedding,
-                                      size_t idx) {
-  return embedding->embedding.vertexPositions + idx * embedding->embedding.dim;
-}
-
-void gvizEmbeddedGraphSetVPosition(gvizEmbeddedGraph *embedding, size_t idx,
-                                   double *position) {
-  cblas_dcopy(embedding->embedding.dim, position, 1,
-              gvizEmbeddedGraphGetVPosition(embedding, idx), 1);
-}
-
-void gvizEmbeddedGraphAddVPosition(gvizEmbeddedGraph *embedding, size_t idx,
-                                   double *position) {
-  cblas_daxpy(embedding->embedding.dim, 1, position, 1,
-              gvizEmbeddedGraphGetVPosition(embedding, idx), 1);
-}
-
-int gvizEmbeddedGraphSaveEmbedding(gvizEmbeddedGraph *embedding,
-                                   const char *name, const char *filename) {
-  FILE *f = fopen(filename, "w");
-  if (!f)
+static int buildLocalTable(gvizEmbeddedGraph *eg) {
+  size_t n = eg->view.graph->vertices.count;
+  eg->local = GVIZ_ALLOC(sizeof(size_t) * n);
+  if (n > 0 && !eg->local) {
     return -1;
+  }
+  for (size_t i = 0; i < n; i++) {
+    eg->local[i] = SIZE_MAX;
+  }
+  size_t next = 0;
+  gvizGraphViewVertexIter it;
+  gvizGraphViewVertexIterInit(&it, &eg->view);
+  size_t u;
+  while (gvizGraphViewVertexIterNext(&it, &u)) {
+    eg->local[u] = next++;
+  }
+  gvizGraphViewVertexIterRelease(&it);
+  return 0;
+}
 
+int gvizEmbeddedGraphInitView(gvizEmbeddedGraph *eg, gvizGraphView view,
+                              gvizEmbeddingMode mode, size_t dim) {
+  if (!eg || !view.graph) {
+    return -1;
+  }
+  eg->view = view;
+  eg->graph = view.graph;
+  eg->mode = mode;
+  eg->embedding.dim = dim;
+  eg->embedding.vertexPositions = NULL;
+  eg->local = NULL;
+
+  size_t posCount;
+  if (mode == GVIZ_EMBED_VIEW_ONLY) {
+    posCount = eg->view.count;
+    if (buildLocalTable(eg) != 0) {
+      gvizGraphViewRelease(&eg->view);
+      return -1;
+    }
+  } else {
+    posCount = eg->view.graph->vertices.count;
+  }
+
+  if (allocPositions(eg, posCount, dim) != 0) {
+    if (eg->local) {
+      GVIZ_DEALLOC(eg->local);
+      eg->local = NULL;
+    }
+    gvizGraphViewRelease(&eg->view);
+    return -1;
+  }
+  return 0;
+}
+
+int gvizEmbeddedGraphInit(gvizEmbeddedGraph *eg, gvizGraph *graph,
+                          size_t dim) {
+  if (!eg || !graph) {
+    return -1;
+  }
+  gvizGraphView view;
+  if (gvizGraphViewInitFull(&view, graph) != 0) {
+    return -1;
+  }
+  return gvizEmbeddedGraphInitView(eg, view, GVIZ_EMBED_FULL_GRAPH, dim);
+}
+
+size_t gvizEmbeddedGraphLocalIndex(const gvizEmbeddedGraph *eg, size_t u) {
+  if (!eg || !eg->view.graph || u >= eg->view.graph->vertices.count) {
+    return SIZE_MAX;
+  }
+  if (eg->mode == GVIZ_EMBED_FULL_GRAPH) {
+    return u;
+  }
+  return eg->local ? eg->local[u] : SIZE_MAX;
+}
+
+void gvizEmbeddedGraphRelease(gvizEmbeddedGraph *eg) {
+  if (!eg) {
+    return;
+  }
+  if (eg->embedding.vertexPositions) {
+    GVIZ_DEALLOC(eg->embedding.vertexPositions);
+    eg->embedding.vertexPositions = NULL;
+  }
+  if (eg->local) {
+    GVIZ_DEALLOC(eg->local);
+    eg->local = NULL;
+  }
+  gvizGraphViewRelease(&eg->view);
+  eg->graph = NULL;
+}
+
+size_t gvizIterateSearch(gvizEmbeddedGraph *embedding,
+                         gvizFaceSearchState *state);
+
+double *gvizEmbeddedGraphGetVPosition(gvizEmbeddedGraph *eg, size_t idx) {
+  size_t local = gvizEmbeddedGraphLocalIndex(eg, idx);
+  if (local == SIZE_MAX) {
+    return NULL;
+  }
+  return eg->embedding.vertexPositions + local * eg->embedding.dim;
+}
+
+void gvizEmbeddedGraphSetVPosition(gvizEmbeddedGraph *eg, size_t idx,
+                                   double *position) {
+  double *dest = gvizEmbeddedGraphGetVPosition(eg, idx);
+  if (!dest) {
+    return;
+  }
+  cblas_dcopy(eg->embedding.dim, position, 1, dest, 1);
+}
+
+void gvizEmbeddedGraphAddVPosition(gvizEmbeddedGraph *eg, size_t idx,
+                                   double *position) {
+  double *dest = gvizEmbeddedGraphGetVPosition(eg, idx);
+  if (!dest) {
+    return;
+  }
+  cblas_daxpy(eg->embedding.dim, 1, position, 1, dest, 1);
+}
+
+int gvizEmbeddedGraphSaveEmbedding(gvizEmbeddedGraph *eg, const char *name,
+                                   const char *filename) {
+  FILE *f = fopen(filename, "w");
+  if (!f) {
+    return -1;
+  }
   fprintf(f, "%s\n", name);
-
-  fprintf(f, "%zu %zu\n", embedding->graph->vertices.count,
-          embedding->embedding.dim);
-  for (size_t i = 0; i < embedding->graph->vertices.count; i++) {
-    double *pos = gvizEmbeddedGraphGetVPosition(embedding, i);
-    for (size_t j = 0; j < embedding->embedding.dim; j++) {
-      fprintf(f, "%f ", pos[j]);
+  fprintf(f, "%d\n", (int)eg->mode);
+  size_t n = eg->view.graph->vertices.count;
+  fprintf(f, "%zu %zu\n", n, eg->embedding.dim);
+  for (size_t i = 0; i < n; i++) {
+    double *pos = gvizEmbeddedGraphGetVPosition(eg, i);
+    if (!pos) {
+      for (size_t j = 0; j < eg->embedding.dim; j++) {
+        fprintf(f, "0.0 ");
+      }
+    } else {
+      for (size_t j = 0; j < eg->embedding.dim; j++) {
+        fprintf(f, "%f ", pos[j]);
+      }
     }
     fprintf(f, "\n");
   }
-
   fclose(f);
   return 0;
 }
 
-int gvizEmbeddedGraphLoadEmbedding(gvizEmbeddedGraph *embedding,
+int gvizEmbeddedGraphLoadEmbedding(gvizEmbeddedGraph *eg,
                                    const char *filename) {
   FILE *f = fopen(filename, "r");
-  if (!f)
+  if (!f) {
     return -1;
-
+  }
   char name[256];
   fgets(name, 256, f);
 
-  printf("loading embedding: %s\n", name);
+  int mode;
+  fscanf(f, "%d", &mode);
 
   size_t vertexCount, dim;
   fscanf(f, "%zu %zu", &vertexCount, &dim);
-  if (vertexCount != embedding->graph->vertices.count ||
-      dim != embedding->embedding.dim) {
+  if (vertexCount != eg->view.graph->vertices.count ||
+      dim != eg->embedding.dim || (gvizEmbeddingMode)mode != eg->mode) {
     fclose(f);
     return -1;
   }
-
   for (size_t i = 0; i < vertexCount; i++) {
-    double *pos = gvizEmbeddedGraphGetVPosition(embedding, i);
+    double *pos = gvizEmbeddedGraphGetVPosition(eg, i);
     for (size_t j = 0; j < dim; j++) {
-      fscanf(f, "%lf", &pos[j]);
+      double x;
+      if (fscanf(f, "%lf", &x) != 1) {
+        fclose(f);
+        return -1;
+      }
+      if (pos) {
+        pos[j] = x;
+      }
     }
   }
-
   fclose(f);
   return 0;
 }

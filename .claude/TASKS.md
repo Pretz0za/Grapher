@@ -114,7 +114,7 @@ Key files touched, by area:
 
 ## Epic 6: gvizEmbeddedGraph holds a view
 
-- [ ] Saga: Refactor struct in `gvizEmbeddedGraph.h`:
+- [x] Saga: Refactor struct in `gvizEmbeddedGraph.h`:
       ```
       typedef enum { GVIZ_EMBED_FULL_GRAPH, GVIZ_EMBED_VIEW_ONLY }
         gvizEmbeddingMode;
@@ -124,16 +124,19 @@ Key files touched, by area:
         gvizEmbedding embedding;  /* sized to view (Mode B) or full N (Mode A) */
       } gvizEmbeddedGraph;
       ```
-- [ ] Saga: New init signature
+      Note: kept `gvizGraph *graph` as a borrowed alias of `view.graph` for
+      backwards-compat with existing callers; will be removed in Epic 11
+      cleanup once Epic 7+ has migrated the algorithms onto views.
+- [x] Saga: New init signature
       `gvizEmbeddedGraphInitView(eg, view, mode, dim)`. Keep a thin compat
       `gvizEmbeddedGraphInit(eg, graph, dim)` that builds a Full view + Mode A.
-- [ ] Saga: Position accessors must respect mode. In Mode A,
+- [x] Saga: Position accessors must respect mode. In Mode A,
       `vertexPositions[u * dim]` is indexed by raw vertex id. In Mode B, by
       view-local index obtained from a `view→local` lookup table built on
       init. Add `gvizEmbeddedGraphLocalIndex(eg, u)` helper.
-- [ ] Saga: Update `gvizEmbeddedGraphRelease` to release the view (which only
+- [x] Saga: Update `gvizEmbeddedGraphRelease` to release the view (which only
       frees masks, never the graph) and the local-index table if any.
-- [ ] Saga: Update serializers (`gvizEmbeddedGraphSaveEmbedding/Load`) to
+- [x] Saga: Update serializers (`gvizEmbeddedGraphSaveEmbedding/Load`) to
       write/read view metadata so reload restores Mode A vs B correctly.
 
 ## Epic 7: Refactor embedding algorithms onto views
