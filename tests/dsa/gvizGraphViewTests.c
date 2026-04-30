@@ -292,6 +292,54 @@ void test_view_edgestart_consistency(void) {
 }
 
 // ============================================================================
+// DFS / BFS VIEW PRODUCERS
+// ============================================================================
+
+void test_dfs_view_reaches_all_in_connected(void) {
+  gvizGraph g;
+  buildSmallGraph(&g);
+  gvizGraphView v;
+  TEST_ASSERT_EQUAL(0, gvizGraphDFSView(&g, 0, &v));
+  TEST_ASSERT_EQUAL(4, v.count);
+  for (size_t i = 0; i < 4; i++) {
+    TEST_ASSERT_EQUAL(1, gvizGraphViewVertexInView(&v, i));
+  }
+  // tree edges: exactly 3 set bits in edgeMask (n-1 for spanning tree)
+  size_t total = gvizGraphViewTotalEdgeSlots(&v);
+  TEST_ASSERT_EQUAL(3, gvizBitArrayCount(v.edgeMask, total));
+  gvizGraphViewRelease(&v);
+  gvizGraphRelease(&g);
+}
+
+void test_bfs_view_max_depth(void) {
+  gvizGraph g;
+  buildSmallGraph(&g);
+  gvizGraphView v;
+  TEST_ASSERT_EQUAL(0, gvizGraphBFSView(&g, 0, 1, &v));
+  // depth 1 from vertex 0 reaches 0, 1, 3 (since 0 connects to 1 and 3)
+  TEST_ASSERT_EQUAL(3, v.count);
+  TEST_ASSERT_EQUAL(1, gvizGraphViewVertexInView(&v, 0));
+  TEST_ASSERT_EQUAL(1, gvizGraphViewVertexInView(&v, 1));
+  TEST_ASSERT_EQUAL(0, gvizGraphViewVertexInView(&v, 2));
+  TEST_ASSERT_EQUAL(1, gvizGraphViewVertexInView(&v, 3));
+  gvizGraphViewRelease(&v);
+  gvizGraphRelease(&g);
+}
+
+void test_bfs_view_unbounded(void) {
+  gvizGraph g;
+  buildSmallGraph(&g);
+  gvizGraphView v;
+  TEST_ASSERT_EQUAL(0, gvizGraphBFSView(&g, 0, 0, &v));
+  TEST_ASSERT_EQUAL(4, v.count);
+  // BFS spanning tree: exactly 3 tree edges
+  size_t total = gvizGraphViewTotalEdgeSlots(&v);
+  TEST_ASSERT_EQUAL(3, gvizBitArrayCount(v.edgeMask, total));
+  gvizGraphViewRelease(&v);
+  gvizGraphRelease(&g);
+}
+
+// ============================================================================
 // MAIN
 // ============================================================================
 
@@ -311,5 +359,8 @@ int main(void) {
   RUN_TEST(test_view_remove_vertex_updates_count);
   RUN_TEST(test_view_remove_edge_flips_bit);
   RUN_TEST(test_view_edgestart_consistency);
+  RUN_TEST(test_dfs_view_reaches_all_in_connected);
+  RUN_TEST(test_bfs_view_max_depth);
+  RUN_TEST(test_bfs_view_unbounded);
   return UNITY_END();
 }

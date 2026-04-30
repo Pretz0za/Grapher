@@ -289,6 +289,10 @@ typedef struct gvizFoundVertex {
 } gvizFoundVertex;
 
 /**
+ * @deprecated Prefer `gvizGraphDFSView`, which produces a non-materializing
+ * view over the original graph. This legacy form is kept because
+ * Reingold-Tilford depends on the materialized tree shape.
+ *
  * Performs a Depth First Search on a Graph from a given source. The resulting
  * DFS tree is initialized and stored in @p out. the map attribute of @p out
  * will map vertex indices from @p out vertex array to @p g vertex array.
@@ -303,7 +307,32 @@ typedef struct gvizFoundVertex {
  */
 int gvizGraphDFSTree(gvizGraph *g, gvizGraph *out, size_t source);
 
+/* Forward declaration to avoid include cycles. */
+struct gvizGraphView;
+
 /**
+ * Performs a DFS from `source` and writes the result as a `gvizGraphView`
+ * over `g`: vertexMask covers reached vertices, edgeMask covers the DFS
+ * tree edges (directed parent->child). The view borrows `g` (no new graph
+ * is materialized). Caller releases `out` with `gvizGraphViewRelease`.
+ *
+ * @retval 0  Success.
+ * @retval -1 Bad input or allocation failure.
+ */
+int gvizGraphDFSView(gvizGraph *g, size_t source, struct gvizGraphView *out);
+
+/**
+ * BFS variant of `gvizGraphDFSView`. `maxDepth == 0` means unbounded.
+ * `out` ends up with vertexMask = reached vertices, edgeMask = BFS-tree
+ * edges (directed parent->child).
+ */
+int gvizGraphBFSView(gvizGraph *g, size_t source, size_t maxDepth,
+                     struct gvizGraphView *out);
+
+/**
+ * @deprecated Prefer `gvizGraphBFSView`. Kept for callers that need a
+ * materialized tree (e.g. Reingold-Tilford).
+ *
  * Performs a Breadth First Search on a Graph from a given source. The resulting
  * BFS tree is initialized and stored in @p out. the map attribute of @p out
  * will map vertex indices from @p out vertex array to @p g vertex array.

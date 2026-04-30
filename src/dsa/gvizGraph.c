@@ -2,6 +2,7 @@
 #include "dsa/gvizArray.h"
 #include "dsa/gvizBitArray.h"
 #include "dsa/gvizDeque.h"
+#include "dsa/gvizGraphView.h"
 #include "utils/helpers.h"
 #include <stdint.h>
 #include <stdio.h>
@@ -626,3 +627,129 @@ void gvizPrintDFSTree(gvizGraph *tree, char *strings[], FILE *stream) {
   printSubtree(tree, 0, start, strings, stream);
   printAt(100, 100, "\n\n", stdout);
 };
+
+int gvizGraphDFSView(gvizGraph *g, size_t source, gvizGraphView *out) {
+  if (!g || !out || source >= g->vertices.count) {
+    return -1;
+  }
+  if (gvizGraphViewInitFromVertices(out, g, NULL) != 0) {
+    return -1;
+  }
+  size_t n = g->vertices.count;
+  out->vertexMask = gvizBitArrayAlloc(n);
+  if (n > 0 && !out->vertexMask) {
+    gvizGraphViewRelease(out);
+    return -1;
+  }
+  out->count = 0;
+  if (gvizGraphViewRebuildEdgeStart(out) != 0) {
+    gvizGraphViewRelease(out);
+    return -1;
+  }
+  size_t total = out->edgeStart[n];
+  out->edgeMask = gvizBitArrayAlloc(total);
+  if (total > 0 && !out->edgeMask) {
+    gvizGraphViewRelease(out);
+    return -1;
+  }
+
+  gvizDeque stack;
+  if (gvizDequeInit(&stack, sizeof(size_t)) < 0) {
+    gvizGraphViewRelease(out);
+    return -1;
+  }
+  gvizDequePush(&stack, &source);
+  gvizSetBit(out->vertexMask, source);
+  out->count++;
+
+  while (!gvizDequeIsEmpty(&stack)) {
+    size_t curr;
+    gvizDequePopRight(&stack, &curr);
+    gvizArray *adj = gvizGraphGetVertexNeighbors(g, curr);
+    if (!adj) {
+      continue;
+    }
+    for (size_t i = 0; i < adj->count; i++) {
+      size_t v = *(size_t *)gvizArrayAtIndex(adj, i);
+      if (gvizTestBit(out->vertexMask, v)) {
+        continue;
+      }
+      gvizSetBit(out->vertexMask, v);
+      out->count++;
+      gvizSetBit(out->edgeMask, out->edgeStart[curr] + i);
+      gvizDequePush(&stack, &v);
+    }
+  }
+
+  gvizDequeRelease(&stack);
+  return 0;
+}
+
+int gvizGraphBFSView(gvizGraph *g, size_t source, size_t maxDepth,
+                     gvizGraphView *out) {
+  if (!g || !out || source >= g->vertices.count) {
+    return -1;
+  }
+  if (gvizGraphViewInitFromVertices(out, g, NULL) != 0) {
+    return -1;
+  }
+  size_t n = g->vertices.count;
+  out->vertexMask = gvizBitArrayAlloc(n);
+  if (n > 0 && !out->vertexMask) {
+    gvizGraphViewRelease(out);
+    return -1;
+  }
+  out->count = 0;
+  if (gvizGraphViewRebuildEdgeStart(out) != 0) {
+    gvizGraphViewRelease(out);
+    return -1;
+  }
+  size_t total = out->edgeStart[n];
+  out->edgeMask = gvizBitArrayAlloc(total);
+  if (total > 0 && !out->edgeMask) {
+    gvizGraphViewRelease(out);
+    return -1;
+  }
+
+  typedef struct {
+    size_t v;
+    size_t d;
+  } Node;
+
+  gvizDeque queue;
+  if (gvizDequeInit(&queue, sizeof(Node)) < 0) {
+    gvizGraphViewRelease(out);
+    return -1;
+  }
+
+  Node start = {.v = source, .d = 0};
+  gvizDequePush(&queue, &start);
+  gvizSetBit(out->vertexMask, source);
+  out->count++;
+
+  while (!gvizDequeIsEmpty(&queue)) {
+    Node nd;
+    gvizDequePopLeft(&queue, &nd);
+    if (maxDepth && nd.d >= maxDepth) {
+      continue;
+    }
+    gvizArray *adj = gvizGraphGetVertexNeighbors(g, nd.v);
+    if (!adj) {
+      continue;
+    }
+    for (size_t i = 0; i < adj->count; i++) {
+      size_t v = *(size_t *)gvizArrayAtIndex(adj, i);
+      if (gvizTestBit(out->vertexMask, v)) {
+        continue;
+      }
+      gvizSetBit(out->vertexMask, v);
+      out->count++;
+      gvizSetBit(out->edgeMask, out->edgeStart[nd.v] + i);
+      Node nxt = {.v = v, .d = nd.d + 1};
+      gvizDequePush(&queue, &nxt);
+    }
+  }
+
+  gvizDequeRelease(&queue);
+  return 0;
+}

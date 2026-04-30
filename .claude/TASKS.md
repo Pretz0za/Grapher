@@ -103,14 +103,14 @@ Key files touched, by area:
 
 ## Epic 5: BFS / DFS returning views
 
-- [ ] Saga: Add `gvizGraphDFSView(graph, source, gvizGraphView *out)` to
+- [x] Saga: Add `gvizGraphDFSView(graph, source, gvizGraphView *out)` to
       `gvizGraph.h/.c` — runs DFS, builds a vertex+edge mask of reached
       vertices and tree edges, returns the view (no new graph).
-- [ ] Saga: Add `gvizGraphBFSView(graph, source, maxDepth, gvizGraphView *out)`
+- [x] Saga: Add `gvizGraphBFSView(graph, source, maxDepth, gvizGraphView *out)`
       — same but BFS-tree edges only.
-- [ ] Saga: Mark `gvizGraphDFSTree` / `gvizGraphBFSTree` legacy in the header
+- [x] Saga: Mark `gvizGraphDFSTree` / `gvizGraphBFSTree` legacy in the header
       (keep them — Reingold-Tilford uses tree shape). Don't delete.
-- [ ] Saga: Tests for both view-producing variants.
+- [x] Saga: Tests for both view-producing variants.
 
 ## Epic 6: gvizEmbeddedGraph holds a view
 
