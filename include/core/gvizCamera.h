@@ -43,16 +43,28 @@ Vector2 gvizCameraScreenToWorld2D(const gvizCamera *cam, Vector2 screen);
  * `interactive` should be 0 when the layer is not under cursor — the helper
  * still updates aspect-ratio-bound state (for 2D, the offset on resize) but
  * skips pan/zoom.
+ * `centroid` and `radius` describe the content bounding sphere in world space.
+ * When radius <= 0 the T and R shortcuts are disabled.
+ * 2D controls: left-drag pan, scroll zoom, T pan-to-centroid, R rotate-about-centroid.
  */
 void gvizCameraHandleInput2D(gvizCamera *cam, int vx, int vy, int vw, int vh,
                              float mx, float my, float mdx, float mdy,
-                             float wheel, int leftHeld, int interactive);
+                             float wheel, int leftHeld, int interactive,
+                             Vector2 centroid, float radius);
 /*
- * 3D camera helper. Orbit on left-drag without Cmd; pan on left-drag with
- * Cmd held. Right-button is unused (reserved for the scene context menu).
+ * 3D free-fly camera helper. Polls raylib input internally each call.
+ * Controls (when interactive=1):
+ *   WASD / Space     — translate forward/back/strafe/up
+ *   Left-drag        — yaw + pitch (full free-look)
+ *   Z / X            — roll left / right
+ *   Scroll up/down   — pitch; scroll left/right — yaw
+ *   Cmd+scroll       — adjust FOV (10°–120°)
+ *   T            — teleport to a good view distance from centroid, aim at it
+ *   L            — aim at centroid without moving
+ * `centroid` and `radius` describe the content bounding sphere. When radius <= 0
+ * T and L are disabled. Pass interactive=0 to suppress all input.
  */
 void gvizCameraHandleInput3D(gvizCamera *cam, int vx, int vy, int vw, int vh,
-                             float mdx, float mdy, float wheel,
-                             int leftHeld, int superHeld, int interactive);
+                             int interactive, Vector3 centroid, float radius);
 
 #endif

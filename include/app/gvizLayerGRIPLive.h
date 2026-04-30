@@ -74,14 +74,16 @@ void gvizLayerGRIPLiveUpdate(void *layer, float dt);
 void gvizLayerGRIPLiveRelease(void *layer);
 int  gvizLayerGRIPLiveHandleEvent(void *layer, const gvizEvent *event);
 struct gvizCamera *gvizLayerGRIPLiveGetCamera(void *layer);
+void gvizLayerGRIPLiveGetContentBounds(void *layer, Vector3 *centroid, float *radius);
 
 static const gvizLayerVTable GVIZ_LAYER_GRIP_LIVE_VTABLE = {
-    .draw    = gvizLayerGRIPLiveDraw,
-    .update  = gvizLayerGRIPLiveUpdate,
-    .release = gvizLayerGRIPLiveRelease,
-    .onEvent = gvizLayerGRIPLiveHandleEvent,
-    .hitTest = NULL,
-    .getCamera = gvizLayerGRIPLiveGetCamera,
+    .draw             = gvizLayerGRIPLiveDraw,
+    .update           = gvizLayerGRIPLiveUpdate,
+    .release          = gvizLayerGRIPLiveRelease,
+    .onEvent          = gvizLayerGRIPLiveHandleEvent,
+    .hitTest          = NULL,
+    .getCamera        = gvizLayerGRIPLiveGetCamera,
+    .getContentBounds = gvizLayerGRIPLiveGetContentBounds,
 };
 
 #endif

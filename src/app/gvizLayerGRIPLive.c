@@ -4,6 +4,8 @@
 #include "renderer/embeddings/gvizEmbeddedGraph.h"
 #include "renderer/layers/gvizVertexDiscVBO.h"
 #include "raylib.h"
+#include "raymath.h"
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -162,18 +164,69 @@ void gvizLayerGRIPLiveAdvance(gvizLayerGRIPLive *self) {
   self->gpuDirty = 2;
 }
 
-void gvizLayerGRIPLiveUpdate(void *layerV, float dt) {
-  (void)dt;
+void gvizLayerGRIPLiveGetContentBounds(void *layerV,
+                                       Vector3 *centroid, float *radius) {
   gvizLayerGRIPLive *self = (gvizLayerGRIPLive *)layerV;
+  gvizEmbeddedGraph *eg   = (gvizEmbeddedGraph *)&self->grip;
+  size_t n   = self->graph.vertices.count;
+  size_t dim = eg->embedding.dim;
+  *centroid = (Vector3){0};
+  *radius   = 0.0f;
+  if (n == 0 || dim < 2) return;
 
-  if (self->currentLayer < 0)
-    return;
+  double cx = 0, cy = 0, cz = 0;
+  for (size_t i = 0; i < n; i++) {
+    double *p = gvizEmbeddedGraphGetVPosition(eg, i);
+    cx += p[0]; cy += p[1];
+    if (dim >= 3) cz += p[2];
+  }
+  cx /= (double)n; cy /= (double)n; cz /= (double)n;
+  centroid->x = (float)cx; centroid->y = (float)cy; centroid->z = (float)cz;
+
+  float maxR = 0.0f;
+  for (size_t i = 0; i < n; i++) {
+    double *p = gvizEmbeddedGraphGetVPosition(eg, i);
+    float dx = (float)p[0] - centroid->x;
+    float dy = (float)p[1] - centroid->y;
+    float dz = (dim >= 3) ? (float)p[2] - centroid->z : 0.0f;
+    float d  = sqrtf(dx*dx + dy*dy + dz*dz);
+    if (d > maxR) maxR = d;
+  }
+  *radius = maxR;
+}
+
+void gvizLayerGRIPLiveUpdate(void *layerV, float dt) {
+  gvizLayerGRIPLive *self = (gvizLayerGRIPLive *)layerV;
+  gvizEmbeddedGraph *eg   = (gvizEmbeddedGraph *)&self->grip;
+  size_t n   = self->graph.vertices.count;
+  size_t dim = eg->embedding.dim;
+
+  /* R held: rotate all positions about centroid along camera up axis */
+  if (IsKeyDown(KEY_R) && n > 0 && dim >= 3 && self->drawDim >= 3) {
+    Vector3 centroid; float radius;
+    gvizLayerGRIPLiveGetContentBounds(self, &centroid, &radius);
+    Vector3 up  = Vector3Normalize(self->camera.c3d.up);
+    Matrix  rot = MatrixRotate(up, 1.5f * dt);
+    for (size_t i = 0; i < n; i++) {
+      double *p = gvizEmbeddedGraphGetVPosition(eg, i);
+      Vector3 v = {(float)p[0] - centroid.x,
+                   (float)p[1] - centroid.y,
+                   (float)p[2] - centroid.z};
+      v = Vector3Transform(v, rot);
+      p[0] = (double)(v.x + centroid.x);
+      p[1] = (double)(v.y + centroid.y);
+      p[2] = (double)(v.z + centroid.z);
+    }
+    if (self->gpuDirty < 1) self->gpuDirty = 1;
+  }
+
+  if (self->currentLayer < 0) return;
 
   gvizGRIPRefineOneRound(&self->grip, (size_t)self->currentLayer,
                          self->layerKNNs);
   self->currentRound++;
-  if (self->gpuDirty < 1)
-    self->gpuDirty = 1;
+  if (self->gpuDirty < 1) self->gpuDirty = 1;
+  (void)dt;
 }
 
 void gvizLayerGRIPLiveDraw(void *layerV, const gvizCamera *camera) {

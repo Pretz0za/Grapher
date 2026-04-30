@@ -37,9 +37,9 @@ Vector2 gvizCameraScreenToWorld2D(const gvizCamera *cam, Vector2 screen) {
 
 void gvizCameraHandleInput2D(gvizCamera *cam, int vx, int vy, int vw, int vh,
                              float mx, float my, float mdx, float mdy,
-                             float wheel, int leftHeld, int interactive) {
+                             float wheel, int leftHeld, int interactive,
+                             Vector2 centroid, float radius) {
   if (cam->kind != GVIZ_CAMERA_2D) return;
-  /* Recenter offset to viewport centre so (0,0) world maps to vp middle. */
   cam->c2d.offset = (Vector2){vx + vw * 0.5f, vy + vh * 0.5f};
   if (!interactive) return;
 
@@ -56,44 +56,107 @@ void gvizCameraHandleInput2D(gvizCamera *cam, int vx, int vy, int vw, int vh,
     c->target.x += (before.x - after.x);
     c->target.y += (before.y - after.y);
   }
+  /* T: pan to centroid */
+  if (radius > 0.0f && IsKeyPressed(KEY_T)) {
+    c->target = centroid;
+  }
+  /* R: rotate about centroid (set target so centroid stays centred, then spin) */
+  if (radius > 0.0f && IsKeyDown(KEY_R)) {
+    c->target   = centroid;
+    c->rotation += 60.0f * GetFrameTime();
+  }
 }
 
 void gvizCameraHandleInput3D(gvizCamera *cam, int vx, int vy, int vw, int vh,
-                             float mdx, float mdy, float wheel,
-                             int leftHeld, int superHeld, int interactive) {
+                             int interactive, Vector3 centroid, float radius) {
   (void)vx; (void)vy; (void)vw; (void)vh;
   if (cam->kind != GVIZ_CAMERA_3D || !interactive) return;
   Camera3D *c = &cam->c3d;
-  /* Orbit on plain left-drag */
-  if (leftHeld && !superHeld && (mdx != 0.0f || mdy != 0.0f)) {
-    Vector3 dir = Vector3Subtract(c->position, c->target);
-    float yaw = -mdx * 0.005f, pitch = -mdy * 0.005f;
-    Matrix mYaw = MatrixRotate(c->up, yaw);
-    dir = Vector3Transform(dir, mYaw);
-    Vector3 right = Vector3CrossProduct(c->up, dir);
-    right = Vector3Normalize(right);
-    Matrix mPitch = MatrixRotate(right, pitch);
-    dir = Vector3Transform(dir, mPitch);
-    c->position = Vector3Add(c->target, dir);
+  float dt = GetFrameTime();
+
+  Vector3 forward = Vector3Normalize(Vector3Subtract(c->target, c->position));
+  Vector3 right   = Vector3Normalize(Vector3CrossProduct(forward, c->up));
+
+  /* WASD + Space translation */
+  float speed = 200.0f * dt;
+  if (IsKeyDown(KEY_W)) {
+    c->position = Vector3Add(c->position, Vector3Scale(forward,  speed));
+    c->target   = Vector3Add(c->target,   Vector3Scale(forward,  speed));
   }
-  /* Pan on Cmd+left-drag */
-  if (leftHeld && superHeld && (mdx != 0.0f || mdy != 0.0f)) {
-    Vector3 dir = Vector3Subtract(c->target, c->position);
-    Vector3 right = Vector3CrossProduct(dir, c->up);
-    right = Vector3Normalize(right);
+  if (IsKeyDown(KEY_S)) {
+    c->position = Vector3Add(c->position, Vector3Scale(forward, -speed));
+    c->target   = Vector3Add(c->target,   Vector3Scale(forward, -speed));
+  }
+  if (IsKeyDown(KEY_A)) {
+    c->position = Vector3Add(c->position, Vector3Scale(right, -speed));
+    c->target   = Vector3Add(c->target,   Vector3Scale(right, -speed));
+  }
+  if (IsKeyDown(KEY_D)) {
+    c->position = Vector3Add(c->position, Vector3Scale(right,  speed));
+    c->target   = Vector3Add(c->target,   Vector3Scale(right,  speed));
+  }
+  if (IsKeyDown(KEY_SPACE)) {
     Vector3 up = Vector3Normalize(c->up);
-    float dist = Vector3Length(dir) * 0.001f;
-    Vector3 pan = Vector3Add(Vector3Scale(right, -mdx * dist),
-                             Vector3Scale(up,    mdy * dist));
-    c->target   = Vector3Add(c->target,   pan);
-    c->position = Vector3Add(c->position, pan);
+    c->position = Vector3Add(c->position, Vector3Scale(up,  speed));
+    c->target   = Vector3Add(c->target,   Vector3Scale(up,  speed));
   }
-  /* Dolly on wheel */
-  if (wheel != 0.0f) {
-    Vector3 dir = Vector3Subtract(c->position, c->target);
-    float scale = 1.0f - wheel * 0.1f;
-    if (scale < 0.1f) scale = 0.1f;
-    dir = Vector3Scale(dir, scale);
-    c->position = Vector3Add(c->target, dir);
+
+  /* Left-drag: yaw + pitch */
+  if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+    Vector2 md = GetMouseDelta();
+    if (md.x != 0.0f || md.y != 0.0f) {
+      forward = Vector3Normalize(Vector3Subtract(c->target, c->position));
+      right   = Vector3Normalize(Vector3CrossProduct(forward, c->up));
+      forward = Vector3Normalize(Vector3Transform(forward, MatrixRotate(c->up,    -md.x * 0.003f)));
+      forward = Vector3Normalize(Vector3Transform(forward, MatrixRotate(right,    -md.y * 0.003f)));
+      float dist = Vector3Distance(c->position, c->target);
+      c->target  = Vector3Add(c->position, Vector3Scale(forward, dist));
+    }
+  }
+
+  /* Z / X: roll */
+  if (IsKeyDown(KEY_Z) || IsKeyDown(KEY_X)) {
+    float angle = (IsKeyDown(KEY_Z) ? -1.5f : 1.5f) * dt;
+    forward = Vector3Normalize(Vector3Subtract(c->target, c->position));
+    c->up   = Vector3Normalize(Vector3Transform(c->up, MatrixRotate(forward, angle)));
+  }
+
+  /* Scroll: vertical = pitch, horizontal = yaw. Cmd+scroll-Y = FOV. */
+  Vector2 sv = GetMouseWheelMoveV();
+  if (sv.x != 0.0f || sv.y != 0.0f) {
+    int cmd = IsKeyDown(KEY_LEFT_SUPER) || IsKeyDown(KEY_RIGHT_SUPER);
+    if (cmd) {
+      c->fovy -= sv.y * 2.0f;
+      if (c->fovy <  10.0f) c->fovy =  10.0f;
+      if (c->fovy > 120.0f) c->fovy = 120.0f;
+    } else {
+      forward = Vector3Normalize(Vector3Subtract(c->target, c->position));
+      right   = Vector3Normalize(Vector3CrossProduct(forward, c->up));
+      float sens = 0.04f;
+      forward = Vector3Normalize(Vector3Transform(forward, MatrixRotate(right,  -sv.y * sens)));
+      forward = Vector3Normalize(Vector3Transform(forward, MatrixRotate(c->up,  -sv.x * sens)));
+      float dist = Vector3Distance(c->position, c->target);
+      c->target  = Vector3Add(c->position, Vector3Scale(forward, dist));
+    }
+  }
+
+  if (radius <= 0.0f) return;
+
+  /* T: teleport to a view-distance proportional to content size, aim at centroid */
+  if (IsKeyPressed(KEY_T)) {
+    Vector3 dir = Vector3Subtract(c->position, centroid);
+    float   len = Vector3Length(dir);
+    float   L   = radius * 2.5f;
+    if (L < 1.0f) L = 1.0f;
+    Vector3 unit = (len > 1e-6f)
+                   ? Vector3Scale(dir, 1.0f / len)
+                   : (Vector3){1.0f, 0.0f, 0.0f};
+    c->position = Vector3Add(centroid, Vector3Scale(unit, L));
+    c->target   = centroid;
+  }
+
+  /* L: look at centroid without moving */
+  if (IsKeyPressed(KEY_L)) {
+    c->target = centroid;
   }
 }

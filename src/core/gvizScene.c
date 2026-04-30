@@ -1,6 +1,7 @@
 #include "core/gvizScene.h"
 #include "core/alloc.h"
 #include "raylib.h"
+#include "rlgl.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -694,16 +695,39 @@ void gvizSceneHandleInput(gvizScene *s) {
     }
   }
 
-  /* Mouse wheel + per-layer camera pan/zoom (2D) */
+  /* Per-frame camera input for the active layer. Resolve content bounds once
+   * for T/L/R shortcuts; pass zeros when the layer doesn't provide them. */
+  {
+    gvizLayer  *al  = s->activeLayer;
+    gvizCamera *cam = layerCamera(al);
+    if (cam && al) {
+      Vector3 centroid = {0};
+      float   radius   = 0.0f;
+      if (al->vtable && al->vtable->getContentBounds)
+        al->vtable->getContentBounds(al, &centroid, &radius);
+      if (cam->kind == GVIZ_CAMERA_3D)
+        gvizCameraHandleInput3D(cam, al->viewport.x, al->viewport.y,
+                                al->viewport.width, al->viewport.height,
+                                1, centroid, radius);
+    }
+  }
+
+  /* 2D camera: T/R also need centroid — resolve once here. */
+  Vector3 centroid2D3 = {0}; float radius2D = 0.0f;
+  {
+    gvizLayer *al = s->activeLayer;
+    if (al && al->vtable && al->vtable->getContentBounds)
+      al->vtable->getContentBounds(al, &centroid2D3, &radius2D);
+  }
+  Vector2 centroid2D = {centroid2D3.x, centroid2D3.y};
+
   float wheel = GetMouseWheelMove();
   if (wheel != 0.0f) {
     gvizEvent ev = {0};
     ev.type = GVIZ_EVENT_MOUSE_WHEEL;
-    ev.wheel.sx = mp.x;
-    ev.wheel.sy = mp.y;
+    ev.wheel.sx = mp.x; ev.wheel.sy = mp.y;
     fillMouseWorld(s, mp.x, mp.y, &ev.wheel.wx, &ev.wheel.wy);
-    ev.wheel.dy = wheel;
-    ev.wheel.mods = mods;
+    ev.wheel.dy = wheel; ev.wheel.mods = mods;
     if (!dispatchEvent(s, &ev)) {
       gvizLayer *l = s->activeLayer;
       gvizCamera *cam = layerCamera(l);
@@ -711,31 +735,30 @@ void gvizSceneHandleInput(gvizScene *s) {
         gvizCameraHandleInput2D(cam, l->viewport.x, l->viewport.y,
                                 l->viewport.width, l->viewport.height,
                                 mp.x, mp.y, md.x, md.y, wheel,
-                                IsMouseButtonDown(MOUSE_BUTTON_LEFT), 1);
-      else if (cam && cam->kind == GVIZ_CAMERA_3D) {
-        int sh = IsKeyDown(KEY_LEFT_SUPER) || IsKeyDown(KEY_RIGHT_SUPER);
-        gvizCameraHandleInput3D(cam, l->viewport.x, l->viewport.y,
-                                l->viewport.width, l->viewport.height,
-                                md.x, md.y, wheel,
-                                IsMouseButtonDown(MOUSE_BUTTON_LEFT), sh, 1);
-      }
+                                IsMouseButtonDown(MOUSE_BUTTON_LEFT), 1,
+                                centroid2D, radius2D);
     }
   } else if (!s->dividerDragging) {
-    /* No wheel: only pan if left button is held */
     int lh = IsMouseButtonDown(MOUSE_BUTTON_LEFT);
     if (lh && !s->focused) {
       gvizLayer *l = s->activeLayer;
       gvizCamera *cam = layerCamera(l);
-      int sh = IsKeyDown(KEY_LEFT_SUPER) || IsKeyDown(KEY_RIGHT_SUPER);
       if (cam && cam->kind == GVIZ_CAMERA_2D)
         gvizCameraHandleInput2D(cam, l->viewport.x, l->viewport.y,
                                 l->viewport.width, l->viewport.height,
-                                mp.x, mp.y, md.x, md.y, 0.0f, 1, 1);
-      else if (cam && cam->kind == GVIZ_CAMERA_3D)
-        gvizCameraHandleInput3D(cam, l->viewport.x, l->viewport.y,
-                                l->viewport.width, l->viewport.height,
-                                md.x, md.y, 0.0f, lh, sh, 1);
+                                mp.x, mp.y, md.x, md.y, 0.0f, 1, 1,
+                                centroid2D, radius2D);
     }
+  }
+  /* 2D T/R don't depend on drag/wheel — call handler unconditionally too. */
+  if (!s->dividerDragging) {
+    gvizLayer *l = s->activeLayer;
+    gvizCamera *cam = layerCamera(l);
+    if (cam && cam->kind == GVIZ_CAMERA_2D && l)
+      gvizCameraHandleInput2D(cam, l->viewport.x, l->viewport.y,
+                              l->viewport.width, l->viewport.height,
+                              mp.x, mp.y, 0.0f, 0.0f, 0.0f, 0, 1,
+                              centroid2D, radius2D);
   }
 
   /* Text input */
@@ -794,11 +817,19 @@ void gvizSceneDraw(gvizScene *s) {
     if (l->viewport.width > 0 && l->viewport.height > 0)
       BeginScissorMode(l->viewport.x, l->viewport.y,
                        l->viewport.width, l->viewport.height);
-    if (cam->kind == GVIZ_CAMERA_2D) BeginMode2D(cam->c2d);
-    else                              BeginMode3D(cam->c3d);
+    if (cam->kind == GVIZ_CAMERA_2D) {
+      BeginMode2D(cam->c2d);
+    } else {
+      rlSetClipPlanes(0.01, 1e8);
+      BeginMode3D(cam->c3d);
+    }
     l->vtable->draw(l, cam);
-    if (cam->kind == GVIZ_CAMERA_2D) EndMode2D();
-    else                              EndMode3D();
+    if (cam->kind == GVIZ_CAMERA_2D) {
+      EndMode2D();
+    } else {
+      EndMode3D();
+      rlSetClipPlanes(RL_CULL_DISTANCE_NEAR, RL_CULL_DISTANCE_FAR);
+    }
     if (l->viewport.width > 0 && l->viewport.height > 0)
       EndScissorMode();
 

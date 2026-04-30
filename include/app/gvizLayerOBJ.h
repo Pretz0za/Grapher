@@ -31,14 +31,16 @@ void gvizLayerOBJDraw(void *layer, const gvizCamera *camera);
 void gvizLayerOBJUpdate(void *layer, float dt);
 void gvizLayerOBJRelease(void *layer);
 struct gvizCamera *gvizLayerOBJGetCamera(void *layer);
+void gvizLayerOBJGetContentBounds(void *layer, Vector3 *centroid, float *radius);
 
 static const gvizLayerVTable GVIZ_LAYER_OBJ_VTABLE = {
-    .draw    = gvizLayerOBJDraw,
-    .update  = gvizLayerOBJUpdate,
-    .release = gvizLayerOBJRelease,
-    .onEvent = NULL,
-    .hitTest = NULL,
-    .getCamera = gvizLayerOBJGetCamera,
+    .draw             = gvizLayerOBJDraw,
+    .update           = gvizLayerOBJUpdate,
+    .release          = gvizLayerOBJRelease,
+    .onEvent          = NULL,
+    .hitTest          = NULL,
+    .getCamera        = gvizLayerOBJGetCamera,
+    .getContentBounds = gvizLayerOBJGetContentBounds,
 };
 
 #endif

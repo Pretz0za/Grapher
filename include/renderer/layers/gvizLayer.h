@@ -2,6 +2,7 @@
 #define _GVIZ_LAYER_H_
 
 #include "core/object.h"
+#include "raylib.h"
 #include <stddef.h>
 
 typedef struct gvizViewport {
@@ -38,6 +39,15 @@ typedef int(HitTestFunction)(void *self, float wx, float wy);
 struct gvizCamera;
 typedef struct gvizCamera *(GetCameraFunction)(void *self);
 
+/*
+ * Optional: return the world-space centroid and approximate radius of the
+ * layer's content. Used by the camera input helpers for T/R/L controls.
+ * Layers that don't implement this get NULL — those controls become no-ops.
+ * For 2D layers: fill centroid.x/.y, leave centroid.z = 0.
+ */
+typedef void (GetContentBoundsFunction)(void *self,
+                                        Vector3 *centroid, float *radius);
+
 typedef struct gvizLayerVTable {
   DrawFunction *draw;
   UpdateFunction *update;
@@ -45,6 +55,7 @@ typedef struct gvizLayerVTable {
   ReleaseFunction *release;
   HitTestFunction *hitTest;
   GetCameraFunction *getCamera;
+  GetContentBoundsFunction *getContentBounds;
 } gvizLayerVTable;
 
 typedef struct gvizLayer {
