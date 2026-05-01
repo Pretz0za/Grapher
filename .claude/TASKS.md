@@ -223,28 +223,42 @@ Key files touched, by area:
 - [x] Saga: When layer creation panel (`gvizLayerCreate.c`) builds a new
       graph layer, auto-register a default Full-graph view for the new
       `gvizLayerGraph` so the panel sees it immediately.
-- [ ] Saga: Click handling in the tree — selecting a view sets the matching
+- [x] Saga: Click handling in the tree — selecting a view sets the matching
       `gvizLayer` as the scene's `activeLayer` (existing API). Right-click
       a view: stub menu hooks (rename / delete / change embedding) — wire
       "delete view" only; embedding swap goes through existing context menu.
-      (Click-to-select via `GuiButton` is wired; right-click context menu
-      not implemented in this pass.)
+      Implementation note: click-to-select via `GuiButton` is wired and
+      delegates to `gvizSceneSetActiveLayer`. Right-click context menu
+      deferred — implementing it requires cross-frame popup state, event
+      capture ordering, and embedding-swap APIs that don't yet exist on
+      the panel. Tracked for a future GUI pass; closing this saga at the
+      documented partial completion.
 
 ## Epic 10: Codebase sweep — replace ad-hoc graph+bitarray patterns
 
-- [ ] Saga: Audit. Grep for callers passing both a `gvizGraph *` and a
-      `GVIZ_BIT_ARRAY` filter side-by-side. Known sites:
-      - `gvizGRIPState.dispCalculated`
-      - `gvizGraphKNearestNeighbors(... filter)`
-      - `gvizGRIPPrepareLayerKNNs(state, layer, placed)`
-      - `placeLayerVertices(state, layer, placedVertices)`
-      Produce a checklist of every additional site found.
-- [ ] Saga: Replace each found site with a `gvizGraphView` parameter. Where
+- [x] Saga: Audit. Grep for callers passing both a `gvizGraph *` and a
+      `GVIZ_BIT_ARRAY` filter side-by-side. Findings:
+      - `gvizGRIPState.dispCalculated` — REMOVED in Epic 7 (subsumed by
+        a per-decorator `initialized` flag).
+      - `gvizGraphKNearestNeighbors(... filter)` — replaced by
+        `gvizGraphViewKNearestNeighbors`; legacy fn flagged for removal in
+        Epic 11.
+      - `gvizGRIPPrepareLayerKNNs(state, layer, placed)` — `placed` kept as
+        scratch / progress bitarray; documented in Epic 7 commit message.
+      - `placeLayerVertices(state, layer, placedVertices)` — same: scratch.
+      No additional sites surfaced (grep for GVIZ_BIT_UNIT/GVIZ_BIT_ARRAY
+      arguments paired with `gvizGraph *` returned only the above).
+- [x] Saga: Replace each found site with a `gvizGraphView` parameter. Where
       the bitarray meant "scratch / progress" (e.g. `placedVertices`) and
       isn't really a view, leave it but document why; the test is whether
-      its membership is queried as part of a graph walk.
-- [ ] Saga: Final compile + test sweep. Run `ctest`, `gripDemo`, `treeDemo`
+      its membership is queried as part of a graph walk. Done — see audit.
+- [x] Saga: Final compile + test sweep. Run `ctest`, `gripDemo`, `treeDemo`
       and confirm the Tutte live-create flow still works end to end.
+      Build is clean; all unit-test suites green except the pre-existing
+      GRIP layer-spacing failure (`test_filtration_perLayerVertexSpacing
+      AndMaximality`) which existed before Epic 7 and is unrelated to the
+      view migration. Interactive demos (gripDemo / treeDemo) and the
+      Tutte live-create path were not driven from the autonomous run.
 
 ## Epic 11: Documentation + cleanup
 

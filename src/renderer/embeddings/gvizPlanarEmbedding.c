@@ -328,4 +328,7 @@ void gvizPlanarEmbeddingTriangulate(const gvizPlanarEmbeddingState *state,
   }
 }
 
-int gvizPlanarEmbeddingEmbed(gvizPlanarEmbeddingState *state) {}
+int gvizPlanarEmbeddingEmbed(gvizPlanarEmbeddingState *state) {
+  (void)state;
+  return 0;
+}
