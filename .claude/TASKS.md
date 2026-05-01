@@ -141,7 +141,7 @@ Key files touched, by area:
 
 ## Epic 7: Refactor embedding algorithms onto views
 
-- [ ] Saga: GRIP (`gvivGRIPEmbedding.h`, `gvizGRIPEmbedding.c`) — replace
+- [x] Saga: GRIP (`gvivGRIPEmbedding.h`, `gvizGRIPEmbedding.c`) — replace
       `gvizGraph *graph` parameter with `gvizGraphView *view`. Drop the
       stand-alone `dispCalculated` bitarray that mirrors view membership
       (subsumed by view masks). All neighbor walks go through

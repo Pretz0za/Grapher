@@ -3,6 +3,7 @@
 
 #include "dsa/gvizArray.h"
 #include "dsa/gvizBitArray.h"
+#include "dsa/gvizGraphView.h"
 #include "renderer/embeddings/gvizEmbeddedGraph.h"
 
 typedef struct gvizGRIPDecorators {
@@ -10,6 +11,7 @@ typedef struct gvizGRIPDecorators {
   double *oldDisp;
   double oldCos;
   double heat;
+  int initialized;
 } gvizGRIPDecorators;
 
 typedef struct gvizGRIPState {
@@ -18,9 +20,21 @@ typedef struct gvizGRIPState {
   size_t *misBorder;
   size_t *rounds;
   gvizGRIPDecorators *dec;
-  GVIZ_BIT_ARRAY dispCalculated;
 } gvizGRIPState;
 
+/**
+ * Canonical view-aware initializer. The view is moved into the embedded
+ * graph (caller must not release it after a successful return). Mode is
+ * `GVIZ_EMBED_FULL_GRAPH` so positions are indexed by raw vertex id; the
+ * view selects which vertices participate in force calculation.
+ */
+int gvizGRIPEmbeddingInitView(gvizGRIPState *state, gvizGraphView view,
+                              size_t diameter, size_t dimension);
+
+/**
+ * Compatibility shim that builds a Full view over `graph` and forwards to
+ * `gvizGRIPEmbeddingInitView`. Slated for removal in Epic 11.
+ */
 int gvizGRIPEmbeddingInit(gvizGRIPState *state, gvizGraph *graph,
                           size_t diameter, size_t dimension);
 int gvizGRIPEmbeddingEmbed(gvizGRIPState *state);
