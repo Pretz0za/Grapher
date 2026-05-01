@@ -54,11 +54,13 @@ void gvizAdjacencyFromGP(graphP theGraph, int v, gvizArray *out,
 
   *outDegree = degree;
 }
-int gvizPlanarEmbeddingInit(gvizPlanarEmbeddingState *state, gvizGraph *graph) {
+int gvizPlanarEmbeddingInitView(gvizPlanarEmbeddingState *state,
+                                gvizGraphView view) {
   state->kuratowskiSubdivision = NULL;
 
   gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
-  gvizEmbeddedGraphInit(embedding, graph, 2);
+  if (gvizEmbeddedGraphInitView(embedding, view, GVIZ_EMBED_FULL_GRAPH, 2) < 0)
+    return -1;
 
   size_t N = embedding->graph->vertices.count;
 
@@ -125,6 +127,13 @@ int gvizPlanarEmbeddingInit(gvizPlanarEmbeddingState *state, gvizGraph *graph) {
 
   gp_Free(&g);
   return 0;
+}
+
+int gvizPlanarEmbeddingInit(gvizPlanarEmbeddingState *state, gvizGraph *graph) {
+  gvizGraphView view;
+  if (gvizGraphViewInitFull(&view, graph) != 0)
+    return -1;
+  return gvizPlanarEmbeddingInitView(state, view);
 }
 
 void gvizPlanarEmbeddingRelease(gvizPlanarEmbeddingState *g) {

@@ -2,6 +2,7 @@
 #define _GVIZ_PLANAR_H_
 
 #include "dsa/gvizBitArray.h"
+#include "dsa/gvizGraphView.h"
 #include "renderer/embeddings/gvizEmbeddedGraph.h"
 
 typedef struct gvizPlanarEmbeddingState {
@@ -12,6 +13,16 @@ typedef struct gvizPlanarEmbeddingState {
 // initializes a planar graph and reorders the adjacency lists to show the
 // counter-clockwise rotation system (embedding).
 int gvizPlanarEmbeddingInit(gvizPlanarEmbeddingState *state, gvizGraph *g);
+
+/**
+ * View-aware init. The view is moved into the embedded graph (caller must
+ * not release it after a successful return). The Boyer-Myrvold planarity
+ * test is run against the underlying graph; the cached
+ * `kuratowskiSubdivision` (when non-planar) lives on this state and may be
+ * reused if the same view is re-attached to a new planar embedding state.
+ */
+int gvizPlanarEmbeddingInitView(gvizPlanarEmbeddingState *state,
+                                gvizGraphView view);
 void gvizPlanarEmbeddingRelease(gvizPlanarEmbeddingState *g);
 
 int gvizPlanarEmbeddingEmbed(gvizPlanarEmbeddingState *state);

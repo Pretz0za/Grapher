@@ -149,6 +149,21 @@ int gvizGraphViewNeighborsIterNext(gvizGraphViewNeighborsIter *iter,
                                    size_t *out);
 void gvizGraphViewNeighborsIterRelease(gvizGraphViewNeighborsIter *iter);
 
+/**
+ * View-aware K-nearest-neighbors BFS. Returns up to `k` vertices reachable
+ * from `source` via edges in the view, in BFS order. The optional `filter`
+ * is a scratch / progress bitarray (sized to the underlying graph) that
+ * gates which vertices count toward the output — this is distinct from
+ * view membership (which is encoded by the view's masks). Pass `filter ==
+ * NULL` to count every reached vertex in the view.
+ *
+ * Returns the number of vertices written to `out`, or -1 on allocation
+ * failure.
+ */
+int gvizGraphViewKNearestNeighbors(gvizGraphView *view, gvizFoundVertex *out,
+                                   size_t k, size_t source,
+                                   GVIZ_BIT_ARRAY filter);
+
 // MUTATION INTERFACE: ---------------------------------------------------------
 
 /**

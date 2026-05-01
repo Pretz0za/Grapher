@@ -151,15 +151,24 @@ Key files touched, by area:
       `interiorIdx` / `vertexToInterior` against the view's vertex space.
 - [x] Saga: Reingold-Tilford / `gvizEmbeddedTree.h/.c` — accept a view that
       represents the tree (root vertex still passed separately).
-- [ ] Saga: Force-directed (`gvizForceDirected.h/.c`) — accept view; iterate
+- [x] Saga: Force-directed (`gvizForceDirected.h/.c`) — accept view; iterate
       vertices via view iter so excluded vertices don't contribute forces.
-- [ ] Saga: Planar (`gvizPlanarEmbedding.h/.c`) — accept view; the cached
+      (No-op: this module only exposes pairwise force kernels — vertex
+      iteration is the caller's responsibility. GRIP's caller is already
+      migrated to view iterators.)
+- [x] Saga: Planar (`gvizPlanarEmbedding.h/.c`) — accept view; the cached
       Kuratowski subdivision continues to live in the planar state struct
       and is keyed off the same view.
-- [ ] Saga: Schnyder wood (`gvizSchnyderWood.h/.c`) — accept view (stub-level
+- [x] Saga: Schnyder wood (`gvizSchnyderWood.h/.c`) — accept view (stub-level
       change; algorithm is in progress upstream).
-- [ ] Saga: Update `gvizGraphKNearestNeighbors` to take a view (replaces the
+- [x] Saga: Update `gvizGraphKNearestNeighbors` to take a view (replaces the
       `filter` bitarray parameter — view encodes both membership and graph).
+      Note: kept the `filter` parameter on the new
+      `gvizGraphViewKNearestNeighbors` because in every existing caller it
+      represents scratch / progress state (e.g. GRIP's `placed` bitarray),
+      not view membership. The view encodes the graph + neighbor walk; the
+      filter remains a separate gate. Legacy `gvizGraphKNearestNeighbors`
+      kept; will be removed in Epic 11.
 
 ## Epic 8: Render layer wired through views (two modes)
 

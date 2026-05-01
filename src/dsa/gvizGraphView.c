@@ -2,6 +2,7 @@
 #include "core/alloc.h"
 #include "dsa/gvizArray.h"
 #include "dsa/gvizBitArray.h"
+#include "dsa/gvizDeque.h"
 #include "dsa/gvizGraph.h"
 #include <stdlib.h>
 #include <string.h>
@@ -463,4 +464,70 @@ void gvizGraphViewRelease(gvizGraphView *view) {
   view->graph = NULL;
   view->count = 0;
   view->edgeStartStale = 0;
+}
+
+int gvizGraphViewKNearestNeighbors(gvizGraphView *view, gvizFoundVertex *out,
+                                   size_t k, size_t source,
+                                   GVIZ_BIT_ARRAY filter) {
+  if (!view || !view->graph || k == 0)
+    return 0;
+  size_t N = view->graph->vertices.count;
+  if (source >= N)
+    return -1;
+
+  gvizDeque queue;
+  if (gvizDequeInit(&queue, sizeof(gvizFoundVertex)) < 0)
+    return -1;
+
+  GVIZ_BIT_ARRAY seen = gvizBitArrayAlloc(N);
+  if (!seen) {
+    gvizDequeRelease(&queue);
+    return -1;
+  }
+  gvizSetBit(seen, source);
+
+  gvizFoundVertex curr = {source, 0};
+  if (gvizDequePush(&queue, &curr) < 0) {
+    gvizBitArrayFree(seen);
+    gvizDequeRelease(&queue);
+    return -1;
+  }
+
+  size_t count = 0;
+  while (!gvizDequeIsEmpty(&queue)) {
+    gvizDequePopLeft(&queue, &curr);
+
+    gvizGraphViewNeighborsIter nit;
+    gvizGraphViewNeighborsIterInit(&nit, view, curr.v);
+    size_t nb;
+    while (gvizGraphViewNeighborsIterNext(&nit, &nb)) {
+      if (gvizTestBit(seen, nb))
+        continue;
+      gvizSetBit(seen, nb);
+
+      gvizFoundVertex next = {nb, curr.dist + 1};
+
+      if (!filter || gvizTestBit(filter, nb)) {
+        out[count++] = next;
+        if (count >= k) {
+          gvizGraphViewNeighborsIterRelease(&nit);
+          gvizBitArrayFree(seen);
+          gvizDequeRelease(&queue);
+          return (int)k;
+        }
+      }
+
+      if (gvizDequePush(&queue, &next) < 0) {
+        gvizGraphViewNeighborsIterRelease(&nit);
+        gvizBitArrayFree(seen);
+        gvizDequeRelease(&queue);
+        return -1;
+      }
+    }
+    gvizGraphViewNeighborsIterRelease(&nit);
+  }
+
+  gvizBitArrayFree(seen);
+  gvizDequeRelease(&queue);
+  return (int)count;
 }

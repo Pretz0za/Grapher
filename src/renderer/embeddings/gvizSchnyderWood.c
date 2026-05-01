@@ -39,6 +39,12 @@ static int swHasEdge(const gvizGraph *g, size_t u, size_t v) {
  * Public API
  * ----------------------------------------------------------------------- */
 
+int gvizSchnyderWoodInitView(gvizSchnyderWood *sw, const gvizGraphView *view) {
+  if (!view)
+    return -1;
+  return gvizSchnyderWoodInit(sw, view->graph);
+}
+
 int gvizSchnyderWoodInit(gvizSchnyderWood *sw, const gvizGraph *g) {
   if (!sw || !g)
     return -1;

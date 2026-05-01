@@ -366,8 +366,8 @@ void placeLayerVertices(gvizGRIPState *state, size_t layer,
 
     gvizFoundVertex found[8];
 
-    size_t count = gvizGraphKNearestNeighbors(
-        embedding->graph, found, 8, state->misFiltration[i], placedVertices);
+    size_t count = gvizGraphViewKNearestNeighbors(
+        &embedding->view, found, 8, state->misFiltration[i], placedVertices);
 
     assert(count > 0);
 
@@ -472,8 +472,8 @@ gvizArray *gvizGRIPPrepareLayerKNNs(gvizGRIPState *state, size_t layer,
     return NULL;
   for (size_t i = 0; i < state->misBorder[layer]; i++) {
     gvizArrayInitAtCapacity(&knns[i], sizeof(gvizFoundVertex), 32);
-    knns[i].count = gvizGraphKNearestNeighbors(
-        embedding->graph, knns[i].arr, 32, state->misFiltration[i], placed);
+    knns[i].count = gvizGraphViewKNearestNeighbors(
+        &embedding->view, knns[i].arr, 32, state->misFiltration[i], placed);
   }
   return knns;
 }

@@ -2,6 +2,7 @@
 #define _GVIZ_SCHNYDER_WOOD_H_
 
 #include "dsa/gvizGraph.h"
+#include "dsa/gvizGraphView.h"
 #include "renderer/embeddings/gvizEmbeddedGraph.h"
 #include <stddef.h>
 
@@ -52,6 +53,15 @@ typedef struct gvizSchnyderWood {
  * @return    0 on success, -1 on allocation failure or invalid input.
  */
 int gvizSchnyderWoodInit(gvizSchnyderWood *sw, const gvizGraph *g);
+
+/**
+ * View-aware variant. Currently the algorithm operates on the entire
+ * underlying graph (`view->graph`) — the rotation system / triangulation
+ * preconditions apply to the full graph topology. Provided so callers can
+ * uniformly thread a `gvizGraphView` through the embedding API; partial
+ * subview support will land alongside the in-progress algorithm.
+ */
+int gvizSchnyderWoodInitView(gvizSchnyderWood *sw, const gvizGraphView *view);
 
 /**
  * Releases all memory owned by @p sw.
