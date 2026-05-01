@@ -38,28 +38,25 @@ typedef struct gvizSchnyderWood {
 } gvizSchnyderWood;
 
 /**
- * Constructs a Schnyder wood for a triangulated planar graph @p g.
+ * Constructs a Schnyder wood for a triangulated planar graph
+ * `view->graph`.
  *
- * @p g must carry a valid CCW rotation system (cyclic adjacency lists) such
- * as one produced by gvizPlanarEmbeddingInit() followed by
- * gvizPlanarEmbeddingTriangulate().  Every face of @p g must be a triangle.
+ * `view->graph` must carry a valid CCW rotation system (cyclic adjacency
+ * lists) such as one produced by gvizPlanarEmbeddingInitView() followed by
+ * gvizPlanarEmbeddingTriangulate(). Every face of the graph must be a
+ * triangle.
  *
  * The outer-face triangle is inferred automatically: vertex 0 is root[0],
  * its first adjacency-list neighbour is root[1], and the third vertex of the
- * face traced by the dart root[0]→root[1] is root[2].
+ * face traced by the dart root[0]->root[1] is root[2].
  *
- * @param sw  Output — must point to uninitialised storage.
- * @param g   A triangulated undirected planar graph with a CCW rotation system.
- * @return    0 on success, -1 on allocation failure or invalid input.
- */
-int gvizSchnyderWoodInit(gvizSchnyderWood *sw, const gvizGraph *g);
-
-/**
- * View-aware variant. Currently the algorithm operates on the entire
- * underlying graph (`view->graph`) — the rotation system / triangulation
- * preconditions apply to the full graph topology. Provided so callers can
- * uniformly thread a `gvizGraphView` through the embedding API; partial
+ * Currently the algorithm operates on the entire underlying graph; partial
  * subview support will land alongside the in-progress algorithm.
+ *
+ * @param sw   Output — must point to uninitialised storage.
+ * @param view View whose underlying graph is a triangulated undirected
+ *             planar graph with a CCW rotation system.
+ * @return     0 on success, -1 on allocation failure or invalid input.
  */
 int gvizSchnyderWoodInitView(gvizSchnyderWood *sw, const gvizGraphView *view);
 

@@ -2,7 +2,6 @@
 #define __GRAPH_H__
 
 #include "core/alloc.h"
-#include "dsa/gvizBitArray.h"
 #include "gvizArray.h"
 
 #define MAX_LINE_SIZE 4096

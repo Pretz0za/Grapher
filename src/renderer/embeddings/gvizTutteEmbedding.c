@@ -10,7 +10,7 @@
 #include <string.h>
 
 static size_t numVertices(const gvizTutteState *s) {
-    return ((gvizEmbeddedGraph *)s)->graph->vertices.count;
+    return ((gvizEmbeddedGraph *)s)->view.graph->vertices.count;
 }
 
 static size_t dim(const gvizTutteState *s) {
@@ -58,14 +58,6 @@ int gvizTutteEmbeddingInitView(gvizTutteState *s, gvizGraphView view,
     s->epsilon = (epsilon > 0.0) ? epsilon : GVIZ_TUTTE_DEFAULT_EPSILON;
 
     return 0;
-}
-
-int gvizTutteEmbeddingInit(gvizTutteState *s, gvizGraph *g, size_t dimension,
-                           double epsilon) {
-    gvizGraphView view;
-    if (gvizGraphViewInitFull(&view, g) != 0)
-        return -1;
-    return gvizTutteEmbeddingInitView(s, view, dimension, epsilon);
 }
 
 void gvizTutteEmbeddingRelease(gvizTutteState *s) {

@@ -1,5 +1,6 @@
 #include "cblas.h"
 #include "dsa/gvizGraph.h"
+#include "dsa/gvizGraphView.h"
 #include "lapack.h"
 #include "msf_gif.h"
 #include "raylib.h"
@@ -17,6 +18,7 @@
 #include <string.h>
 
 #if defined(__APPLE__)
+#define GL_SILENCE_DEPRECATION
 #include <OpenGL/gl3.h>
 #else
 #include <GL/gl.h>
@@ -109,7 +111,9 @@ int main() {
   // gvizGraph trimesh = build_equilateral_tri_mesh(DEPTH);
   g = build_sierpinski_carpet(DEPTH);
   // gvizGRIPEmbeddingInit(&state, &mesh, (WIDTH - 1) + (HEIGHT - 1) + 10, 2);
-  gvizGRIPEmbeddingInit(&state, &g, pow(2, DEPTH), 2);
+  gvizGraphView view;
+  gvizGraphViewInitFull(&view, &g);
+  gvizGRIPEmbeddingInitView(&state, view, pow(2, DEPTH), 2);
   // gvizGRIPEmbeddingInit(&state, &g, DEPTH, 2); // trimesh 2d
   // gvizGRIPEmbeddingInit(&state, &g, DEPTH, 3); // trimesh 3d
   // gvizGRIPEmbeddingInit(&state, &g, pow(4, DEPTH), 2);

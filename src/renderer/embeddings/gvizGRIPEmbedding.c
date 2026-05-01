@@ -63,14 +63,6 @@ int gvizGRIPEmbeddingInitView(gvizGRIPState *state, gvizGraphView view,
   return 0;
 }
 
-int gvizGRIPEmbeddingInit(gvizGRIPState *state, gvizGraph *graph,
-                          size_t diameter, size_t dimension) {
-  gvizGraphView view;
-  if (gvizGraphViewInitFull(&view, graph) != 0)
-    return -1;
-  return gvizGRIPEmbeddingInitView(state, view, diameter, dimension);
-}
-
 void makeRegularSimplex(size_t n, double side_length, double *out) {
   memset(out, 0, sizeof(double) * (n + 1) * n);
 
@@ -189,9 +181,9 @@ void migrateOneToFinalLayer(gvizGRIPState *state, GVIZ_BIT_ARRAY finalLayer,
 
   for (size_t i = 0; i < state->misBorder[count - 1]; i++) {
     printf("  source vertex: %zu (graph size: %zu)\n", state->misFiltration[i],
-           ((gvizEmbeddedGraph *)state)->graph->vertices.count);
+           ((gvizEmbeddedGraph *)state)->view.graph->vertices.count);
 
-    gvizGraphBFSTree(((gvizEmbeddedGraph *)state)->graph, &bfs,
+    gvizGraphBFSTree(((gvizEmbeddedGraph *)state)->view.graph, &bfs,
                      state->misFiltration[i], 0, 1);
 
     for (size_t j = state->misBorder[count - 1];
@@ -554,7 +546,7 @@ int gvizGRIPRefineEmbedding(gvizGRIPState *state) {
   gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
 
   GVIZ_BIT_UNIT placed[GVIZ_ARRAY_UNITS(
-      ((gvizEmbeddedGraph *)state)->graph->vertices.count)];
+      ((gvizEmbeddedGraph *)state)->view.graph->vertices.count)];
   memset(placed, 0, sizeof(placed));
 
   size_t layerCount = createMISFiltration(state);
@@ -580,7 +572,7 @@ int gvizGRIPEmbeddingEmbed(gvizGRIPState *state) {
   gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
 
   GVIZ_BIT_UNIT placed[GVIZ_ARRAY_UNITS(
-      ((gvizEmbeddedGraph *)state)->graph->vertices.count)];
+      ((gvizEmbeddedGraph *)state)->view.graph->vertices.count)];
   memset(placed, 0, sizeof(placed));
 
   size_t layerCount = createMISFiltration(state);

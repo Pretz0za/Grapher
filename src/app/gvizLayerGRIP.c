@@ -1,6 +1,7 @@
 #include "app/gvizLayerGRIP.h"
 #include "cblas.h"
 #include "core/alloc.h"
+#include "dsa/gvizGraphView.h"
 #include "renderer/embeddings/gvizEmbeddedGraph.h"
 #include "renderer/layers/gvizVertexDiscVBO.h"
 #include <stdlib.h>
@@ -42,7 +43,9 @@ int gvizLayerGRIPInit(gvizLayerGRIP *self, gvizGraph *graph, size_t diameter,
   if (gvizGraphClone(&self->graph, graph) != 0)
     return -1;
 
-  if (gvizGRIPEmbeddingInit(&self->grip, &self->graph, diameter, 2) != 0) {
+  gvizGraphView view;
+  gvizGraphViewInitFull(&view, &self->graph);
+  if (gvizGRIPEmbeddingInitView(&self->grip, view, diameter, 2) != 0) {
     gvizGraphRelease(&self->graph);
     return -1;
   }

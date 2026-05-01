@@ -31,12 +31,6 @@ typedef struct gvizGRIPState {
 int gvizGRIPEmbeddingInitView(gvizGRIPState *state, gvizGraphView view,
                               size_t diameter, size_t dimension);
 
-/**
- * Compatibility shim that builds a Full view over `graph` and forwards to
- * `gvizGRIPEmbeddingInitView`. Slated for removal in Epic 11.
- */
-int gvizGRIPEmbeddingInit(gvizGRIPState *state, gvizGraph *graph,
-                          size_t diameter, size_t dimension);
 int gvizGRIPEmbeddingEmbed(gvizGRIPState *state);
 void gvizGRIPEmbeddingRelease(gvizGRIPState *state);
 

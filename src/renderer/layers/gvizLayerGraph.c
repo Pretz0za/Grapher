@@ -24,7 +24,7 @@ static void syncEdgeStartFromView(gvizLayerGraph *layer) {
 }
 
 static void allocHighlightBuffers(gvizLayerGraph *layer) {
-  gvizGraph *g = layer->graph ? layer->graph->graph : NULL;
+  gvizGraph *g = layer->graph ? layer->graph->view.graph : NULL;
   size_t N = g ? g->vertices.count : 0;
 
   size_t vbits = N;
@@ -188,7 +188,7 @@ int gvizLayerGraphHitTest(void *layer, float wx, float wy) {
     return 0;
   const float hitR = 6.0f;
   const float hitR2 = hitR * hitR;
-  for (size_t i = 0; i < eg->graph->vertices.count; i++) {
+  for (size_t i = 0; i < eg->view.graph->vertices.count; i++) {
     double *p = gvizEmbeddedGraphGetVPosition(eg, i);
     float dx = (float)p[0] - wx;
     float dy = (float)p[1] - wy;
@@ -216,7 +216,7 @@ void gvizLayerGraphClearVertexHighlights(gvizLayerGraph *layer) {
 
 static int findEdgeBit(gvizLayerGraph *layer, size_t u, size_t v, size_t *out) {
   if (!layer->graph || !layer->edgeStartIdx) return -1;
-  gvizGraph *g = layer->graph->graph;
+  gvizGraph *g = layer->graph->view.graph;
   if (u >= g->vertices.count) return -1;
   gvizArray *nbrs = gvizGraphGetVertexNeighbors(g, u);
   for (size_t j = 0; j < nbrs->count; j++) {
@@ -237,7 +237,7 @@ void gvizLayerGraphSetEdgeHighlight(gvizLayerGraph *layer, size_t u, size_t v,
     else    gvizClearBit(layer->edgeHighlight, bit);
     layer->highlightDirty = 1;
   }
-  if (!layer->graph->graph->directed) {
+  if (!layer->graph->view.graph->directed) {
     if (findEdgeBit(layer, v, u, &bit) == 0 && bit < layer->edgeHighlightBits) {
       if (on) gvizSetBit(layer->edgeHighlight, bit);
       else    gvizClearBit(layer->edgeHighlight, bit);
@@ -255,7 +255,7 @@ void gvizLayerGraphClearEdgeHighlights(gvizLayerGraph *layer) {
 
 void gvizLayerGraphRebuildEdgeIndex(gvizLayerGraph *layer) {
   if (!layer->graph) return;
-  gvizGraph *g = layer->graph->graph;
+  gvizGraph *g = layer->graph->view.graph;
   size_t N = g->vertices.count;
 
   /* Delegate prefix-sum maintenance to the view; we only borrow the pointer. */
@@ -297,7 +297,7 @@ static int growPositions(gvizLayerGraph *layer, size_t newCount) {
 int gvizLayerGraphAddVertex(gvizLayerGraph *layer, const double *startPos) {
   if (!layer->graph) return -1;
   gvizEmbeddedGraph *eg = layer->graph;
-  gvizGraph *g = eg->graph;
+  gvizGraph *g = eg->view.graph;
   size_t newIdx = g->vertices.count;
   if (gvizGraphAddVertex(g, NULL, NULL, NULL) != 0) return -1;
   if (growPositions(layer, newIdx + 1) != 0) return -1;
@@ -318,7 +318,7 @@ int gvizLayerGraphAddVertex(gvizLayerGraph *layer, const double *startPos) {
 int gvizLayerGraphRemoveVertex(gvizLayerGraph *layer, size_t v) {
   if (!layer->graph) return -1;
   gvizEmbeddedGraph *eg = layer->graph;
-  gvizGraph *g = eg->graph;
+  gvizGraph *g = eg->view.graph;
   if (v >= g->vertices.count) return -1;
 
   size_t N = g->vertices.count;
@@ -343,7 +343,7 @@ int gvizLayerGraphRemoveVertex(gvizLayerGraph *layer, size_t v) {
 
 int gvizLayerGraphAddEdge(gvizLayerGraph *layer, size_t u, size_t v) {
   if (!layer->graph) return -1;
-  if (gvizGraphAddEdge(layer->graph->graph, u, v) != 0) return -1;
+  if (gvizGraphAddEdge(layer->graph->view.graph, u, v) != 0) return -1;
   gvizLayerGraphRebuildEdgeIndex(layer);
   layer->gpuDirty = 2;
   if (layer->scene && layer->graphHandle != GVIZ_SCENE_GRAPH_INVALID) {
@@ -356,7 +356,7 @@ int gvizLayerGraphAddEdge(gvizLayerGraph *layer, size_t u, size_t v) {
 
 int gvizLayerGraphRemoveEdge(gvizLayerGraph *layer, size_t u, size_t v) {
   if (!layer->graph) return -1;
-  if (gvizGraphRemoveEdge(layer->graph->graph, u, v) != 0) return -1;
+  if (gvizGraphRemoveEdge(layer->graph->view.graph, u, v) != 0) return -1;
   gvizLayerGraphRebuildEdgeIndex(layer);
   layer->gpuDirty = 2;
   if (layer->scene && layer->graphHandle != GVIZ_SCENE_GRAPH_INVALID) {

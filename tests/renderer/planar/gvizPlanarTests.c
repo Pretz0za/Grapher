@@ -1,5 +1,6 @@
 #include "dsa/gvizArray.h"
 #include "dsa/gvizGraph.h"
+#include "dsa/gvizGraphView.h"
 #include "renderer/embeddings/gvizEmbeddedGraph.h"
 #include "renderer/embeddings/gvizPlanarEmbedding.h"
 #include "renderer/embeddings/gvizSchnyderWood.h"
@@ -45,7 +46,8 @@ void test_planar() {
   gvizGraphAddEdge(&g, 2, 3);
 
   gvizPlanarEmbeddingState state;
-  int res = gvizPlanarEmbeddingInit(&state, &g);
+  gvizGraphView _v1; gvizGraphViewInitFull(&_v1, &g);
+  int res = gvizPlanarEmbeddingInitView(&state, _v1);
 
   TEST_ASSERT_EQUAL(0, res);
 
@@ -94,7 +96,8 @@ void test_nonPlanar() {
   gvizGraphAddEdge(&g, 2, 5);
 
   gvizPlanarEmbeddingState state;
-  int res = gvizPlanarEmbeddingInit(&state, &g);
+  gvizGraphView _v2; gvizGraphViewInitFull(&_v2, &g);
+  int res = gvizPlanarEmbeddingInitView(&state, _v2);
 
   TEST_ASSERT_EQUAL(-2, res);
 
@@ -119,7 +122,8 @@ void test_triangulation() {
   gvizGraphAddEdge(&g, 5, 3);
 
   gvizPlanarEmbeddingState state;
-  int res = gvizPlanarEmbeddingInit(&state, &g);
+  gvizGraphView _v3; gvizGraphViewInitFull(&_v3, &g);
+  int res = gvizPlanarEmbeddingInitView(&state, _v3);
 
   TEST_ASSERT_EQUAL(0, res);
 
@@ -205,10 +209,12 @@ void test_schnyderWood_K4(void) {
   gvizGraphAddEdge(&g, 2, 3);
 
   gvizPlanarEmbeddingState state;
-  TEST_ASSERT_EQUAL(0, gvizPlanarEmbeddingInit(&state, &g));
+  gvizGraphView _v4; gvizGraphViewInitFull(&_v4, &g);
+  TEST_ASSERT_EQUAL(0, gvizPlanarEmbeddingInitView(&state, _v4));
 
   gvizSchnyderWood sw;
-  TEST_ASSERT_EQUAL(0, gvizSchnyderWoodInit(&sw, &g));
+  gvizGraphView _v4sw; gvizGraphViewInitFull(&_v4sw, &g);
+  TEST_ASSERT_EQUAL(0, gvizSchnyderWoodInitView(&sw, &_v4sw));
   TEST_ASSERT_EQUAL_UINT64(4, sw.n);
 
   verifySchnyderWood(&sw, &g);
@@ -235,7 +241,8 @@ void test_schnyderWood_hexagon(void) {
   gvizGraphAddEdge(&g, 5, 3);
 
   gvizPlanarEmbeddingState state;
-  TEST_ASSERT_EQUAL(0, gvizPlanarEmbeddingInit(&state, &g));
+  gvizGraphView _v5; gvizGraphViewInitFull(&_v5, &g);
+  TEST_ASSERT_EQUAL(0, gvizPlanarEmbeddingInitView(&state, _v5));
 
   gvizFaceIteratorContext faces;
   gvizFaceIteratorInit(&state, &faces);
@@ -244,7 +251,8 @@ void test_schnyderWood_hexagon(void) {
   gvizFaceIteratorRelease(&faces);
 
   gvizSchnyderWood sw;
-  TEST_ASSERT_EQUAL(0, gvizSchnyderWoodInit(&sw, &g));
+  gvizGraphView _v5sw; gvizGraphViewInitFull(&_v5sw, &g);
+  TEST_ASSERT_EQUAL(0, gvizSchnyderWoodInitView(&sw, &_v5sw));
   TEST_ASSERT_EQUAL_UINT64(6, sw.n);
 
   verifySchnyderWood(&sw, &g);

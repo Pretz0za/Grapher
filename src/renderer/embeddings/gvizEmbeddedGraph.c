@@ -48,7 +48,6 @@ int gvizEmbeddedGraphInitView(gvizEmbeddedGraph *eg, gvizGraphView view,
     return -1;
   }
   eg->view = view;
-  eg->graph = view.graph;
   eg->mode = mode;
   eg->embedding.dim = dim;
   eg->embedding.vertexPositions = NULL;
@@ -76,18 +75,6 @@ int gvizEmbeddedGraphInitView(gvizEmbeddedGraph *eg, gvizGraphView view,
   return 0;
 }
 
-int gvizEmbeddedGraphInit(gvizEmbeddedGraph *eg, gvizGraph *graph,
-                          size_t dim) {
-  if (!eg || !graph) {
-    return -1;
-  }
-  gvizGraphView view;
-  if (gvizGraphViewInitFull(&view, graph) != 0) {
-    return -1;
-  }
-  return gvizEmbeddedGraphInitView(eg, view, GVIZ_EMBED_FULL_GRAPH, dim);
-}
-
 size_t gvizEmbeddedGraphLocalIndex(const gvizEmbeddedGraph *eg, size_t u) {
   if (!eg || !eg->view.graph || u >= eg->view.graph->vertices.count) {
     return SIZE_MAX;
@@ -111,7 +98,6 @@ void gvizEmbeddedGraphRelease(gvizEmbeddedGraph *eg) {
     eg->local = NULL;
   }
   gvizGraphViewRelease(&eg->view);
-  eg->graph = NULL;
 }
 
 size_t gvizIterateSearch(gvizEmbeddedGraph *embedding,

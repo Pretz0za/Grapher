@@ -31,19 +31,11 @@ typedef enum {
 } gvizEmbeddingMode;
 
 typedef struct gvizEmbeddedGraph {
-  gvizGraph *graph;       /* convenience alias of view.graph; borrowed */
   gvizGraphView view;     /* full ownership of mask/edgeStart memory */
   gvizEmbeddingMode mode;
   size_t *local;          /* raw vertex id -> local index (Mode B); NULL otherwise */
   gvizEmbedding embedding;
 } gvizEmbeddedGraph;
-
-/**
- * Compatibility init: builds a Full view over `graph` and uses
- * `GVIZ_EMBED_FULL_GRAPH` (`vertexPositions` sized to N).
- */
-int gvizEmbeddedGraphInit(gvizEmbeddedGraph *embedding, gvizGraph *graph,
-                          size_t dimension);
 
 /**
  * View-aware init. The view's contents are MOVED into the embedded graph;

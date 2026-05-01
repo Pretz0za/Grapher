@@ -3,6 +3,7 @@
 #include "core/event.h"
 #include "core/gvizCamera.h"
 #include "dsa/gvizArray.h"
+#include "dsa/gvizGraphView.h"
 #include "raylib.h"
 #include "renderer/embeddings/gvizEmbeddedGraph.h"
 #include "renderer/embeddings/gvizPlanarEmbedding.h"
@@ -127,7 +128,7 @@ static void pt_highlightFace(gvizLayerPolyTutte *self, size_t faceIdx) {
 static void pt_writeColors(gvizLayerPolyTutte *self, gvizEmbeddedGraph *eg) {
   if (self->vbo.colorsCount == 0 || !self->vbo.colors)
     return;
-  gvizGraph *g = eg->graph;
+  gvizGraph *g = eg->view.graph;
   size_t N = g->vertices.count;
   size_t fi = 0;
   for (size_t u = 0; u < N; u++) {
@@ -232,9 +233,13 @@ int gvizLayerPolyTutteInit(gvizLayerPolyTutte *layer, gvizGraph *mesh,
   if (gvizGraphClone(&layer->graph, mesh) != 0)
     return -1;
 
-  if (gvizTutteEmbeddingInit(&layer->tutte, &layer->graph, 2, 0) != 0) {
-    gvizGraphRelease(&layer->graph);
-    return -1;
+  {
+    gvizGraphView _view;
+    gvizGraphViewInitFull(&_view, &layer->graph);
+    if (gvizTutteEmbeddingInitView(&layer->tutte, _view, 2, 0) != 0) {
+      gvizGraphRelease(&layer->graph);
+      return -1;
+    }
   }
 
   gvizTutteFixConvexPolygon(&layer->tutte, outerFace, outerFaceLen,
@@ -348,7 +353,9 @@ void gvizLayerPolyTutteUpdate(void *layerV, float dt) {
           gvizTutteEmbeddingRelease(&self->tutte);
           self->hasTutte = 0;
         }
-        if (gvizTutteEmbeddingInit(&self->tutte, &self->graph, 2, 0) == 0) {
+        gvizGraphView _view;
+        gvizGraphViewInitFull(&_view, &self->graph);
+        if (gvizTutteEmbeddingInitView(&self->tutte, _view, 2, 0) == 0) {
           gvizTutteFixConvexPolygon(&self->tutte, bv, bn, self->boundaryRadius);
           gvizTutteEmbeddingSeedInterior(&self->tutte);
           self->hasTutte = 1;
@@ -547,10 +554,14 @@ int gvizLayerPolyTutteHandleEvent(void *layerV, const gvizEvent *event) {
       gvizTutteEmbeddingRelease(&self->tutte);
       self->hasTutte = 0;
     }
-    if (gvizTutteEmbeddingInit(&self->tutte, &self->graph, 2, 0) == 0) {
-      gvizTutteFixConvexPolygon(&self->tutte, bv, bn, self->boundaryRadius);
-      gvizTutteEmbeddingSeedInterior(&self->tutte);
-      self->hasTutte = 1;
+    {
+      gvizGraphView _view;
+      gvizGraphViewInitFull(&_view, &self->graph);
+      if (gvizTutteEmbeddingInitView(&self->tutte, _view, 2, 0) == 0) {
+        gvizTutteFixConvexPolygon(&self->tutte, bv, bn, self->boundaryRadius);
+        gvizTutteEmbeddingSeedInterior(&self->tutte);
+        self->hasTutte = 1;
+      }
     }
 
     pt_rebuildIndex(self);
@@ -585,7 +596,9 @@ int gvizLayerPolyTutteHandleEvent(void *layerV, const gvizEvent *event) {
       gvizTutteEmbeddingRelease(&self->tutte);
       self->hasTutte = 0;
     }
-    if (gvizTutteEmbeddingInit(&self->tutte, &self->graph, 2, 0) == 0) {
+    gvizGraphView _view;
+    gvizGraphViewInitFull(&_view, &self->graph);
+    if (gvizTutteEmbeddingInitView(&self->tutte, _view, 2, 0) == 0) {
       gvizTutteFixConvexPolygon(&self->tutte, verts, n, self->boundaryRadius);
       gvizTutteEmbeddingSeedInterior(&self->tutte);
       self->hasTutte = 1;

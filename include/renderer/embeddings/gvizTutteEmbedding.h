@@ -41,14 +41,6 @@ typedef struct gvizTutteState {
 } gvizTutteState;
 
 /**
- * Initializes the Tutte embedding state for graph @p g in @p dimension dims.
- * @p epsilon is the convergence threshold; pass 0 for GVIZ_TUTTE_DEFAULT_EPSILON.
- * Returns 0 on success, -1 on allocation failure.
- */
-int gvizTutteEmbeddingInit(gvizTutteState *s, gvizGraph *g, size_t dimension,
-                           double epsilon);
-
-/**
  * View-aware init. The view is moved into the embedded graph (caller must
  * not release it after a successful return). Mode is `GVIZ_EMBED_FULL_GRAPH`
  * so positions are indexed by raw vertex id; the view selects which vertices

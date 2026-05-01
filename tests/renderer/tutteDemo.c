@@ -1,4 +1,5 @@
 #include "dsa/gvizGraph.h"
+#include "dsa/gvizGraphView.h"
 #include "msf_gif.h"
 #include "raylib.h"
 #include "raymath.h"
@@ -11,6 +12,7 @@
 #include <string.h>
 
 #if defined(__APPLE__)
+#define GL_SILENCE_DEPRECATION
 #include <OpenGL/gl3.h>
 #else
 #include <GL/gl.h>
@@ -227,7 +229,9 @@ int main(void) {
   gvizGraph g = buildSpiderWeb();
 
   gvizTutteState s;
-  gvizTutteEmbeddingInit(&s, &g, 2, 1e-5);
+  gvizGraphView _view;
+  gvizGraphViewInitFull(&_view, &g);
+  gvizTutteEmbeddingInitView(&s, _view, 2, 1e-5);
 
   /* Pin the outer hexagonal ring (ring 0, vertices 0..SPOKES-1). */
   size_t boundary[SPOKES];

@@ -10,12 +10,10 @@ typedef struct gvizPlanarEmbeddingState {
   gvizGraph *kuratowskiSubdivision;
 } gvizPlanarEmbeddingState;
 
-// initializes a planar graph and reorders the adjacency lists to show the
-// counter-clockwise rotation system (embedding).
-int gvizPlanarEmbeddingInit(gvizPlanarEmbeddingState *state, gvizGraph *g);
-
 /**
- * View-aware init. The view is moved into the embedded graph (caller must
+ * View-aware init. Initializes a planar graph and reorders the adjacency
+ * lists to show the counter-clockwise rotation system (embedding).
+ * The view is moved into the embedded graph (caller must
  * not release it after a successful return). The Boyer-Myrvold planarity
  * test is run against the underlying graph; the cached
  * `kuratowskiSubdivision` (when non-planar) lives on this state and may be

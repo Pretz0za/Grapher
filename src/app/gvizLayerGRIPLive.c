@@ -1,6 +1,7 @@
 #include "app/gvizLayerGRIPLive.h"
 #include "cblas.h"
 #include "core/alloc.h"
+#include "dsa/gvizGraphView.h"
 #include "renderer/embeddings/gvizEmbeddedGraph.h"
 #include "renderer/layers/gvizVertexDiscVBO.h"
 #include "raylib.h"
@@ -54,7 +55,9 @@ static int gvizLayerGRIPLiveInitWithDim(gvizLayerGRIPLive *self, gvizGraph *grap
   if (gvizGraphClone(&self->graph, graph) != 0)
     return -1;
 
-  if (gvizGRIPEmbeddingInit(&self->grip, &self->graph, diameter, embDim) != 0) {
+  gvizGraphView view;
+  gvizGraphViewInitFull(&view, &self->graph);
+  if (gvizGRIPEmbeddingInitView(&self->grip, view, diameter, embDim) != 0) {
     gvizGraphRelease(&self->graph);
     return -1;
   }

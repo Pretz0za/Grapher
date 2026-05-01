@@ -1,8 +1,8 @@
 #include "dsa/gvizGraph.h"
+#include "dsa/gvizGraphView.h"
 #include "renderer/embeddings/gvizEmbeddedGraph.h"
 #include "renderer/embeddings/gvizTutteEmbedding.h"
 #include "unity/unity.h"
-#include <math.h>
 #include <string.h>
 
 void setUp(void) {}
@@ -30,7 +30,7 @@ void test_tutte_k4_centroid(void) {
     buildK4(&g);
 
     gvizTutteState s;
-    TEST_ASSERT_EQUAL(0, gvizTutteEmbeddingInit(&s, &g, 2, 1e-8));
+    do { gvizGraphView _v; gvizGraphViewInitFull(&_v, &g); TEST_ASSERT_EQUAL(0, gvizTutteEmbeddingInitView(&s, _v, 2, 1e-8)); } while (0);
 
     size_t boundary[3] = {0, 1, 2};
     gvizTutteFixConvexPolygon(&s, boundary, 3, 100.0);
@@ -60,7 +60,7 @@ void test_tutte_boundary_pinned(void) {
     buildK4(&g);
 
     gvizTutteState s;
-    TEST_ASSERT_EQUAL(0, gvizTutteEmbeddingInit(&s, &g, 2, 1e-8));
+    do { gvizGraphView _v; gvizGraphViewInitFull(&_v, &g); TEST_ASSERT_EQUAL(0, gvizTutteEmbeddingInitView(&s, _v, 2, 1e-8)); } while (0);
 
     size_t boundary[3] = {0, 1, 2};
     gvizTutteFixConvexPolygon(&s, boundary, 3, 50.0);
@@ -105,7 +105,7 @@ void test_tutte_convergence(void) {
         }
 
     gvizTutteState s;
-    TEST_ASSERT_EQUAL(0, gvizTutteEmbeddingInit(&s, &g, 2, 1e-5));
+    do { gvizGraphView _v; gvizGraphViewInitFull(&_v, &g); TEST_ASSERT_EQUAL(0, gvizTutteEmbeddingInitView(&s, _v, 2, 1e-5)); } while (0);
 
     /* Collect rim vertices in CCW order: top, right, bottom (rev), left (rev). */
     size_t rim[16];
@@ -136,8 +136,8 @@ void test_tutte_jacobi_vs_gs(void) {
     buildK4(&g);
 
     gvizTutteState sJ, sGS;
-    TEST_ASSERT_EQUAL(0, gvizTutteEmbeddingInit(&sJ, &g, 2, 1e-8));
-    TEST_ASSERT_EQUAL(0, gvizTutteEmbeddingInit(&sGS, &g, 2, 1e-8));
+    do { gvizGraphView _v; gvizGraphViewInitFull(&_v, &g); TEST_ASSERT_EQUAL(0, gvizTutteEmbeddingInitView(&sJ, _v, 2, 1e-8)); } while (0);
+    do { gvizGraphView _v; gvizGraphViewInitFull(&_v, &g); TEST_ASSERT_EQUAL(0, gvizTutteEmbeddingInitView(&sGS, _v, 2, 1e-8)); } while (0);
 
     size_t boundary[3] = {0, 1, 2};
     gvizTutteFixConvexPolygon(&sJ, boundary, 3, 100.0);
@@ -170,7 +170,7 @@ void test_tutte_init_validation(void) {
     buildK4(&g);
 
     gvizTutteState s;
-    TEST_ASSERT_EQUAL(0, gvizTutteEmbeddingInit(&s, &g, 2, 0.0));
+    do { gvizGraphView _v; gvizGraphViewInitFull(&_v, &g); TEST_ASSERT_EQUAL(0, gvizTutteEmbeddingInitView(&s, _v, 2, 0.0)); } while (0);
 
     /* Too few boundary vertices. */
     size_t tooFew[2] = {0, 1};

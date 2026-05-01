@@ -3,6 +3,7 @@
 #include "app/gvizLayerPolyTutte.h"
 #include "app/gvizLayerTutte.h"
 #include "core/alloc.h"
+#include "dsa/gvizGraphView.h"
 #include "renderer/embeddings/gvizEmbeddedTree.h"
 #include "renderer/layers/gvizLayerGraph.h"
 #include "utils/graphs.h"
@@ -253,7 +254,9 @@ static int buildRTLayer(gvizScene *scene, const gvizLayerCreateParams *p,
     return -1;
   }
   gvizEmbeddedTree *tree = GVIZ_ALLOC(sizeof(gvizEmbeddedTree));
-  if (!tree || gvizEmbeddedTreeRTInit(tree, g, root) != 0) {
+  gvizGraphView _view;
+  gvizGraphViewInitFull(&_view, g);
+  if (!tree || gvizEmbeddedTreeRTInitView(tree, _view, root) != 0) {
     if (tree) GVIZ_DEALLOC(tree);
     gvizSceneReleaseGraph(scene, h);
     return -1;

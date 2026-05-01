@@ -40,14 +40,9 @@ static int swHasEdge(const gvizGraph *g, size_t u, size_t v) {
  * ----------------------------------------------------------------------- */
 
 int gvizSchnyderWoodInitView(gvizSchnyderWood *sw, const gvizGraphView *view) {
-  if (!view)
+  if (!sw || !view || !view->graph)
     return -1;
-  return gvizSchnyderWoodInit(sw, view->graph);
-}
-
-int gvizSchnyderWoodInit(gvizSchnyderWood *sw, const gvizGraph *g) {
-  if (!sw || !g)
-    return -1;
+  const gvizGraph *g = view->graph;
 
   size_t N = g->vertices.count;
   sw->n = N;
@@ -381,11 +376,11 @@ void gvizSchnyderWoodEmbed(const gvizSchnyderWood *sw,
       // TODO: fix this. finding previous neighbor is not enough
 
       gvizArray boundary = getRegionBoundary(i, &paths[r], &paths[(r + 1) % 3]);
-      int v = findVertexInsideFace(embedding->graph, &boundary, pathVertices);
+      int v = findVertexInsideFace(embedding->view.graph, &boundary, pathVertices);
 
       size_t count = 0;
       if (v != -1 && !(gvizTestBit(pathVertices, v))) {
-        count = verticesInRegion(embedding->graph, v, pathVertices);
+        count = verticesInRegion(embedding->view.graph, v, pathVertices);
       }
       count += paths[r].count;
       coordinates[r] = (double)count;

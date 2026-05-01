@@ -187,7 +187,7 @@ static float *buildViewCentersXYZ(gvizGraphView *view, const double *positions,
 static const double *prepareProjectedPositions(gvizGraphVBO *vbo,
                                                gvizEmbeddedGraph *eg,
                                                size_t *outDim) {
-    size_t N = eg->graph->vertices.count;
+    size_t N = eg->view.graph->vertices.count;
     size_t embDim = eg->embedding.dim;
     int draw = vbo->drawDim > 0 ? vbo->drawDim : 2;
     if ((int)embDim <= draw) {

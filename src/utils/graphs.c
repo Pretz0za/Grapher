@@ -1,5 +1,6 @@
 #include "utils/graphs.h"
 #include "core/alloc.h"
+#include "dsa/gvizBitArray.h"
 #include "dsa/gvizGraph.h"
 #include <assert.h>
 #include <stdbool.h>

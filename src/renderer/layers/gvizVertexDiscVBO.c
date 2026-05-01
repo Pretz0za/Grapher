@@ -112,14 +112,14 @@ void gvizVertexDiscVBOUploadPositionsXYZ(gvizVertexDiscVBO *vbo,
 void gvizVertexDiscVBORebuild(gvizVertexDiscVBO *vbo, gvizEmbeddedGraph *eg,
                               const float *radii) {
     gvizVertexDiscVBORebuildXYZ(vbo, eg->embedding.vertexPositions,
-                                eg->graph->vertices.count, eg->embedding.dim,
+                                eg->view.graph->vertices.count, eg->embedding.dim,
                                 radii);
 }
 
 void gvizVertexDiscVBOUploadPositions(gvizVertexDiscVBO *vbo,
                                       gvizEmbeddedGraph *eg) {
     gvizVertexDiscVBOUploadPositionsXYZ(vbo, eg->embedding.vertexPositions,
-                                        eg->graph->vertices.count,
+                                        eg->view.graph->vertices.count,
                                         eg->embedding.dim);
 }
 

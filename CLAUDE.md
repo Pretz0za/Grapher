@@ -94,9 +94,44 @@ typedef struct { void *data; size_t elem_size; size_t length; size_t capacity; }
 typedef struct { void *data; gvizArray neighbors; } gvizVertex;
 typedef struct { gvizArray vertices; size_t *map; int directed; } gvizGraph;
 typedef struct { size_t dim; double *vertexPositions; } gvizEmbedding;
-typedef struct { gvizGraph *graph; gvizEmbedding embedding; } gvizEmbeddedGraph;
-typeded struct { gvizEmbeddedGraph embedding; gvizGraph *kuratowskiSubdivision; } gvizPlanarEmbeddingState;
+
+/*
+ * Non-materializing view over a graph. Borrows the graph; never mutates
+ * it. Optional vertex / edge bit masks select a subset; NULL masks mean
+ * "everything". `edgeStart` is a per-vertex prefix sum into `edgeMask`.
+ * See include/dsa/gvizGraphView.h for the iterator + mutation interface.
+ */
+typedef struct {
+  gvizGraph *graph;
+  GVIZ_BIT_ARRAY vertexMask;
+  GVIZ_BIT_ARRAY edgeMask;
+  size_t *edgeStart;
+  size_t count;
+  size_t edgeStartStale;
+} gvizGraphView;
+
+typedef enum { GVIZ_EMBED_FULL_GRAPH, GVIZ_EMBED_VIEW_ONLY } gvizEmbeddingMode;
+
+/*
+ * View-aware embedded graph. The view is owned (its mask + edgeStart
+ * memory). `mode` chooses whether `embedding.vertexPositions` is sized to
+ * the full underlying graph (Mode A, raw indexing) or to view.count
+ * (Mode B, with `local` mapping raw vertex id -> local index).
+ */
+typedef struct {
+  gvizGraphView view;
+  gvizEmbeddingMode mode;
+  size_t *local;           /* raw vertex id -> local index in Mode B */
+  gvizEmbedding embedding;
+} gvizEmbeddedGraph;
+
+typedef struct { gvizEmbeddedGraph embedding; gvizGraph *kuratowskiSubdivision; } gvizPlanarEmbeddingState;
 ```
+
+All embedding algorithms expose a canonical `*InitView(state, view, ...)`
+entry point that takes ownership of the view. Legacy `*Init(state, graph,
+...)` shims remain as thin wrappers that build a Full view internally —
+slated for removal in a future cleanup pass.
 
 ### Memory
 Allocation macros are in `include/core/alloc.h` (`GVIZ_ALLOC`, `GVIZ_REALLOC`, `GVIZ_DEALLOC`) — override to plug in a custom allocator.

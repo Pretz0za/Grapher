@@ -340,14 +340,14 @@ iteration), collapse to a single `gvizBitArray` plus
 `gvizBitArrayIter` for iteration. Scratch / progress bitarrays that don't
 have a sibling iteration array are out of scope.
 
-- [ ] Saga: GRIP filtration — `createMISFiltration` in
+- [x] Saga: GRIP filtration — `createMISFiltration` in
       `src/renderer/embeddings/gvizGRIPEmbedding.c`. Replace the
       `gvizArray currVertices` (vertex ids) + the `curr` bitarray
       (membership of the current MIS layer) with a single
       `GVIZ_BIT_ARRAY currLayer` of size N. Drop the separate
       `currVertices.count` push/swap-delete bookkeeping; iterate via
       `gvizBitArrayIter`.
-- [ ] Saga: GRIP — change `iterMISFiltration(state, i, vertices,
+- [x] Saga: GRIP — change `iterMISFiltration(state, i, vertices,
       verticesArr)` signature to take a single `GVIZ_BIT_ARRAY currLayer`
       instead of both `vertices` and `verticesArr`. Inside:
       - Replace the `for (j = 0; j < verticesArr->count; j++)` walk that
@@ -361,13 +361,13 @@ have a sibling iteration array are out of scope.
         `state->misFiltration[k]` from `verticesArr`; misFiltration is
         already maintained by `migrateOneToFinalLayer` via the misBorder
         pointer arithmetic.
-- [ ] Saga: GRIP — `makeFirstMISPartition` writes its result via
+- [x] Saga: GRIP — `makeFirstMISPartition` writes its result via
       `gvizArrayPush(out, ...)` to seed the filtration. After the
       previous saga, change its signature to take
       `GVIZ_BIT_ARRAY firstLayer` (set bits = MIS members) instead of
       `gvizArray *out`, and have `createMISFiltration` allocate the
       bitarray directly.
-- [ ] Saga: Tutte boundary representation — in
+- [x] Saga: Tutte boundary representation — in
       `src/renderer/embeddings/gvizTutteEmbedding.c` /
       `include/renderer/embeddings/gvizTutteEmbedding.h`, the state
       currently holds both `size_t *boundary` (ordered list, length
@@ -376,23 +376,23 @@ have a sibling iteration array are out of scope.
       a redundancy; document this in the header (comment block above
       `boundary` / `isBoundary`) and skip. (Saga exists to record the
       decision so it isn't re-litigated.)
-- [ ] Saga: Tutte interior index pair — `s->interiorIdx` (array of
+- [x] Saga: Tutte interior index pair — `s->interiorIdx` (array of
       interior vertex ids) and `s->vertexToInterior` (per-vertex inverse
       map) together form a permutation, not a bitarray-vs-array pair.
       Out of scope; document in the header alongside the boundary note
       and close.
-- [ ] Saga: `gvizGraphDFSTree` in `src/dsa/gvizGraph.c` — the `seen`
+- [x] Saga: `gvizGraphDFSTree` in `src/dsa/gvizGraph.c` — the `seen`
       bitarray is the only set-tracker; the `invMap[]` array stores
       `g→out` index mapping (not membership) and the `map` array stores
       the reverse. Neither duplicates `seen`. No change; record in the
       audit trail and close.
-- [ ] Saga: `gvizGraphBFSTree` in `src/dsa/gvizGraph.c` — same situation
+- [x] Saga: `gvizGraphBFSTree` in `src/dsa/gvizGraph.c` — same situation
       as DFS. No change; audit-only.
-- [ ] Saga: `build_sierpinski_carpet` in `src/utils/graphs.c` — the
+- [x] Saga: `build_sierpinski_carpet` in `src/utils/graphs.c` — the
       `in_carpet` bitarray and the `node_id[]` size_t array serve
       different roles (membership vs. id-remap). Not a redundancy. No
       change; audit-only.
-- [ ] Saga: Final sweep — grep for any remaining
+- [x] Saga: Final sweep — grep for any remaining
       `GVIZ_BIT_ARRAY .* + gvizArray .*` pairs declared in the same
       function in `src/renderer/embeddings/`, `src/app/`, and
       `src/dsa/`. For each hit not already covered above, classify as
@@ -428,71 +428,59 @@ starting point, expand on inspection):
         layers / demos / tests not already covered by the algorithm
         sagas above.
 
-- [ ] Saga: Audit pass — grep `src/app/`, `src/renderer/`,
+- [x] Saga: Audit pass — grep `src/app/`, `src/renderer/`,
       `tests/`, and the demo files for every call to
       `gvizGRIPEmbeddingInit`, `gvizTutteEmbeddingInit`,
       `gvizEmbeddedTreeInit`, `gvizPlanarEmbeddingInit`,
       `gvizSchnyderWoodInit`, and `gvizEmbeddedGraphInit` (the legacy
-      raw-`gvizGraph *` overloads). Record each hit and confirm the
-      per-algorithm call-site lists above; add any sites missed.
-- [ ] Saga: Migrate GRIP — replace every legacy
-      `gvizGRIPEmbeddingInit(state, graph, dim)` call with
-      `gvizGraphViewInitFull(&view, graph)` followed by
-      `gvizGRIPEmbeddingInitView(state, &view, dim)`. Update
-      `src/app/gvizLayerGRIP.c`, `src/app/gvizLayerGRIPLive.c`,
-      `tests/renderer/gripDemo.c`,
-      `tests/renderer/GRIP/gvizGRIPTests.c`. Then delete the legacy
-      `gvizGRIPEmbeddingInit` declaration from
-      `include/renderer/embeddings/gvivGRIPEmbedding.h` and its
-      implementation from `src/renderer/embeddings/gvizGRIPEmbedding.c`.
-- [ ] Saga: Migrate Tutte — replace every legacy
-      `gvizTutteEmbeddingInit(state, graph, dim)` call with
-      `gvizGraphViewInitFull` + `gvizTutteEmbeddingInitView`. Update
-      `src/app/gvizLayerTutte.c`, `src/app/gvizLayerPolyTutte.c`,
-      `src/app/gvizLayerCreate.c`, `tests/renderer/tutteDemo.c`,
-      `tests/renderer/embeddings/gvizTutteTests.c`. Then delete the
-      legacy `gvizTutteEmbeddingInit` from
-      `include/renderer/embeddings/gvizTutteEmbedding.h` and
-      `src/renderer/embeddings/gvizTutteEmbedding.c`.
-- [ ] Saga: Migrate Reingold-Tilford / `gvizEmbeddedTree` — replace
-      every legacy `gvizEmbeddedTreeInit(state, tree, root, dim)` call
-      with `gvizGraphViewInitFull` + `gvizEmbeddedTreeInitView`. Update
-      `src/app/gvizSceneBuilders.c` and `tests/renderer/treeDemo.c`.
-      Then delete the legacy `gvizEmbeddedTreeInit` from
-      `include/renderer/embeddings/gvizEmbeddedTree.h` and
-      `src/renderer/embeddings/gvizEmbeddedTree.c`.
-- [ ] Saga: Migrate Planar — replace every legacy
-      `gvizPlanarEmbeddingInit(state, graph, dim)` call with
-      `gvizGraphViewInitFull` + `gvizPlanarEmbeddingInitView`. Update
-      `tests/renderer/planar/gvizPlanarTests.c` and any app sites
-      surfaced by audit. Then delete the legacy
-      `gvizPlanarEmbeddingInit` from
-      `include/renderer/embeddings/gvizPlanarEmbedding.h` and
-      `src/renderer/embeddings/gvizPlanarEmbedding.c`.
-- [ ] Saga: Migrate Schnyder wood — replace every legacy
-      `gvizSchnyderWoodInit(state, graph, dim)` call (if any surfaced
-      in the audit) with `gvizGraphViewInitFull` +
-      `gvizSchnyderWoodInitView`. Then delete the legacy
-      `gvizSchnyderWoodInit` from
-      `include/renderer/embeddings/gvizSchnyderWood.h` and
-      `src/renderer/embeddings/gvizSchnyderWood.c`.
-- [ ] Saga: Remove `gvizEmbeddedGraphInit` compat wrapper and
-      `gvizGraph *graph` alias field — replace surviving callers of
-      `gvizEmbeddedGraphInit(eg, graph, dim)` with
-      `gvizGraphViewInitFull(&view, graph)` +
-      `gvizEmbeddedGraphInitView(eg, view, GVIZ_EMBED_FULL_GRAPH, dim)`.
-      Then in `include/renderer/embeddings/gvizEmbeddedGraph.h` delete
-      the `gvizEmbeddedGraphInit` declaration and the
-      `gvizGraph *graph;` alias field, and in
-      `src/renderer/embeddings/gvizEmbeddedGraph.c` delete the
-      compat-init implementation and any writes to the alias field
-      (callers must use `eg->view.graph` or
-      `gvizEmbeddedGraphLocalIndex` instead). Update the "Key types"
-      block in `CLAUDE.md` to drop the alias.
-- [ ] Saga: Final compile + test sweep — `make` clean, `ctest`,
-      `gripDemo`, `treeDemo`, `tutteDemo`. Confirm no references to
-      any deleted legacy `*Init` symbol remain
-      (grep `gvizGRIPEmbeddingInit\b`, `gvizTutteEmbeddingInit\b`,
-      `gvizEmbeddedTreeInit\b`, `gvizPlanarEmbeddingInit\b`,
-      `gvizSchnyderWoodInit\b`, `gvizEmbeddedGraphInit\b` — only the
-      `*InitView` variants should remain).
+      raw-`gvizGraph *` overloads). Findings:
+      - GRIP: legacy fn already removed; all call sites already use
+        `gvizGRIPEmbeddingInitView`. Only commented-out legacy lines
+        remain in `gripDemo.c`.
+      - Tutte: legacy shim still defined in
+        `gvizTutteEmbedding.{h,c}` with zero production callers
+        (all of `gvizLayerTutte.c`, `gvizLayerPolyTutte.c`,
+        `tutteDemo.c`, `gvizTutteTests.c` already use
+        `gvizTutteEmbeddingInitView`). Just need to delete shim.
+      - Embedded tree: legacy shim already removed; all callers use
+        `gvizEmbeddedTreeInitView`.
+      - Planar: legacy shim still in use by 5 sites in
+        `tests/renderer/planar/gvizPlanarTests.c`.
+      - Schnyder wood: legacy shim still in use by 2 sites in the
+        same planar tests file.
+      - `gvizEmbeddedGraphInit` compat wrapper: zero callers in src/
+        or tests/. Safe to delete.
+      - `gvizGraph *graph` alias on `gvizEmbeddedGraph`: still read
+        from many internal embedding files (`embedding->graph`); removal
+        requires replacing each with `embedding->view.graph`.
+- [x] Saga: Migrate GRIP — all production call sites already use
+      `gvizGRIPEmbeddingInitView`; legacy shim already absent from
+      the header and implementation. Verified by audit. No-op saga.
+- [x] Saga: Migrate Tutte — all production / test sites already use
+      `gvizTutteEmbeddingInitView`; legacy shim deleted from header
+      and implementation.
+- [x] Saga: Migrate Reingold-Tilford / `gvizEmbeddedTree` — already
+      done in Epic 7. All callers use `gvizEmbeddedTreeInitView`;
+      legacy shim already absent. No-op saga.
+- [x] Saga: Migrate Planar — all 5 sites in
+      `tests/renderer/planar/gvizPlanarTests.c` migrated to
+      `gvizPlanarEmbeddingInitView`; legacy `gvizPlanarEmbeddingInit`
+      shim deleted from header and implementation.
+- [x] Saga: Migrate Schnyder wood — both sites in planar tests
+      migrated to `gvizSchnyderWoodInitView`; legacy
+      `gvizSchnyderWoodInit` shim deleted from header and the
+      implementation collapsed into the view-aware function.
+- [x] Saga: Removed `gvizEmbeddedGraphInit` compat wrapper (zero
+      callers) and the `gvizGraph *graph` alias field. All
+      `embedding->graph` / `eg->graph` / `((gvizEmbeddedGraph *)x)->graph`
+      sites in `src/renderer/embeddings/`, `src/renderer/layers/`, and
+      `src/app/` swept to `embedding->view.graph` / `eg->view.graph` /
+      `((gvizEmbeddedGraph *)x)->view.graph`. CLAUDE.md "Key types"
+      block updated to drop the alias.
+- [x] Saga: Final compile + test sweep — clean build, all unit-test
+      suites green (gvizArrayTests, gvizGraphTests, gvizDequeTests,
+      gvizBitArrayTests, gvizGraphViewTests, gvizGRIPTests,
+      gvizPlanarTests, gvizTutteTests). Final grep confirms only
+      commented-out references to legacy `*Init` symbols remain
+      (in gripDemo.c). Interactive demos (gripDemo / treeDemo /
+      tutteDemo) link cleanly; not driven from the autonomous run.

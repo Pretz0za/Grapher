@@ -2,6 +2,7 @@
 #include "core/alloc.h"
 #include "core/event.h"
 #include "core/gvizCamera.h"
+#include "dsa/gvizGraphView.h"
 #include "raylib.h"
 #include "renderer/embeddings/gvizEmbeddedGraph.h"
 #include "renderer/layers/gvizGraphVBO.h"
@@ -91,7 +92,9 @@ int gvizLayerTutteInit(gvizLayerTutte *layer, gvizGraph *g,
   if (gvizGraphClone(&layer->graph, g) != 0)
     return -1;
 
-  if (gvizTutteEmbeddingInit(&layer->tutte, &layer->graph, 2, 1e-5) != 0) {
+  gvizGraphView _view;
+  gvizGraphViewInitFull(&_view, &layer->graph);
+  if (gvizTutteEmbeddingInitView(&layer->tutte, _view, 2, 1e-5) != 0) {
     gvizGraphRelease(&layer->graph);
     return -1;
   }
@@ -138,7 +141,9 @@ void gvizLayerTutteDraw(void *layerV, const gvizCamera *camera) {
   if (self->hasTutte) {
     eg = (gvizEmbeddedGraph *)&self->tutte;
   } else {
-    tmpEG.graph = &self->graph;
+    gvizGraphViewInitFull(&tmpEG.view, &self->graph);
+    tmpEG.mode = GVIZ_EMBED_FULL_GRAPH;
+    tmpEG.local = NULL;
     tmpEG.embedding.dim = 2;
     tmpEG.embedding.vertexPositions = self->positions;
     eg = &tmpEG;

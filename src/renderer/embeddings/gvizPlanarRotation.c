@@ -20,14 +20,14 @@ static int rotationCmp(const void *a, const void *b) {
 }
 
 void gvizComputeRotationSystem(gvizEmbeddedGraph *eg) {
-  if (!eg || !eg->graph) return;
-  size_t N = eg->graph->vertices.count;
+  if (!eg || !eg->view.graph) return;
+  size_t N = eg->view.graph->vertices.count;
   for (size_t u = 0; u < N; u++) {
     double *pu = gvizEmbeddedGraphGetVPosition(eg, u);
     g_ctxEG = eg;
     g_ctxOrigin[0] = pu[0];
     g_ctxOrigin[1] = pu[1];
-    gvizArray *nbrs = gvizGraphGetVertexNeighbors(eg->graph, u);
+    gvizArray *nbrs = gvizGraphGetVertexNeighbors(eg->view.graph, u);
     if (nbrs->count > 1)
       qsort(nbrs->arr, nbrs->count, sizeof(size_t), rotationCmp);
   }
