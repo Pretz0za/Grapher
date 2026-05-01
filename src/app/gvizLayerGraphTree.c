@@ -108,6 +108,13 @@ void gvizLayerGraphTreeDraw(void *layerV, const gvizCamera *camera) {
 
   BeginScissorMode(0, headerBottom, W, panelInner);
 
+  Color guideCol   = (Color){170, 170, 170, 255};
+  Color textCol    = (Color){20, 20, 20, 255};
+  Color folderCol  = (Color){210, 175, 90, 255};
+  Color leafCol    = (Color){90, 140, 210, 255};
+  Color activeBg   = (Color){200, 222, 250, 255};
+  Color activeOut  = (Color){90, 140, 210, 255};
+
   char buf[128];
   int y = headerBottom - (int)self->scrollY;
   for (size_t i = 1; i < graphs->count; i++) {
@@ -121,16 +128,19 @@ void gvizLayerGraphTreeDraw(void *layerV, const gvizCamera *camera) {
             : NULL;
     int collapsed = collapsedSlot ? *collapsedSlot : 0;
 
+    int graphRowY = y;
     if (y + GT_ROW_H >= headerBottom && y < H) {
       Rectangle rb = {(float)GT_PANEL_PAD, (float)y,
                       (float)(W - 2 * GT_PANEL_PAD), (float)GT_ROW_H};
-      DrawRectangleLinesEx(rb, 1.0f, (Color){220, 220, 220, 255});
       const char *chev = collapsed ? ">" : "v";
-      DrawText(chev, GT_PANEL_PAD + 4, y + 4, 12, (Color){20, 20, 20, 255});
+      DrawText(chev, GT_PANEL_PAD + 4, y + 4, 12, textCol);
+      Rectangle iconR = {(float)(GT_PANEL_PAD + 4 + GT_CHEVRON_W),
+                         (float)(y + 5), 12.0f, 12.0f};
+      DrawRectangleRec(iconR, folderCol);
+      DrawRectangleLinesEx(iconR, 1.0f, (Color){140, 110, 50, 255});
       snprintf(buf, sizeof(buf), "Graph #%zu (%zu v)", i,
                e->graph->vertices.count);
-      DrawText(buf, GT_PANEL_PAD + 4 + GT_CHEVRON_W, y + 4, 12,
-               (Color){20, 20, 20, 255});
+      DrawText(buf, GT_PANEL_PAD + 4 + GT_CHEVRON_W + 16, y + 4, 12, textCol);
       if (collapsedSlot && CheckCollisionPointRec(GetMousePosition(), rb) &&
           IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
         *collapsedSlot = (unsigned char)!*collapsedSlot;
@@ -139,6 +149,15 @@ void gvizLayerGraphTreeDraw(void *layerV, const gvizCamera *camera) {
     y += GT_ROW_H + 2;
 
     if (collapsed || !e->views.arr) continue;
+
+    int guideX = GT_PANEL_PAD + GT_CHEVRON_W / 2 + 4;
+    int guideTop = graphRowY + GT_ROW_H;
+    int guideBottom = guideTop;
+    int childCount = (int)e->views.count;
+    if (childCount > 0)
+      guideBottom = y + (childCount - 1) * (GT_ROW_H + 2) + GT_ROW_H / 2;
+    DrawLine(guideX, guideTop, guideX, guideBottom, guideCol);
+
     for (size_t v = 0; v < e->views.count; v++) {
       gvizSceneViewEntry *ve =
           (gvizSceneViewEntry *)gvizArrayAtIndex(&e->views, v);
@@ -146,18 +165,31 @@ void gvizLayerGraphTreeDraw(void *layerV, const gvizCamera *camera) {
         y += GT_ROW_H + 2;
         continue;
       }
+      int rowMid = y + GT_ROW_H / 2;
+      DrawLine(guideX, rowMid, GT_PANEL_PAD + GT_INDENT, rowMid, guideCol);
+
       const char *name = ve->name ? ve->name : "view";
-      if (ve->layer) {
-        snprintf(buf, sizeof(buf), "  %s (%zu v) -> L@z%zu", name,
-                 ve->view ? ve->view->count : 0, ve->layer->z);
-      } else {
-        snprintf(buf, sizeof(buf), "  %s (%zu v) (no layer)", name,
-                 ve->view ? ve->view->count : 0);
-      }
+      size_t vcount = ve->view ? ve->view->count : 0;
+      if (ve->layer)
+        snprintf(buf, sizeof(buf), "%s (%zu v)", name, vcount);
+      else
+        snprintf(buf, sizeof(buf), "%s (%zu v) (no layer)", name, vcount);
+
       Rectangle rb = {GT_PANEL_PAD + GT_INDENT, (float)y,
                       (float)(W - 2 * GT_PANEL_PAD - GT_INDENT),
                       (float)GT_ROW_H};
-      if (GuiButton(rb, buf)) {
+      int isActive = ve->layer && ve->layer == self->scene->activeLayer;
+      if (isActive) {
+        DrawRectangleRec(rb, activeBg);
+        DrawRectangleLinesEx(rb, 1.0f, activeOut);
+      }
+      Rectangle iconR = {rb.x + 4, (float)(y + 5), 12.0f, 12.0f};
+      DrawRectangleRec(iconR, leafCol);
+      DrawRectangleLinesEx(iconR, 1.0f, (Color){50, 90, 160, 255});
+      DrawText(buf, (int)rb.x + 4 + 16, y + 4, 12, textCol);
+
+      if (CheckCollisionPointRec(GetMousePosition(), rb) &&
+          IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
         if (ve->layer)
           gvizSceneSetActiveLayer(self->scene, ve->layer);
       }

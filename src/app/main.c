@@ -1,6 +1,7 @@
 #include "app/gvizContextMenu.h"
 #include "app/gvizLayerCreate.h"
 #include "app/gvizLayerCreatePanel.h"
+#include "app/gvizLayerGraphTree.h"
 #include "app/gvizOBJLoadModal.h"
 #include "app/gvizSceneBuilders.h"
 #include "core/alloc.h"
@@ -26,8 +27,16 @@ enum {
 typedef struct AppState {
   gvizContextMenu      *menu;        /* heap-allocated, owned by scene */
   gvizLayerCreatePanel *panel;       /* heap-allocated, owned by scene */
+  gvizLayerGraphTree   *tree;        /* heap-allocated, owned by scene */
   gvizCreateSlotKind    pendingSlot; /* what kind of slot the panel will fill */
 } AppState;
+
+static void installGraphTreePanel(gvizScene *scene, AppState *app) {
+  app->tree = GVIZ_ALLOC(sizeof(gvizLayerGraphTree));
+  if (!app->tree) return;
+  gvizLayerGraphTreeInit(app->tree, scene, 0);
+  gvizSceneAddLayer(scene, (gvizLayer *)app->tree);
+}
 
 static gvizOBJLoadModal *installOBJModal(gvizScene *scene, const char *path) {
   gvizOBJLoadModal *m = GVIZ_ALLOC(sizeof(gvizOBJLoadModal));
@@ -143,6 +152,7 @@ int main(void) {
   scene.contextMenuUserdata    = &app;
   scene.onEmptyAreaContextMenu = onEmptyAreaContextMenu;
   scene.onLayerContextMenu     = onLayerContextMenu;
+  installGraphTreePanel(&scene, &app);
 
   gvizOBJLoadModal *objModal = NULL;
 
@@ -171,11 +181,13 @@ int main(void) {
       /* Drop dangling pointers BEFORE the scene frees its layers. */
       app.menu = NULL;
       app.panel = NULL;
+      app.tree = NULL;
       objModal = NULL;
       buildFromOBJChoice(&scene, choice, path);
       scene.contextMenuUserdata    = &app;
       scene.onEmptyAreaContextMenu = onEmptyAreaContextMenu;
       scene.onLayerContextMenu     = onLayerContextMenu;
+      installGraphTreePanel(&scene, &app);
     }
   }
 

@@ -2,7 +2,6 @@
 #define _GVIZ_EMBEDDED_GRAPH_H_
 
 #include "dsa/gvizBitArray.h"
-#include "dsa/gvizGraph.h"
 #include "dsa/gvizGraphView.h"
 
 typedef struct gvizDFSState {

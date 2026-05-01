@@ -1,3 +1,4 @@
+#define GL_SILENCE_DEPRECATION
 #include "cblas.h"
 #include "dsa/gvizGraph.h"
 #include "dsa/gvizGraphView.h"
@@ -142,7 +143,7 @@ int main() {
   Vector3 centroid = {0};
   Vector2 centroid2D = {0};
   {
-    size_t N = state.graph.graph->vertices.count;
+    size_t N = state.graph.view.graph->vertices.count;
     for (size_t i = 0; i < N; i++) {
       double *pos =
           gvizEmbeddedGraphGetVPosition((gvizEmbeddedGraph *)&state, i);
@@ -183,11 +184,11 @@ int main() {
 
   // Build edge vertex buffer once before the render loop.
   // Each edge becomes two 3-float vertices (line endpoint pair).
-  size_t N = embedding->graph->vertices.count;
+  size_t N = embedding->view.graph->vertices.count;
 
   size_t edgeVertexCount = 0;
   for (size_t i = 0; i < N; i++) {
-    gvizArray *children = gvizGraphGetVertexNeighbors(embedding->graph, i);
+    gvizArray *children = gvizGraphGetVertexNeighbors(embedding->view.graph, i);
     edgeVertexCount += children->count * 2;
   }
 
@@ -195,7 +196,7 @@ int main() {
   size_t vi = 0;
   for (size_t i = 0; i < N; i++) {
     double *pos = gvizEmbeddedGraphGetVPosition(embedding, i);
-    gvizArray *children = gvizGraphGetVertexNeighbors(embedding->graph, i);
+    gvizArray *children = gvizGraphGetVertexNeighbors(embedding->view.graph, i);
     for (size_t j = 0; j < children->count; j++) {
       double *otherPos = gvizEmbeddedGraphGetVPosition(
           embedding, *(size_t *)gvizArrayAtIndex(children, j));

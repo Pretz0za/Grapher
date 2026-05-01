@@ -1,5 +1,4 @@
 #include "dsa/gvizGraph.h"
-#include "dsa/gvizGraphView.h"
 #include "renderer/embeddings/gvivGRIPEmbedding.h"
 #include "unity/unity.h"
 #include "unity/unity_internals.h"

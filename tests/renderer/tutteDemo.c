@@ -1,5 +1,5 @@
+#define GL_SILENCE_DEPRECATION
 #include "dsa/gvizGraph.h"
-#include "dsa/gvizGraphView.h"
 #include "msf_gif.h"
 #include "raylib.h"
 #include "raymath.h"
@@ -70,7 +70,7 @@ static gvizGraph buildSpiderWeb(void) {
 /* Seed interior vertices at random positions within the boundary circle. */
 static void seedRandom(gvizTutteState *s) {
   gvizEmbeddedGraph *eg = (gvizEmbeddedGraph *)s;
-  size_t N = eg->graph->vertices.count;
+  size_t N = eg->view.graph->vertices.count;
   for (size_t u = 0; u < N; u++) {
     if (gvizTestBit(s->isBoundary, u))
       continue;
@@ -89,8 +89,8 @@ static void seedRandom(gvizTutteState *s) {
 
 static size_t countEdgeVerts(gvizEmbeddedGraph *eg) {
   size_t total = 0;
-  for (size_t i = 0; i < eg->graph->vertices.count; i++)
-    total += gvizGraphGetVertexNeighbors(eg->graph, i)->count * 2;
+  for (size_t i = 0; i < eg->view.graph->vertices.count; i++)
+    total += gvizGraphGetVertexNeighbors(eg->view.graph, i)->count * 2;
   return total;
 }
 
@@ -101,9 +101,9 @@ static float *buildEdgeVerts(gvizEmbeddedGraph *eg, size_t *outCount) {
     return NULL;
 
   size_t vi = 0;
-  for (size_t i = 0; i < eg->graph->vertices.count; i++) {
+  for (size_t i = 0; i < eg->view.graph->vertices.count; i++) {
     double *p = gvizEmbeddedGraphGetVPosition(eg, i);
-    gvizArray *nb = gvizGraphGetVertexNeighbors(eg->graph, i);
+    gvizArray *nb = gvizGraphGetVertexNeighbors(eg->view.graph, i);
     for (size_t j = 0; j < nb->count; j++) {
       size_t other = *(size_t *)gvizArrayAtIndex(nb, j);
       double *op = gvizEmbeddedGraphGetVPosition(eg, other);

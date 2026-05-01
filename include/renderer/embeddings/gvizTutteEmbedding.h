@@ -2,7 +2,6 @@
 #define _GVIZ_TUTTE_EMBEDDING_H_
 
 #include "dsa/gvizBitArray.h"
-#include "dsa/gvizGraph.h"
 #include "dsa/gvizGraphView.h"
 #include "renderer/embeddings/gvizEmbeddedGraph.h"
 
