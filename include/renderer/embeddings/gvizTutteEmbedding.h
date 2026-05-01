@@ -3,6 +3,7 @@
 
 #include "dsa/gvizBitArray.h"
 #include "dsa/gvizGraph.h"
+#include "dsa/gvizGraphView.h"
 #include "renderer/embeddings/gvizEmbeddedGraph.h"
 
 #define GVIZ_TUTTE_DEFAULT_EPSILON 1e-5
@@ -46,6 +47,16 @@ typedef struct gvizTutteState {
  */
 int gvizTutteEmbeddingInit(gvizTutteState *s, gvizGraph *g, size_t dimension,
                            double epsilon);
+
+/**
+ * View-aware init. The view is moved into the embedded graph (caller must
+ * not release it after a successful return). Mode is `GVIZ_EMBED_FULL_GRAPH`
+ * so positions are indexed by raw vertex id; the view selects which vertices
+ * participate in M_II / boundary classification. Vertices outside the view
+ * are ignored entirely (treated as neither interior nor boundary).
+ */
+int gvizTutteEmbeddingInitView(gvizTutteState *s, gvizGraphView view,
+                               size_t dimension, double epsilon);
 
 /**
  * Builds the N_I × N_I averaging matrix M_II and precomputes the constant

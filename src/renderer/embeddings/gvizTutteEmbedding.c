@@ -2,6 +2,7 @@
 #include "core/alloc.h"
 #include "dsa/gvizArray.h"
 #include "dsa/gvizGraph.h"
+#include "dsa/gvizGraphView.h"
 #include "cblas.h"
 #include <math.h>
 #include <stdint.h>
@@ -26,13 +27,13 @@ static void setPos(gvizTutteState *s, size_t u, double *p) {
 
 /* ---- init / release ------------------------------------------------------- */
 
-int gvizTutteEmbeddingInit(gvizTutteState *s, gvizGraph *g, size_t dimension,
-                           double epsilon) {
-    int res = gvizEmbeddedGraphInit((gvizEmbeddedGraph *)s, g, dimension);
+int gvizTutteEmbeddingInitView(gvizTutteState *s, gvizGraphView view,
+                               size_t dimension, double epsilon) {
+    size_t N = view.graph->vertices.count;
+    int res = gvizEmbeddedGraphInitView((gvizEmbeddedGraph *)s, view,
+                                        GVIZ_EMBED_FULL_GRAPH, dimension);
     if (res < 0)
         return res;
-
-    size_t N = g->vertices.count;
 
     s->boundary = NULL;
     s->boundaryCount = 0;
@@ -57,6 +58,14 @@ int gvizTutteEmbeddingInit(gvizTutteState *s, gvizGraph *g, size_t dimension,
     s->epsilon = (epsilon > 0.0) ? epsilon : GVIZ_TUTTE_DEFAULT_EPSILON;
 
     return 0;
+}
+
+int gvizTutteEmbeddingInit(gvizTutteState *s, gvizGraph *g, size_t dimension,
+                           double epsilon) {
+    gvizGraphView view;
+    if (gvizGraphViewInitFull(&view, g) != 0)
+        return -1;
+    return gvizTutteEmbeddingInitView(s, view, dimension, epsilon);
 }
 
 void gvizTutteEmbeddingRelease(gvizTutteState *s) {
@@ -100,7 +109,7 @@ int gvizTutteEmbeddingSetBoundary(gvizTutteState *s, const size_t *boundary,
 }
 
 void gvizTutteEmbeddingSeedInterior(gvizTutteState *s) {
-    size_t N = numVertices(s);
+    gvizGraphView *view = &((gvizEmbeddedGraph *)s)->view;
     size_t d = dim(s);
 
     double centroid[d];
@@ -115,9 +124,14 @@ void gvizTutteEmbeddingSeedInterior(gvizTutteState *s) {
         for (size_t k = 0; k < d; k++)
             centroid[k] /= (double)s->boundaryCount;
 
-    for (size_t u = 0; u < N; u++)
+    gvizGraphViewVertexIter vit;
+    gvizGraphViewVertexIterInit(&vit, view);
+    size_t u;
+    while (gvizGraphViewVertexIterNext(&vit, &u)) {
         if (!gvizTestBit(s->isBoundary, u))
             setPos(s, u, centroid);
+    }
+    gvizGraphViewVertexIterRelease(&vit);
 
     s->iteration = 0;
     s->lastMaxDelta = 0.0;
@@ -143,7 +157,7 @@ void gvizTutteFixConvexPolygon(gvizTutteState *s, const size_t *boundary,
 /* ---- matrix build --------------------------------------------------------- */
 
 int gvizTutteEmbeddingBuildMatrix(gvizTutteState *s) {
-    gvizGraph *g = ((gvizEmbeddedGraph *)s)->graph;
+    gvizGraphView *view = &((gvizEmbeddedGraph *)s)->view;
     size_t N = numVertices(s);
     size_t d = dim(s);
 
@@ -158,13 +172,19 @@ int gvizTutteEmbeddingBuildMatrix(gvizTutteState *s) {
     s->vertexToInterior = GVIZ_ALLOC(sizeof(size_t) * N);
     if (!s->vertexToInterior)
         return -1;
+    for (size_t u = 0; u < N; u++)
+        s->vertexToInterior[u] = SIZE_MAX;
 
     size_t NI = 0;
-    for (size_t u = 0; u < N; u++) {
-        if (!gvizTestBit(s->isBoundary, u))
-            s->vertexToInterior[u] = NI++;
-        else
-            s->vertexToInterior[u] = SIZE_MAX;
+    {
+        gvizGraphViewVertexIter vit;
+        gvizGraphViewVertexIterInit(&vit, view);
+        size_t u;
+        while (gvizGraphViewVertexIterNext(&vit, &u)) {
+            if (!gvizTestBit(s->isBoundary, u))
+                s->vertexToInterior[u] = NI++;
+        }
+        gvizGraphViewVertexIterRelease(&vit);
     }
     s->numInterior = NI;
 
@@ -173,9 +193,11 @@ int gvizTutteEmbeddingBuildMatrix(gvizTutteState *s) {
 
     s->interiorIdx = GVIZ_ALLOC(sizeof(size_t) * NI);
     if (!s->interiorIdx) return -1;
-    for (size_t u = 0, i = 0; u < N; u++)
-        if (s->vertexToInterior[u] != SIZE_MAX)
-            s->interiorIdx[i++] = u;
+    for (size_t u = 0; u < N; u++) {
+        size_t vi = s->vertexToInterior[u];
+        if (vi != SIZE_MAX)
+            s->interiorIdx[vi] = u;
+    }
 
     s->matII   = GVIZ_ALLOC(sizeof(double) * NI * NI);
     s->rhs     = GVIZ_ALLOC(sizeof(double) * NI * d);
@@ -187,14 +209,16 @@ int gvizTutteEmbeddingBuildMatrix(gvizTutteState *s) {
     memset(s->matII, 0, sizeof(double) * NI * NI);
     memset(s->rhs,   0, sizeof(double) * NI * d);
 
-    /* M_II[i][j] = 1/deg(i) for interior-interior edges.
-       rhs[i*d+k] = (1/deg(i)) * sum of boundary-neighbor positions for dim k. */
     for (size_t i = 0; i < NI; i++) {
         size_t u = s->interiorIdx[i];
-        gvizArray *nb = gvizGraphGetVertexNeighbors(g, u);
-        double inv_deg = 1.0 / (double)nb->count;
-        for (size_t j = 0; j < nb->count; j++) {
-            size_t v = *(size_t *)gvizArrayAtIndex(nb, j);
+        size_t deg = gvizGraphViewDegree(view, u);
+        if (deg == 0)
+            continue;
+        double inv_deg = 1.0 / (double)deg;
+        gvizGraphViewNeighborsIter nit;
+        gvizGraphViewNeighborsIterInit(&nit, view, u);
+        size_t v;
+        while (gvizGraphViewNeighborsIterNext(&nit, &v)) {
             size_t vi = s->vertexToInterior[v];
             if (vi != SIZE_MAX) {
                 s->matII[i * NI + vi] = inv_deg;
@@ -204,6 +228,7 @@ int gvizTutteEmbeddingBuildMatrix(gvizTutteState *s) {
                     s->rhs[i * d + k] += inv_deg * vp[k];
             }
         }
+        gvizGraphViewNeighborsIterRelease(&nit);
     }
 
     s->matrixBuilt = 1;

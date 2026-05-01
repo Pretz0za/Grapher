@@ -147,7 +147,7 @@ Key files touched, by area:
       (subsumed by view masks). All neighbor walks go through
       `gvizGraphViewNeighborsIter`. `gvizGRIPPrepareLayerKNNs` and
       `placeLayerVertices` use view APIs instead of raw graph.
-- [ ] Saga: Tutte (`gvizTutteEmbedding.h/.c`) — accept view, build M_II /
+- [x] Saga: Tutte (`gvizTutteEmbedding.h/.c`) — accept view, build M_II /
       `interiorIdx` / `vertexToInterior` against the view's vertex space.
 - [ ] Saga: Reingold-Tilford / `gvizEmbeddedTree.h/.c` — accept a view that
       represents the tree (root vertex still passed separately).
