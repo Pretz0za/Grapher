@@ -3,20 +3,24 @@
 #include "dsa/gvizArray.h"
 #include "dsa/gvizBitArray.h"
 #include "dsa/gvizGraph.h"
+#include "dsa/gvizGraphView.h"
 #include "renderer/embeddings/gvizEmbeddedGraph.h"
 #include "renderer/layers/gvizGraphVBO.h"
 #include <stdlib.h>
 #include <string.h>
 
-static size_t computeEdgeStartIdx(gvizGraph *g, size_t *out) {
-  size_t N = g->vertices.count;
-  size_t total = 0;
-  for (size_t i = 0; i < N; i++) {
-    out[i] = total;
-    total += gvizGraphGetVertexNeighbors(g, i)->count;
+static gvizGraphView *layerView(gvizLayerGraph *layer) {
+  return layer->graph ? &layer->graph->view : NULL;
+}
+
+static void syncEdgeStartFromView(gvizLayerGraph *layer) {
+  gvizGraphView *view = layerView(layer);
+  if (!view) {
+    layer->edgeStartIdx = NULL;
+    return;
   }
-  out[N] = total;
-  return total;
+  gvizGraphViewRebuildEdgeStart(view);
+  layer->edgeStartIdx = view->edgeStart;
 }
 
 static void allocHighlightBuffers(gvizLayerGraph *layer) {
@@ -30,19 +34,14 @@ static void allocHighlightBuffers(gvizLayerGraph *layer) {
     memset(layer->vertexHighlight, 0, vunits * sizeof(GVIZ_BIT_UNIT));
   layer->vertexHighlightBits = vbits;
 
-  layer->edgeStartIdx = (size_t *)GVIZ_ALLOC((N + 1) * sizeof(size_t));
-  size_t total = 0;
-  if (layer->edgeStartIdx && g)
-    total = computeEdgeStartIdx(g, layer->edgeStartIdx);
-  else if (layer->edgeStartIdx)
-    layer->edgeStartIdx[0] = 0;
+  syncEdgeStartFromView(layer);
+  size_t total = layerView(layer) ? gvizGraphViewTotalEdgeSlots(layerView(layer)) : 0;
 
-  size_t ebits = total;
-  size_t eunits = GVIZ_ARRAY_UNITS(ebits ? ebits : 1);
+  size_t eunits = GVIZ_ARRAY_UNITS(total ? total : 1);
   layer->edgeHighlight = (GVIZ_BIT_UNIT *)GVIZ_ALLOC(eunits * sizeof(GVIZ_BIT_UNIT));
   if (layer->edgeHighlight)
     memset(layer->edgeHighlight, 0, eunits * sizeof(GVIZ_BIT_UNIT));
-  layer->edgeHighlightBits = ebits;
+  layer->edgeHighlightBits = total;
 }
 
 void gvizLayerGraphInit(gvizLayerGraph *layer, gvizEmbeddedGraph *graph,
@@ -78,17 +77,23 @@ void gvizLayerGraphSetVBOMode(gvizLayerGraph *layer, unsigned int mode) {
 
 static void writeColorBuffer(gvizLayerGraph *self) {
   if (!self->graph || self->vbo.colorsCount == 0 || !self->vbo.colors) return;
-  gvizGraph *g = self->graph->graph;
-  size_t N = g->vertices.count;
+  gvizGraphView *view = layerView(self);
   size_t fi = 0;
-  for (size_t u = 0; u < N; u++) {
-    gvizArray *nbrs = gvizGraphGetVertexNeighbors(g, u);
+  gvizGraphViewVertexIter vit;
+  gvizGraphViewVertexIterInit(&vit, view);
+  size_t u;
+  while (gvizGraphViewVertexIterNext(&vit, &u)) {
     int uHi = (self->vertexHighlight && u < self->vertexHighlightBits)
                   ? (gvizTestBit(self->vertexHighlight, u) ? 1 : 0)
                   : 0;
-    for (size_t j = 0; j < nbrs->count; j++) {
-      size_t v = *(size_t *)gvizArrayAtIndex(nbrs, j);
-      size_t bit = (self->edgeStartIdx ? self->edgeStartIdx[u] : 0) + j;
+    gvizArray *raw = gvizGraphGetVertexNeighbors(view->graph, u);
+    size_t startBit = (self->edgeStartIdx ? self->edgeStartIdx[u] : 0);
+    gvizGraphViewNeighborsIter nit;
+    gvizGraphViewNeighborsIterInit(&nit, view, u);
+    size_t v;
+    while (gvizGraphViewNeighborsIterNext(&nit, &v)) {
+      size_t j = (size_t)gvizArrayFindOne(raw, &v);
+      size_t bit = startBit + j;
       int eHi = (self->edgeHighlight && bit < self->edgeHighlightBits)
                     ? (gvizTestBit(self->edgeHighlight, bit) ? 1 : 0)
                     : 0;
@@ -97,7 +102,7 @@ static void writeColorBuffer(gvizLayerGraph *self) {
                     : 0;
       float r1 = (uHi || eHi) ? 1.0f : 0.0f;
       float r2 = (vHi || eHi) ? 1.0f : 0.0f;
-      if (fi + 6 > self->vbo.colorsCount) return;
+      if (fi + 6 > self->vbo.colorsCount) break;
       self->vbo.colors[fi++] = r1;
       self->vbo.colors[fi++] = 0.0f;
       self->vbo.colors[fi++] = 0.0f;
@@ -105,7 +110,9 @@ static void writeColorBuffer(gvizLayerGraph *self) {
       self->vbo.colors[fi++] = 0.0f;
       self->vbo.colors[fi++] = 0.0f;
     }
+    gvizGraphViewNeighborsIterRelease(&nit);
   }
+  gvizGraphViewVertexIterRelease(&vit);
   gvizGraphVBOUploadEndpointColors(&self->vbo, self->vbo.colors);
 }
 
@@ -158,7 +165,8 @@ void gvizLayerGraphRelease(void *layer) {
 
   if (self->vertexHighlight) { GVIZ_DEALLOC(self->vertexHighlight); self->vertexHighlight = NULL; }
   if (self->edgeHighlight)   { GVIZ_DEALLOC(self->edgeHighlight);   self->edgeHighlight = NULL; }
-  if (self->edgeStartIdx)    { GVIZ_DEALLOC(self->edgeStartIdx);    self->edgeStartIdx = NULL; }
+  /* edgeStartIdx is borrowed from layer->graph->view; the view owns it. */
+  self->edgeStartIdx = NULL;
   self->vertexHighlightBits = 0;
   self->edgeHighlightBits = 0;
 }
@@ -250,10 +258,9 @@ void gvizLayerGraphRebuildEdgeIndex(gvizLayerGraph *layer) {
   gvizGraph *g = layer->graph->graph;
   size_t N = g->vertices.count;
 
-  size_t *newStart = (size_t *)GVIZ_REALLOC(layer->edgeStartIdx, (N + 1) * sizeof(size_t));
-  if (!newStart) return;
-  layer->edgeStartIdx = newStart;
-  size_t total = computeEdgeStartIdx(g, layer->edgeStartIdx);
+  /* Delegate prefix-sum maintenance to the view; we only borrow the pointer. */
+  syncEdgeStartFromView(layer);
+  size_t total = gvizGraphViewTotalEdgeSlots(layerView(layer));
 
   size_t units = GVIZ_ARRAY_UNITS(total ? total : 1);
   GVIZ_BIT_UNIT *neb = (GVIZ_BIT_UNIT *)GVIZ_REALLOC(layer->edgeHighlight,

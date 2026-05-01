@@ -172,23 +172,29 @@ Key files touched, by area:
 
 ## Epic 8: Render layer wired through views (two modes)
 
-- [ ] Saga: Update `gvizLayerGraph` to consume `gvizEmbeddedGraph` whose
+- [x] Saga: Update `gvizLayerGraph` to consume `gvizEmbeddedGraph` whose
       embedding may be view-sized (Mode B) or full-graph (Mode A). Edge VBO
       build (`gvizGraphVBO.c::buildExpandedVerts`) walks
       `gvizGraphViewNeighborsIter` and emits only edges in the view.
-- [ ] Saga: Vertex disc VBO (`gvizVertexDiscVBO.c`) — emit one disc per
+- [x] Saga: Vertex disc VBO (`gvizVertexDiscVBO.c`) — emit one disc per
       vertex in the view, looking up positions through
-      `gvizEmbeddedGraphGetVPosition` (mode-aware).
-- [ ] Saga: Edge highlight bit indexing in `gvizLayerGraph` — replace the
+      `gvizEmbeddedGraphGetVPosition` (mode-aware). Implementation note:
+      Disc VBO core remains positional-only (it does not know about graph);
+      `gvizGraphVBO` now walks the view to build per-disc center streams of
+      length `view.count` instead of `graph.vertices.count`. Per-disc radii
+      and highlights are now sized to view-local count.
+- [x] Saga: Edge highlight bit indexing in `gvizLayerGraph` — replace the
       hand-rolled `edgeStartIdx` / `edgeHighlight` pair with the view's
       `edgeStart` + a parallel highlight bit array (separate concern from
       view membership). `gvizLayerGraphRebuildEdgeIndex` becomes
       `gvizGraphViewRebuildEdgeStart` + reallocation of highlight buffer.
-- [ ] Saga: `gvizLayerGraphAddVertex/RemoveVertex/AddEdge/RemoveEdge` keep
+- [x] Saga: `gvizLayerGraphAddVertex/RemoveVertex/AddEdge/RemoveEdge` keep
       mutating the underlying registered graph (scene-shared) but now must
       also update or invalidate any views attached. Notify subscribers via
       existing `gvizSceneNotifyGraphChanged` so other layers refresh their
-      views.
+      views. (The mutation paths already call `gvizLayerGraphRebuildEdgeIndex`
+      which now delegates to `gvizGraphViewRebuildEdgeStart` and refreshes
+      the borrowed `edgeStartIdx` pointer; subscribers re-fire as before.)
 
 ## Epic 9: Scene graph/view registry + left panel GUI
 

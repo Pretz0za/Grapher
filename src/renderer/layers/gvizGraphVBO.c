@@ -2,6 +2,7 @@
 #include "core/alloc.h"
 #include "dsa/gvizArray.h"
 #include "dsa/gvizGraph.h"
+#include "dsa/gvizGraphView.h"
 #include "raymath.h"
 #include "rlgl.h"
 #include "utils/gvizPCA.h"
@@ -105,14 +106,26 @@ void gvizGraphVBORelease(gvizGraphVBO *vbo) {
     vbo->lastEG = NULL;
 }
 
-static float *buildExpandedVerts(gvizGraph *g, const double *positions,
+static size_t countViewEdges(gvizGraphView *view) {
+    size_t total = 0;
+    gvizGraphViewVertexIter vit;
+    gvizGraphViewVertexIterInit(&vit, view);
+    size_t u;
+    while (gvizGraphViewVertexIterNext(&vit, &u)) {
+        gvizGraphViewNeighborsIter nit;
+        gvizGraphViewNeighborsIterInit(&nit, view, u);
+        size_t v;
+        while (gvizGraphViewNeighborsIterNext(&nit, &v))
+            total++;
+        gvizGraphViewNeighborsIterRelease(&nit);
+    }
+    gvizGraphViewVertexIterRelease(&vit);
+    return total;
+}
+
+static float *buildExpandedVerts(gvizGraphView *view, const double *positions,
                                  size_t dim, size_t *outCount) {
-    size_t N = g->vertices.count;
-
-    size_t totalEdges = 0;
-    for (size_t i = 0; i < N; i++)
-        totalEdges += gvizGraphGetVertexNeighbors(g, i)->count;
-
+    size_t totalEdges = countViewEdges(view);
     if (totalEdges == 0) { *outCount = 0; return NULL; }
 
     float *verts = GVIZ_ALLOC(totalEdges * 2 * 3 * sizeof(float));
@@ -120,12 +133,16 @@ static float *buildExpandedVerts(gvizGraph *g, const double *positions,
 
     int hasZ = (dim >= 3);
     size_t vi = 0;
-    for (size_t i = 0; i < N; i++) {
-        const double *p = positions + i * dim;
-        gvizArray *nbrs = gvizGraphGetVertexNeighbors(g, i);
-        for (size_t j = 0; j < nbrs->count; j++) {
-            size_t oi = *(size_t *)gvizArrayAtIndex(nbrs, j);
-            const double *op = positions + oi * dim;
+    gvizGraphViewVertexIter vit;
+    gvizGraphViewVertexIterInit(&vit, view);
+    size_t u;
+    while (gvizGraphViewVertexIterNext(&vit, &u)) {
+        const double *p = positions + u * dim;
+        gvizGraphViewNeighborsIter nit;
+        gvizGraphViewNeighborsIterInit(&nit, view, u);
+        size_t v;
+        while (gvizGraphViewNeighborsIterNext(&nit, &v)) {
+            const double *op = positions + v * dim;
             verts[vi++] = (float)p[0];
             verts[vi++] = (float)p[1];
             verts[vi++] = hasZ ? (float)p[2] : 0.0f;
@@ -133,10 +150,34 @@ static float *buildExpandedVerts(gvizGraph *g, const double *positions,
             verts[vi++] = (float)op[1];
             verts[vi++] = hasZ ? (float)op[2] : 0.0f;
         }
+        gvizGraphViewNeighborsIterRelease(&nit);
     }
+    gvizGraphViewVertexIterRelease(&vit);
 
     *outCount = totalEdges * 2;
     return verts;
+}
+
+static float *buildViewCentersXYZ(gvizGraphView *view, const double *positions,
+                                  size_t dim) {
+    size_t M = view->count;
+    if (M == 0) return NULL;
+    float *centers = GVIZ_ALLOC(M * 3 * sizeof(float));
+    if (!centers) return NULL;
+    int hasZ = (dim >= 3);
+    size_t i = 0;
+    gvizGraphViewVertexIter vit;
+    gvizGraphViewVertexIterInit(&vit, view);
+    size_t u;
+    while (gvizGraphViewVertexIterNext(&vit, &u)) {
+        const double *p = positions + u * dim;
+        centers[i * 3 + 0] = (float)p[0];
+        centers[i * 3 + 1] = (float)p[1];
+        centers[i * 3 + 2] = hasZ ? (float)p[2] : 0.0f;
+        i++;
+    }
+    gvizGraphViewVertexIterRelease(&vit);
+    return centers;
 }
 
 /* Returns a pointer to either eg->embedding.vertexPositions (no projection
@@ -176,7 +217,7 @@ static const double *prepareProjectedPositions(gvizGraphVBO *vbo,
 static void rebuildEdges(gvizGraphVBO *vbo, gvizEmbeddedGraph *eg,
                          const double *positions, size_t dim) {
     size_t count = 0;
-    float *verts = buildExpandedVerts(eg->graph, positions, dim, &count);
+    float *verts = buildExpandedVerts(&eg->view, positions, dim, &count);
 
     if (vbo->vboPositions) { rlUnloadVertexBuffer(vbo->vboPositions); vbo->vboPositions = 0; }
     if (vbo->vboColors)    { rlUnloadVertexBuffer(vbo->vboColors);    vbo->vboColors = 0; }
@@ -230,17 +271,56 @@ static void ensureRadii(gvizGraphVBO *vbo, size_t N) {
             vbo->discHighlights[i] = 0.0f;
 }
 
+static void rebuildDiscsViaView(gvizGraphVBO *vbo, gvizEmbeddedGraph *eg,
+                                const double *positions, size_t dim) {
+    size_t M = eg->view.count;
+    float *centers = buildViewCentersXYZ(&eg->view, positions, dim);
+    if (!centers || M == 0) {
+        if (centers) GVIZ_DEALLOC(centers);
+        gvizVertexDiscVBORelease(&vbo->discs);
+        return;
+    }
+    /* gvizVertexDiscVBORebuildXYZ wants positions+dim — pass our prebuilt
+     * centers as a 3-dim "double" buffer would require an extra copy. We
+     * instead duplicate the upload path inline by reusing the pre-built
+     * center floats: emit a synthetic dim=3 path. */
+    double *tmp = GVIZ_ALLOC(M * 3 * sizeof(double));
+    if (!tmp) {
+        GVIZ_DEALLOC(centers);
+        return;
+    }
+    for (size_t i = 0; i < M * 3; i++) tmp[i] = (double)centers[i];
+    gvizVertexDiscVBORebuildXYZ(&vbo->discs, tmp, M, 3, vbo->radii);
+    GVIZ_DEALLOC(tmp);
+    GVIZ_DEALLOC(centers);
+}
+
+static void uploadDiscsViaView(gvizGraphVBO *vbo, gvizEmbeddedGraph *eg,
+                               const double *positions, size_t dim) {
+    size_t M = eg->view.count;
+    if (M == 0) return;
+    float *centers = buildViewCentersXYZ(&eg->view, positions, dim);
+    if (!centers) return;
+    double *tmp = GVIZ_ALLOC(M * 3 * sizeof(double));
+    if (tmp) {
+        for (size_t i = 0; i < M * 3; i++) tmp[i] = (double)centers[i];
+        gvizVertexDiscVBOUploadPositionsXYZ(&vbo->discs, tmp, M, 3);
+        GVIZ_DEALLOC(tmp);
+    }
+    GVIZ_DEALLOC(centers);
+}
+
 void gvizGraphVBORebuild(gvizGraphVBO *vbo, gvizEmbeddedGraph *eg) {
     vbo->lastEG = eg;
     size_t dim = 0;
     const double *positions = prepareProjectedPositions(vbo, eg, &dim);
     rebuildEdges(vbo, eg, positions, dim);
 
-    size_t N = eg->graph->vertices.count;
-    ensureRadii(vbo, N);
+    size_t M = eg->view.count;
+    ensureRadii(vbo, M);
 
     if (vbo->mode & GVIZ_GRAPH_VBO_DISCS)
-        gvizVertexDiscVBORebuildXYZ(&vbo->discs, positions, N, dim, vbo->radii);
+        rebuildDiscsViaView(vbo, eg, positions, dim);
 }
 
 void gvizGraphVBOUploadPositions(gvizGraphVBO *vbo, gvizEmbeddedGraph *eg) {
@@ -249,15 +329,14 @@ void gvizGraphVBOUploadPositions(gvizGraphVBO *vbo, gvizEmbeddedGraph *eg) {
     const double *positions = prepareProjectedPositions(vbo, eg, &dim);
     if (vbo->vboPositions) {
         size_t count = 0;
-        float *verts = buildExpandedVerts(eg->graph, positions, dim, &count);
+        float *verts = buildExpandedVerts(&eg->view, positions, dim, &count);
         if (verts) {
             rlUpdateVertexBuffer(vbo->vboPositions, verts, (int)(count * 3 * sizeof(float)), 0);
             GVIZ_DEALLOC(verts);
         }
     }
     if ((vbo->mode & GVIZ_GRAPH_VBO_DISCS) && vbo->discs.vaoId)
-        gvizVertexDiscVBOUploadPositionsXYZ(&vbo->discs, positions,
-                                            eg->graph->vertices.count, dim);
+        uploadDiscsViaView(vbo, eg, positions, dim);
 }
 
 void gvizGraphVBOSetMode(gvizGraphVBO *vbo, unsigned int mode) {
@@ -270,9 +349,7 @@ void gvizGraphVBOSetMode(gvizGraphVBO *vbo, unsigned int mode) {
     if (discsTurnedOn && vbo->lastEG && vbo->radii) {
         size_t dim = 0;
         const double *positions = prepareProjectedPositions(vbo, vbo->lastEG, &dim);
-        gvizVertexDiscVBORebuildXYZ(&vbo->discs, positions,
-                                    vbo->lastEG->graph->vertices.count, dim,
-                                    vbo->radii);
+        rebuildDiscsViaView(vbo, vbo->lastEG, positions, dim);
     } else if (discsTurnedOff)
         gvizVertexDiscVBORelease(&vbo->discs);
 }
