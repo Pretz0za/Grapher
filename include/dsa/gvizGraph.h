@@ -351,26 +351,6 @@ int gvizGraphBFSView(gvizGraph *g, size_t source, size_t maxDepth,
 int gvizGraphBFSTree(gvizGraph *g, gvizGraph *out, size_t source,
                      size_t maxDepth, int invMap);
 
-/**
- * Finds the K nearest vertices, belonging to a filter, from a source vertex in
- * a graph. Uses graph distance (number of edges used), not euclidian.
- *
- * @param g A pointer to the Graph to search
- * @param out A pointer to an array of size at least @p k to store the results
- * @param k The number of nearest neighbors to find
- * @param source The index of the vertex to start the search from
- * @param filter A bit array indicating which vertices are being searched for
- *
- * @return The number of neighbors found, a negative number if an error occured.
- * @retval n  The number of vertices reached that satisfy the filter
- * @retval <0 Allocation failiure
- *
- * @note If filter is NULL then all vertices of the graph are considered,
- * otherwise, a BFS is performed until K vertices in filter are found.
- */
-int gvizGraphKNearestNeighbors(gvizGraph *g, gvizFoundVertex *out, size_t k,
-                               size_t source, GVIZ_BIT_ARRAY filter);
-
 // VISUALIZATION:
 // --------------------------------------------------------------
 

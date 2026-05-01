@@ -393,67 +393,6 @@ int gvizGraphBFSTree(gvizGraph *g, gvizGraph *out, size_t source,
   return 0;
 }
 
-int gvizGraphKNearestNeighbors(gvizGraph *g, gvizFoundVertex *out, size_t k,
-                               size_t source, GVIZ_BIT_ARRAY filter) {
-  if (k == 0)
-    return 0;
-  int err;
-
-  // init queue
-  gvizDeque queue;
-  err = gvizDequeInit(&queue, sizeof(gvizFoundVertex));
-  if (err < 0)
-    return -1;
-
-  // seen bitset over global vertex IDs
-  GVIZ_BIT_UNIT seen[GVIZ_ARRAY_UNITS(g->vertices.count)];
-  memset(seen, 0, sizeof(seen));
-  gvizSetBit(seen, source);
-
-  // enqueue start node with depth 0
-  gvizFoundVertex curr = {source, 0};
-  err = gvizDequePush(&queue, &curr);
-  if (err < 0)
-    return -1;
-
-  // BFS
-  size_t count = 0;
-  while (!gvizDequeIsEmpty(&queue)) {
-
-    gvizDequePopLeft(&queue, &curr);
-
-    gvizArray *currNeighbors = gvizGraphGetVertexNeighbors(g, curr.v);
-
-    for (size_t i = 0; i < currNeighbors->count; i++) {
-      size_t currNeighbor = *(size_t *)gvizArrayAtIndex(currNeighbors, i);
-
-      // seen keyed by vertex ID
-      if (gvizTestBit(seen, currNeighbor))
-        continue;
-      gvizSetBit(seen, currNeighbor);
-
-      gvizFoundVertex next = {currNeighbor, curr.dist + 1};
-
-      // If satisfies filter, increment count and add to out
-      if (!filter || gvizTestBit(filter, currNeighbor)) {
-        out[count++] = next;
-        if (count >= k) {
-          gvizDequeRelease(&queue);
-          return k;
-        }
-      }
-
-      // enqueue neighbor
-      err = gvizDequePush(&queue, &next);
-      if (err < 0)
-        return -1;
-    }
-  }
-
-  gvizDequeRelease(&queue);
-  return count;
-}
-
 void gvizGraphClear(gvizGraph *g) {
   if (g->vertices.count == 0)
     return;
