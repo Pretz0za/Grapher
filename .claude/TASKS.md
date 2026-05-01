@@ -262,11 +262,26 @@ Key files touched, by area:
 
 ## Epic 11: Documentation + cleanup
 
-- [ ] Saga: Update `CLAUDE.md` "Key types" block to reflect
-      `gvizGraphView` and the view-aware `gvizEmbeddedGraph`.
-- [ ] Saga: Delete dead helpers replaced by views (any `gvizGraphCopy*` /
-      filter-driven helpers that no longer have callers — confirm via grep
-      first; do not refactor speculatively).
+- [x] Saga: Update `CLAUDE.md` "Key types" block to reflect
+      `gvizGraphView` and the view-aware `gvizEmbeddedGraph`. Already in
+      place from prior epics — verified the documented struct shape
+      matches `include/dsa/gvizGraphView.h` and
+      `include/renderer/embeddings/gvizEmbeddedGraph.h`.
+- [x] Saga: Delete dead helpers replaced by views. Audit results:
+      - `gvizGraphKNearestNeighbors` — REMOVED. Zero callers in production
+        or tests; superseded by `gvizGraphViewKNearestNeighbors`.
+      - `gvizGraphCopy` / `gvizGraphCopyReversed` — KEPT. Plain deep-copy
+        primitives; not filter-driven; still exercised by unit tests. Not
+        in scope for this saga ("filter-driven helpers").
+      - `gvizGraphDFSTree` / `gvizGraphBFSTree` — KEPT (per Epic 5 note).
+        Still used by GRIP layer-spacing and `utils/graphs.c`.
+      - Legacy `*Init(state, gvizGraph *g, ...)` shims and the
+        `gvizGraph *graph` alias on `gvizEmbeddedGraph` — KEPT in this
+        pass. Direct callers remain in `gvizLayerTutte.c`,
+        `gvizLayerPolyTutte.c`, `tutteDemo.c`, and several test suites.
+        Removing them is a multi-file migration that exceeds this saga's
+        "delete dead code" scope; deferred to a future explicit
+        compat-shim removal pass.
 
 ## Out of scope
 
@@ -275,3 +290,209 @@ Key files touched, by area:
   view + bitarray-iter modules (those are required to lock in the contract).
 - Not touching planar third-party internals beyond the wrapper signature.
 - Not changing tree (de)serialization formats.
+
+---
+
+## Epic 12: Left-margin graph/view tree panel
+
+Goal: turn the existing `gvizLayerGraphTree` left-strip panel into a true
+collapsible tree. Top-level rows are registered graphs; child rows are the
+views of that graph and the layer they render onto. Per-graph rows can be
+collapsed/expanded by clicking a chevron.
+
+- [x] Saga: Extend `gvizLayerGraphTree` state with per-graph collapse
+      tracking — add `gvizArray collapsed` (one `unsigned char` flag per
+      graph entry slot, indexed by handle) to the layer struct in
+      `include/app/gvizLayerGraphTree.h`. Initialize empty in
+      `gvizLayerGraphTreeInit`; release in `gvizLayerGraphTreeRelease`.
+      Auto-grow on Draw to match `scene->graphs.count`. Default new entries
+      to expanded (0).
+- [x] Saga: Replace flat row loop in `gvizLayerGraphTreeDraw`
+      (`src/app/gvizLayerGraphTree.c`) with a two-pass tree:
+      - For each graph entry (skipping handle 0), draw a header row with a
+        chevron glyph (`>` collapsed, `v` expanded), graph label
+        (`Graph #i (N v)`), and a clickable rect that toggles
+        `self->collapsed[i]`.
+      - Only render that graph's view children when expanded. Keep the
+        existing per-view `GuiButton` selection behavior.
+- [x] Saga: Add per-view layer label — extend the view child row to display
+      `name (Nv) → layer@z<z>` where `z` comes from `ve->layer->z` if
+      `ve->layer` is non-NULL, else `(no layer)`. Pull layer pointer from
+      the existing `gvizSceneViewEntry`.
+- [x] Saga: Vertical scrolling — when total rendered height exceeds panel
+      height, accumulate `GetMouseWheelMove() * GT_ROW_H` into
+      `self->scrollY` (clamp to `[0, contentHeight - panelHeight]`) and
+      offset row `y` by `-scrollY`. Skip drawing rows fully outside the
+      panel rect.
+- [x] Saga: Preserve collapse state across graph register/unregister —
+      when a handle is freed, zero its slot; when reused (same index), it
+      starts expanded again. No persistence to disk.
+- [x] Saga: Update `gvizLayerGraphTreeHandleEvent` to consume left-button
+      clicks anywhere in the panel rect (already done) AND scroll-wheel
+      events when cursor is over the panel, so the scene doesn't forward
+      them to the active component layer.
+
+## Epic 13: Bitarray sweep — eliminate redundant parallel structures
+
+Goal: wherever a `GVIZ_BIT_ARRAY` and a separate `gvizArray`/`size_t[]`
+track the same set of vertices/edges (one for membership, one for
+iteration), collapse to a single `gvizBitArray` plus
+`gvizBitArrayIter` for iteration. Scratch / progress bitarrays that don't
+have a sibling iteration array are out of scope.
+
+- [ ] Saga: GRIP filtration — `createMISFiltration` in
+      `src/renderer/embeddings/gvizGRIPEmbedding.c`. Replace the
+      `gvizArray currVertices` (vertex ids) + the `curr` bitarray
+      (membership of the current MIS layer) with a single
+      `GVIZ_BIT_ARRAY currLayer` of size N. Drop the separate
+      `currVertices.count` push/swap-delete bookkeeping; iterate via
+      `gvizBitArrayIter`.
+- [ ] Saga: GRIP — change `iterMISFiltration(state, i, vertices,
+      verticesArr)` signature to take a single `GVIZ_BIT_ARRAY currLayer`
+      instead of both `vertices` and `verticesArr`. Inside:
+      - Replace the `for (j = 0; j < verticesArr->count; j++)` walk that
+        seeds `newVertices`/`newMisStates` with a `gvizBitArrayIter` over
+        `currLayer`.
+      - Replace the swap-delete cleanup loop (which prunes
+        `verticesArr` to the new layer) with bit clears on
+        `currLayer` for vertices not in `newVertices`, then
+        `memcpy(currLayer, newVertices, ...)`.
+      - Drop the two trailing copies that rewrite
+        `state->misFiltration[k]` from `verticesArr`; misFiltration is
+        already maintained by `migrateOneToFinalLayer` via the misBorder
+        pointer arithmetic.
+- [ ] Saga: GRIP — `makeFirstMISPartition` writes its result via
+      `gvizArrayPush(out, ...)` to seed the filtration. After the
+      previous saga, change its signature to take
+      `GVIZ_BIT_ARRAY firstLayer` (set bits = MIS members) instead of
+      `gvizArray *out`, and have `createMISFiltration` allocate the
+      bitarray directly.
+- [ ] Saga: Tutte boundary representation — in
+      `src/renderer/embeddings/gvizTutteEmbedding.c` /
+      `include/renderer/embeddings/gvizTutteEmbedding.h`, the state
+      currently holds both `size_t *boundary` (ordered list, length
+      `boundaryCount`) and `GVIZ_BIT_ARRAY isBoundary` (membership). The
+      ordered list is required for cycle parametrization, so this is NOT
+      a redundancy; document this in the header (comment block above
+      `boundary` / `isBoundary`) and skip. (Saga exists to record the
+      decision so it isn't re-litigated.)
+- [ ] Saga: Tutte interior index pair — `s->interiorIdx` (array of
+      interior vertex ids) and `s->vertexToInterior` (per-vertex inverse
+      map) together form a permutation, not a bitarray-vs-array pair.
+      Out of scope; document in the header alongside the boundary note
+      and close.
+- [ ] Saga: `gvizGraphDFSTree` in `src/dsa/gvizGraph.c` — the `seen`
+      bitarray is the only set-tracker; the `invMap[]` array stores
+      `g→out` index mapping (not membership) and the `map` array stores
+      the reverse. Neither duplicates `seen`. No change; record in the
+      audit trail and close.
+- [ ] Saga: `gvizGraphBFSTree` in `src/dsa/gvizGraph.c` — same situation
+      as DFS. No change; audit-only.
+- [ ] Saga: `build_sierpinski_carpet` in `src/utils/graphs.c` — the
+      `in_carpet` bitarray and the `node_id[]` size_t array serve
+      different roles (membership vs. id-remap). Not a redundancy. No
+      change; audit-only.
+- [ ] Saga: Final sweep — grep for any remaining
+      `GVIZ_BIT_ARRAY .* + gvizArray .*` pairs declared in the same
+      function in `src/renderer/embeddings/`, `src/app/`, and
+      `src/dsa/`. For each hit not already covered above, classify as
+      "redundant" or "different roles" and either collapse or document.
+      Run `ctest` and confirm `gripDemo` / `treeDemo` still embed
+      correctly.
+
+## Epic 14: Migrate all app embeddings to view-based init; remove legacy shims
+
+Goal: every call site that still passes a raw `gvizGraph *` into an
+algorithm `*Init` shim is moved onto the canonical
+`*InitView(state, gvizGraphView *view, dim)` path with a full view
+(`gvizGraphViewInitFull`) when no subset is needed. After all call sites
+are migrated, the legacy `*Init` shims are deleted from each algorithm,
+the `gvizEmbeddedGraphInit` compat wrapper is removed, and the
+`gvizGraph *graph` alias field on `gvizEmbeddedGraph` is dropped.
+
+Per-algorithm call sites to migrate (audit before editing — list is the
+starting point, expand on inspection):
+- GRIP: `src/app/gvizLayerGRIP.c`, `src/app/gvizLayerGRIPLive.c`,
+        `tests/renderer/gripDemo.c`,
+        `tests/renderer/GRIP/gvizGRIPTests.c`.
+- Tutte: `src/app/gvizLayerTutte.c`, `src/app/gvizLayerPolyTutte.c`,
+        `src/app/gvizLayerCreate.c`,
+        `tests/renderer/tutteDemo.c`,
+        `tests/renderer/embeddings/gvizTutteTests.c`.
+- Reingold-Tilford / `gvizEmbeddedTree`:
+        `src/app/gvizSceneBuilders.c`, `tests/renderer/treeDemo.c`.
+- Planar: `tests/renderer/planar/gvizPlanarTests.c` and any app
+        callers surfaced by audit.
+- Schnyder wood: any callers surfaced by audit (likely test-only).
+- `gvizEmbeddedGraphInit` compat wrapper: any direct callers in app
+        layers / demos / tests not already covered by the algorithm
+        sagas above.
+
+- [ ] Saga: Audit pass — grep `src/app/`, `src/renderer/`,
+      `tests/`, and the demo files for every call to
+      `gvizGRIPEmbeddingInit`, `gvizTutteEmbeddingInit`,
+      `gvizEmbeddedTreeInit`, `gvizPlanarEmbeddingInit`,
+      `gvizSchnyderWoodInit`, and `gvizEmbeddedGraphInit` (the legacy
+      raw-`gvizGraph *` overloads). Record each hit and confirm the
+      per-algorithm call-site lists above; add any sites missed.
+- [ ] Saga: Migrate GRIP — replace every legacy
+      `gvizGRIPEmbeddingInit(state, graph, dim)` call with
+      `gvizGraphViewInitFull(&view, graph)` followed by
+      `gvizGRIPEmbeddingInitView(state, &view, dim)`. Update
+      `src/app/gvizLayerGRIP.c`, `src/app/gvizLayerGRIPLive.c`,
+      `tests/renderer/gripDemo.c`,
+      `tests/renderer/GRIP/gvizGRIPTests.c`. Then delete the legacy
+      `gvizGRIPEmbeddingInit` declaration from
+      `include/renderer/embeddings/gvivGRIPEmbedding.h` and its
+      implementation from `src/renderer/embeddings/gvizGRIPEmbedding.c`.
+- [ ] Saga: Migrate Tutte — replace every legacy
+      `gvizTutteEmbeddingInit(state, graph, dim)` call with
+      `gvizGraphViewInitFull` + `gvizTutteEmbeddingInitView`. Update
+      `src/app/gvizLayerTutte.c`, `src/app/gvizLayerPolyTutte.c`,
+      `src/app/gvizLayerCreate.c`, `tests/renderer/tutteDemo.c`,
+      `tests/renderer/embeddings/gvizTutteTests.c`. Then delete the
+      legacy `gvizTutteEmbeddingInit` from
+      `include/renderer/embeddings/gvizTutteEmbedding.h` and
+      `src/renderer/embeddings/gvizTutteEmbedding.c`.
+- [ ] Saga: Migrate Reingold-Tilford / `gvizEmbeddedTree` — replace
+      every legacy `gvizEmbeddedTreeInit(state, tree, root, dim)` call
+      with `gvizGraphViewInitFull` + `gvizEmbeddedTreeInitView`. Update
+      `src/app/gvizSceneBuilders.c` and `tests/renderer/treeDemo.c`.
+      Then delete the legacy `gvizEmbeddedTreeInit` from
+      `include/renderer/embeddings/gvizEmbeddedTree.h` and
+      `src/renderer/embeddings/gvizEmbeddedTree.c`.
+- [ ] Saga: Migrate Planar — replace every legacy
+      `gvizPlanarEmbeddingInit(state, graph, dim)` call with
+      `gvizGraphViewInitFull` + `gvizPlanarEmbeddingInitView`. Update
+      `tests/renderer/planar/gvizPlanarTests.c` and any app sites
+      surfaced by audit. Then delete the legacy
+      `gvizPlanarEmbeddingInit` from
+      `include/renderer/embeddings/gvizPlanarEmbedding.h` and
+      `src/renderer/embeddings/gvizPlanarEmbedding.c`.
+- [ ] Saga: Migrate Schnyder wood — replace every legacy
+      `gvizSchnyderWoodInit(state, graph, dim)` call (if any surfaced
+      in the audit) with `gvizGraphViewInitFull` +
+      `gvizSchnyderWoodInitView`. Then delete the legacy
+      `gvizSchnyderWoodInit` from
+      `include/renderer/embeddings/gvizSchnyderWood.h` and
+      `src/renderer/embeddings/gvizSchnyderWood.c`.
+- [ ] Saga: Remove `gvizEmbeddedGraphInit` compat wrapper and
+      `gvizGraph *graph` alias field — replace surviving callers of
+      `gvizEmbeddedGraphInit(eg, graph, dim)` with
+      `gvizGraphViewInitFull(&view, graph)` +
+      `gvizEmbeddedGraphInitView(eg, view, GVIZ_EMBED_FULL_GRAPH, dim)`.
+      Then in `include/renderer/embeddings/gvizEmbeddedGraph.h` delete
+      the `gvizEmbeddedGraphInit` declaration and the
+      `gvizGraph *graph;` alias field, and in
+      `src/renderer/embeddings/gvizEmbeddedGraph.c` delete the
+      compat-init implementation and any writes to the alias field
+      (callers must use `eg->view.graph` or
+      `gvizEmbeddedGraphLocalIndex` instead). Update the "Key types"
+      block in `CLAUDE.md` to drop the alias.
+- [ ] Saga: Final compile + test sweep — `make` clean, `ctest`,
+      `gripDemo`, `treeDemo`, `tutteDemo`. Confirm no references to
+      any deleted legacy `*Init` symbol remain
+      (grep `gvizGRIPEmbeddingInit\b`, `gvizTutteEmbeddingInit\b`,
+      `gvizEmbeddedTreeInit\b`, `gvizPlanarEmbeddingInit\b`,
+      `gvizSchnyderWoodInit\b`, `gvizEmbeddedGraphInit\b` — only the
+      `*InitView` variants should remain).

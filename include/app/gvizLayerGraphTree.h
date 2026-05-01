@@ -2,6 +2,7 @@
 #define _GVIZ_LAYER_GRAPH_TREE_H_
 
 #include "core/gvizScene.h"
+#include "dsa/gvizArray.h"
 #include "renderer/layers/gvizLayer.h"
 
 /**
@@ -9,13 +10,18 @@
  * scene, with each registered view as a child entry. Selecting a view
  * activates the layer rendering it (calls `gvizSceneSetActiveLayer`).
  *
+ * Per-graph rows are collapsible via a chevron toggle; child view rows
+ * render only when their parent is expanded. The panel scrolls
+ * vertically when content overflows.
+ *
  * Width is `GVIZ_SCENE_MARGIN_L` so the panel sits flush against the
  * active layout region; height matches the screen height.
  */
 typedef struct gvizLayerGraphTree {
   gvizLayer layer;
-  gvizScene *scene; /* borrowed; must outlive the panel */
-  float scrollY;    /* current vertical scroll offset (px) */
+  gvizScene *scene;       /* borrowed; must outlive the panel */
+  float scrollY;          /* current vertical scroll offset (px) */
+  gvizArray collapsed;    /* unsigned char per graph slot; 1 = collapsed */
 } gvizLayerGraphTree;
 
 void gvizLayerGraphTreeInit(gvizLayerGraphTree *self, gvizScene *s, size_t z);

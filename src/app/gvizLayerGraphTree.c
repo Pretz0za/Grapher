@@ -10,6 +10,7 @@
 #define GT_PANEL_PAD 8
 #define GT_ROW_H 22
 #define GT_INDENT 14
+#define GT_CHEVRON_W 16
 
 static int panelWidth(void) { return GVIZ_SCENE_MARGIN_L; }
 
@@ -20,6 +21,7 @@ void gvizLayerGraphTreeInit(gvizLayerGraphTree *self, gvizScene *s, size_t z) {
   self->layer.flags = GVIZ_LAYER_VISIBLE | GVIZ_LAYER_SCREEN_SPACE;
   self->scene = s;
   self->scrollY = 0.0f;
+  gvizArrayInit(&self->collapsed, sizeof(unsigned char));
 }
 
 void gvizLayerGraphTreeUpdate(void *layer, float dt) {
@@ -29,12 +31,57 @@ void gvizLayerGraphTreeUpdate(void *layer, float dt) {
   self->layer.viewport.width = panelWidth();
 }
 
-void gvizLayerGraphTreeRelease(void *layer) { (void)layer; }
+void gvizLayerGraphTreeRelease(void *layer) {
+  gvizLayerGraphTree *self = (gvizLayerGraphTree *)layer;
+  gvizArrayRelease(&self->collapsed);
+}
 
-static void rowText(int x, int y, int w, const char *text, Color color) {
-  Rectangle rb = {(float)x, (float)y, (float)w, (float)GT_ROW_H};
-  DrawRectangleLinesEx(rb, 1.0f, (Color){220, 220, 220, 255});
-  DrawText(text, x + 4, y + 4, 12, color);
+static void ensureCollapsedCapacity(gvizLayerGraphTree *self, size_t need) {
+  unsigned char zero = 0;
+  while (self->collapsed.count < need) {
+    gvizArrayPush(&self->collapsed, &zero);
+  }
+}
+
+static void syncCollapsedToRegistry(gvizLayerGraphTree *self) {
+  gvizArray *graphs = &self->scene->graphs;
+  if (!graphs->arr) return;
+  ensureCollapsedCapacity(self, graphs->count);
+  for (size_t i = 1; i < graphs->count && i < self->collapsed.count; i++) {
+    gvizSceneGraphEntry *e =
+        (gvizSceneGraphEntry *)gvizArrayAtIndex(graphs, i);
+    if (!e->graph) {
+      unsigned char *slot =
+          (unsigned char *)gvizArrayAtIndex(&self->collapsed, i);
+      *slot = 0;
+    }
+  }
+}
+
+static int contentHeightPx(gvizLayerGraphTree *self) {
+  gvizArray *graphs = &self->scene->graphs;
+  if (!graphs->arr) return 0;
+  int rows = 0;
+  for (size_t i = 1; i < graphs->count; i++) {
+    gvizSceneGraphEntry *e =
+        (gvizSceneGraphEntry *)gvizArrayAtIndex(graphs, i);
+    if (!e->graph) continue;
+    rows++;
+    int collapsed = 0;
+    if (i < self->collapsed.count) {
+      collapsed = *(unsigned char *)gvizArrayAtIndex(&self->collapsed, i);
+    }
+    if (!collapsed && e->views.arr) rows += (int)e->views.count;
+  }
+  return rows * (GT_ROW_H + 2);
+}
+
+static void clampScroll(gvizLayerGraphTree *self, int panelInner) {
+  int content = contentHeightPx(self);
+  float maxScroll = (float)(content - panelInner);
+  if (maxScroll < 0) maxScroll = 0;
+  if (self->scrollY < 0) self->scrollY = 0;
+  if (self->scrollY > maxScroll) self->scrollY = maxScroll;
 }
 
 void gvizLayerGraphTreeDraw(void *layerV, const gvizCamera *camera) {
@@ -51,32 +98,62 @@ void gvizLayerGraphTreeDraw(void *layerV, const gvizCamera *camera) {
   DrawText("Graphs / Views", GT_PANEL_PAD, GT_PANEL_PAD, 14,
            (Color){40, 40, 40, 255});
 
-  int y = GT_PANEL_PAD + 22;
+  int headerBottom = GT_PANEL_PAD + 22;
+  int panelInner = H - headerBottom;
+  syncCollapsedToRegistry(self);
+  clampScroll(self, panelInner);
+
   gvizArray *graphs = &self->scene->graphs;
   if (!graphs->arr) return;
 
+  BeginScissorMode(0, headerBottom, W, panelInner);
+
   char buf[128];
+  int y = headerBottom - (int)self->scrollY;
   for (size_t i = 1; i < graphs->count; i++) {
     gvizSceneGraphEntry *e =
         (gvizSceneGraphEntry *)gvizArrayAtIndex(graphs, i);
     if (!e->graph) continue;
 
-    snprintf(buf, sizeof(buf), "Graph #%zu (%zu v)", i,
-             e->graph->vertices.count);
-    rowText(GT_PANEL_PAD, y, W - 2 * GT_PANEL_PAD, buf,
-            (Color){20, 20, 20, 255});
+    unsigned char *collapsedSlot =
+        (i < self->collapsed.count)
+            ? (unsigned char *)gvizArrayAtIndex(&self->collapsed, i)
+            : NULL;
+    int collapsed = collapsedSlot ? *collapsedSlot : 0;
+
+    if (y + GT_ROW_H >= headerBottom && y < H) {
+      Rectangle rb = {(float)GT_PANEL_PAD, (float)y,
+                      (float)(W - 2 * GT_PANEL_PAD), (float)GT_ROW_H};
+      DrawRectangleLinesEx(rb, 1.0f, (Color){220, 220, 220, 255});
+      const char *chev = collapsed ? ">" : "v";
+      DrawText(chev, GT_PANEL_PAD + 4, y + 4, 12, (Color){20, 20, 20, 255});
+      snprintf(buf, sizeof(buf), "Graph #%zu (%zu v)", i,
+               e->graph->vertices.count);
+      DrawText(buf, GT_PANEL_PAD + 4 + GT_CHEVRON_W, y + 4, 12,
+               (Color){20, 20, 20, 255});
+      if (collapsedSlot && CheckCollisionPointRec(GetMousePosition(), rb) &&
+          IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+        *collapsedSlot = (unsigned char)!*collapsedSlot;
+      }
+    }
     y += GT_ROW_H + 2;
 
-    if (!e->views.arr) continue;
+    if (collapsed || !e->views.arr) continue;
     for (size_t v = 0; v < e->views.count; v++) {
       gvizSceneViewEntry *ve =
           (gvizSceneViewEntry *)gvizArrayAtIndex(&e->views, v);
+      if (y + GT_ROW_H < headerBottom || y >= H) {
+        y += GT_ROW_H + 2;
+        continue;
+      }
       const char *name = ve->name ? ve->name : "view";
-      snprintf(buf, sizeof(buf), "  %s (%zu v)", name,
-               ve->view ? ve->view->count : 0);
-      Color c = (self->scene->activeLayer == ve->layer)
-                    ? (Color){10, 80, 200, 255}
-                    : (Color){60, 60, 60, 255};
+      if (ve->layer) {
+        snprintf(buf, sizeof(buf), "  %s (%zu v) -> L@z%zu", name,
+                 ve->view ? ve->view->count : 0, ve->layer->z);
+      } else {
+        snprintf(buf, sizeof(buf), "  %s (%zu v) (no layer)", name,
+                 ve->view ? ve->view->count : 0);
+      }
       Rectangle rb = {GT_PANEL_PAD + GT_INDENT, (float)y,
                       (float)(W - 2 * GT_PANEL_PAD - GT_INDENT),
                       (float)GT_ROW_H};
@@ -84,10 +161,11 @@ void gvizLayerGraphTreeDraw(void *layerV, const gvizCamera *camera) {
         if (ve->layer)
           gvizSceneSetActiveLayer(self->scene, ve->layer);
       }
-      (void)c;
       y += GT_ROW_H + 2;
     }
   }
+
+  EndScissorMode();
 }
 
 int gvizLayerGraphTreeHandleEvent(void *layerV, const gvizEvent *event) {
@@ -97,6 +175,16 @@ int gvizLayerGraphTreeHandleEvent(void *layerV, const gvizEvent *event) {
     int sx = (int)event->mouse.sx;
     if (sx >= 0 && sx < panelWidth())
       return 1;
+  }
+  if (event->type == GVIZ_EVENT_MOUSE_WHEEL) {
+    int sx = (int)event->wheel.sx;
+    if (sx >= 0 && sx < panelWidth()) {
+      self->scrollY -= event->wheel.dy * (float)GT_ROW_H * 3.0f;
+      int H = GetScreenHeight();
+      int headerBottom = GT_PANEL_PAD + 22;
+      clampScroll(self, H - headerBottom);
+      return 1;
+    }
   }
   return 0;
 }
