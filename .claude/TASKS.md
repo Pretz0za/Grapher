@@ -149,7 +149,7 @@ Key files touched, by area:
       `placeLayerVertices` use view APIs instead of raw graph.
 - [x] Saga: Tutte (`gvizTutteEmbedding.h/.c`) — accept view, build M_II /
       `interiorIdx` / `vertexToInterior` against the view's vertex space.
-- [ ] Saga: Reingold-Tilford / `gvizEmbeddedTree.h/.c` — accept a view that
+- [x] Saga: Reingold-Tilford / `gvizEmbeddedTree.h/.c` — accept a view that
       represents the tree (root vertex still passed separately).
 - [ ] Saga: Force-directed (`gvizForceDirected.h/.c`) — accept view; iterate
       vertices via view iter so excluded vertices don't contribute forces.

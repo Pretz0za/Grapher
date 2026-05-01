@@ -3,6 +3,7 @@
 
 #include "core/alloc.h"
 #include "dsa/gvizBitArray.h"
+#include "dsa/gvizGraphView.h"
 #include "renderer/embeddings/gvizEmbeddedGraph.h"
 
 // Per vertex decorators for Reingold-Tilford
@@ -35,6 +36,16 @@ typedef struct gvizEmbeddedTree {
 
 int gvizEmbeddedTreeRTInit(gvizEmbeddedTree *state, gvizGraph *graph,
                            size_t root);
+
+/**
+ * View-aware init. The view is moved into the embedded graph (caller must
+ * not release it after a successful return). Reingold-Tilford requires the
+ * underlying graph to be a tree, so the view's topology must match the
+ * tree shape; passing a strict subset of a larger graph is not supported.
+ * The `root` is a raw vertex id in the underlying graph.
+ */
+int gvizEmbeddedTreeRTInitView(gvizEmbeddedTree *state, gvizGraphView view,
+                               size_t root);
 int gvizEmbeddedTreeCalculateOffsets(gvizEmbeddedTree *state, size_t root,
                                      size_t level);
 void gvizEmbeddedTreeRTRelease(gvizEmbeddedTree *state);

@@ -306,15 +306,14 @@ int gvizEmbeddedTreeCalculateOffsets(gvizEmbeddedTree *state, size_t root,
   return 0;
 }
 
-int gvizEmbeddedTreeRTInit(gvizEmbeddedTree *state, gvizGraph *graph,
-                           size_t root) {
-
-  // This memset allows us to simply run gvizEmbeddedTreeRelease if init ever
-  // returns -1, without having to worry about double freeing and leaks.
+int gvizEmbeddedTreeRTInitView(gvizEmbeddedTree *state, gvizGraphView view,
+                               size_t root) {
+  gvizGraph *graph = view.graph;
   memset(state, 0, sizeof(gvizEmbeddedTree));
   int res;
 
-  res = gvizEmbeddedGraphInit((gvizEmbeddedGraph *)state, graph, 2);
+  res = gvizEmbeddedGraphInitView((gvizEmbeddedGraph *)state, view,
+                                  GVIZ_EMBED_FULL_GRAPH, 2);
   if (res < 0)
     return res;
   state->parents = GVIZ_ALLOC(sizeof(int) * graph->vertices.count);
@@ -349,6 +348,16 @@ int gvizEmbeddedTreeRTInit(gvizEmbeddedTree *state, gvizGraph *graph,
   return 0;
 }
 
+int gvizEmbeddedTreeRTInit(gvizEmbeddedTree *state, gvizGraph *graph,
+                           size_t root) {
+  gvizGraphView view;
+  if (gvizGraphViewInitFull(&view, graph) != 0) {
+    memset(state, 0, sizeof(gvizEmbeddedTree));
+    return -1;
+  }
+  return gvizEmbeddedTreeRTInitView(state, view, root);
+}
+
 void gvizEmbeddedTreeRTRelease(gvizEmbeddedTree *state) {
   if (state->dec)
     GVIZ_DEALLOC(state->dec);
@@ -358,9 +367,7 @@ void gvizEmbeddedTreeRTRelease(gvizEmbeddedTree *state) {
     GVIZ_DEALLOC(state->thread);
   if (state->offsetsOrigin)
     GVIZ_DEALLOC(state->offsetsOrigin);
-  if (state->graph.embedding.vertexPositions) {
-    GVIZ_DEALLOC(state->graph.embedding.vertexPositions);
-  }
+  gvizEmbeddedGraphRelease((gvizEmbeddedGraph *)state);
 }
 
 // TODO: add an option to choose between horizontal and vertical. (x,y)->(y,x)
