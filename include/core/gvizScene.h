@@ -4,6 +4,7 @@
 #include "core/gvizGraphEvent.h"
 #include "dsa/gvizArray.h"
 #include "dsa/gvizGraph.h"
+#include "dsa/gvizGraphView.h"
 #include "renderer/layers/gvizLayer.h"
 
 /*
@@ -18,10 +19,22 @@ typedef struct gvizGraphSubscriber {
   gvizGraphCallback cb;
 } gvizGraphSubscriber;
 
+/*
+ * Per-view registry entry. The scene owns the `gvizGraphView *` (allocated
+ * separately from the layer) and frees it on unregister. `layer` is a
+ * borrowed pointer; views are not auto-removed when their layer is removed.
+ */
+typedef struct gvizSceneViewEntry {
+  gvizGraphView *view;     /* scene-owned */
+  struct gvizLayer *layer; /* borrowed; may be NULL */
+  char *name;              /* scene-owned dup */
+} gvizSceneViewEntry;
+
 typedef struct gvizSceneGraphEntry {
   gvizGraph *graph;        /* heap-owned */
   size_t refCount;
   gvizArray subscribers;   /* gvizGraphSubscriber values */
+  gvizArray views;         /* gvizSceneViewEntry values */
 } gvizSceneGraphEntry;
 
 typedef enum gvizSceneMode {
@@ -35,7 +48,7 @@ typedef enum gvizSceneMode {
  * left/right margins; the bottom 1/3 is reserved for future HUD/console.
  */
 enum {
-  GVIZ_SCENE_MARGIN_L = 48,
+  GVIZ_SCENE_MARGIN_L = 240,
   GVIZ_SCENE_MARGIN_R = 48,
   GVIZ_SCENE_MARGIN_TOP = 12,
   /* The bottom of the active region sits at (screenH * 2/3); see
@@ -223,5 +236,26 @@ void gvizSceneNotifyGraphChanged(gvizScene *s, gvizSceneGraphHandle h,
                                  void *originator,
                                  gvizGraphEventKind kind,
                                  const void *payload);
+
+/* ---- View registry ------------------------------------------------------ */
+
+/*
+ * Register a view of a graph. The scene takes ownership of @p view (must
+ * be heap-allocated and already initialised against the graph identified
+ * by @p h) and frees it on unregister. @p layer is the layer rendering
+ * this view (borrowed; may be NULL). @p name may be NULL.
+ */
+int gvizSceneRegisterView(gvizScene *s, gvizSceneGraphHandle h,
+                          gvizGraphView *view, struct gvizLayer *layer,
+                          const char *name);
+
+/*
+ * Remove and free the view entry whose `view` pointer matches. Idempotent.
+ */
+void gvizSceneUnregisterView(gvizScene *s, gvizSceneGraphHandle h,
+                             gvizGraphView *view);
+
+/* Borrowed pointer to the views array on a graph entry. NULL on bad handle. */
+gvizArray *gvizSceneGetGraphViews(gvizScene *s, gvizSceneGraphHandle h);
 
 #endif

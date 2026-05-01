@@ -1,5 +1,6 @@
 #include "app/gvizSceneBuilders.h"
 #include "app/gvizLayerGRIPLive.h"
+#include "app/gvizLayerGraphTree.h"
 #include "app/gvizLayerOBJ.h"
 #include "app/gvizLayerPolyTutte.h"
 #include "app/gvizLayerTutte.h"
@@ -11,6 +12,35 @@
 #include "utils/gvizTreeIO.h"
 #include <math.h>
 #include <stdlib.h>
+
+/* Add the left-strip graph/views panel to the scene. Called by every scene
+ * builder so the panel is present regardless of how the scene was built. */
+static void attachGraphTreePanel(gvizScene *s) {
+  gvizLayerGraphTree *panel = (gvizLayerGraphTree *)GVIZ_ALLOC(sizeof(gvizLayerGraphTree));
+  if (!panel) return;
+  gvizLayerGraphTreeInit(panel, s, 1000);
+  gvizSceneAddLayer(s, (gvizLayer *)panel);
+}
+
+/* Build a Full view over @p g and register it with the scene under the
+ * graph identified by @p h, naming it @p name. Returns the registered view
+ * pointer (borrowed by callers; freed by the scene). NULL on failure. */
+static gvizGraphView *registerFullView(gvizScene *s, gvizSceneGraphHandle h,
+                                       gvizGraph *g, gvizLayer *layer,
+                                       const char *name) {
+  gvizGraphView *view = (gvizGraphView *)GVIZ_ALLOC(sizeof(gvizGraphView));
+  if (!view) return NULL;
+  if (gvizGraphViewInitFull(view, g) != 0) {
+    GVIZ_DEALLOC(view);
+    return NULL;
+  }
+  if (gvizSceneRegisterView(s, h, view, layer, name) != 0) {
+    gvizGraphViewRelease(view);
+    GVIZ_DEALLOC(view);
+    return NULL;
+  }
+  return view;
+}
 
 /* ---- helpers ------------------------------------------------------------- */
 
@@ -39,6 +69,7 @@ int gvizBuildBlankScene(gvizScene *out) {
     return -1;
   }
   gvizSceneAddLayer(out, (gvizLayer *)tlayer);
+  attachGraphTreePanel(out);
   return 0;
 }
 
@@ -77,6 +108,7 @@ int gvizBuildGRIPSierpinskiScene(gvizScene *out, int depth) {
   gvizLayerGRIPLiveBindHandle(layer, out, h, NULL);
   gvizSceneReleaseGraph(out, h); /* drop the register-time ref; layer owns one */
   gvizSceneAddLayer(out, (gvizLayer *)layer);
+  attachGraphTreePanel(out);
   return 0;
 }
 
@@ -106,6 +138,7 @@ int gvizBuildGRIPCarpetScene(gvizScene *out, int depth) {
   gvizLayerGRIPLiveBindHandle(layer, out, h, NULL);
   gvizSceneReleaseGraph(out, h);
   gvizSceneAddLayer(out, (gvizLayer *)layer);
+  attachGraphTreePanel(out);
   return 0;
 }
 
@@ -153,6 +186,7 @@ int gvizBuildSceneFromTreeFile(gvizScene *out, const char *path) {
   gvizLayerGraphBindHandle(layer, out, h, NULL);
   gvizSceneReleaseGraph(out, h);
   gvizSceneAddLayer(out, (gvizLayer *)layer);
+  attachGraphTreePanel(out);
   return 0;
 }
 
@@ -218,6 +252,7 @@ int gvizBuildTutteDemoScene(gvizScene *out) {
   gvizLayerTutteBindHandle(tlayer, out, h, NULL);
   gvizSceneReleaseGraph(out, h);
   gvizSceneAddLayer(out, (gvizLayer *)tlayer);
+  attachGraphTreePanel(out);
   return 0;
 }
 
@@ -279,6 +314,7 @@ int gvizBuildPolyTutteDemoScene(gvizScene *out) {
   gvizLayerPolyTutteBindHandle(layer, out, h, NULL);
   gvizSceneReleaseGraph(out, h);
   gvizSceneAddLayer(out, (gvizLayer *)layer);
+  attachGraphTreePanel(out);
   return 0;
 }
 
@@ -312,6 +348,7 @@ int gvizBuildPolyTutteFromOBJScene(gvizScene *out, const char *objPath) {
   gvizLayerPolyTutteBindHandle(layer, out, h, NULL);
   gvizSceneReleaseGraph(out, h);
   gvizSceneAddLayer(out, (gvizLayer *)layer);
+  attachGraphTreePanel(out);
   return 0;
 }
 
@@ -353,6 +390,7 @@ int gvizBuildTreeDemoScene(gvizScene *out) {
   gvizLayerGraphBindHandle(layer, out, h, NULL);
   gvizSceneReleaseGraph(out, h);
   gvizSceneAddLayer(out, (gvizLayer *)layer);
+  attachGraphTreePanel(out);
   return 0;
 }
 
@@ -370,6 +408,7 @@ int gvizBuildOBJSceneFromFile(gvizScene *out, const char *objPath) {
     return -1;
   }
   gvizSceneAddLayer(out, (gvizLayer *)layer);
+  attachGraphTreePanel(out);
   return 0;
 }
 
@@ -415,5 +454,6 @@ int gvizBuildOBJAndPolyTutteSceneFromFile(gvizScene *out, const char *objPath) {
    * would fall back to "rightmost leaf" and stomp the OBJ slot). */
   gvizSceneSplitLayer(out, (gvizLayer *)objLayer, GVIZ_SPLIT_H,
                       (gvizLayer *)ptLayer);
+  attachGraphTreePanel(out);
   return 0;
 }

@@ -198,27 +198,37 @@ Key files touched, by area:
 
 ## Epic 9: Scene graph/view registry + left panel GUI
 
-- [ ] Saga: Extend `gvizSceneGraphEntry` with `gvizArray views` (each entry:
+- [x] Saga: Extend `gvizSceneGraphEntry` with `gvizArray views` (each entry:
       `{ gvizGraphView *view; gvizLayer *layer; const char *name; }`).
       Add registry API: `gvizSceneRegisterView(scene, handle, view, layer,
       name)`, `gvizSceneUnregisterView`, `gvizSceneGetGraphViews(handle)`.
-- [ ] Saga: Bump `GVIZ_SCENE_MARGIN_L` to make room (e.g. 240px) and
+- [x] Saga: Bump `GVIZ_SCENE_MARGIN_L` to make room (e.g. 240px) and
       teach `gvizSceneComputeRegion` so component-layer slot layout starts
-      after the panel.
-- [ ] Saga: New `gvizLayerGraphTree` screen-space layer
+      after the panel. `gvizSceneComputeRegion` already keys off
+      `GVIZ_SCENE_MARGIN_L`, so bumping the constant is sufficient.
+- [x] Saga: New `gvizLayerGraphTree` screen-space layer
       (`include/app/gvizLayerGraphTree.h`, `src/app/gvizLayerGraphTree.c`):
       full-height left strip, raygui-driven collapsible tree. Top level =
       registered graphs (name + vertex count). Children = views of that
       graph (name + vertex count + which `gvizLayer*` they're rendered on).
-- [ ] Saga: Hook the tree layer into scene init (`gvizSceneInit2D/3D/Empty`)
+      Implementation note: collapse / expand is a no-op (always expanded);
+      raygui buttons drive selection.
+- [x] Saga: Hook the tree layer into scene init (`gvizSceneInit2D/3D/Empty`)
       and re-layout on graph register/unregister + view register/unregister.
-- [ ] Saga: When layer creation panel (`gvizLayerCreate.c`) builds a new
+      Implementation note: hooked in `gvizSceneBuilders.c::attachGraphTreePanel`
+      (called from every builder) rather than core scene init, since the
+      panel layer lives in `app/` and core must not depend on app/. The
+      panel re-reads the registry on every Draw, so register / unregister
+      are reflected automatically without explicit re-layout calls.
+- [x] Saga: When layer creation panel (`gvizLayerCreate.c`) builds a new
       graph layer, auto-register a default Full-graph view for the new
       `gvizLayerGraph` so the panel sees it immediately.
 - [ ] Saga: Click handling in the tree — selecting a view sets the matching
       `gvizLayer` as the scene's `activeLayer` (existing API). Right-click
       a view: stub menu hooks (rename / delete / change embedding) — wire
       "delete view" only; embedding swap goes through existing context menu.
+      (Click-to-select via `GuiButton` is wired; right-click context menu
+      not implemented in this pass.)
 
 ## Epic 10: Codebase sweep — replace ad-hoc graph+bitarray patterns
 

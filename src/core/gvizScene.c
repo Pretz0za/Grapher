@@ -150,6 +150,18 @@ void gvizSceneRelease(gvizScene *s) {
         e->graph = NULL;
       }
       if (e->subscribers.arr) gvizArrayRelease(&e->subscribers);
+      if (e->views.arr) {
+        for (size_t v = 0; v < e->views.count; v++) {
+          gvizSceneViewEntry *ve =
+              (gvizSceneViewEntry *)gvizArrayAtIndex(&e->views, v);
+          if (ve->view) {
+            gvizGraphViewRelease(ve->view);
+            GVIZ_DEALLOC(ve->view);
+          }
+          if (ve->name) GVIZ_DEALLOC(ve->name);
+        }
+        gvizArrayRelease(&e->views);
+      }
     }
     gvizArrayRelease(&s->graphs);
   }
@@ -171,8 +183,13 @@ gvizSceneGraphHandle gvizSceneRegisterGraph(gvizScene *s, gvizGraph *graph) {
   e.refCount = 1;
   if (gvizArrayInit(&e.subscribers, sizeof(gvizGraphSubscriber)) != 0)
     return GVIZ_SCENE_GRAPH_INVALID;
+  if (gvizArrayInit(&e.views, sizeof(gvizSceneViewEntry)) != 0) {
+    gvizArrayRelease(&e.subscribers);
+    return GVIZ_SCENE_GRAPH_INVALID;
+  }
   if (gvizArrayPush(&s->graphs, &e) != 0) {
     gvizArrayRelease(&e.subscribers);
+    gvizArrayRelease(&e.views);
     return GVIZ_SCENE_GRAPH_INVALID;
   }
   return s->graphs.count - 1;
@@ -194,6 +211,18 @@ void gvizSceneReleaseGraph(gvizScene *s, gvizSceneGraphHandle h) {
       e->graph = NULL;
     }
     if (e->subscribers.arr) gvizArrayRelease(&e->subscribers);
+    if (e->views.arr) {
+      for (size_t v = 0; v < e->views.count; v++) {
+        gvizSceneViewEntry *ve =
+            (gvizSceneViewEntry *)gvizArrayAtIndex(&e->views, v);
+        if (ve->view) {
+          gvizGraphViewRelease(ve->view);
+          GVIZ_DEALLOC(ve->view);
+        }
+        if (ve->name) GVIZ_DEALLOC(ve->name);
+      }
+      gvizArrayRelease(&e->views);
+    }
     /* Slot left as a tombstone — handles never get reused. */
   }
 }
@@ -237,6 +266,54 @@ void gvizSceneNotifyGraphChanged(gvizScene *s, gvizSceneGraphHandle h,
     if (sub->self == originator) continue;
     if (sub->cb) sub->cb(sub->self, kind, payload);
   }
+}
+
+static char *strdupAlloc(const char *s) {
+  if (!s) return NULL;
+  size_t n = 0;
+  while (s[n]) n++;
+  char *out = (char *)GVIZ_ALLOC(n + 1);
+  if (!out) return NULL;
+  for (size_t i = 0; i <= n; i++) out[i] = s[i];
+  return out;
+}
+
+int gvizSceneRegisterView(gvizScene *s, gvizSceneGraphHandle h,
+                          gvizGraphView *view, struct gvizLayer *layer,
+                          const char *name) {
+  gvizSceneGraphEntry *e = entryFor(s, h);
+  if (!e || !view) return -1;
+  gvizSceneViewEntry ve;
+  ve.view = view;
+  ve.layer = layer;
+  ve.name = strdupAlloc(name);
+  if (gvizArrayPush(&e->views, &ve) != 0) {
+    if (ve.name) GVIZ_DEALLOC(ve.name);
+    return -1;
+  }
+  return 0;
+}
+
+void gvizSceneUnregisterView(gvizScene *s, gvizSceneGraphHandle h,
+                             gvizGraphView *view) {
+  gvizSceneGraphEntry *e = entryFor(s, h);
+  if (!e || !view) return;
+  for (size_t i = 0; i < e->views.count; i++) {
+    gvizSceneViewEntry *ve =
+        (gvizSceneViewEntry *)gvizArrayAtIndex(&e->views, i);
+    if (ve->view == view) {
+      gvizGraphViewRelease(ve->view);
+      GVIZ_DEALLOC(ve->view);
+      if (ve->name) GVIZ_DEALLOC(ve->name);
+      gvizArrayDeleteAtIndex(&e->views, i);
+      return;
+    }
+  }
+}
+
+gvizArray *gvizSceneGetGraphViews(gvizScene *s, gvizSceneGraphHandle h) {
+  gvizSceneGraphEntry *e = entryFor(s, h);
+  return e ? &e->views : NULL;
 }
 
 static int isComponentLayerFlags(unsigned f) {

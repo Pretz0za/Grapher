@@ -15,6 +15,21 @@
 
 /* ---- helpers ------------------------------------------------------------- */
 
+static void autoRegisterFullView(gvizScene *s, gvizSceneGraphHandle h,
+                                 gvizGraph *g, gvizLayer *layer,
+                                 const char *name) {
+  gvizGraphView *view = (gvizGraphView *)GVIZ_ALLOC(sizeof(gvizGraphView));
+  if (!view) return;
+  if (gvizGraphViewInitFull(view, g) != 0) {
+    GVIZ_DEALLOC(view);
+    return;
+  }
+  if (gvizSceneRegisterView(s, h, view, layer, name) != 0) {
+    gvizGraphViewRelease(view);
+    GVIZ_DEALLOC(view);
+  }
+}
+
 static gvizGraph *graphToHeap(gvizGraph *src) {
   gvizGraph *h = (gvizGraph *)GVIZ_ALLOC(sizeof(gvizGraph));
   if (!h) {
@@ -154,6 +169,7 @@ static int buildTutteLayer(gvizScene *scene, const gvizLayerCreateParams *p,
     return -1;
   }
   gvizLayerTutteBindHandle(layer, scene, h, NULL);
+  autoRegisterFullView(scene, h, g, (gvizLayer *)layer, "Full");
   gvizSceneReleaseGraph(scene, h);
   *out = (gvizLayer *)layer;
   return 0;
@@ -184,6 +200,7 @@ static int buildGRIPLayer(gvizScene *scene, const gvizLayerCreateParams *p,
     return -1;
   }
   gvizLayerGRIPLiveBindHandle(layer, scene, h, NULL);
+  autoRegisterFullView(scene, h, g, (gvizLayer *)layer, "Full");
   gvizSceneReleaseGraph(scene, h);
   *out = (gvizLayer *)layer;
   return 0;
@@ -213,6 +230,7 @@ static int buildPolyTutteLayer(gvizScene *scene, const gvizLayerCreateParams *p,
     return -1;
   }
   gvizLayerPolyTutteBindHandle(layer, scene, h, NULL);
+  autoRegisterFullView(scene, h, g, (gvizLayer *)layer, "Full");
   gvizSceneReleaseGraph(scene, h);
   *out = (gvizLayer *)layer;
   return 0;
@@ -252,6 +270,7 @@ static int buildRTLayer(gvizScene *scene, const gvizLayerCreateParams *p,
   gvizViewport vp = {0, 0, 0, 0};
   gvizLayerGraphInit(layer, (gvizEmbeddedGraph *)tree, releaseEmbeddedTree, vp, 0);
   gvizLayerGraphBindHandle(layer, scene, h, NULL);
+  autoRegisterFullView(scene, h, g, (gvizLayer *)layer, "Full");
   gvizSceneReleaseGraph(scene, h);
   *out = (gvizLayer *)layer;
   return 0;

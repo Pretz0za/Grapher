@@ -134,6 +134,7 @@ add_executable(grapher
     src/app/gvizContextMenu.c
     src/app/gvizLayerCreatePanel.c
     src/app/gvizLayerCreate.c
+    src/app/gvizLayerGraphTree.c
     src/platform/macos_menu.m
 )
 set_source_files_properties(src/platform/macos_menu.m
