@@ -200,6 +200,31 @@ void gvizLayerGraphTreeDraw(void *layerV, const gvizCamera *camera) {
   EndScissorMode();
 }
 
+gvizSceneGraphHandle gvizLayerGraphTreeHitGraph(const gvizLayerGraphTree *self,
+                                                int sx, int sy) {
+  if (!self || !self->scene) return GVIZ_SCENE_GRAPH_INVALID;
+  int W = panelWidth();
+  if (sx < 0 || sx >= W) return GVIZ_SCENE_GRAPH_INVALID;
+  int headerBottom = GT_PANEL_PAD + 22;
+  if (sy < headerBottom) return GVIZ_SCENE_GRAPH_INVALID;
+  gvizArray *graphs = &self->scene->graphs;
+  if (!graphs->arr) return GVIZ_SCENE_GRAPH_INVALID;
+  int y = headerBottom - (int)self->scrollY;
+  for (size_t i = 1; i < graphs->count; i++) {
+    gvizSceneGraphEntry *e =
+        (gvizSceneGraphEntry *)gvizArrayAtIndex(graphs, i);
+    if (!e->graph) continue;
+    int collapsed = 0;
+    if (i < self->collapsed.count)
+      collapsed = *(unsigned char *)gvizArrayAtIndex(&self->collapsed, i);
+    if (sy >= y && sy < y + GT_ROW_H) return (gvizSceneGraphHandle)i;
+    y += GT_ROW_H + 2;
+    if (collapsed || !e->views.arr) continue;
+    y += (int)e->views.count * (GT_ROW_H + 2);
+  }
+  return GVIZ_SCENE_GRAPH_INVALID;
+}
+
 int gvizLayerGraphTreeHandleEvent(void *layerV, const gvizEvent *event) {
   gvizLayerGraphTree *self = (gvizLayerGraphTree *)layerV;
   if (!self->scene || !event) return 0;

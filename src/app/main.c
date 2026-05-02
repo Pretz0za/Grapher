@@ -1,4 +1,5 @@
 #include "app/gvizContextMenu.h"
+#include "app/gvizGraphCreatePanel.h"
 #include "app/gvizLayerCreate.h"
 #include "app/gvizLayerCreatePanel.h"
 #include "app/gvizLayerGraphTree.h"
@@ -22,13 +23,17 @@ enum {
   ACT_SPLIT_H,
   ACT_SPLIT_V,
   ACT_DELETE_LAYER,
+  ACT_NEW_GRAPH,
+  ACT_NEW_LAYER_FROM_GRAPH,
 };
 
 typedef struct AppState {
   gvizContextMenu      *menu;        /* heap-allocated, owned by scene */
   gvizLayerCreatePanel *panel;       /* heap-allocated, owned by scene */
+  gvizGraphCreatePanel *graphPanel;  /* heap-allocated, owned by scene */
   gvizLayerGraphTree   *tree;        /* heap-allocated, owned by scene */
   gvizCreateSlotKind    pendingSlot; /* what kind of slot the panel will fill */
+  gvizSceneGraphHandle  pendingGraphForLayer; /* handle stashed by graph-row menu */
 } AppState;
 
 static void installGraphTreePanel(gvizScene *scene, AppState *app) {
@@ -71,7 +76,7 @@ static void buildFromOBJChoice(gvizScene *scene, gvizOBJModalChoice choice,
 
 static void onEmptyAreaContextMenu(gvizScene *s, int sx, int sy, void *ud) {
   AppState *app = (AppState *)ud;
-  if (app->menu || app->panel) return;
+  if (app->menu || app->panel || app->graphPanel) return;
   gvizContextMenu *m = GVIZ_ALLOC(sizeof(gvizContextMenu));
   if (!m) return;
   gvizContextMenuInit(m, sx, sy, 1500);
@@ -82,10 +87,31 @@ static void onEmptyAreaContextMenu(gvizScene *s, int sx, int sy, void *ud) {
   gvizSceneAddLayer(s, (gvizLayer *)m);
 }
 
+static void onPanelAreaContextMenu(gvizScene *s, int sx, int sy, void *ud) {
+  AppState *app = (AppState *)ud;
+  if (app->menu || app->panel || app->graphPanel) return;
+  gvizSceneGraphHandle h = GVIZ_SCENE_GRAPH_INVALID;
+  if (app->tree) h = gvizLayerGraphTreeHitGraph(app->tree, sx, sy);
+  gvizContextMenu *m = GVIZ_ALLOC(sizeof(gvizContextMenu));
+  if (!m) return;
+  gvizContextMenuInit(m, sx, sy, 1500);
+  if (h != GVIZ_SCENE_GRAPH_INVALID) {
+    gvizContextMenuAddEntry(m, "New layer from this graph",
+                            ACT_NEW_LAYER_FROM_GRAPH);
+    app->pendingGraphForLayer = h;
+  } else {
+    gvizContextMenuAddEntry(m, "New graph", ACT_NEW_GRAPH);
+  }
+  m->targetLayer = NULL;
+  m->clickSx = sx; m->clickSy = sy;
+  app->menu = m;
+  gvizSceneAddLayer(s, (gvizLayer *)m);
+}
+
 static void onLayerContextMenu(gvizScene *s, gvizLayer *layer, int sx, int sy,
                                void *ud) {
   AppState *app = (AppState *)ud;
-  if (app->menu || app->panel) return;
+  if (app->menu || app->panel || app->graphPanel) return;
   gvizContextMenu *m = GVIZ_ALLOC(sizeof(gvizContextMenu));
   if (!m) return;
   gvizContextMenuInit(m, sx, sy, 1500);
@@ -105,8 +131,18 @@ static void openCreatePanel(gvizScene *scene, AppState *app,
   if (!p) return;
   gvizLayerCreatePanelInit(p, slotKind, 1800);
   p->params.targetLayer = targetLayer;
+  if (slotKind == GVIZ_SLOT_FROM_EXISTING_GRAPH)
+    p->params.existingGraph = app->pendingGraphForLayer;
   app->panel = p;
   app->pendingSlot = slotKind;
+  gvizSceneAddLayer(scene, (gvizLayer *)p);
+}
+
+static void openGraphCreatePanel(gvizScene *scene, AppState *app) {
+  gvizGraphCreatePanel *p = GVIZ_ALLOC(sizeof(gvizGraphCreatePanel));
+  if (!p) return;
+  gvizGraphCreatePanelInit(p, 1800);
+  app->graphPanel = p;
   gvizSceneAddLayer(scene, (gvizLayer *)p);
 }
 
@@ -126,6 +162,19 @@ static void drainContextMenu(gvizScene *scene, AppState *app) {
   else if (result == ACT_DELETE_LAYER) {
     if (target) gvizSceneRemoveLayer(scene, target);
   }
+  else if (result == ACT_NEW_GRAPH)
+    openGraphCreatePanel(scene, app);
+  else if (result == ACT_NEW_LAYER_FROM_GRAPH)
+    openCreatePanel(scene, app, GVIZ_SLOT_FROM_EXISTING_GRAPH, NULL);
+}
+
+static void drainGraphCreatePanel(gvizScene *scene, AppState *app) {
+  if (!app->graphPanel) return;
+  if (app->graphPanel->result == GVIZ_GRAPH_PANEL_PENDING) return;
+  if (app->graphPanel->result == GVIZ_GRAPH_PANEL_CONFIRMED)
+    gvizApplyGraphCreate(scene, &app->graphPanel->params);
+  gvizSceneRemoveLayer(scene, (gvizLayer *)app->graphPanel);
+  app->graphPanel = NULL;
 }
 
 static void drainCreatePanel(gvizScene *scene, AppState *app) {
@@ -152,6 +201,7 @@ int main(void) {
   scene.contextMenuUserdata    = &app;
   scene.onEmptyAreaContextMenu = onEmptyAreaContextMenu;
   scene.onLayerContextMenu     = onLayerContextMenu;
+  scene.onPanelAreaContextMenu = onPanelAreaContextMenu;
   installGraphTreePanel(&scene, &app);
 
   gvizOBJLoadModal *objModal = NULL;
@@ -163,6 +213,7 @@ int main(void) {
 
     drainContextMenu(&scene, &app);
     drainCreatePanel(&scene, &app);
+    drainGraphCreatePanel(&scene, &app);
 
     /* Drain a freshly picked .obj path: present the layout-choice modal. */
     if (!objModal) {
@@ -181,6 +232,7 @@ int main(void) {
       /* Drop dangling pointers BEFORE the scene frees its layers. */
       app.menu = NULL;
       app.panel = NULL;
+      app.graphPanel = NULL;
       app.tree = NULL;
       objModal = NULL;
       buildFromOBJChoice(&scene, choice, path);

@@ -28,11 +28,11 @@
 
 ## Epic D — Scene wiring and right-click dispatch
 
-- [ ] Extend `AppState` with `gvizLayerGraphTree *tree`, `gvizGraphCreatePanel *graphPanel`, `gvizSceneGraphHandle pendingGraphForLayer`
-- [ ] Add scene callbacks `onPanelAreaContextMenu(s, sx, sy, ud)` and `onGraphRowContextMenu(s, handle, sx, sy, ud)` to `gvizScene` in `include/core/gvizScene.h`
-- [ ] In `gvizSceneHandleInput`, route right-clicks: if `sx < GVIZ_SCENE_MARGIN_L` dispatch panel-area or graph-row callback (graph-row when click hits a tree graph row); else existing layer/empty-area path
-- [ ] Add hit-testing helper in `gvizLayerGraphTree` to map screen y to graph handle (returns 0 if not on a graph row); expose for the scene dispatch
-- [ ] Wire `main.c` callbacks: panel-area menu shows `ACT_NEW_GRAPH`; graph-row menu shows `ACT_NEW_LAYER_FROM_GRAPH` (stash handle in `pendingGraphForLayer`)
-- [ ] Add action ids `ACT_NEW_GRAPH`, `ACT_NEW_LAYER_FROM_GRAPH`; extend `drainContextMenu` to open the appropriate panel
-- [ ] Add `drainGraphCreatePanel(scene, app)` mirroring `drainCreatePanel` — on confirm call `gvizApplyGraphCreate`, then remove
-- [ ] When opening the layer-create panel from a graph row, set `params.existingGraph = pendingGraphForLayer` and `slotKind = GVIZ_SLOT_FROM_EXISTING_GRAPH`
+- [x] Extend `AppState` with `gvizLayerGraphTree *tree`, `gvizGraphCreatePanel *graphPanel`, `gvizSceneGraphHandle pendingGraphForLayer`
+- [x] Add scene callback `onPanelAreaContextMenu(s, sx, sy, ud)` to `gvizScene` (graph-row vs empty-strip distinguished by orchestrator via `gvizLayerGraphTreeHitGraph`)
+- [x] In `gvizSceneHandleInput`, route right-clicks with `sx < GVIZ_SCENE_MARGIN_L` to the panel-area callback
+- [x] Add hit-testing helper `gvizLayerGraphTreeHitGraph` in `gvizLayerGraphTree`
+- [x] Wire `main.c` callbacks: panel-area menu shows `ACT_NEW_GRAPH` on empty strip, `ACT_NEW_LAYER_FROM_GRAPH` on a graph row (stashes handle)
+- [x] Add action ids `ACT_NEW_GRAPH`, `ACT_NEW_LAYER_FROM_GRAPH`; extend `drainContextMenu` to open the appropriate panel
+- [x] Add `drainGraphCreatePanel(scene, app)` mirroring `drainCreatePanel`
+- [x] When opening the layer-create panel from a graph row, set `params.existingGraph = pendingGraphForLayer` and `slotKind = GVIZ_SLOT_FROM_EXISTING_GRAPH`

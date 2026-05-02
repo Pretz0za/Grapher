@@ -127,6 +127,12 @@ typedef struct gvizScene {
                                  void *userdata);
   void (*onLayerContextMenu)(struct gvizScene *s, gvizLayer *layer,
                              int sx, int sy, void *userdata);
+  /* Right-click in the left graph-tree panel (sx < GVIZ_SCENE_MARGIN_L).
+   * The orchestrator can run its own hit-test (e.g. via
+   * gvizLayerGraphTreeHitGraph) to decide between empty-area and
+   * graph-row menus. May be NULL. */
+  void (*onPanelAreaContextMenu)(struct gvizScene *s, int sx, int sy,
+                                 void *userdata);
   void *contextMenuUserdata;
 
   /* Active region + slot policy. Recomputed on resize and on layer add/remove. */

@@ -26,6 +26,15 @@ typedef struct gvizLayerGraphTree {
 
 void gvizLayerGraphTreeInit(gvizLayerGraphTree *self, gvizScene *s, size_t z);
 
+/**
+ * Map a screen point inside the panel to a graph handle. Returns
+ * `GVIZ_SCENE_GRAPH_INVALID` (== 0) when (sx, sy) is outside the panel or
+ * lands on header / view row / empty strip. Mirrors the row layout used by
+ * gvizLayerGraphTreeDraw.
+ */
+gvizSceneGraphHandle gvizLayerGraphTreeHitGraph(const gvizLayerGraphTree *self,
+                                                int sx, int sy);
+
 void gvizLayerGraphTreeDraw(void *layer, const struct gvizCamera *camera);
 void gvizLayerGraphTreeUpdate(void *layer, float dt);
 void gvizLayerGraphTreeRelease(void *layer);

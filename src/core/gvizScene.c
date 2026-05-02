@@ -68,6 +68,7 @@ static int commonInit(gvizScene *s) {
   s->activeLayer = NULL;
   s->onEmptyAreaContextMenu = NULL;
   s->onLayerContextMenu = NULL;
+  s->onPanelAreaContextMenu = NULL;
   s->contextMenuUserdata = NULL;
   s->bg[0] = 245;
   s->bg[1] = 245;
@@ -727,6 +728,22 @@ void gvizSceneHandleInput(gvizScene *s) {
                      sxI < s->layout.region.x + s->layout.region.width &&
                      syI >= s->layout.region.y &&
                      syI < s->layout.region.y + s->layout.region.height;
+      if (gbtns[i] == GVIZ_MOUSE_RIGHT && sxI < GVIZ_SCENE_MARGIN_L) {
+        int hasModal = 0;
+        for (size_t k = s->layers.count; k-- > 0;) {
+          gvizLayer *ll = *(gvizLayer **)gvizArrayAtIndex(&s->layers, k);
+          if (ll->flags & GVIZ_LAYER_SCREEN_SPACE) {
+            /* The graph-tree panel is screen-space too — skip it when
+             * deciding whether a real modal pre-empts the right-click. */
+            if (ll->flags & GVIZ_LAYER_CAPTURES_INPUT) { hasModal = 1; break; }
+          }
+        }
+        if (!hasModal) {
+          if (s->onPanelAreaContextMenu)
+            s->onPanelAreaContextMenu(s, sxI, syI, s->contextMenuUserdata);
+          continue;
+        }
+      }
       if (gbtns[i] == GVIZ_MOUSE_RIGHT && inRegion) {
         gvizLayer *hit = gvizSceneFindLayerAt(s, sxI, syI);
         int hasModal = 0;
