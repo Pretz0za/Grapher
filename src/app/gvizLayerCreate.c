@@ -1,4 +1,5 @@
 #include "app/gvizLayerCreate.h"
+#include "app/gvizDemoGraphLoad.h"
 #include "app/gvizLayerGRIPLive.h"
 #include "app/gvizLayerPolyTutte.h"
 #include "app/gvizLayerTutte.h"
@@ -31,84 +32,13 @@ static void autoRegisterFullView(gvizScene *s, gvizSceneGraphHandle h,
   }
 }
 
-static gvizGraph *graphToHeap(gvizGraph *src) {
-  gvizGraph *h = (gvizGraph *)GVIZ_ALLOC(sizeof(gvizGraph));
-  if (!h) {
-    gvizGraphRelease(src);
-    return NULL;
-  }
-  *h = *src;
-  return h;
-}
-
 static void releaseEmbeddedTree(gvizEmbeddedGraph *eg) {
   gvizEmbeddedTree *t = (gvizEmbeddedTree *)eg;
   gvizEmbeddedTreeRTRelease(t);
   GVIZ_DEALLOC(t);
 }
 
-static void buildRandomTree(gvizGraph *tree, size_t root, int depth, int maxDepth) {
-  if (depth >= maxDepth) return;
-  int children = 2 + rand() % 4;
-  for (int i = 0; i < children; i++) {
-    gvizGraphAddVertex(tree, NULL, NULL, NULL);
-    size_t child = tree->vertices.count - 1;
-    gvizGraphAddEdge(tree, root, child);
-    buildRandomTree(tree, child, depth + 1, maxDepth);
-  }
-}
-
 /* ---- per-(algo, source) builders ----------------------------------------- */
-
-static int loadDemoGraph(const gvizLayerCreateParams *p, gvizGraph *out,
-                         size_t *outerFace, size_t *outerFaceLen,
-                         size_t *outRoot) {
-  int p1 = p->graphParam1 > 0 ? p->graphParam1 : 3;
-  int p2 = p->graphParam2 > 0 ? p->graphParam2 : 3;
-  switch (p->graphType) {
-  case GVIZ_DEMO_SIERPINSKI_TRI: {
-    SierpinskiTriangle st;
-    *out = createSierpinski(p1, &st);
-    if (outerFace && outerFaceLen) {
-      outerFace[0] = st.t; outerFace[1] = st.l; outerFace[2] = st.r;
-      *outerFaceLen = 3;
-    }
-    return 0;
-  }
-  case GVIZ_DEMO_SIERPINSKI_TET:
-    *out = createSierpinskiTetrahedron(p1, NULL);
-    return 0;
-  case GVIZ_DEMO_CARPET:
-    *out = build_sierpinski_carpet((size_t)p1);
-    return 0;
-  case GVIZ_DEMO_RECT_MESH:
-    *out = build_rect_mesh((size_t)p1, (size_t)p2);
-    return 0;
-  case GVIZ_DEMO_TET_MESH:
-    *out = build_tetrahedral_mesh((size_t)p1);
-    return 0;
-  case GVIZ_DEMO_EQ_TRI_MESH:
-    *out = build_equilateral_tri_mesh((size_t)p1);
-    return 0;
-  case GVIZ_DEMO_KNOTTED_RECT:
-    *out = build_knotted_rect_mesh((size_t)p1, (size_t)p2);
-    return 0;
-  case GVIZ_DEMO_MOBIUS:
-    *out = build_mobius_strip((size_t)p1, (size_t)p2);
-    return 0;
-  case GVIZ_DEMO_KLEIN:
-    *out = build_klein_bottle((size_t)p1, (size_t)p2);
-    return 0;
-  case GVIZ_DEMO_RANDOM_TREE:
-    gvizGraphInit(out, 1);
-    gvizGraphAddVertex(out, NULL, NULL, NULL);
-    buildRandomTree(out, 0, 0, p1);
-    if (outRoot) *outRoot = 0;
-    return 0;
-  default:
-    return -1;
-  }
-}
 
 static int loadGraphForSource(const gvizLayerCreateParams *p, gvizGraph *out,
                               size_t *outerFace, size_t *outerFaceLen,
@@ -116,7 +46,7 @@ static int loadGraphForSource(const gvizLayerCreateParams *p, gvizGraph *out,
   gvizGraph stack;
   switch (p->source) {
   case GVIZ_SRC_DEMO:
-    return loadDemoGraph(p, out, outerFace, outerFaceLen, outRoot);
+    return gvizLoadDemoGraph(p, out, outerFace, outerFaceLen, outRoot);
   case GVIZ_SRC_FROM_FILE:
     if (!p->filepath[0]) return -1;
     /* Decide by extension. */
@@ -145,21 +75,43 @@ static int loadGraphForSource(const gvizLayerCreateParams *p, gvizGraph *out,
   return -1;
 }
 
-/* ---- algorithm-specific layer builders ----------------------------------- */
-
-static int buildTutteLayer(gvizScene *scene, const gvizLayerCreateParams *p,
-                           gvizLayer **out) {
+static int resolveOrLoadGraph(gvizScene *scene, const gvizLayerCreateParams *p,
+                              gvizGraph **outGraph,
+                              gvizSceneGraphHandle *outHandle,
+                              size_t *face, size_t *flen, size_t *outRoot) {
+  if (p->existingGraph != GVIZ_SCENE_GRAPH_INVALID) {
+    gvizGraph *g = gvizSceneGetGraph(scene, p->existingGraph);
+    if (!g) return -1;
+    gvizSceneRetainGraph(scene, p->existingGraph);
+    *outGraph = g;
+    *outHandle = p->existingGraph;
+    if (flen) *flen = 0;
+    if (outRoot) *outRoot = 0;
+    return 0;
+  }
   gvizGraph stack;
-  size_t face[8] = {0};
-  size_t flen = 0;
-  if (loadGraphForSource(p, &stack, face, &flen, NULL) != 0) return -1;
-  gvizGraph *g = graphToHeap(&stack);
+  if (loadGraphForSource(p, &stack, face, flen, outRoot) != 0) return -1;
+  gvizGraph *g = gvizGraphToHeap(&stack);
   if (!g) return -1;
   gvizSceneGraphHandle h = gvizSceneRegisterGraph(scene, g);
   if (h == GVIZ_SCENE_GRAPH_INVALID) {
     gvizGraphRelease(g); GVIZ_DEALLOC(g);
     return -1;
   }
+  *outGraph = g;
+  *outHandle = h;
+  return 0;
+}
+
+/* ---- algorithm-specific layer builders ----------------------------------- */
+
+static int buildTutteLayer(gvizScene *scene, const gvizLayerCreateParams *p,
+                           gvizLayer **out) {
+  size_t face[8] = {0};
+  size_t flen = 0;
+  gvizGraph *g = NULL;
+  gvizSceneGraphHandle h = GVIZ_SCENE_GRAPH_INVALID;
+  if (resolveOrLoadGraph(scene, p, &g, &h, face, &flen, NULL) != 0) return -1;
   size_t boundary[3] = {0, 1, 2};
   size_t bcount = 3;
   if (flen >= 3) { for (size_t i = 0; i < flen && i < 3; i++) boundary[i] = face[i]; bcount = (flen < 3) ? flen : 3; }
@@ -178,15 +130,9 @@ static int buildTutteLayer(gvizScene *scene, const gvizLayerCreateParams *p,
 
 static int buildGRIPLayer(gvizScene *scene, const gvizLayerCreateParams *p,
                           gvizLayer **out) {
-  gvizGraph stack;
-  if (loadGraphForSource(p, &stack, NULL, NULL, NULL) != 0) return -1;
-  gvizGraph *g = graphToHeap(&stack);
-  if (!g) return -1;
-  gvizSceneGraphHandle h = gvizSceneRegisterGraph(scene, g);
-  if (h == GVIZ_SCENE_GRAPH_INVALID) {
-    gvizGraphRelease(g); GVIZ_DEALLOC(g);
-    return -1;
-  }
+  gvizGraph *g = NULL;
+  gvizSceneGraphHandle h = GVIZ_SCENE_GRAPH_INVALID;
+  if (resolveOrLoadGraph(scene, p, &g, &h, NULL, NULL, NULL) != 0) return -1;
   gvizLayerGRIPLive *layer = GVIZ_ALLOC(sizeof(gvizLayerGRIPLive));
   size_t diameter = (size_t)sqrt((double)g->vertices.count) + 4;
   size_t drawDim = (p->mode == GVIZ_SCENE_3D) ? 3 : 2;
@@ -209,20 +155,17 @@ static int buildGRIPLayer(gvizScene *scene, const gvizLayerCreateParams *p,
 
 static int buildPolyTutteLayer(gvizScene *scene, const gvizLayerCreateParams *p,
                                gvizLayer **out) {
-  gvizGraph stack;
   size_t face[8] = {0};
   size_t flen = 0;
-  if (loadGraphForSource(p, &stack, face, &flen, NULL) != 0) return -1;
+  gvizGraph *g = NULL;
+  gvizSceneGraphHandle h = GVIZ_SCENE_GRAPH_INVALID;
+  if (resolveOrLoadGraph(scene, p, &g, &h, face, &flen, NULL) != 0) return -1;
   if (flen < 3) {
-    gvizGraphRelease(&stack);
-    return -1;
-  }
-  gvizGraph *g = graphToHeap(&stack);
-  if (!g) return -1;
-  gvizSceneGraphHandle h = gvizSceneRegisterGraph(scene, g);
-  if (h == GVIZ_SCENE_GRAPH_INVALID) {
-    gvizGraphRelease(g); GVIZ_DEALLOC(g);
-    return -1;
+    if (g->vertices.count < 3) {
+      gvizSceneReleaseGraph(scene, h);
+      return -1;
+    }
+    face[0] = 0; face[1] = 1; face[2] = 2; flen = 3;
   }
   gvizLayerPolyTutte *layer = GVIZ_ALLOC(sizeof(gvizLayerPolyTutte));
   if (!layer || gvizLayerPolyTutteInit(layer, g, face, flen, 0) != 0) {
@@ -239,20 +182,10 @@ static int buildPolyTutteLayer(gvizScene *scene, const gvizLayerCreateParams *p,
 
 static int buildRTLayer(gvizScene *scene, const gvizLayerCreateParams *p,
                         gvizLayer **out) {
-  gvizGraph *g = GVIZ_ALLOC(sizeof(gvizGraph));
-  if (!g) return -1;
   size_t root = 0;
-  gvizGraph stack;
-  if (loadGraphForSource(p, &stack, NULL, NULL, &root) != 0) {
-    GVIZ_DEALLOC(g);
-    return -1;
-  }
-  *g = stack;
-  gvizSceneGraphHandle h = gvizSceneRegisterGraph(scene, g);
-  if (h == GVIZ_SCENE_GRAPH_INVALID) {
-    gvizGraphRelease(g); GVIZ_DEALLOC(g);
-    return -1;
-  }
+  gvizGraph *g = NULL;
+  gvizSceneGraphHandle h = GVIZ_SCENE_GRAPH_INVALID;
+  if (resolveOrLoadGraph(scene, p, &g, &h, NULL, NULL, &root) != 0) return -1;
   gvizEmbeddedTree *tree = GVIZ_ALLOC(sizeof(gvizEmbeddedTree));
   gvizGraphView _view;
   gvizGraphViewInitFull(&_view, g);
@@ -340,6 +273,14 @@ int gvizApplyLayerCreate(gvizScene *scene, const gvizLayerCreateParams *p) {
     scene->mode = GVIZ_SCENE_3D;
   if (p->slotKind == GVIZ_SLOT_NEW_EMPTY_SCENE) {
     scene->mode = p->mode;
+    if (gvizSceneAddLayer(scene, layer) != 0) {
+      if (layer->vtable && layer->vtable->release) layer->vtable->release(layer);
+      GVIZ_DEALLOC(layer);
+      return -1;
+    }
+    return 0;
+  }
+  if (p->slotKind == GVIZ_SLOT_FROM_EXISTING_GRAPH) {
     if (gvizSceneAddLayer(scene, layer) != 0) {
       if (layer->vtable && layer->vtable->release) layer->vtable->release(layer);
       GVIZ_DEALLOC(layer);

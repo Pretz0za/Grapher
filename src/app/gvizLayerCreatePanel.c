@@ -27,6 +27,7 @@ void gvizLayerCreatePanelInit(gvizLayerCreatePanel *p,
   p->params.graphParam1 = 3;
   p->params.graphParam2 = 3;
   p->params.embDim = 2;
+  p->params.existingGraph = GVIZ_SCENE_GRAPH_INVALID;
   p->algoDropdownEdit = 0;
   p->sourceDropdownEdit = 0;
   p->graphTypeDropdownEdit = 0;
@@ -38,9 +39,10 @@ void gvizLayerCreatePanelInit(gvizLayerCreatePanel *p,
 
 static const char *slotTitle(gvizCreateSlotKind k) {
   switch (k) {
-  case GVIZ_SLOT_SPLIT_H: return "Create Layer (Split Horizontal)";
-  case GVIZ_SLOT_SPLIT_V: return "Create Layer (Split Vertical)";
-  default:                return "Create Layer";
+  case GVIZ_SLOT_SPLIT_H:             return "Create Layer (Split Horizontal)";
+  case GVIZ_SLOT_SPLIT_V:             return "Create Layer (Split Vertical)";
+  case GVIZ_SLOT_FROM_EXISTING_GRAPH: return "New Layer from Graph";
+  default:                            return "Create Layer";
   }
 }
 
@@ -127,16 +129,29 @@ void gvizLayerCreatePanelDraw(void *layerV, const gvizCamera *camera) {
   Rectangle algoRect = {px + GAP + LABEL_W, y, PANEL_W - LABEL_W - GAP * 2, ROW_H};
   y += ROW_H + GAP;
 
+  int hideSource = (p->params.existingGraph != GVIZ_SCENE_GRAPH_INVALID);
+
   /* Source (rect captured for deferred draw) */
-  GuiLabel((Rectangle){px + GAP, y, LABEL_W, ROW_H}, "Source");
+  Rectangle srcRect = {0};
   int src = (int)p->params.source;
-  Rectangle srcRect = {px + GAP + LABEL_W, y, PANEL_W - LABEL_W - GAP * 2, ROW_H};
-  y += ROW_H + GAP;
+  if (!hideSource) {
+    GuiLabel((Rectangle){px + GAP, y, LABEL_W, ROW_H}, "Source");
+    srcRect = (Rectangle){px + GAP + LABEL_W, y, PANEL_W - LABEL_W - GAP * 2, ROW_H};
+    y += ROW_H + GAP;
+  }
 
   Rectangle graphTypeRect = {0};
   int hasGraphType = 0;
 
-  if (p->params.source == GVIZ_SRC_DEMO) {
+  if (hideSource) {
+    /* Embedding dim still applies (GRIP). */
+    GuiLabel((Rectangle){px + GAP, y, LABEL_W, ROW_H}, "Embed dim");
+    if (GuiSpinner((Rectangle){px + GAP + LABEL_W, y,
+                               PANEL_W - LABEL_W - GAP * 2, ROW_H},
+                   NULL, &p->params.embDim, 2, 8, p->embDimEdit))
+      p->embDimEdit = !p->embDimEdit;
+    y += ROW_H + GAP;
+  } else if (p->params.source == GVIZ_SRC_DEMO) {
     /* Graph-type dropdown — also deferred. */
     GuiLabel((Rectangle){px + GAP, y, LABEL_W, ROW_H}, "Graph type");
     graphTypeRect = (Rectangle){px + GAP + LABEL_W, y,
@@ -199,9 +214,11 @@ void gvizLayerCreatePanelDraw(void *layerV, const gvizCamera *camera) {
       p->graphTypeDropdownEdit = !p->graphTypeDropdownEdit;
     p->params.graphType = (gvizDemoGraphType)gt;
   }
-  if (GuiDropdownBox(srcRect, "Demos;From file", &src, p->sourceDropdownEdit))
-    p->sourceDropdownEdit = !p->sourceDropdownEdit;
-  p->params.source = (gvizCreateSource)src;
+  if (!hideSource) {
+    if (GuiDropdownBox(srcRect, "Demos;From file", &src, p->sourceDropdownEdit))
+      p->sourceDropdownEdit = !p->sourceDropdownEdit;
+    p->params.source = (gvizCreateSource)src;
+  }
 
   if (GuiDropdownBox(algoRect, "Tutte;GRIP;PolyTutte;Reingold-Tilford;Empty",
                      &algo, p->algoDropdownEdit))

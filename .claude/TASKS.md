@@ -12,19 +12,19 @@
 
 ## Epic B — "New Graph" modal (`gvizGraphCreatePanel`)
 
-- [ ] Add `include/app/gvizGraphCreatePanel.h`: struct, init/draw/release/event vtable, result enum, params (graphType + param1 + param2)
-- [ ] Add `src/app/gvizGraphCreatePanel.c`: modal UI with graph-type dropdown, param1 spinner, conditional param2 spinner, Create/Cancel buttons (reuse `GRAPH_TYPE_LIST`, `graphTypeUsesParam2`, `graphTypeParam1Label`, `graphTypeParam2Label`)
-- [ ] Extract `loadDemoGraph` + `buildRandomTree` from `gvizLayerCreate.c` into shared `app/gvizDemoGraphLoad.h/.c` so both panels reuse it
-- [ ] Add `gvizApplyGraphCreate(scene, params)` that builds the graph via the shared helper, heap-promotes via `graphToHeap`, calls `gvizSceneRegisterGraph`, returns the handle (no layer)
-- [ ] Update `CMakeLists.txt` source list with new files
+- [x] Add `include/app/gvizGraphCreatePanel.h`: struct, init/draw/release/event vtable, result enum, params (graphType + param1 + param2)
+- [x] Add `src/app/gvizGraphCreatePanel.c`: modal UI with graph-type dropdown, param1 spinner, conditional param2 spinner, Create/Cancel buttons (reuse `GRAPH_TYPE_LIST`, `graphTypeUsesParam2`, `graphTypeParam1Label`, `graphTypeParam2Label`)
+- [x] Extract `loadDemoGraph` + `buildRandomTree` from `gvizLayerCreate.c` into shared `app/gvizDemoGraphLoad.h/.c` so both panels reuse it
+- [x] Add `gvizApplyGraphCreate(scene, params)` that builds the graph via the shared helper, heap-promotes via `graphToHeap`, calls `gvizSceneRegisterGraph`, returns the handle (no layer)
+- [x] Update `CMakeLists.txt` source list with new files
 
 ## Epic C — "New Layer from graph" flow
 
-- [ ] Extend `gvizLayerCreateParams` with `gvizSceneGraphHandle existingGraph` (default `GVIZ_SCENE_GRAPH_INVALID`)
-- [ ] Add `GVIZ_SLOT_FROM_EXISTING_GRAPH` slot kind for the append-layer-only path
-- [ ] In `gvizLayerCreatePanel.c`: when `existingGraph` is valid, render only algorithm + embed dim + (default-Full) view section; hide source/graph-type/param/filepath rows; update title
-- [ ] In `gvizLayerCreate.c` builders (Tutte / GRIP / PolyTutte / RT): if `params->existingGraph` is valid, resolve via `gvizSceneGetGraph`, retain the handle, skip `loadGraphForSource` + `gvizSceneRegisterGraph`
-- [ ] In `gvizApplyLayerCreate`: when slot is `FROM_EXISTING_GRAPH`, append the layer via `gvizSceneAddLayer` (no split required)
+- [x] Extend `gvizLayerCreateParams` with `gvizSceneGraphHandle existingGraph` (default `GVIZ_SCENE_GRAPH_INVALID`)
+- [x] Add `GVIZ_SLOT_FROM_EXISTING_GRAPH` slot kind for the append-layer-only path
+- [x] In `gvizLayerCreatePanel.c`: when `existingGraph` is valid, render only algorithm + embed dim + (default-Full) view section; hide source/graph-type/param/filepath rows; update title
+- [x] In `gvizLayerCreate.c` builders (Tutte / GRIP / PolyTutte / RT): if `params->existingGraph` is valid, resolve via `gvizSceneGetGraph`, retain the handle, skip `loadGraphForSource` + `gvizSceneRegisterGraph`
+- [x] In `gvizApplyLayerCreate`: when slot is `FROM_EXISTING_GRAPH`, append the layer via `gvizSceneAddLayer` (no split required)
 
 ## Epic D — Scene wiring and right-click dispatch
 

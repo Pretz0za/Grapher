@@ -38,9 +38,10 @@ typedef enum gvizDemoGraphType {
 } gvizDemoGraphType;
 
 typedef enum gvizCreateSlotKind {
-  GVIZ_SLOT_NEW_EMPTY_SCENE = 0, /* scene currently has no component layers */
-  GVIZ_SLOT_SPLIT_H,             /* split active region horizontally */
-  GVIZ_SLOT_SPLIT_V,             /* split active region vertically */
+  GVIZ_SLOT_NEW_EMPTY_SCENE = 0,    /* scene currently has no component layers */
+  GVIZ_SLOT_SPLIT_H,                /* split active region horizontally */
+  GVIZ_SLOT_SPLIT_V,                /* split active region vertically */
+  GVIZ_SLOT_FROM_EXISTING_GRAPH,    /* append a new layer for an existing graph (no split) */
 } gvizCreateSlotKind;
 
 typedef enum gvizCreatePanelResult {
@@ -63,6 +64,11 @@ typedef struct gvizLayerCreateParams {
   int                graphParam1;  /* depth or rows or L (per type) */
   int                graphParam2;  /* cols or W (per type, 0 if unused) */
   int                embDim;       /* GRIP embedding dim (2..8); 0 = follow drawDim */
+
+  /* When non-INVALID, builders skip graph loading + registration and instead
+   * resolve this handle from the scene to bind the new layer to an existing
+   * graph. Source / graphType / param rows are hidden in the panel. */
+  gvizSceneGraphHandle existingGraph;
 } gvizLayerCreateParams;
 
 typedef struct gvizLayerCreatePanel {
