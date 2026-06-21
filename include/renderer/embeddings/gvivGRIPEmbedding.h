@@ -4,6 +4,7 @@
 #include "renderer/embeddings/gvizEmbeddedGraph.h"
 
 typedef struct gvizGRIPDecorators {
+  gvizArray knn;
   double *disp;
   double *oldDisp;
   double oldCos;
@@ -12,6 +13,10 @@ typedef struct gvizGRIPDecorators {
 
 typedef struct gvizGRIPState {
   gvizEmbeddedGraph graph;
+  size_t layerCount;
+  size_t currLayer;
+  size_t currRound;
+  GVIZ_BIT_ARRAY placed;
   size_t *misFiltration;
   size_t *misBorder;
   size_t *rounds;
@@ -26,6 +31,9 @@ void gvizGRIPEmbeddingRelease(gvizGRIPState *state);
 
 size_t createMISFiltration(gvizGRIPState *state);
 
-int gvizGRIPRefineEmbedding(gvizGRIPState *state);
+
+void gvizGRIPEmbeddingBegin(gvizGRIPState *state);
+void beginNewStage(gvizGRIPState *state);
+void runRefinementRound(gvizGRIPState *state);
 
 #endif

@@ -43,9 +43,9 @@ target_include_directories(graphvis
 
 target_link_libraries(graphvis
     PRIVATE
-    /usr/local/lib/libplanar.a
-    /usr/local/lib/libopenblas.a
-    /usr/local/lib/libraylib.a
+    planar
+    openblas
+    raylib
     "-framework Cocoa"
     "-framework OpenGL"
     "-framework IOKit"

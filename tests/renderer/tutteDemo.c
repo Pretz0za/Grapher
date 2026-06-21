@@ -1,4 +1,5 @@
 #include "dsa/gvizGraph.h"
+#define MSF_GIF_IMPL
 #include "msf_gif.h"
 #include "raylib.h"
 #include "raymath.h"

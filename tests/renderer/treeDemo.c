@@ -37,7 +37,7 @@ int main() {
   gvizGraph graph;
   gvizGraphInit(&graph, 1);
   gvizGraphAddVertex(&graph, NULL, NULL, NULL);
-  randomTree(&graph, 0, 0, 5, 0);
+  randomTree(&graph, 0, 4, 5, 0);
 
   gvizEmbeddedTree rtTreeEmbedding;
   gvizEmbeddedTreeRTInit(&rtTreeEmbedding, &graph, 0);

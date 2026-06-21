@@ -15,6 +15,9 @@
 
 #define GVIZ_EDGE_LENGTH 10.0
 
+#define INITIAL_PLACEMENT_K 128
+#define REFINEMENT_K 128
+
 static const double gvizGRIPr = 0.15;
 static const double gvizGRIPs = 3;
 
@@ -22,6 +25,10 @@ int gvizGRIPEmbeddingInit(gvizGRIPState *state, gvizGraph *graph,
                           size_t diameter, size_t dimension) {
   int res;
   size_t N = graph->vertices.count;
+
+  state->currLayer = 0;
+  state->layerCount = 0;
+  state->currRound = 0;
 
   res = gvizEmbeddedGraphInit((gvizEmbeddedGraph *)state, graph, dimension);
   if (res < 0)
@@ -52,13 +59,34 @@ int gvizGRIPEmbeddingInit(gvizGRIPState *state, gvizGraph *graph,
   }
   memset(state->dispCalculated, 0, sizeof(GVIZ_BIT_UNIT) * GVIZ_ARRAY_UNITS(N));
 
+  state->placed = GVIZ_ALLOC(sizeof(GVIZ_BIT_UNIT) * GVIZ_ARRAY_UNITS(N));
+  if (!state->placed) {
+    return -1;
+  }
+  memset(state->placed, 0, sizeof(GVIZ_BIT_UNIT) * GVIZ_ARRAY_UNITS(N));
+
   double *disp = GVIZ_ALLOC(sizeof(double) * N * dimension);
   double *oldDisp = GVIZ_ALLOC(sizeof(double) * N * dimension);
 
   if (!disp || !oldDisp)
     return -1;
 
-  for (size_t i = 0; i < N; i++) {
+  gvizFoundVertex *gArr =
+      GVIZ_ALLOC(sizeof(gvizFoundVertex) * N * REFINEMENT_K);
+  if (!gArr)
+    return -1;
+  memset(gArr, 0, sizeof(gvizFoundVertex) * N * REFINEMENT_K);
+
+  for (size_t i = 0; i < N; i++, gArr += REFINEMENT_K) {
+	
+    // manually initalize knn arrays
+    gvizArray *arr = &state->dec[i].knn;
+    arr->elementSize = sizeof(gvizFoundVertex);
+    arr->capacity = REFINEMENT_K;
+    arr->count = 0;
+    arr->arr = gArr;
+
+    // initalize other decorators
     state->dec[i].disp = disp;
     state->dec[i].oldDisp = oldDisp;
     disp += dimension;
@@ -184,10 +212,13 @@ void gvizGRIPEmbeddingRelease(gvizGRIPState *state) {
   if (state->dec) {
     GVIZ_DEALLOC(state->dec[0].disp);
     GVIZ_DEALLOC(state->dec[0].oldDisp);
+    GVIZ_DEALLOC(state->dec[0].knn.arr);
     GVIZ_DEALLOC(state->dec);
   }
   if (state->dispCalculated)
     GVIZ_DEALLOC(state->dispCalculated);
+  if (state->placed)
+    GVIZ_DEALLOC(state->placed);
 
   return;
 }
@@ -238,8 +269,6 @@ void migrateOneToFinalLayer(gvizGRIPState *state, GVIZ_BIT_ARRAY finalLayer,
 
   for (size_t i = 0; i < state->misBorder[count - 1]; i++) {
     // NOTE: No max depth. place for optimization here
-    printf("  source vertex: %zu (graph size: %zu)\n", state->misFiltration[i],
-           ((gvizEmbeddedGraph *)state)->graph->vertices.count);
 
     // last parameter specifies we want a bfs.map that maps from original idx
     // to bfs idx, instead of the other way around.
@@ -338,8 +367,6 @@ int iterMISFiltration(gvizGRIPState *state, size_t i, GVIZ_BIT_ARRAY vertices,
   memset(newVertices, 0, sizeof(newVertices));
   memset(newMisStates, 0, sizeof(newMisStates));
 
-  printf("creating new layer %zu\n", i);
-
   for (size_t j = 0; j < verticesArr->count; j++) {
     curr = *(size_t *)gvizArrayAtIndex(verticesArr, j);
 
@@ -355,8 +382,6 @@ int iterMISFiltration(gvizGRIPState *state, size_t i, GVIZ_BIT_ARRAY vertices,
     verticesWithinRadius(embedding->graph, curr, (1ULL << (i - 1)) + 1,
                          newMisStates);
   }
-
-  printf("second loop\n");
 
   // Loop again, to find the vertices that did not make it to the new subset
   // We loop backwards since we are mutating the array we are looping over.
@@ -389,7 +414,7 @@ int iterMISFiltration(gvizGRIPState *state, size_t i, GVIZ_BIT_ARRAY vertices,
     migrateOneToFinalLayer(state, newVertices, i + 1);
   }
 
-  printf("Layer %zu created with %zu vertices.", i, state->misBorder[i]);
+  // printf("Layer %zu created with %zu vertices.", i, state->misBorder[i]);
 
   if (state->misBorder[i] == embedding->embedding.dim + 1) {
     for (size_t k = 0; k < verticesArr->count; k++) {
@@ -405,18 +430,15 @@ size_t createMISFiltration(gvizGRIPState *state) {
   GVIZ_BIT_UNIT curr[GVIZ_ARRAY_UNITS(embedding->graph->vertices.count)];
   memset(curr, 0, sizeof(curr));
 
-  printf("creating first MIS\n");
   gvizArray currVertices;
   gvizArrayInitAtCapacity(&currVertices, sizeof(size_t),
                           embedding->graph->vertices.count);
 
   makeFirstMISPartition(state, &currVertices);
-  printf("MIS created, size: %zu. setting bitset\n", currVertices.count);
   for (size_t i = 0; i < currVertices.count; i++) {
     gvizSetBit(curr, *(size_t *)gvizArrayAtIndex(&currVertices, i));
   }
 
-  printf("creating next layers...\n");
   size_t i = 2;
   while (iterMISFiltration(state, i, curr, &currVertices)) {
     i++;
@@ -427,21 +449,22 @@ size_t createMISFiltration(gvizGRIPState *state) {
   return i + 1;
 }
 
-void placeLayerVertices(gvizGRIPState *state, size_t layer,
-                        GVIZ_BIT_ARRAY placedVertices) {
-  printf("placing layer using barrycenters\n");
+// DO NOT CALL FOR FIRST LAYER
+void placeLayerVertices(gvizGRIPState *state) {
   gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
+  size_t layer = state->currLayer;
 
   // place each new vertex at barrycenter of previous vertices
   for (size_t i = state->misBorder[layer + 1]; i < state->misBorder[layer];
        i++) {
-    assert(!gvizTestBit(placedVertices, state->misFiltration[i]));
+    assert(!gvizTestBit(state->placed, state->misFiltration[i]));
 
     // printf("placing vertex %zu\n", state->misFiltration[i]);
-    gvizFoundVertex found[32];
+    gvizFoundVertex found[INITIAL_PLACEMENT_K];
 
-    size_t count = gvizGraphKNearestNeighbors(
-        embedding->graph, found, 32, state->misFiltration[i], placedVertices);
+    size_t count =
+        gvizGraphKNearestNeighbors(embedding->graph, found, INITIAL_PLACEMENT_K,
+                                   state->misFiltration[i], state->placed);
 
     assert(count > 0);
 
@@ -469,7 +492,7 @@ void placeLayerVertices(gvizGRIPState *state, size_t layer,
 
   // Set all as placed
   for (size_t i = state->misBorder[layer + 1]; i < state->misBorder[layer]; i++)
-    gvizSetBit(placedVertices, state->misFiltration[i]);
+    gvizSetBit(state->placed, state->misFiltration[i]);
 }
 
 void updateLocalTemp(gvizGRIPState *state, size_t v) {
@@ -496,14 +519,17 @@ void updateLocalTemp(gvizGRIPState *state, size_t v) {
   state->dec[v].oldCos = cos;
 }
 
-void calculateSpringForces(gvizGRIPState *state, size_t v, gvizArray *knn,
-                           size_t layer, GVIZ_BIT_ARRAY filter) {
+// TODO: highly parallelizable
+void calculateSpringForces(gvizGRIPState *state, size_t v, size_t layer,
+                           GVIZ_BIT_ARRAY filter) {
   gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
   double f[embedding->embedding.dim];
   memset(f, 0, sizeof(f));
+  gvizArray *knn = &state->dec[v].knn;
+
   if (layer > 0) {
 
-    for (size_t i = 0; i < knn->count; i++) {
+    for (size_t i = 0; i < REFINEMENT_K; i++) {
       gvizFoundVertex other = *(gvizFoundVertex *)gvizArrayAtIndex(knn, i);
 
       gvizPairwiseKKForce(embedding->embedding.dim,
@@ -523,7 +549,7 @@ void calculateSpringForces(gvizGRIPState *state, size_t v, gvizArray *knn,
           gvizEmbeddedGraphGetVPosition(embedding, other), GVIZ_EDGE_LENGTH, f);
     }
 
-    for (size_t i = 0; i < knn->count; i++) {
+    for (size_t i = 0; i < REFINEMENT_K; i++) {
       gvizFoundVertex other = *(gvizFoundVertex *)gvizArrayAtIndex(knn, i);
 
       gvizPairwiseFRAttForce(embedding->embedding.dim,
@@ -540,174 +566,119 @@ void calculateSpringForces(gvizGRIPState *state, size_t v, gvizArray *knn,
   return;
 }
 
-void refineGRIPPositions(gvizGRIPState *state, size_t layer,
-                         GVIZ_BIT_ARRAY placedVertices) {
+void clearDecorators(gvizGRIPState *state) {
   gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
 
   memset(state->dispCalculated, 0,
          sizeof(GVIZ_BIT_UNIT) *
              GVIZ_ARRAY_UNITS(embedding->graph->vertices.count));
 
-  for (size_t i = 0; i < state->misBorder[layer]; i++) {
+  // TODO: can be made into one memset call. take out all arrays from decorator
+  for (size_t i = 0; i < state->misBorder[state->currLayer]; i++) {
     size_t curr = state->misFiltration[i];
     gvizGRIPDecorators *dec = state->dec + curr;
     dec->heat = 0.0;
     dec->oldCos = 0.0;
+    dec->knn.count = 0;
     memset(dec->disp, 0, embedding->embedding.dim * sizeof(double));
     memset(dec->oldDisp, 0, embedding->embedding.dim * sizeof(double));
   }
-
-  gvizArray *knns = GVIZ_ALLOC(sizeof(gvizArray) * state->misBorder[layer]);
-  // gvizArray knns[state->misBorder[layer]];
-  for (size_t i = 0; i < state->misBorder[layer]; i++) {
-    gvizArrayInitAtCapacity(&knns[i], sizeof(gvizFoundVertex), 128);
-    knns[i].count =
-        gvizGraphKNearestNeighbors(embedding->graph, knns[i].arr, 128,
-                                   state->misFiltration[i], placedVertices);
-  }
-
-  // TODO: implement rounds instead of hardcoding
-  for (size_t r = 0; r < 36; r++) {
-    printf("Refining layer %zu... round %zu\n", layer, r);
-    // calculate normalized displacements
-    for (size_t i = 0; i < state->misBorder[layer]; i++) {
-      size_t curr = state->misFiltration[i];
-      gvizGRIPDecorators *dec = state->dec + curr;
-
-      // oldDisp = disp
-      cblas_dcopy(embedding->embedding.dim, dec->disp, 1, dec->oldDisp, 1);
-
-      calculateSpringForces(state, curr, knns + i, layer, placedVertices);
-
-      if (!gvizTestBit(state->dispCalculated, curr)) {
-        gvizSetBit(state->dispCalculated, curr);
-        dec->heat = GVIZ_EDGE_LENGTH / 6.0;
-      } else
-        updateLocalTemp(state, curr);
-
-      dec->heat = fmin(dec->heat, GVIZ_EDGE_LENGTH * 10);
-      dec->heat = fmax(dec->heat, GVIZ_EDGE_LENGTH * 1e-4);
-
-      double nrm = cblas_dnrm2(embedding->embedding.dim, dec->disp, 1);
-      // avoid division by zero here:
-      if (nrm > gvizNumericEpsilon) {
-        cblas_dscal(embedding->embedding.dim, dec->heat / nrm, dec->disp, 1);
-      }
-    }
-
-    size_t nonzero, zero;
-    zero = nonzero = 0;
-
-    // update positions, pos = pos + disp
-    for (size_t i = 0; i < state->misBorder[layer]; i++) {
-      size_t curr = state->misFiltration[i];
-      gvizGRIPDecorators *dec = state->dec + curr;
-      gvizEmbeddedGraphAddVPosition(embedding, curr, dec->disp);
-
-      double nrm = cblas_dnrm2(embedding->embedding.dim, dec->disp, 1);
-      if (nrm > gvizNumericEpsilon)
-        nonzero++;
-      else
-        zero++;
-
-      assert(!isnan(gvizEmbeddedGraphGetVPosition(embedding, curr)[0]) &&
-             !isnan((gvizEmbeddedGraphGetVPosition(embedding, curr)[1])));
-    }
-
-    // printf("layer %zu, round %zu. zero vector disp count: %zu, non-zero
-    // vector "
-    //        "disp count: %zu\n",
-    // layer, r, zero, nonzero);
-  }
-
-  // clean up
-  for (size_t i = 0; i < state->misBorder[layer]; i++) {
-    gvizArrayRelease(&knns[i]);
-  }
-  GVIZ_DEALLOC(knns);
 }
 
-int gvizGRIPRefineEmbedding(gvizGRIPState *state) {
+void updateKNNs(gvizGRIPState *state) {
   gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
-
-  GVIZ_BIT_UNIT placed[GVIZ_ARRAY_UNITS(
-      ((gvizEmbeddedGraph *)state)->graph->vertices.count)];
-  memset(placed, 0, sizeof(placed));
-
-  // Step 1: Create a Maximal Independent Set, then filter into coarser subsets
-  size_t layerCount = createMISFiltration(state);
-
-  // Vertices already placed. Only refine and maintain placed bitest./
-
-  // initialize with the smallest layer
-  for (size_t i = 0; i < state->misBorder[layerCount - 1]; i++) {
-    gvizSetBit(placed, state->misFiltration[i]);
+  for (size_t i = 0; i < state->misBorder[state->currLayer]; i++) {
+    size_t curr = state->misFiltration[i];
+    gvizArray knn = state->dec[curr].knn;
+    knn.count =
+        gvizGraphKNearestNeighbors(embedding->graph, knn.arr, REFINEMENT_K,
+                                   state->misFiltration[i], state->placed);
   }
-
-  for (size_t i = layerCount; i-- > 0;) {
-
-    // update placed vertices to include the new layer's vertices
-    if (i != layerCount - 1) {
-      for (size_t j = state->misBorder[i + 1]; j < state->misBorder[i]; j++) {
-        gvizSetBit(placed, state->misFiltration[j]);
-      }
-    }
-
-    // printf("placing layer %zu\n", i);
-
-    // printf("simulating springs \n");
-    refineGRIPPositions(state, i, placed);
-  }
-  // for (size_t i = 0; i < embedding->graph->vertices.count; i++) {
-  //   printf("Vertex #%zu, placed: %d, position (%lf, %lf)\n", i,
-  //          gvizTestBit(placed, i), state->dec[i].disp[0],
-  //          state->dec[i].disp[i + 1]);
-  // }
-  //
-  return 0;
 }
 
-int gvizGRIPEmbeddingEmbed(gvizGRIPState *state) {
+void gvizGRIPEmbeddingBegin(gvizGRIPState *state) {
+
   gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
 
-  GVIZ_BIT_UNIT placed[GVIZ_ARRAY_UNITS(
-      ((gvizEmbeddedGraph *)state)->graph->vertices.count)];
-  memset(placed, 0, sizeof(placed));
-
   // Step 1: Create a Maximal Independent Set, then filter into coarser subsets
-  size_t layerCount = createMISFiltration(state);
+  state->layerCount = createMISFiltration(state);
+  state->currLayer = state->layerCount - 1;
 
-  // Step 2: Place the smallest layers first, and perform local force simulation
 
-  for (size_t i = layerCount; i-- > 0;) {
-    // printf("placing layer %zu\n", i);
+  double simplex[embedding->embedding.dim * (embedding->embedding.dim + 1)];
+  makeRegularSimplex(embedding->embedding.dim, GVIZ_EDGE_LENGTH * 1000,
+                     simplex);
 
-    if (i == layerCount - 1) {
-      printf("placing first layer. vertices: %zu\n",
-             state->misBorder[layerCount - 1]);
-      // first layer placement
-      double simplex[embedding->embedding.dim * (embedding->embedding.dim + 1)];
-      makeRegularSimplex(embedding->embedding.dim, GVIZ_EDGE_LENGTH * 1000,
-                         simplex);
-      // makeEquilateralTriangle2(triangle, GVIZ_EDGE_LENGTH * 1000);
-      for (size_t j = 0; j < embedding->embedding.dim + 1; j++) {
-        gvizSetBit(placed, state->misFiltration[j]);
-        cblas_dcopy(
-            embedding->embedding.dim, simplex + j * embedding->embedding.dim, 1,
-            gvizEmbeddedGraphGetVPosition(embedding, state->misFiltration[j]),
-            1);
-      }
+  for (size_t j = 0; j < embedding->embedding.dim + 1; j++) {
+    gvizSetBit(state->placed, state->misFiltration[j]);
+    cblas_dcopy(
+        embedding->embedding.dim, simplex + j * embedding->embedding.dim, 1,
+        gvizEmbeddedGraphGetVPosition(embedding, state->misFiltration[j]), 1);
+  }
+
+  clearDecorators(state);
+  updateKNNs(state);
+}
+
+// state->placed and state->currLayer assumed to be updated here:
+
+void beginNewStage(gvizGRIPState *state) {
+
+  // TODO: set placed and call updateKNN
+
+  if (state->currLayer == 0)
+    return;
+  state->currLayer--;
+  state->currRound = 0;
+  placeLayerVertices(state);
+  clearDecorators(state);
+  updateKNNs(state);
+}
+
+void runRefinementRound(gvizGRIPState *state) {
+  gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
+  size_t layer = state->currLayer;
+
+  printf("Refining layer %zu... round %zu\n", state->currLayer,
+         state->currRound);
+
+  // calculate normalized displacements
+  for (size_t i = 0; i < state->misBorder[layer]; i++) {
+    size_t curr = state->misFiltration[i];
+    gvizGRIPDecorators *dec = state->dec + curr;
+
+    // oldDisp = disp
+    cblas_dcopy(embedding->embedding.dim, dec->disp, 1, dec->oldDisp, 1);
+
+    calculateSpringForces(state, curr, layer, state->placed);
+
+    if (!gvizTestBit(state->dispCalculated, curr)) {
+      gvizSetBit(state->dispCalculated, curr);
+      dec->heat = GVIZ_EDGE_LENGTH / 6.0;
     } else
-      placeLayerVertices(state, i, placed); // barrycenter
+      updateLocalTemp(state, curr);
 
-    // printf("simulating springs \n");
-    refineGRIPPositions(state, i, placed);
+    dec->heat = fmin(dec->heat, GVIZ_EDGE_LENGTH * 10);
+    dec->heat = fmax(dec->heat, GVIZ_EDGE_LENGTH * 1e-4);
+
+    double nrm = cblas_dnrm2(embedding->embedding.dim, dec->disp, 1);
+    // avoid division by zero here:
+    if (nrm > gvizNumericEpsilon) {
+      cblas_dscal(embedding->embedding.dim, dec->heat / nrm, dec->disp, 1);
+    } else {
+      printf("AVOIDED DIVISION BY 0. @ runRefinementRound.\n");
+    }
   }
-  // for (size_t i = 0; i < embedding->graph->vertices.count; i++) {
-  //   printf("Vertex #%zu, placed: %d, position (%lf, %lf)\n", i,
-  //          gvizTestBit(placed, i), state->dec[i].disp[0],
-  //          state->dec[i].disp[i + 1]);
-  // }
-  //
-  return 0;
+
+  // update positions, pos = pos + disp
+  for (size_t i = 0; i < state->misBorder[layer]; i++) {
+    size_t curr = state->misFiltration[i];
+    gvizGRIPDecorators *dec = state->dec + curr;
+    gvizEmbeddedGraphAddVPosition(embedding, curr, dec->disp);
+
+    assert(!isnan(gvizEmbeddedGraphGetVPosition(embedding, curr)[0]) &&
+           !isnan((gvizEmbeddedGraphGetVPosition(embedding, curr)[1])));
+  }
+
+  state->currRound++;
 }
