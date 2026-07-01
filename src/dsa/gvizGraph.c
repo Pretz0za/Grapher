@@ -53,6 +53,7 @@ int gvizGraphInit(gvizGraph *g, int directed) {
     return err;
   g->directed = directed;
   g->map = NULL;
+  g->layout = NULL;
   return 0;
 }
 
@@ -68,7 +69,52 @@ int gvizGraphInitAtCapacity(gvizGraph *g, int directed,
 
   g->directed = directed;
   g->map = NULL;
+  g->layout = NULL;
   return 0;
+}
+
+
+size_t gvizGraphSize(const gvizGraph *g) {
+	return g->vertices.count;
+}
+
+size_t gvizGraphEdgeCount(const gvizGraph *g) {
+  if (!g->layout)
+    return 0;
+  return g->layout->edgeCount;
+}
+
+void gvizGraphBuildLayout(gvizGraph *g) {
+  size_t n = gvizGraphSize(g);
+  if (!g->layout) {
+    g->layout = GVIZ_ALLOC(sizeof(gvizGraphLayout));
+    if (!g->layout)
+      return;
+    g->layout->nvertices = n;
+    g->layout->vertexOffsets = GVIZ_ALLOC((n + 1) * sizeof(size_t));
+    if (!g->layout->vertexOffsets) {
+      GVIZ_DEALLOC(g->layout);
+      g->layout = NULL;
+      return;
+    }
+  } else if (g->layout->nvertices != n) {
+    g->layout->nvertices = n;
+    g->layout->vertexOffsets =
+        GVIZ_REALLOC(g->layout->vertexOffsets, (n + 1) * sizeof(size_t));
+    if (!g->layout->vertexOffsets) {
+      GVIZ_DEALLOC(g->layout);
+      g->layout = NULL;
+      return;
+    }
+  }
+
+  size_t off = 0;
+  for (size_t i = 0; i < n; i++) {
+    g->layout->vertexOffsets[i] = off;
+    off += gvizGraphGetVertexNeighbors(g, i)->count;
+  }
+  g->layout->vertexOffsets[n] = off;
+  g->layout->edgeCount = g->directed ? off : off / 2;
 }
 
 int gvizGraphAddVertex(gvizGraph *g, void *data, gvizArray *in,
@@ -166,6 +212,12 @@ void gvizGraphRelease(gvizGraph *g) {
 
   if (g->map)
     GVIZ_DEALLOC(g->map);
+
+  if (g->layout) {
+    GVIZ_DEALLOC(g->layout->vertexOffsets);
+    GVIZ_DEALLOC(g->layout);
+    g->layout = NULL;
+  }
 }
 
 int gvizGraphDFSTree(gvizGraph *g, gvizGraph *out, size_t source) {
@@ -434,6 +486,11 @@ void gvizGraphClear(gvizGraph *g) {
     gvizVertexRelease(gvizArrayAtIndex(&g->vertices, i));
   }
   g->vertices.count = 0;
+  if (g->layout) {
+    GVIZ_DEALLOC(g->layout->vertexOffsets);
+    GVIZ_DEALLOC(g->layout);
+    g->layout = NULL;
+  }
 }
 
 int gvizGraphCopy(gvizGraph *dest, const gvizGraph *src) {
@@ -593,10 +650,3 @@ int printSubtree(gvizGraph *tree, size_t root, Position rootPos,
   }
   return dy;
 }
-
-void gvizPrintDFSTree(gvizGraph *tree, char *strings[], FILE *stream) {
-  clearScreen(stream);
-  Position start = {1, 1};
-  printSubtree(tree, 0, start, strings, stream);
-  printAt(100, 100, "\n\n", stdout);
-};

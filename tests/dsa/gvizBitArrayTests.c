@@ -6,6 +6,33 @@ void setUp(void) {}
 
 void tearDown(void) {}
 
+static size_t collect_set_bits(GVIZ_BIT_ARRAY arr, size_t nbits, size_t *out,
+                               size_t max_out) {
+  gvizBitArrayIterator it = gvizBitArrayIteratorCreate(arr, nbits);
+  size_t n = 0;
+  size_t idx;
+
+  while (gvizBitArrayIterate(&it, &idx) && n < max_out) {
+    out[n++] = idx;
+  }
+  return n;
+}
+
+static void assert_bits_match_iterator(GVIZ_BIT_ARRAY arr, size_t nbits) {
+  size_t collected[1024];
+  size_t n = collect_set_bits(arr, nbits, collected, 1024);
+
+  size_t expect = 0;
+  for (size_t i = 0; i < nbits; i++) {
+    if (gvizTestBit(arr, i)) {
+      TEST_ASSERT_LESS_THAN(n, expect);
+      TEST_ASSERT_EQUAL(i, collected[expect]);
+      expect++;
+    }
+  }
+  TEST_ASSERT_EQUAL(expect, n);
+}
+
 // ============================================================================
 // BASIC SET & TEST
 // ============================================================================
@@ -418,6 +445,309 @@ void test_random_access_pattern(void) {
 }
 
 // ============================================================================
+// BIT ARRAY OR / AND
+// ============================================================================
+
+void test_or_disjoint_bits(void) {
+  GVIZ_BIT_UNIT dest[GVIZ_ARRAY_UNITS(32)];
+  GVIZ_BIT_UNIT src[GVIZ_ARRAY_UNITS(32)];
+  memset(dest, 0, sizeof(dest));
+  memset(src, 0, sizeof(src));
+
+  gvizSetBit(dest, 1);
+  gvizSetBit(dest, 10);
+  gvizSetBit(src, 5);
+  gvizSetBit(src, 20);
+
+  gvizBitArrayOr(dest, src, 32);
+
+  TEST_ASSERT_TRUE(gvizTestBit(dest, 1));
+  TEST_ASSERT_TRUE(gvizTestBit(dest, 5));
+  TEST_ASSERT_TRUE(gvizTestBit(dest, 10));
+  TEST_ASSERT_TRUE(gvizTestBit(dest, 20));
+  TEST_ASSERT_FALSE(gvizTestBit(dest, 0));
+}
+
+void test_or_overlapping_bits(void) {
+  GVIZ_BIT_UNIT dest[GVIZ_ARRAY_UNITS(16)];
+  GVIZ_BIT_UNIT src[GVIZ_ARRAY_UNITS(16)];
+  memset(dest, 0, sizeof(dest));
+  memset(src, 0, sizeof(src));
+
+  gvizSetBit(dest, 3);
+  gvizSetBit(dest, 7);
+  gvizSetBit(src, 3);
+  gvizSetBit(src, 9);
+
+  gvizBitArrayOr(dest, src, 16);
+
+  TEST_ASSERT_TRUE(gvizTestBit(dest, 3));
+  TEST_ASSERT_TRUE(gvizTestBit(dest, 7));
+  TEST_ASSERT_TRUE(gvizTestBit(dest, 9));
+  TEST_ASSERT_FALSE(gvizTestBit(dest, 4));
+}
+
+void test_or_preserves_dest_only_bits(void) {
+  GVIZ_BIT_UNIT dest[GVIZ_ARRAY_UNITS(8)];
+  GVIZ_BIT_UNIT src[GVIZ_ARRAY_UNITS(8)];
+  memset(dest, 0, sizeof(dest));
+  memset(src, 0, sizeof(src));
+
+  gvizSetBit(dest, 2);
+  gvizBitArrayOr(dest, src, 8);
+
+  TEST_ASSERT_TRUE(gvizTestBit(dest, 2));
+}
+
+void test_and_disjoint_clears_all(void) {
+  GVIZ_BIT_UNIT dest[GVIZ_ARRAY_UNITS(16)];
+  GVIZ_BIT_UNIT src[GVIZ_ARRAY_UNITS(16)];
+  memset(dest, 0, sizeof(dest));
+  memset(src, 0, sizeof(src));
+
+  gvizSetBit(dest, 1);
+  gvizSetBit(dest, 4);
+  gvizSetBit(src, 8);
+
+  gvizBitArrayAnd(dest, src, 16);
+
+  TEST_ASSERT_FALSE(gvizTestBit(dest, 1));
+  TEST_ASSERT_FALSE(gvizTestBit(dest, 4));
+  TEST_ASSERT_FALSE(gvizTestBit(dest, 8));
+}
+
+void test_and_keeps_common_bits(void) {
+  GVIZ_BIT_UNIT dest[GVIZ_ARRAY_UNITS(32)];
+  GVIZ_BIT_UNIT src[GVIZ_ARRAY_UNITS(32)];
+  memset(dest, 0, sizeof(dest));
+  memset(src, 0, sizeof(src));
+
+  gvizSetBit(dest, 2);
+  gvizSetBit(dest, 5);
+  gvizSetBit(dest, 11);
+  gvizSetBit(src, 5);
+  gvizSetBit(src, 11);
+  gvizSetBit(src, 14);
+
+  gvizBitArrayAnd(dest, src, 32);
+
+  TEST_ASSERT_FALSE(gvizTestBit(dest, 2));
+  TEST_ASSERT_TRUE(gvizTestBit(dest, 5));
+  TEST_ASSERT_TRUE(gvizTestBit(dest, 11));
+  TEST_ASSERT_FALSE(gvizTestBit(dest, 14));
+}
+
+void test_or_and_cross_word_boundary(void) {
+  GVIZ_BIT_UNIT dest[GVIZ_ARRAY_UNITS(GVIZ_BITS_PER_WORD + 8)];
+  GVIZ_BIT_UNIT src[GVIZ_ARRAY_UNITS(GVIZ_BITS_PER_WORD + 8)];
+  memset(dest, 0, sizeof(dest));
+  memset(src, 0, sizeof(src));
+
+  size_t last_in_word = GVIZ_BITS_PER_WORD - 1;
+  size_t first_next = GVIZ_BITS_PER_WORD;
+
+  gvizSetBit(dest, last_in_word);
+  gvizSetBit(src, first_next);
+
+  gvizBitArrayOr(dest, src, GVIZ_BITS_PER_WORD + 8);
+  TEST_ASSERT_TRUE(gvizTestBit(dest, last_in_word));
+  TEST_ASSERT_TRUE(gvizTestBit(dest, first_next));
+
+  gvizSetBit(dest, first_next);
+  gvizSetBit(src, last_in_word);
+  gvizClearBit(src, first_next);
+  gvizBitArrayAnd(dest, src, GVIZ_BITS_PER_WORD + 8);
+  TEST_ASSERT_TRUE(gvizTestBit(dest, last_in_word));
+  TEST_ASSERT_FALSE(gvizTestBit(dest, first_next));
+}
+
+void test_or_and_partial_last_word(void) {
+  size_t nbits = GVIZ_BITS_PER_WORD + 3;
+  GVIZ_BIT_UNIT dest[GVIZ_ARRAY_UNITS(nbits)];
+  GVIZ_BIT_UNIT src[GVIZ_ARRAY_UNITS(nbits)];
+  memset(dest, 0, sizeof(dest));
+  memset(src, 0, sizeof(src));
+
+  gvizSetBit(dest, nbits - 1);
+  gvizSetBit(src, 0);
+
+  gvizBitArrayOr(dest, src, nbits);
+  TEST_ASSERT_TRUE(gvizTestBit(dest, 0));
+  TEST_ASSERT_TRUE(gvizTestBit(dest, nbits - 1));
+
+  gvizBitArrayAnd(dest, src, nbits);
+  TEST_ASSERT_TRUE(gvizTestBit(dest, 0));
+  TEST_ASSERT_FALSE(gvizTestBit(dest, nbits - 1));
+}
+
+// ============================================================================
+// ITERATOR
+// ============================================================================
+
+void test_iterate_empty_array(void) {
+  GVIZ_BIT_UNIT arr[GVIZ_ARRAY_UNITS(16)];
+  memset(arr, 0, sizeof(arr));
+
+  gvizBitArrayIterator it = gvizBitArrayIteratorCreate(arr, 16);
+  size_t idx;
+
+  TEST_ASSERT_FALSE(gvizBitArrayIterate(&it, &idx));
+}
+
+void test_iterate_zero_nbits(void) {
+  GVIZ_BIT_UNIT arr[GVIZ_ARRAY_UNITS(8)];
+  memset(arr, 0xFF, sizeof(arr));
+
+  gvizBitArrayIterator it = gvizBitArrayIteratorCreate(arr, 0);
+  size_t idx;
+
+  TEST_ASSERT_FALSE(gvizBitArrayIterate(&it, &idx));
+}
+
+void test_iterate_single_bit(void) {
+  GVIZ_BIT_UNIT arr[GVIZ_ARRAY_UNITS(64)];
+  memset(arr, 0, sizeof(arr));
+  gvizSetBit(arr, 17);
+
+  size_t collected[4];
+  size_t n = collect_set_bits(arr, 64, collected, 4);
+
+  TEST_ASSERT_EQUAL(1, n);
+  TEST_ASSERT_EQUAL(17, collected[0]);
+}
+
+void test_iterate_multiple_bits_same_byte(void) {
+  GVIZ_BIT_UNIT arr[GVIZ_ARRAY_UNITS(16)];
+  memset(arr, 0, sizeof(arr));
+
+  gvizSetBit(arr, 2);
+  gvizSetBit(arr, 5);
+  gvizSetBit(arr, 7);
+
+  size_t collected[8];
+  size_t n = collect_set_bits(arr, 16, collected, 8);
+
+  TEST_ASSERT_EQUAL(3, n);
+  TEST_ASSERT_EQUAL(2, collected[0]);
+  TEST_ASSERT_EQUAL(5, collected[1]);
+  TEST_ASSERT_EQUAL(7, collected[2]);
+}
+
+void test_iterate_cross_byte_boundary(void) {
+  GVIZ_BIT_UNIT arr[GVIZ_ARRAY_UNITS(20)];
+  memset(arr, 0, sizeof(arr));
+
+  gvizSetBit(arr, 7);
+  gvizSetBit(arr, 8);
+  gvizSetBit(arr, 9);
+
+  size_t collected[8];
+  size_t n = collect_set_bits(arr, 20, collected, 8);
+
+  TEST_ASSERT_EQUAL(3, n);
+  TEST_ASSERT_EQUAL(7, collected[0]);
+  TEST_ASSERT_EQUAL(8, collected[1]);
+  TEST_ASSERT_EQUAL(9, collected[2]);
+}
+
+void test_iterate_cross_word_boundary(void) {
+  GVIZ_BIT_UNIT arr[GVIZ_ARRAY_UNITS(GVIZ_BITS_PER_WORD + 16)];
+  memset(arr, 0, sizeof(arr));
+
+  gvizSetBit(arr, GVIZ_BITS_PER_WORD - 1);
+  gvizSetBit(arr, GVIZ_BITS_PER_WORD);
+  gvizSetBit(arr, GVIZ_BITS_PER_WORD + 5);
+
+  size_t collected[8];
+  size_t n = collect_set_bits(arr, GVIZ_BITS_PER_WORD + 16, collected, 8);
+
+  TEST_ASSERT_EQUAL(3, n);
+  TEST_ASSERT_EQUAL(GVIZ_BITS_PER_WORD - 1, collected[0]);
+  TEST_ASSERT_EQUAL(GVIZ_BITS_PER_WORD, collected[1]);
+  TEST_ASSERT_EQUAL(GVIZ_BITS_PER_WORD + 5, collected[2]);
+}
+
+void test_iterate_exhausted_returns_false(void) {
+  GVIZ_BIT_UNIT arr[GVIZ_ARRAY_UNITS(8)];
+  memset(arr, 0, sizeof(arr));
+  gvizSetBit(arr, 3);
+
+  gvizBitArrayIterator it = gvizBitArrayIteratorCreate(arr, 8);
+  size_t idx;
+
+  TEST_ASSERT_TRUE(gvizBitArrayIterate(&it, &idx));
+  TEST_ASSERT_EQUAL(3, idx);
+  TEST_ASSERT_FALSE(gvizBitArrayIterate(&it, &idx));
+}
+
+void test_iterate_ascending_order(void) {
+  GVIZ_BIT_UNIT arr[GVIZ_ARRAY_UNITS(128)];
+  memset(arr, 0, sizeof(arr));
+
+  int indices[] = {99, 7, 42, 63, 64, 1, 120};
+  int count = sizeof(indices) / sizeof(indices[0]);
+
+  for (int i = 0; i < count; i++) {
+    gvizSetBit(arr, (size_t)indices[i]);
+  }
+
+  size_t collected[16];
+  size_t n = collect_set_bits(arr, 128, collected, 16);
+
+  TEST_ASSERT_EQUAL(count, (int)n);
+  for (size_t i = 1; i < n; i++) {
+    TEST_ASSERT_LESS_THAN(collected[i], collected[i - 1]);
+  }
+}
+
+void test_iterate_matches_test_bit_stride(void) {
+  GVIZ_BIT_UNIT arr[GVIZ_ARRAY_UNITS(200)];
+  memset(arr, 0, sizeof(arr));
+
+  for (size_t i = 0; i < 200; i += 7) {
+    gvizSetBit(arr, i);
+  }
+
+  assert_bits_match_iterator(arr, 200);
+}
+
+void test_iterate_matches_test_bit_dense(void) {
+  GVIZ_BIT_UNIT arr[GVIZ_ARRAY_UNITS(80)];
+  memset(arr, 0, sizeof(arr));
+
+  for (size_t i = 0; i < 80; i++) {
+    gvizSetBit(arr, i);
+  }
+
+  assert_bits_match_iterator(arr, 80);
+}
+
+void test_iterate_padding_bits_excluded(void) {
+  size_t nbits = GVIZ_BITS_PER_WORD + 5;
+  GVIZ_BIT_UNIT arr[GVIZ_ARRAY_UNITS(nbits + 8)];
+  memset(arr, 0xFF, sizeof(arr));
+
+  size_t collected[128];
+  size_t n = collect_set_bits(arr, nbits, collected, 128);
+
+  TEST_ASSERT_EQUAL(nbits, n);
+  for (size_t i = 0; i < n; i++) {
+    TEST_ASSERT_EQUAL(i, collected[i]);
+  }
+}
+
+void test_iterate_sparse_large(void) {
+  GVIZ_BIT_UNIT arr[GVIZ_ARRAY_UNITS(1000)];
+  memset(arr, 0, sizeof(arr));
+
+  gvizSetBit(arr, 0);
+  gvizSetBit(arr, 500);
+  gvizSetBit(arr, 999);
+
+  assert_bits_match_iterator(arr, 1000);
+}
+
+// ============================================================================
 // TEST RUNNER
 // ============================================================================
 
@@ -461,6 +791,27 @@ int main(void) {
   RUN_TEST(test_sparse_large_array);
   RUN_TEST(test_dense_large_array);
   RUN_TEST(test_random_access_pattern);
+
+  RUN_TEST(test_or_disjoint_bits);
+  RUN_TEST(test_or_overlapping_bits);
+  RUN_TEST(test_or_preserves_dest_only_bits);
+  RUN_TEST(test_and_disjoint_clears_all);
+  RUN_TEST(test_and_keeps_common_bits);
+  RUN_TEST(test_or_and_cross_word_boundary);
+  RUN_TEST(test_or_and_partial_last_word);
+
+  RUN_TEST(test_iterate_empty_array);
+  RUN_TEST(test_iterate_zero_nbits);
+  RUN_TEST(test_iterate_single_bit);
+  RUN_TEST(test_iterate_multiple_bits_same_byte);
+  RUN_TEST(test_iterate_cross_byte_boundary);
+  RUN_TEST(test_iterate_cross_word_boundary);
+  RUN_TEST(test_iterate_exhausted_returns_false);
+  RUN_TEST(test_iterate_ascending_order);
+  RUN_TEST(test_iterate_matches_test_bit_stride);
+  RUN_TEST(test_iterate_matches_test_bit_dense);
+  RUN_TEST(test_iterate_padding_bits_excluded);
+  RUN_TEST(test_iterate_sparse_large);
 
   return UNITY_END();
 }

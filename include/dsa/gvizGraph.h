@@ -4,6 +4,7 @@
 #include "core/alloc.h"
 #include "dsa/gvizBitArray.h"
 #include "gvizArray.h"
+#include "gvizSubgraph.h"
 
 #define MAX_LINE_SIZE 4096
 
@@ -37,11 +38,12 @@ typedef struct Vertex {
  * The size of the underlying Vertex array is fixed. Once full, no more
  * vertices may be added to the graph.
  */
-typedef struct {
+typedef struct gvizGraph {
   gvizArray vertices; /**< The list of all vertices in the graph. */
   size_t *map;        /**< If this is a subgraph, this maps to the indices to
                         their corresponding image in the original graph. */
   int directed;       /**< Whether or not the graph is directed. */
+  gvizGraphLayout *layout;
 } gvizGraph;
 
 // GRAPH CONSTRUCTION: ---------------------------------------------------------
@@ -95,6 +97,22 @@ int gvizVertexClone(gvizVertex *dest, const gvizVertex *src);
  */
 int gvizGraphInit(gvizGraph *g, int directed);
 int gvizGraphInitAtCapacity(gvizGraph *g, int directed, size_t initialCapacity);
+
+size_t gvizGraphSize(const gvizGraph *g);
+
+/**
+ * Returns the number of edges in @p g. Requires a current layout from
+ * gvizGraphBuildLayout; returns 0 if @p g->layout is NULL.
+ */
+size_t gvizGraphEdgeCount(const gvizGraph *g);
+
+/**
+ * Builds or rebuilds the shared edge-bitset layout for @p g.
+ * Allocates @p g->layout when NULL; otherwise recomputes prefix sums, edge
+ * count, and reallocates vertex offsets when the vertex count changed.
+ * Call again after structural edge changes; layout is not auto-invalidated.
+ */
+void gvizGraphBuildLayout(gvizGraph *g);
 
 /**
  * Copies the Graph data of @p src to @p dest.
@@ -326,22 +344,5 @@ int gvizGraphBFSTree(gvizGraph *g, gvizGraph *out, size_t source,
  */
 int gvizGraphKNearestNeighbors(gvizGraph *g, gvizFoundVertex *out, size_t k,
                                size_t source, GVIZ_BIT_ARRAY filter);
-
-// VISUALIZATION:
-// --------------------------------------------------------------
-
-/**
- * Writes a visualization of a DFS tree to the specified output stream.
- *
- * @param g       A pointer to the Graph holding the DFS tree to be rendered.
- * @param strings An array of the string the string representation of each
- *                Vertex. If NULL will print Vertex indices.
- *
- * @param stream  A pointer to the output stream.
- *
- * @note The terminal window should be zoomed out for large graphs if this
- *       function is called, otherwise the output will overlap with itself.
- */
-void gvizPrintDFSTree(gvizGraph *tree, char *strings[], FILE *stream);
 
 #endif
