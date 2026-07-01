@@ -65,6 +65,15 @@ int gvizGRIPEmbedderInit(gvizGRIPState *state, gvizGraph *graph,
   }
   memset(state->placed, 0, sizeof(GVIZ_BIT_UNIT) * GVIZ_ARRAY_UNITS(N));
 
+  state->radiusBfsStamp = GVIZ_ALLOC(sizeof(size_t) * N);
+  if (!state->radiusBfsStamp)
+    return -1;
+  state->radiusBfsEpoch = 1;
+  res = gvizDequeInitAtCapacity(&state->radiusBfsQueue, sizeof(gvizFoundVertex),
+                                256);
+  if (res < 0)
+    return res;
+
   double *disp = GVIZ_ALLOC(sizeof(double) * N * dimension);
   double *oldDisp = GVIZ_ALLOC(sizeof(double) * N * dimension);
 
@@ -219,6 +228,9 @@ void gvizGRIPEmbedderRelease(gvizGRIPState *state) {
     GVIZ_DEALLOC(state->dispCalculated);
   if (state->placed)
     GVIZ_DEALLOC(state->placed);
+  if (state->radiusBfsStamp)
+    GVIZ_DEALLOC(state->radiusBfsStamp);
+  gvizDequeRelease(&state->radiusBfsQueue);
 
   return;
 }
@@ -307,32 +319,34 @@ void migrateOneToFinalLayer(gvizGRIPState *state, GVIZ_BIT_ARRAY finalLayer,
   return;
 }
 
-void verticesWithinRadius(gvizGraph *g, size_t source, size_t maxDepth,
-                          GVIZ_BIT_ARRAY out) {
-  int err;
-
-  // init queue
-  gvizDeque queue;
-  err = gvizDequeInitAtCapacity(&queue, sizeof(gvizFoundVertex), maxDepth * 2);
-  if (err < 0) {
-    return;
+static void verticesWithinRadius(gvizGRIPState *state, gvizGraph *g,
+                                 size_t source, size_t maxDepth,
+                                 GVIZ_BIT_ARRAY out) {
+  size_t nvertices = g->vertices.count;
+  size_t *stamp = state->radiusBfsStamp;
+  size_t epoch = ++state->radiusBfsEpoch;
+  if (epoch == 0) {
+    memset(stamp, 0, sizeof(size_t) * nvertices);
+    epoch = state->radiusBfsEpoch = 1;
   }
 
-  // enqueue start node with depth 0
+  gvizDeque *queue = &state->radiusBfsQueue;
+  queue->count = 0;
+  queue->begin = NULL;
+
+  stamp[source] = epoch;
+
   gvizFoundVertex start = {.v = source, .dist = 0};
-  err = gvizDequePush(&queue, &start);
-  if (err < 0)
+  if (gvizDequePush(queue, &start) < 0)
     return;
 
-  // BFS
-  while (!gvizDequeIsEmpty(&queue)) {
+  while (!gvizDequeIsEmpty(queue)) {
     gvizFoundVertex nd;
-    gvizDequePopLeft(&queue, &nd);
+    gvizDequePopLeft(queue, &nd);
 
     size_t curr = nd.v;
     size_t currDepth = nd.dist;
 
-    // if we've reached maxDepth, don't expand this node further
     if (maxDepth && currDepth >= maxDepth)
       continue;
 
@@ -341,19 +355,19 @@ void verticesWithinRadius(gvizGraph *g, size_t source, size_t maxDepth,
     for (size_t i = 0; i < currNeighbors->count; i++) {
       size_t currNeighbor = *(size_t *)gvizArrayAtIndex(currNeighbors, i);
 
-      // seen keyed by vertex ID
-      if (gvizTestBit(out, currNeighbor))
+      if (stamp[currNeighbor] == epoch)
         continue;
-      gvizSetBit(out, currNeighbor);
+      stamp[currNeighbor] = epoch;
 
-      // enqueue neighbor with depth+1
-      gvizFoundVertex next = {.v = currNeighbor, .dist = currDepth + 1};
-      err = gvizDequePush(&queue, &next);
-      if (err < 0)
+      size_t nextDepth = currDepth + 1;
+      if (nextDepth <= maxDepth)
+        gvizSetBit(out, currNeighbor);
+
+      gvizFoundVertex next = {.v = currNeighbor, .dist = nextDepth};
+      if (gvizDequePush(queue, &next) < 0)
         return;
     }
   }
-  gvizDequeRelease(&queue);
 }
 
 int iterMISFiltration(gvizGRIPState *state, size_t i, GVIZ_BIT_ARRAY vertices,
@@ -378,8 +392,7 @@ int iterMISFiltration(gvizGRIPState *state, size_t i, GVIZ_BIT_ARRAY vertices,
     gvizSetBit(newVertices, curr);
     gvizSetBit(newMisStates, curr);
 
-    // Any vertex that is too close cannot be chosen
-    verticesWithinRadius(embedding->graph, curr, (1ULL << (i - 1)) + 1,
+    verticesWithinRadius(state, embedding->graph, curr, 1ULL << (i - 1),
                          newMisStates);
   }
 

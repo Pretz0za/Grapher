@@ -1,6 +1,7 @@
 #ifndef _GVIZ_GRIP_H_
 #define _GVIZ_GRIP_H_
 
+#include "dsa/gvizDeque.h"
 #include "embedders/gvizEmbeddedGraph.h"
 
 typedef struct gvizGRIPDecorators {
@@ -22,6 +23,9 @@ typedef struct gvizGRIPState {
   size_t *rounds;
   gvizGRIPDecorators *dec;
   GVIZ_BIT_ARRAY dispCalculated;
+  size_t *radiusBfsStamp;
+  size_t radiusBfsEpoch;
+  gvizDeque radiusBfsQueue;
 } gvizGRIPState;
 
 int gvizGRIPEmbedderInit(gvizGRIPState *state, gvizGraph *graph,
