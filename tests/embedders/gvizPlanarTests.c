@@ -1,8 +1,8 @@
 #include "dsa/gvizArray.h"
 #include "dsa/gvizGraph.h"
-#include "renderer/embeddings/gvizEmbeddedGraph.h"
-#include "renderer/embeddings/gvizPlanarEmbedding.h"
-#include "renderer/embeddings/gvizSchnyderWood.h"
+#include "embedders/gvizEmbeddedGraph.h"
+#include "embedders/gvizPlanarEmbedder.h"
+#include "embedders/gvizSchnyderWood.h"
 #include "unity/unity.h"
 #include "unity/unity_internals.h"
 #include "utils/serializers.h"
@@ -44,8 +44,8 @@ void test_planar() {
   gvizGraphAddEdge(&g, 1, 2);
   gvizGraphAddEdge(&g, 2, 3);
 
-  gvizPlanarEmbeddingState state;
-  int res = gvizPlanarEmbeddingInit(&state, &g);
+  gvizPlanarEmbedderState state;
+  int res = gvizPlanarEmbedderInit(&state, &g);
 
   TEST_ASSERT_EQUAL(0, res);
 
@@ -64,7 +64,7 @@ void test_planar() {
     prev = curr;
   }
 
-  gvizPlanarEmbeddingRelease(&state);
+  gvizPlanarEmbedderRelease(&state);
   gvizGraphRelease(&g);
 }
 
@@ -93,8 +93,8 @@ void test_nonPlanar() {
   gvizGraphAddEdge(&g, 2, 4);
   gvizGraphAddEdge(&g, 2, 5);
 
-  gvizPlanarEmbeddingState state;
-  int res = gvizPlanarEmbeddingInit(&state, &g);
+  gvizPlanarEmbedderState state;
+  int res = gvizPlanarEmbedderInit(&state, &g);
 
   TEST_ASSERT_EQUAL(-2, res);
 
@@ -118,8 +118,8 @@ void test_triangulation() {
 
   gvizGraphAddEdge(&g, 5, 3);
 
-  gvizPlanarEmbeddingState state;
-  int res = gvizPlanarEmbeddingInit(&state, &g);
+  gvizPlanarEmbedderState state;
+  int res = gvizPlanarEmbedderInit(&state, &g);
 
   TEST_ASSERT_EQUAL(0, res);
 
@@ -128,9 +128,9 @@ void test_triangulation() {
   gvizFaceIteratorContext faces;
   gvizFaceIteratorInit(&state, &faces);
 
-  gvizPlanarEmbeddingFaces(&state, &faces);
+  gvizPlanarEmbedderFaces(&state, &faces);
 
-  gvizPlanarEmbeddingTriangulate(&state, &faces);
+  gvizPlanarEmbedderTriangulate(&state, &faces);
 
   for (size_t i = 0; i < faces.faces.count; i++) {
     gvizArray *face = (gvizArray *)gvizArrayAtIndex(&faces.faces, i);
@@ -144,7 +144,7 @@ void test_triangulation() {
                    gvizSerializeUINT64, 8);
 
   gvizFaceIteratorRelease(&faces);
-  gvizPlanarEmbeddingRelease(&state);
+  gvizPlanarEmbedderRelease(&state);
   gvizGraphRelease(&g);
 }
 
@@ -204,8 +204,8 @@ void test_schnyderWood_K4(void) {
   gvizGraphAddEdge(&g, 1, 3);
   gvizGraphAddEdge(&g, 2, 3);
 
-  gvizPlanarEmbeddingState state;
-  TEST_ASSERT_EQUAL(0, gvizPlanarEmbeddingInit(&state, &g));
+  gvizPlanarEmbedderState state;
+  TEST_ASSERT_EQUAL(0, gvizPlanarEmbedderInit(&state, &g));
 
   gvizSchnyderWood sw;
   TEST_ASSERT_EQUAL(0, gvizSchnyderWoodInit(&sw, &g));
@@ -214,7 +214,7 @@ void test_schnyderWood_K4(void) {
   verifySchnyderWood(&sw, &g);
 
   gvizSchnyderWoodRelease(&sw);
-  gvizPlanarEmbeddingRelease(&state);
+  gvizPlanarEmbedderRelease(&state);
   gvizGraphRelease(&g);
 }
 
@@ -234,13 +234,13 @@ void test_schnyderWood_hexagon(void) {
   gvizGraphAddEdge(&g, 5, 0);
   gvizGraphAddEdge(&g, 5, 3);
 
-  gvizPlanarEmbeddingState state;
-  TEST_ASSERT_EQUAL(0, gvizPlanarEmbeddingInit(&state, &g));
+  gvizPlanarEmbedderState state;
+  TEST_ASSERT_EQUAL(0, gvizPlanarEmbedderInit(&state, &g));
 
   gvizFaceIteratorContext faces;
   gvizFaceIteratorInit(&state, &faces);
-  gvizPlanarEmbeddingFaces(&state, &faces);
-  gvizPlanarEmbeddingTriangulate(&state, &faces);
+  gvizPlanarEmbedderFaces(&state, &faces);
+  gvizPlanarEmbedderTriangulate(&state, &faces);
   gvizFaceIteratorRelease(&faces);
 
   gvizSchnyderWood sw;
@@ -276,7 +276,7 @@ void test_schnyderWood_hexagon(void) {
   }
 
   gvizSchnyderWoodRelease(&sw);
-  gvizPlanarEmbeddingRelease(&state);
+  gvizPlanarEmbedderRelease(&state);
   gvizGraphRelease(&g);
 }
 

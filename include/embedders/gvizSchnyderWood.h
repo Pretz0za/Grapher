@@ -2,7 +2,7 @@
 #define _GVIZ_SCHNYDER_WOOD_H_
 
 #include "dsa/gvizGraph.h"
-#include "renderer/embeddings/gvizEmbeddedGraph.h"
+#include "embedders/gvizEmbeddedGraph.h"
 #include <stddef.h>
 
 /** Sentinel meaning "no parent" (root vertex, or edge excluded from this tree).
@@ -40,8 +40,8 @@ typedef struct gvizSchnyderWood {
  * Constructs a Schnyder wood for a triangulated planar graph @p g.
  *
  * @p g must carry a valid CCW rotation system (cyclic adjacency lists) such
- * as one produced by gvizPlanarEmbeddingInit() followed by
- * gvizPlanarEmbeddingTriangulate().  Every face of @p g must be a triangle.
+ * as one produced by gvizPlanarEmbedderInit() followed by
+ * gvizPlanarEmbedderTriangulate().  Every face of @p g must be a triangle.
  *
  * The outer-face triangle is inferred automatically: vertex 0 is root[0],
  * its first adjacency-list neighbour is root[1], and the third vertex of the

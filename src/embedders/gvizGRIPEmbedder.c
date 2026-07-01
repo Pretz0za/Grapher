@@ -4,9 +4,9 @@
 #include "dsa/gvizBitArray.h"
 #include "dsa/gvizDeque.h"
 #include "dsa/gvizGraph.h"
-#include "renderer/embeddings/gvivGRIPEmbedding.h"
-#include "renderer/embeddings/gvizEmbeddedGraph.h"
-#include "renderer/embeddings/gvizForceDirected.h"
+#include "embedders/gvizGRIPEmbedder.h"
+#include "embedders/gvizEmbeddedGraph.h"
+#include "embedders/gvizForceDirected.h"
 #include "utils/helpers.h"
 #include <assert.h>
 #include <math.h>
@@ -21,7 +21,7 @@
 static const double gvizGRIPr = 0.15;
 static const double gvizGRIPs = 3;
 
-int gvizGRIPEmbeddingInit(gvizGRIPState *state, gvizGraph *graph,
+int gvizGRIPEmbedderInit(gvizGRIPState *state, gvizGraph *graph,
                           size_t diameter, size_t dimension) {
   int res;
   size_t N = graph->vertices.count;
@@ -203,7 +203,7 @@ void makeEquilateralTriangle2(double *out, double sideLength) {
   *out = -R / 2;
 }
 
-void gvizGRIPEmbeddingRelease(gvizGRIPState *state) {
+void gvizGRIPEmbedderRelease(gvizGRIPState *state) {
   gvizEmbeddedGraphRelease((gvizEmbeddedGraph *)state);
   if (state->misBorder)
     GVIZ_DEALLOC(state->misBorder);
@@ -596,7 +596,7 @@ void updateKNNs(gvizGRIPState *state) {
   }
 }
 
-void gvizGRIPEmbeddingBegin(gvizGRIPState *state) {
+void gvizGRIPEmbedderBegin(gvizGRIPState *state) {
 
   gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
 

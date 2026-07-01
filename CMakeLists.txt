@@ -10,8 +10,19 @@ if(ENABLE_ASAN)
     add_link_options(-fsanitize=address)
 endif()
 
-# Your graph library (static)
-add_library(graphvis STATIC 
+add_library(planar STATIC
+    third-party/boyerMyrvold/graphEmbed.c
+    third-party/boyerMyrvold/graphIO.c
+    third-party/boyerMyrvold/graphIsolator.c
+    third-party/boyerMyrvold/graphNonplanar.c
+    third-party/boyerMyrvold/graphPreprocess.c
+    third-party/boyerMyrvold/graphStructure.c
+    third-party/boyerMyrvold/listcoll.c
+    third-party/boyerMyrvold/stack.c
+)
+target_include_directories(planar PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/third-party/)
+
+add_library(graphvis STATIC
     src/dsa/gvizGraph.c
     src/dsa/gvizTree.c
     src/dsa/gvizArray.c
@@ -19,66 +30,48 @@ add_library(graphvis STATIC
     src/dsa/gvizBitArray.c
     src/dsa/gvizSubgraph.c
 
-    src/renderer/gvizRenderer.c
-    src/renderer/embeddings/gvizEmbeddedGraph.c
-    src/renderer/embeddings/gvizEmbeddedTree.c
-    src/renderer/embeddings/gvizGRIPEmbedding.c
-    src/renderer/embeddings/gvizForceDirected.c
-    src/renderer/embeddings/gvizPlanarEmbedding.c
-    src/renderer/embeddings/gvizSchnyderWood.c
-    src/renderer/embeddings/gvizTutteEmbedding.c
-
-    src/renderer/layers/gvizLayer.c
-    src/renderer/layers/gvizLayerGraph.c
-
+    src/embedders/gvizEmbeddedGraph.c
+    src/embedders/gvizEmbeddedTree.c
+    src/embedders/gvizGRIPEmbedder.c
+    src/embedders/gvizForceDirected.c
+    src/embedders/gvizPlanarEmbedder.c
+    src/embedders/gvizSchnyderWood.c
+    src/embedders/gvizTutteEmbedder.c
 
     src/utils/graphs.c
     src/utils/serializers.c
     src/utils/helpers.c
 )
 
-target_include_directories(graphvis 
+target_include_directories(graphvis
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include/
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/third-party/
-    PRIVATE /usr/local/include # raylib
 )
 
 target_link_libraries(graphvis
     PRIVATE
     planar
     openblas
-    raylib
-    "-framework Cocoa"
-    "-framework OpenGL"
-    "-framework IOKit"
-    "-framework CoreVideo"
-    "-framework CoreAudio"
-    "-lm"
+    m
 )
 
-# Tests
+# DSA tests
 add_executable(gvizArrayTests third-party/unity/unity.c tests/dsa/gvizArrayTests.c)
 add_executable(gvizGraphTests third-party/unity/unity.c tests/dsa/gvizGraphTests.c)
 add_executable(gvizBitArrayTests third-party/unity/unity.c tests/dsa/gvizBitArrayTests.c)
 add_executable(gvizDequeTests third-party/unity/unity.c tests/dsa/gvizDequeTests.c)
 add_executable(gvizSubgraphTests third-party/unity/unity.c tests/dsa/gvizSubgraphTests.c)
 
-
-add_executable(gvizGRIPTests third-party/unity/unity.c tests/renderer/GRIP/gvizGRIPTests.c)
-add_executable(gvizPlanarTests third-party/unity/unity.c tests/renderer/planar/gvizPlanarTests.c)
-
-add_executable(gvizTutteTests third-party/unity/unity.c tests/renderer/embeddings/gvizTutteTests.c)
-
-add_executable(treeDemo tests/renderer/treeDemo.c)
-add_executable(gripDemo tests/renderer/gripDemo.c)
-add_executable(tutteDemo tests/renderer/tutteDemo.c)
+# Embedder tests
+add_executable(gvizGRIPTests third-party/unity/unity.c tests/embedders/gvizGRIPTests.c)
+add_executable(gvizPlanarTests third-party/unity/unity.c tests/embedders/gvizPlanarTests.c)
+add_executable(gvizTutteTests third-party/unity/unity.c tests/embedders/gvizTutteTests.c)
 
 target_compile_definitions(gvizArrayTests PRIVATE UNITY_INCLUDE_DOUBLE)
 target_compile_definitions(gvizGraphTests PRIVATE UNITY_INCLUDE_DOUBLE)
 target_compile_definitions(gvizBitArrayTests PRIVATE UNITY_INCLUDE_DOUBLE)
 target_compile_definitions(gvizDequeTests PRIVATE UNITY_INCLUDE_DOUBLE)
 target_compile_definitions(gvizSubgraphTests PRIVATE UNITY_INCLUDE_DOUBLE)
-
 target_compile_definitions(gvizGRIPTests PRIVATE UNITY_INCLUDE_DOUBLE)
 target_compile_definitions(gvizPlanarTests PRIVATE UNITY_INCLUDE_DOUBLE)
 target_compile_definitions(gvizTutteTests PRIVATE UNITY_INCLUDE_DOUBLE)
@@ -95,18 +88,11 @@ set_target_properties(gvizSubgraphTests PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/dsa)
 
 set_target_properties(gvizGRIPTests PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/renderer/GRIP)
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/embedders)
 set_target_properties(gvizPlanarTests PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/renderer/planar)
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/embedders)
 set_target_properties(gvizTutteTests PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/renderer/embeddings)
-
-set_target_properties(treeDemo PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/renderer/)
-set_target_properties(gripDemo PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/renderer/)
-set_target_properties(tutteDemo PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/renderer/)
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/embedders)
 
 target_link_libraries(gvizArrayTests PRIVATE graphvis)
 target_link_libraries(gvizGraphTests PRIVATE graphvis)
@@ -118,7 +104,12 @@ target_link_libraries(gvizGRIPTests PRIVATE graphvis)
 target_link_libraries(gvizPlanarTests PRIVATE graphvis)
 target_link_libraries(gvizTutteTests PRIVATE graphvis)
 
-target_link_libraries(treeDemo PRIVATE graphvis)
-target_link_libraries(gripDemo PRIVATE graphvis)
-target_link_libraries(tutteDemo PRIVATE graphvis)
-
+enable_testing()
+add_test(NAME gvizArrayTests COMMAND gvizArrayTests)
+add_test(NAME gvizGraphTests COMMAND gvizGraphTests)
+add_test(NAME gvizBitArrayTests COMMAND gvizBitArrayTests)
+add_test(NAME gvizDequeTests COMMAND gvizDequeTests)
+add_test(NAME gvizSubgraphTests COMMAND gvizSubgraphTests)
+add_test(NAME gvizGRIPTests COMMAND gvizGRIPTests)
+add_test(NAME gvizPlanarTests COMMAND gvizPlanarTests)
+add_test(NAME gvizTutteTests COMMAND gvizTutteTests)

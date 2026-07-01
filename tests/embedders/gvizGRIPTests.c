@@ -1,5 +1,5 @@
 #include "dsa/gvizGraph.h"
-#include "renderer/embeddings/gvivGRIPEmbedding.h"
+#include "embedders/gvizGRIPEmbedder.h"
 #include "unity/unity.h"
 #include "unity/unity_internals.h"
 
@@ -44,21 +44,21 @@ void test_filtration_nestedLayers(void) {
   gvizGRIPState state;
   gvizGraph graph = build_rect_mesh(MESH_H, MESH_W);
 
-  gvizGRIPEmbeddingInit(&state, &graph, MESH_D, 2);
+  gvizGRIPEmbedderInit(&state, &graph, MESH_D, 2);
   size_t layers = createMISFiltration(&state);
 
   for (size_t i = 1; i < layers; i++) {
     TEST_ASSERT(state.misBorder[i] <= state.misBorder[i - 1]);
   }
 
-  gvizGRIPEmbeddingRelease(&state);
+  gvizGRIPEmbedderRelease(&state);
 }
 
 void test_filtration_eachVertexAppearsOnce(void) {
   gvizGRIPState state;
   gvizGraph graph = build_rect_mesh(MESH_H, MESH_W);
 
-  gvizGRIPEmbeddingInit(&state, &graph, MESH_D, 2);
+  gvizGRIPEmbedderInit(&state, &graph, MESH_D, 2);
   size_t layers = createMISFiltration(&state);
   size_t sum = 0;
 
@@ -82,7 +82,7 @@ void test_filtration_perLayerVertexSpacingAndMaximality(void) {
   gvizGRIPState state;
   gvizGraph graph = build_rect_mesh(MESH_H, MESH_W);
 
-  gvizGRIPEmbeddingInit(&state, &graph, MESH_D, 2);
+  gvizGRIPEmbedderInit(&state, &graph, MESH_D, 2);
   size_t layers = createMISFiltration(&state);
 
   // printf("filtration array: \n");
@@ -138,7 +138,7 @@ void test_filtration_perLayerVertexSpacingAndMaximality(void) {
     }
   }
 
-  gvizGRIPEmbeddingRelease(&state);
+  gvizGRIPEmbedderRelease(&state);
 }
 
 int main() {

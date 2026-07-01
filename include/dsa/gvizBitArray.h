@@ -118,9 +118,28 @@ typedef struct {
 gvizBitArrayIterator gvizBitArrayIteratorCreate(GVIZ_BIT_ARRAY arr, size_t size);
 
 /**
+ * Creates an iterator over the half-open bit index range [@p start, @p end).
+ */
+gvizBitArrayIterator gvizBitArrayIteratorCreateRange(GVIZ_BIT_ARRAY arr,
+                                                     size_t start, size_t end);
+
+/**
  * Returns the next set bit index in @p *out_idx, or false when none remain.
  * Skips zero words and uses trailing-zero count within nonzero words.
  */
 bool gvizBitArrayIterate(gvizBitArrayIterator *it, size_t *out_idx);
+
+GVIZ_BIT_ARRAY gvizBitArrayAlloc(size_t nbits);
+void gvizBitArrayFree(GVIZ_BIT_ARRAY arr);
+GVIZ_BIT_ARRAY gvizBitArrayResize(GVIZ_BIT_ARRAY arr, size_t old_nbits,
+                                  size_t new_nbits);
+
+bool gvizBitArrayTest(GVIZ_BIT_ARRAY arr, size_t k);
+void gvizBitArraySet(GVIZ_BIT_ARRAY arr, size_t k);
+void gvizBitArrayClear(GVIZ_BIT_ARRAY arr, size_t k);
+void gvizBitArrayClearRange(GVIZ_BIT_ARRAY arr, size_t start, size_t end);
+
+size_t gvizBitArrayPopcount(GVIZ_BIT_ARRAY arr, size_t nbits);
+size_t gvizBitArrayPopcountRange(GVIZ_BIT_ARRAY arr, size_t start, size_t end);
 
 #endif

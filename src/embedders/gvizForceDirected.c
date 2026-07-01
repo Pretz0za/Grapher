@@ -1,4 +1,4 @@
-#include "renderer/embeddings/gvizForceDirected.h"
+#include "embedders/gvizForceDirected.h"
 #include "cblas.h"
 #include <math.h>
 

@@ -3,7 +3,7 @@
 
 #include "core/alloc.h"
 #include "dsa/gvizBitArray.h"
-#include "renderer/embeddings/gvizEmbeddedGraph.h"
+#include "embedders/gvizEmbeddedGraph.h"
 
 // Per vertex decorators for Reingold-Tilford
 typedef struct gvizRTDecorators {

@@ -1,4 +1,4 @@
-#include "renderer/embeddings/gvizTutteEmbedding.h"
+#include "embedders/gvizTutteEmbedder.h"
 #include "core/alloc.h"
 #include "dsa/gvizArray.h"
 #include "dsa/gvizGraph.h"
@@ -24,7 +24,7 @@ static void setPos(gvizTutteState *s, size_t u, double *p) {
 
 /* ---- init / release ------------------------------------------------------- */
 
-int gvizTutteEmbeddingInit(gvizTutteState *s, gvizGraph *g, size_t dimension,
+int gvizTutteEmbedderInit(gvizTutteState *s, gvizGraph *g, size_t dimension,
                            double epsilon) {
     int res = gvizEmbeddedGraphInit((gvizEmbeddedGraph *)s, g, dimension);
     if (res < 0)
@@ -55,7 +55,7 @@ int gvizTutteEmbeddingInit(gvizTutteState *s, gvizGraph *g, size_t dimension,
     return 0;
 }
 
-void gvizTutteEmbeddingRelease(gvizTutteState *s) {
+void gvizTutteEmbedderRelease(gvizTutteState *s) {
     if (s->boundary)   GVIZ_DEALLOC(s->boundary);
     if (s->isBoundary) GVIZ_DEALLOC(s->isBoundary);
     if (s->scratch)    GVIZ_DEALLOC(s->scratch);
@@ -64,7 +64,7 @@ void gvizTutteEmbeddingRelease(gvizTutteState *s) {
 
 /* ---- boundary setup ------------------------------------------------------- */
 
-int gvizTutteEmbeddingSetBoundary(gvizTutteState *s, const size_t *boundary,
+int gvizTutteEmbedderSetBoundary(gvizTutteState *s, const size_t *boundary,
                                   size_t count, const double *positions) {
     if (count < 3)
         return -1;
@@ -90,7 +90,7 @@ int gvizTutteEmbeddingSetBoundary(gvizTutteState *s, const size_t *boundary,
     return 0;
 }
 
-void gvizTutteEmbeddingSeedInterior(gvizTutteState *s) {
+void gvizTutteEmbedderSeedInterior(gvizTutteState *s) {
     size_t N = numVertices(s);
     size_t d = dim(s);
 
@@ -128,7 +128,7 @@ void gvizTutteFixConvexPolygon(gvizTutteState *s, const size_t *boundary,
             positions[k * d + 1] = radius * sin(angle);
     }
 
-    gvizTutteEmbeddingSetBoundary(s, boundary, count, positions);
+    gvizTutteEmbedderSetBoundary(s, boundary, count, positions);
 }
 
 /* ---- step ----------------------------------------------------------------- */
@@ -189,7 +189,7 @@ static double relaxVertex(gvizTutteState *s, size_t u, double alpha) {
     return sqrt(delta);
 }
 
-double gvizTutteEmbeddingStep(gvizTutteState *s, double dt) {
+double gvizTutteEmbedderStep(gvizTutteState *s, double dt) {
     size_t N = numVertices(s);
 
     double alpha = s->relaxationRate * dt;
@@ -216,12 +216,12 @@ double gvizTutteEmbeddingStep(gvizTutteState *s, double dt) {
     return maxDelta;
 }
 
-int gvizTutteEmbeddingRun(gvizTutteState *s, size_t maxIters) {
+int gvizTutteEmbedderRun(gvizTutteState *s, size_t maxIters) {
     if (!s || !s->boundary)
         return -1;
 
     while (!s->converged && s->iteration < maxIters)
-        gvizTutteEmbeddingStep(s, 1.0);
+        gvizTutteEmbedderStep(s, 1.0);
 
     return (int)s->iteration;
 }

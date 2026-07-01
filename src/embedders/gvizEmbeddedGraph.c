@@ -1,9 +1,9 @@
-#include "renderer/embeddings/gvizEmbeddedGraph.h"
+#include "embedders/gvizEmbeddedGraph.h"
 #include "cblas.h"
 #include "core/alloc.h"
 #include "dsa/gvizArray.h"
 #include "dsa/gvizGraph.h"
-#include "raylib.h"
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 

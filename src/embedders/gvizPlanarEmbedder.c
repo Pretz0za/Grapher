@@ -1,10 +1,10 @@
-#include "renderer/embeddings/gvizPlanarEmbedding.h"
+#include "embedders/gvizPlanarEmbedder.h"
 #include "boyerMyrvold/appconst.h"
 #include "boyerMyrvold/graph.h"
 #include "dsa/gvizArray.h"
 #include "dsa/gvizBitArray.h"
 #include "dsa/gvizGraph.h"
-#include "renderer/embeddings/gvizEmbeddedGraph.h"
+#include "embedders/gvizEmbeddedGraph.h"
 #include "utils/serializers.h"
 #include <assert.h>
 #include <stdio.h>
@@ -54,7 +54,7 @@ void gvizAdjacencyFromGP(graphP theGraph, int v, gvizArray *out,
 
   *outDegree = degree;
 }
-int gvizPlanarEmbeddingInit(gvizPlanarEmbeddingState *state, gvizGraph *graph) {
+int gvizPlanarEmbedderInit(gvizPlanarEmbedderState *state, gvizGraph *graph) {
   state->kuratowskiSubdivision = NULL;
 
   gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
@@ -127,13 +127,13 @@ int gvizPlanarEmbeddingInit(gvizPlanarEmbeddingState *state, gvizGraph *graph) {
   return 0;
 }
 
-void gvizPlanarEmbeddingRelease(gvizPlanarEmbeddingState *g) {
+void gvizPlanarEmbedderRelease(gvizPlanarEmbedderState *g) {
   gvizEmbeddedGraphRelease(&g->embedding);
   if (g->kuratowskiSubdivision)
     GVIZ_DEALLOC(g->kuratowskiSubdivision);
 }
 
-int gvizFaceIteratorInit(const gvizPlanarEmbeddingState *state,
+int gvizFaceIteratorInit(const gvizPlanarEmbedderState *state,
                          gvizFaceIteratorContext *context) {
   gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
   size_t N = embedding->graph->vertices.count;
@@ -186,7 +186,7 @@ size_t previousNeighbor(const gvizGraph *g, size_t u, size_t v) {
   return (idx == 0 ? neighbors->count : idx) - 1;
 }
 
-int gvizPlanarEmbeddingFaces(const gvizPlanarEmbeddingState *state,
+int gvizPlanarEmbedderFaces(const gvizPlanarEmbedderState *state,
                              gvizFaceIteratorContext *context) {
   gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
   size_t N = embedding->graph->vertices.count, M = context->dCount / 2;
@@ -243,7 +243,7 @@ int gvizPlanarEmbeddingFaces(const gvizPlanarEmbeddingState *state,
 }
 
 // iterate faces. Any face with 4 or more vertices -> add one edge
-void gvizPlanarEmbeddingTriangulate(const gvizPlanarEmbeddingState *state,
+void gvizPlanarEmbedderTriangulate(const gvizPlanarEmbedderState *state,
                                     gvizFaceIteratorContext *context) {
   gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
   for (size_t i = 0; i < context->faces.count; i++) {
@@ -319,4 +319,4 @@ void gvizPlanarEmbeddingTriangulate(const gvizPlanarEmbeddingState *state,
   }
 }
 
-int gvizPlanarEmbeddingEmbed(gvizPlanarEmbeddingState *state) {}
+int gvizPlanarEmbedderEmbed(gvizPlanarEmbedderState *state) {}

@@ -2,19 +2,19 @@
 #define _GVIZ_PLANAR_H_
 
 #include "dsa/gvizBitArray.h"
-#include "renderer/embeddings/gvizEmbeddedGraph.h"
+#include "embedders/gvizEmbeddedGraph.h"
 
-typedef struct gvizPlanarEmbeddingState {
+typedef struct gvizPlanarEmbedderState {
   gvizEmbeddedGraph embedding;
   gvizGraph *kuratowskiSubdivision;
-} gvizPlanarEmbeddingState;
+} gvizPlanarEmbedderState;
 
 // initializes a planar graph and reorders the adjacency lists to show the
 // counter-clockwise rotation system (embedding).
-int gvizPlanarEmbeddingInit(gvizPlanarEmbeddingState *state, gvizGraph *g);
-void gvizPlanarEmbeddingRelease(gvizPlanarEmbeddingState *g);
+int gvizPlanarEmbedderInit(gvizPlanarEmbedderState *state, gvizGraph *g);
+void gvizPlanarEmbedderRelease(gvizPlanarEmbedderState *g);
 
-int gvizPlanarEmbeddingEmbed(gvizPlanarEmbeddingState *state);
+int gvizPlanarEmbedderEmbed(gvizPlanarEmbedderState *state);
 
 typedef struct gvizFaceIteratorContext {
   size_t *borders;
@@ -23,14 +23,14 @@ typedef struct gvizFaceIteratorContext {
   size_t dCount; // dart count
 } gvizFaceIteratorContext;
 
-int gvizFaceIteratorInit(const gvizPlanarEmbeddingState *state,
+int gvizFaceIteratorInit(const gvizPlanarEmbedderState *state,
                          gvizFaceIteratorContext *context);
 void gvizFaceIteratorRelease(gvizFaceIteratorContext *context);
 
-int gvizPlanarEmbeddingFaces(const gvizPlanarEmbeddingState *state,
+int gvizPlanarEmbedderFaces(const gvizPlanarEmbedderState *state,
                              gvizFaceIteratorContext *context);
 
-void gvizPlanarEmbeddingTriangulate(const gvizPlanarEmbeddingState *state,
+void gvizPlanarEmbedderTriangulate(const gvizPlanarEmbedderState *state,
                                     gvizFaceIteratorContext *context);
 
 #endif

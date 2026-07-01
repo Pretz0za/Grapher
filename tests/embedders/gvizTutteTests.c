@@ -1,6 +1,6 @@
 #include "dsa/gvizGraph.h"
-#include "renderer/embeddings/gvizEmbeddedGraph.h"
-#include "renderer/embeddings/gvizTutteEmbedding.h"
+#include "embedders/gvizEmbeddedGraph.h"
+#include "embedders/gvizTutteEmbedder.h"
 #include "unity/unity.h"
 #include <math.h>
 #include <string.h>
@@ -30,13 +30,13 @@ void test_tutte_k4_centroid(void) {
     buildK4(&g);
 
     gvizTutteState s;
-    TEST_ASSERT_EQUAL(0, gvizTutteEmbeddingInit(&s, &g, 2, 1e-8));
+    TEST_ASSERT_EQUAL(0, gvizTutteEmbedderInit(&s, &g, 2, 1e-8));
 
     size_t boundary[3] = {0, 1, 2};
     gvizTutteFixConvexPolygon(&s, boundary, 3, 100.0);
-    gvizTutteEmbeddingSeedInterior(&s);
+    gvizTutteEmbedderSeedInterior(&s);
 
-    gvizTutteEmbeddingRun(&s, 10000);
+    gvizTutteEmbedderRun(&s, 10000);
 
     gvizEmbeddedGraph *eg = (gvizEmbeddedGraph *)&s;
     double *p0 = gvizEmbeddedGraphGetVPosition(eg, 0);
@@ -50,7 +50,7 @@ void test_tutte_k4_centroid(void) {
     TEST_ASSERT_DOUBLE_WITHIN(1e-4, cx, p3[0]);
     TEST_ASSERT_DOUBLE_WITHIN(1e-4, cy, p3[1]);
 
-    gvizTutteEmbeddingRelease(&s);
+    gvizTutteEmbedderRelease(&s);
     gvizGraphRelease(&g);
 }
 
@@ -60,11 +60,11 @@ void test_tutte_boundary_pinned(void) {
     buildK4(&g);
 
     gvizTutteState s;
-    TEST_ASSERT_EQUAL(0, gvizTutteEmbeddingInit(&s, &g, 2, 1e-8));
+    TEST_ASSERT_EQUAL(0, gvizTutteEmbedderInit(&s, &g, 2, 1e-8));
 
     size_t boundary[3] = {0, 1, 2};
     gvizTutteFixConvexPolygon(&s, boundary, 3, 50.0);
-    gvizTutteEmbeddingSeedInterior(&s);
+    gvizTutteEmbedderSeedInterior(&s);
 
     gvizEmbeddedGraph *eg = (gvizEmbeddedGraph *)&s;
 
@@ -77,7 +77,7 @@ void test_tutte_boundary_pinned(void) {
     }
 
     for (int i = 0; i < 50; i++)
-        gvizTutteEmbeddingStep(&s, 0.016);
+        gvizTutteEmbedderStep(&s, 0.016);
 
     for (int i = 0; i < 3; i++) {
         double *p = gvizEmbeddedGraphGetVPosition(eg, (size_t)i);
@@ -85,7 +85,7 @@ void test_tutte_boundary_pinned(void) {
         TEST_ASSERT_EQUAL_DOUBLE(before[i][1], p[1]);
     }
 
-    gvizTutteEmbeddingRelease(&s);
+    gvizTutteEmbedderRelease(&s);
     gvizGraphRelease(&g);
 }
 
@@ -105,7 +105,7 @@ void test_tutte_convergence(void) {
         }
 
     gvizTutteState s;
-    TEST_ASSERT_EQUAL(0, gvizTutteEmbeddingInit(&s, &g, 2, 1e-5));
+    TEST_ASSERT_EQUAL(0, gvizTutteEmbedderInit(&s, &g, 2, 1e-5));
 
     /* Collect rim vertices in CCW order: top, right, bottom (rev), left (rev). */
     size_t rim[16];
@@ -116,14 +116,14 @@ void test_tutte_convergence(void) {
     for (size_t i = L - 1; i-- > 1;) rim[k++] = i * W;    /* left */
 
     gvizTutteFixConvexPolygon(&s, rim, k, 200.0);
-    gvizTutteEmbeddingSeedInterior(&s);
+    gvizTutteEmbedderSeedInterior(&s);
 
-    size_t iters = (size_t)gvizTutteEmbeddingRun(&s, 5000);
+    size_t iters = (size_t)gvizTutteEmbedderRun(&s, 5000);
 
     TEST_ASSERT_EQUAL_INT(1, s.converged);
     TEST_ASSERT_LESS_THAN(5000, iters);
 
-    gvizTutteEmbeddingRelease(&s);
+    gvizTutteEmbedderRelease(&s);
     gvizGraphRelease(&g);
 }
 
@@ -136,19 +136,19 @@ void test_tutte_jacobi_vs_gs(void) {
     buildK4(&g);
 
     gvizTutteState sJ, sGS;
-    TEST_ASSERT_EQUAL(0, gvizTutteEmbeddingInit(&sJ, &g, 2, 1e-8));
-    TEST_ASSERT_EQUAL(0, gvizTutteEmbeddingInit(&sGS, &g, 2, 1e-8));
+    TEST_ASSERT_EQUAL(0, gvizTutteEmbedderInit(&sJ, &g, 2, 1e-8));
+    TEST_ASSERT_EQUAL(0, gvizTutteEmbedderInit(&sGS, &g, 2, 1e-8));
 
     size_t boundary[3] = {0, 1, 2};
     gvizTutteFixConvexPolygon(&sJ, boundary, 3, 100.0);
-    gvizTutteEmbeddingSeedInterior(&sJ);
+    gvizTutteEmbedderSeedInterior(&sJ);
     gvizTutteFixConvexPolygon(&sGS, boundary, 3, 100.0);
-    gvizTutteEmbeddingSeedInterior(&sGS);
+    gvizTutteEmbedderSeedInterior(&sGS);
 
     sGS.useGaussSeidel = 1;
 
-    gvizTutteEmbeddingRun(&sJ, 10000);
-    gvizTutteEmbeddingRun(&sGS, 10000);
+    gvizTutteEmbedderRun(&sJ, 10000);
+    gvizTutteEmbedderRun(&sGS, 10000);
 
     gvizEmbeddedGraph *egJ = (gvizEmbeddedGraph *)&sJ;
     gvizEmbeddedGraph *egGS = (gvizEmbeddedGraph *)&sGS;
@@ -161,8 +161,8 @@ void test_tutte_jacobi_vs_gs(void) {
 
     TEST_ASSERT_LESS_OR_EQUAL(sJ.iteration, sGS.iteration);
 
-    gvizTutteEmbeddingRelease(&sJ);
-    gvizTutteEmbeddingRelease(&sGS);
+    gvizTutteEmbedderRelease(&sJ);
+    gvizTutteEmbedderRelease(&sGS);
     gvizGraphRelease(&g);
 }
 
@@ -172,19 +172,19 @@ void test_tutte_init_validation(void) {
     buildK4(&g);
 
     gvizTutteState s;
-    TEST_ASSERT_EQUAL(0, gvizTutteEmbeddingInit(&s, &g, 2, 0.0));
+    TEST_ASSERT_EQUAL(0, gvizTutteEmbedderInit(&s, &g, 2, 0.0));
 
     /* Too few boundary vertices. */
     size_t tooFew[2] = {0, 1};
     double pos[4] = {0.0, 0.0, 1.0, 0.0};
-    TEST_ASSERT_EQUAL(-1, gvizTutteEmbeddingSetBoundary(&s, tooFew, 2, pos));
+    TEST_ASSERT_EQUAL(-1, gvizTutteEmbedderSetBoundary(&s, tooFew, 2, pos));
 
     /* Out-of-range index. */
     size_t bad[3] = {0, 1, 99};
     double pos3[6] = {0};
-    TEST_ASSERT_EQUAL(-1, gvizTutteEmbeddingSetBoundary(&s, bad, 3, pos3));
+    TEST_ASSERT_EQUAL(-1, gvizTutteEmbedderSetBoundary(&s, bad, 3, pos3));
 
-    gvizTutteEmbeddingRelease(&s);
+    gvizTutteEmbedderRelease(&s);
     gvizGraphRelease(&g);
 }
 

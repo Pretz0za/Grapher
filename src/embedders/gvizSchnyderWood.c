@@ -1,10 +1,10 @@
-#include "renderer/embeddings/gvizSchnyderWood.h"
+#include "embedders/gvizSchnyderWood.h"
 #include "core/alloc.h"
 #include "dsa/gvizArray.h"
 #include "dsa/gvizBitArray.h"
 #include "dsa/gvizDeque.h"
 #include "dsa/gvizGraph.h"
-#include "renderer/embeddings/gvizEmbeddedGraph.h"
+#include "embedders/gvizEmbeddedGraph.h"
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -17,7 +17,7 @@
 /*
  * Third vertex of the triangular face traversed by dart u→v.
  *
- * Uses the same rotation as gvizPlanarEmbeddingFaces:
+ * Uses the same rotation as gvizPlanarEmbedderFaces:
  *   dart u→v  →  next dart v→w  where w = prevNeighbor(v, u)
  *            (i.e. the neighbour just before u in v's CCW adjacency list).
  */

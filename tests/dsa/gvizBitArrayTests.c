@@ -748,6 +748,103 @@ void test_iterate_sparse_large(void) {
 }
 
 // ============================================================================
+// POPCOUNT
+// ============================================================================
+
+void test_popcount_empty(void) {
+  GVIZ_BIT_UNIT arr[GVIZ_ARRAY_UNITS(16)];
+  memset(arr, 0, sizeof(arr));
+  TEST_ASSERT_EQUAL_UINT64(0, gvizBitArrayPopcount(arr, 16));
+}
+
+void test_popcount_all_set(void) {
+  GVIZ_BIT_UNIT arr[GVIZ_ARRAY_UNITS(32)];
+  memset(arr, 0xFF, sizeof(arr));
+  TEST_ASSERT_EQUAL_UINT64(32, gvizBitArrayPopcount(arr, 32));
+}
+
+void test_popcount_sparse(void) {
+  GVIZ_BIT_UNIT arr[GVIZ_ARRAY_UNITS(100)];
+  memset(arr, 0, sizeof(arr));
+  gvizSetBit(arr, 0);
+  gvizSetBit(arr, 50);
+  gvizSetBit(arr, 99);
+  TEST_ASSERT_EQUAL_UINT64(3, gvizBitArrayPopcount(arr, 100));
+}
+
+void test_popcount_range_middle(void) {
+  GVIZ_BIT_UNIT arr[GVIZ_ARRAY_UNITS(64)];
+  memset(arr, 0, sizeof(arr));
+  for (size_t i = 10; i < 20; i++)
+    gvizSetBit(arr, i);
+  gvizSetBit(arr, 0);
+  gvizSetBit(arr, 63);
+
+  TEST_ASSERT_EQUAL_UINT64(10, gvizBitArrayPopcountRange(arr, 10, 20));
+  TEST_ASSERT_EQUAL_UINT64(0, gvizBitArrayPopcountRange(arr, 20, 10));
+}
+
+void test_popcount_range_cross_word(void) {
+  size_t nbits = GVIZ_BITS_PER_WORD + 10;
+  GVIZ_BIT_UNIT arr[GVIZ_ARRAY_UNITS(nbits)];
+  memset(arr, 0, sizeof(arr));
+
+  gvizSetBit(arr, GVIZ_BITS_PER_WORD - 1);
+  gvizSetBit(arr, GVIZ_BITS_PER_WORD);
+  gvizSetBit(arr, GVIZ_BITS_PER_WORD + 1);
+
+  TEST_ASSERT_EQUAL_UINT64(3, gvizBitArrayPopcountRange(arr, GVIZ_BITS_PER_WORD - 1,
+                                                        GVIZ_BITS_PER_WORD + 2));
+}
+
+void test_iterator_range_matches_popcount(void) {
+  GVIZ_BIT_UNIT arr[GVIZ_ARRAY_UNITS(80)];
+  memset(arr, 0, sizeof(arr));
+  for (size_t i = 5; i < 40; i += 3)
+    gvizSetBit(arr, i);
+
+  size_t count = 0;
+  gvizBitArrayIterator it = gvizBitArrayIteratorCreateRange(arr, 5, 40);
+  size_t idx;
+  while (gvizBitArrayIterate(&it, &idx))
+    count++;
+
+  TEST_ASSERT_EQUAL_UINT64(gvizBitArrayPopcountRange(arr, 5, 40), count);
+}
+
+void test_bitarray_api_wrappers(void) {
+  GVIZ_BIT_ARRAY arr = gvizBitArrayAlloc(16);
+  TEST_ASSERT_NOT_NULL(arr);
+
+  gvizBitArraySet(arr, 3);
+  TEST_ASSERT_TRUE(gvizBitArrayTest(arr, 3));
+  TEST_ASSERT_FALSE(gvizBitArrayTest(arr, 4));
+
+  gvizBitArrayClear(arr, 3);
+  TEST_ASSERT_FALSE(gvizBitArrayTest(arr, 3));
+
+  GVIZ_BIT_ARRAY grown = gvizBitArrayResize(arr, 16, 32);
+  TEST_ASSERT_NOT_NULL(grown);
+  gvizBitArraySet(grown, 20);
+  TEST_ASSERT_TRUE(gvizBitArrayTest(grown, 20));
+
+  gvizBitArrayFree(grown);
+}
+
+void test_clear_range_small_buffer(void) {
+  GVIZ_BIT_ARRAY arr = gvizBitArrayAlloc(6);
+  TEST_ASSERT_NOT_NULL(arr);
+  for (size_t i = 0; i < 6; i++)
+    gvizBitArraySet(arr, i);
+  gvizBitArrayClearRange(arr, 1, 5);
+  TEST_ASSERT_TRUE(gvizBitArrayTest(arr, 0));
+  TEST_ASSERT_FALSE(gvizBitArrayTest(arr, 1));
+  TEST_ASSERT_FALSE(gvizBitArrayTest(arr, 4));
+  TEST_ASSERT_TRUE(gvizBitArrayTest(arr, 5));
+  gvizBitArrayFree(arr);
+}
+
+// ============================================================================
 // TEST RUNNER
 // ============================================================================
 
@@ -812,6 +909,14 @@ int main(void) {
   RUN_TEST(test_iterate_matches_test_bit_dense);
   RUN_TEST(test_iterate_padding_bits_excluded);
   RUN_TEST(test_iterate_sparse_large);
+  RUN_TEST(test_popcount_empty);
+  RUN_TEST(test_popcount_all_set);
+  RUN_TEST(test_popcount_sparse);
+  RUN_TEST(test_popcount_range_middle);
+  RUN_TEST(test_popcount_range_cross_word);
+  RUN_TEST(test_iterator_range_matches_popcount);
+  RUN_TEST(test_bitarray_api_wrappers);
+  RUN_TEST(test_clear_range_small_buffer);
 
   return UNITY_END();
 }

@@ -19,6 +19,7 @@ Copyright 2005 John M. Boyer
 #include "appconst.h"
 #include "listcoll.h"
 #include <stdlib.h>
+#include <string.h>
 
 /*****************************************************************************
  The data structure defined by this module manages a set of N objects

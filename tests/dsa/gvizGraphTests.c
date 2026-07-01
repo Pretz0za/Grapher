@@ -83,7 +83,7 @@ void test_vertexCopy_Basic(void) {
   gvizVertexInit(&dest, NULL);
 
   // Add some neighbors to source
-  int neighbor1 = 0, neighbor2 = 1;
+  size_t neighbor1 = 0, neighbor2 = 1;
   gvizArrayPush(&src.neighbors, &neighbor1);
   gvizArrayPush(&src.neighbors, &neighbor2);
 
@@ -101,7 +101,7 @@ void test_vertexClone_CreatesIndependentCopy(void) {
   int data = 42;
 
   gvizVertexInit(&src, &data);
-  int neighbor = 5;
+  size_t neighbor = 5;
   gvizArrayPush(&src.neighbors, &neighbor);
 
   int result = gvizVertexClone(&dest, &src);
@@ -110,8 +110,8 @@ void test_vertexClone_CreatesIndependentCopy(void) {
   TEST_ASSERT_EQUAL_UINT64(1, dest.neighbors.count);
 
   // Verify neighbor is copied
-  int *destNeighbor = (int *)gvizArrayAtIndex(&dest.neighbors, 0);
-  TEST_ASSERT_EQUAL_INT(5, *destNeighbor);
+  size_t *destNeighbor = (size_t *)gvizArrayAtIndex(&dest.neighbors, 0);
+  TEST_ASSERT_EQUAL_UINT64(5, *destNeighbor);
 
   gvizVertexRelease(&src);
   gvizVertexRelease(&dest);
