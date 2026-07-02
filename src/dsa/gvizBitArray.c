@@ -174,6 +174,42 @@ void gvizBitArrayClearRange(GVIZ_BIT_ARRAY arr, size_t start, size_t end) {
   }
 }
 
+void gvizBitArrayCopyBits(GVIZ_BIT_ARRAY dest, const GVIZ_BIT_ARRAY src,
+                          size_t count) {
+  if (count == 0)
+    return;
+
+  size_t units = GVIZ_ARRAY_UNITS(count);
+  size_t end_word = (count - 1) / GVIZ_BITS_PER_WORD;
+
+  for (size_t word_idx = 0; word_idx <= end_word; word_idx++) {
+    size_t byte_off = word_idx * sizeof(size_t);
+    size_t base = word_idx * GVIZ_BITS_PER_WORD;
+
+    if (byte_off + sizeof(size_t) > units) {
+      for (size_t bit = 0; bit < count; bit++) {
+        if (gvizTestBit(src, bit))
+          gvizBitArraySet(dest, bit);
+        else
+          gvizBitArrayClear(dest, bit);
+      }
+      return;
+    }
+
+    size_t d = gvizBitArrayLoadWordBounded(dest, byte_off, units);
+    size_t s = gvizBitArrayLoadWordBounded(src, byte_off, units);
+    size_t mask = (size_t)~0;
+
+    if (word_idx == end_word) {
+      size_t limit = count - base;
+      if (limit < GVIZ_BITS_PER_WORD)
+        mask = ((size_t)1 << limit) - 1;
+    }
+
+    gvizBitArrayStoreWord(dest, byte_off, (d & ~mask) | (s & mask));
+  }
+}
+
 size_t gvizBitArrayPopcount(GVIZ_BIT_ARRAY arr, size_t nbits) {
   if (nbits == 0)
     return 0;

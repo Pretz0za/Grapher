@@ -238,12 +238,7 @@ void gvizGRIPEmbedderRelease(gvizGRIPState *state) {
 
 // NOTE: Can be potentially made better by randomizing the order of the
 // vertices. either by shuffling or assigning random priorities to each vertex;
-void makeFirstMISPartition(gvizGRIPState *state, gvizArray *out) {
-  // creates a maximal independent set of the graph and maintains mis filtration
-  // state arrays.
-
-  // 0 undecided
-  // 1 decided. could be in/out
+void makeFirstMISPartition(gvizGRIPState *state, gvizVertexSubset out) {
   gvizGraph *g = state->graph.graph;
   GVIZ_BIT_UNIT states[GVIZ_ARRAY_UNITS(g->vertices.count)];
   memset(states, 0, sizeof(states));
@@ -252,11 +247,8 @@ void makeFirstMISPartition(gvizGRIPState *state, gvizArray *out) {
 
   for (size_t i = 0; i < g->vertices.count; i++) {
     if (!gvizTestBit(states, i)) {
-      // IN
-      gvizSetBit(states, i);
-      gvizArrayPush(out, &i);
+      gvizVertexSubsetShowVertex(out, i);
 
-      // OUT
       gvizArray *neighbors = gvizGraphGetVertexNeighbors(g, i);
       for (size_t j = 0; j < neighbors->count; j++) {
         size_t neighbor = *(size_t *)gvizArrayAtIndex(neighbors, j);
@@ -268,7 +260,7 @@ void makeFirstMISPartition(gvizGRIPState *state, gvizArray *out) {
     }
   }
 
-  state->misBorder[1] = out->count;
+  state->misBorder[1] = gvizVertexSubsetCount(out, g->vertices.count);
 }
 
 void migrateOneToFinalLayer(gvizGRIPState *state, GVIZ_BIT_ARRAY finalLayer,
@@ -371,106 +363,80 @@ static void verticesWithinRadius(gvizGRIPState *state, gvizGraph *g,
   }
 }
 
-int iterMISFiltration(gvizGRIPState *state, size_t i, GVIZ_BIT_ARRAY vertices,
-                      gvizArray *verticesArr) {
-  printf("creating partitoin %zu, initializing...\n", i);
+int iterMISFiltration(gvizGRIPState *state, size_t i,
+                      gvizVertexSubset vertices) {
   gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
-  GVIZ_BIT_UNIT newVertices[GVIZ_ARRAY_UNITS(embedding->graph->vertices.count)];
-  GVIZ_BIT_UNIT
-  newMisStates[GVIZ_ARRAY_UNITS(embedding->graph->vertices.count)];
+  size_t nvertices = gvizGraphSize(embedding->graph);
+
+  gvizVertexSubset newVertices = gvizVertexSubsetCreateEmpty(embedding->graph);
+  gvizVertexSubset newMisStates = gvizVertexSubsetCreateEmpty(embedding->graph);
+  if (!newVertices || !newMisStates) {
+    if (newVertices)
+      gvizVertexSubsetRelease(newVertices);
+    if (newMisStates)
+      gvizVertexSubsetRelease(newMisStates);
+    return 0;
+  }
+
   size_t curr;
-  memset(newVertices, 0, sizeof(newVertices));
-  memset(newMisStates, 0, sizeof(newMisStates));
+  gvizBitArrayIterator it = gvizVertexSubsetIteratorCreate(vertices, nvertices);
 
-  printf("looping over vertices\n");
-  for (size_t j = 0; j < verticesArr->count; j++) {
-    curr = *(size_t *)gvizArrayAtIndex(verticesArr, j);
-
-    // already chosen or too close to a prev choice
-    if (gvizTestBit(newMisStates, curr))
+  while (gvizBitArrayIterate(&it, &curr)) {
+    if (gvizVertexSubsetTest(newMisStates, curr))
       continue;
 
-    // chosen for next layer
-    gvizSetBit(newVertices, curr);
-    gvizSetBit(newMisStates, curr);
+    gvizVertexSubsetShowVertex(newVertices, curr);
+    gvizVertexSubsetShowVertex(newMisStates, curr);
 
-    // printf("running verticesWithinRadius()...   ");
     verticesWithinRadius(state, embedding->graph, curr, 1ULL << (i - 1),
                          newMisStates);
-    // printf("returned\n");
   }
 
-  printf("finished loop. cleaning up \n");
-
-  // Loop again, to find the vertices that did not make it to the new subset
-  // We loop backwards since we are mutating the array we are looping over.
-  // The way this is done, it is safe.
+  it = gvizVertexSubsetIteratorCreate(vertices, nvertices);
   size_t *ptr = &(state->misFiltration[state->misBorder[i - 1] - 1]);
-  for (size_t j = verticesArr->count; j-- > 0;) {
-    // printf("entering deletion loop\n");
-    curr = *(size_t *)gvizArrayAtIndex(verticesArr, j);
-    if (!gvizTestBit(newVertices, curr)) {
-      // printf("writing to mistfiltration array, curr - arr = %zu\n",
-      // ptr - state->misFiltration);
-      // Write to misFiltration array
+  while (gvizBitArrayIterate(&it, &curr)) {
+    if (!gvizVertexSubsetTest(newVertices, curr))
       *(ptr--) = curr;
-
-      // printf("attempting delete %zu\n", j);
-      // Update verticesArr. O(1). not order-preserving
-      gvizArraySwapDelete(verticesArr, j);
-    }
   }
 
-  state->misBorder[i] = verticesArr->count;
+  state->misBorder[i] = gvizVertexSubsetCount(newVertices, nvertices);
+  gvizBitArrayCopyBits(vertices, newVertices, nvertices);
 
-  memcpy(vertices, newVertices, sizeof(newVertices));
+  gvizVertexSubsetRelease(newVertices);
+  gvizVertexSubsetRelease(newMisStates);
 
-  // write current MIS vertices into misFiltration before migrating
-  for (size_t k = 0; k < verticesArr->count; k++) {
-    state->misFiltration[k] = *(size_t *)gvizArrayAtIndex(verticesArr, k);
-  }
-
-  while (state->misBorder[i] < embedding->embedding.dim + 1) {
-    printf("migrating one\n");
-    migrateOneToFinalLayer(state, newVertices, i + 1);
-  }
-
-  // printf("Layer %zu created with %zu vertices.", i, state->misBorder[i]);
-
-  if (state->misBorder[i] == embedding->embedding.dim + 1) {
-    for (size_t k = 0; k < verticesArr->count; k++) {
-      state->misFiltration[k] = *(size_t *)gvizArrayAtIndex(verticesArr, k);
-    }
-    return 0;
-  } else
+  if (state->misBorder[i] > embedding->embedding.dim + 1)
     return 1;
+  return 0;
 }
 
 size_t createMISFiltration(gvizGRIPState *state) {
-  printf("Creating MIS filtration\n");
   gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
-  GVIZ_BIT_UNIT curr[GVIZ_ARRAY_UNITS(embedding->graph->vertices.count)];
-  memset(curr, 0, sizeof(curr));
+  size_t nvertices = gvizGraphSize(embedding->graph);
+  size_t dim = embedding->embedding.dim;
 
-  gvizArray currVertices;
-  gvizArrayInitAtCapacity(&currVertices, sizeof(size_t),
-                          embedding->graph->vertices.count);
+  gvizVertexSubset curr = gvizVertexSubsetCreateEmpty(embedding->graph);
+  if (!curr)
+    return 0;
 
-  printf("creating first partition");
-  makeFirstMISPartition(state, &currVertices);
-  for (size_t i = 0; i < currVertices.count; i++) {
-    gvizSetBit(curr, *(size_t *)gvizArrayAtIndex(&currVertices, i));
-  }
+  makeFirstMISPartition(state, curr);
 
   size_t i = 2;
-  while (iterMISFiltration(state, i, curr, &currVertices)) {
-    // printf("creating new layer \n");
+  while (iterMISFiltration(state, i, curr))
     i++;
+
+  {
+    size_t k = 0;
+    gvizBitArrayIterator it = gvizVertexSubsetIteratorCreate(curr, nvertices);
+    size_t vtx;
+    while (gvizBitArrayIterate(&it, &vtx))
+      state->misFiltration[k++] = vtx;
   }
 
-  printf("filtration completed fully. cleaning up and returning\n");
+  while (state->misBorder[i] < dim + 1)
+    migrateOneToFinalLayer(state, curr, i + 1);
 
-  gvizArrayRelease(&currVertices);
+  gvizVertexSubsetRelease(curr);
 
   return i + 1;
 }

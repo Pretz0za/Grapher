@@ -831,6 +831,32 @@ void test_bitarray_api_wrappers(void) {
   gvizBitArrayFree(grown);
 }
 
+void test_copy_bits_preserves_tail(void) {
+  GVIZ_BIT_ARRAY src = gvizBitArrayAlloc(80);
+  GVIZ_BIT_ARRAY dest = gvizBitArrayAlloc(80);
+  TEST_ASSERT_NOT_NULL(src);
+  TEST_ASSERT_NOT_NULL(dest);
+
+  for (size_t i = 0; i < 50; i += 5)
+    gvizBitArraySet(src, i);
+  for (size_t i = 0; i < 80; i++)
+    gvizBitArraySet(dest, i);
+
+  gvizBitArrayCopyBits(dest, src, 40);
+
+  for (size_t i = 0; i < 40; i++) {
+    if (i % 5 == 0)
+      TEST_ASSERT_TRUE(gvizBitArrayTest(dest, i));
+    else
+      TEST_ASSERT_FALSE(gvizBitArrayTest(dest, i));
+  }
+  for (size_t i = 40; i < 80; i++)
+    TEST_ASSERT_TRUE(gvizBitArrayTest(dest, i));
+
+  gvizBitArrayFree(src);
+  gvizBitArrayFree(dest);
+}
+
 void test_clear_range_small_buffer(void) {
   GVIZ_BIT_ARRAY arr = gvizBitArrayAlloc(6);
   TEST_ASSERT_NOT_NULL(arr);
@@ -916,6 +942,7 @@ int main(void) {
   RUN_TEST(test_popcount_range_cross_word);
   RUN_TEST(test_iterator_range_matches_popcount);
   RUN_TEST(test_bitarray_api_wrappers);
+  RUN_TEST(test_copy_bits_preserves_tail);
   RUN_TEST(test_clear_range_small_buffer);
 
   return UNITY_END();

@@ -139,6 +139,13 @@ void gvizBitArraySet(GVIZ_BIT_ARRAY arr, size_t k);
 void gvizBitArrayClear(GVIZ_BIT_ARRAY arr, size_t k);
 void gvizBitArrayClearRange(GVIZ_BIT_ARRAY arr, size_t start, size_t end);
 
+/**
+ * Copies the first @p count bits from @p src to @p dest.
+ * Bits beyond @p count in @p dest are unchanged.
+ */
+void gvizBitArrayCopyBits(GVIZ_BIT_ARRAY dest, const GVIZ_BIT_ARRAY src,
+                          size_t count);
+
 size_t gvizBitArrayPopcount(GVIZ_BIT_ARRAY arr, size_t nbits);
 size_t gvizBitArrayPopcountRange(GVIZ_BIT_ARRAY arr, size_t start, size_t end);
 

@@ -2,6 +2,7 @@
 #define _GVIZ_GRIP_H_
 
 #include "dsa/gvizDeque.h"
+#include "dsa/gvizSubgraph.h"
 #include "embedders/gvizEmbeddedGraph.h"
 
 typedef struct gvizGRIPDecorators {
