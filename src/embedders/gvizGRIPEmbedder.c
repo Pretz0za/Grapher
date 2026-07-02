@@ -1,15 +1,17 @@
+#include "embedders/gvizGRIPEmbedder.h"
 #include "cblas.h"
 #include "core/alloc.h"
 #include "dsa/gvizArray.h"
 #include "dsa/gvizBitArray.h"
 #include "dsa/gvizDeque.h"
 #include "dsa/gvizGraph.h"
-#include "embedders/gvizGRIPEmbedder.h"
+#include "dsa/gvizSubgraph.h"
 #include "embedders/gvizEmbeddedGraph.h"
 #include "embedders/gvizForceDirected.h"
 #include "utils/helpers.h"
 #include <assert.h>
 #include <math.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -22,7 +24,7 @@ static const double gvizGRIPr = 0.15;
 static const double gvizGRIPs = 3;
 
 int gvizGRIPEmbedderInit(gvizGRIPState *state, gvizGraph *graph,
-                          size_t diameter, size_t dimension) {
+                         size_t diameter, size_t dimension) {
   int res;
   size_t N = graph->vertices.count;
 
@@ -59,11 +61,10 @@ int gvizGRIPEmbedderInit(gvizGRIPState *state, gvizGraph *graph,
   }
   memset(state->dispCalculated, 0, sizeof(GVIZ_BIT_UNIT) * GVIZ_ARRAY_UNITS(N));
 
-  state->placed = GVIZ_ALLOC(sizeof(GVIZ_BIT_UNIT) * GVIZ_ARRAY_UNITS(N));
+  state->placed = gvizVertexSubsetCreateEmpty(graph);
   if (!state->placed) {
     return -1;
   }
-  memset(state->placed, 0, sizeof(GVIZ_BIT_UNIT) * GVIZ_ARRAY_UNITS(N));
 
   state->radiusBfsStamp = GVIZ_ALLOC(sizeof(size_t) * N);
   if (!state->radiusBfsStamp)
@@ -87,7 +88,7 @@ int gvizGRIPEmbedderInit(gvizGRIPState *state, gvizGraph *graph,
   memset(gArr, 0, sizeof(gvizFoundVertex) * N * REFINEMENT_K);
 
   for (size_t i = 0; i < N; i++, gArr += REFINEMENT_K) {
-	
+
     // manually initalize knn arrays
     gvizArray *arr = &state->dec[i].knn;
     arr->elementSize = sizeof(gvizFoundVertex);
@@ -227,7 +228,7 @@ void gvizGRIPEmbedderRelease(gvizGRIPState *state) {
   if (state->dispCalculated)
     GVIZ_DEALLOC(state->dispCalculated);
   if (state->placed)
-    GVIZ_DEALLOC(state->placed);
+    gvizVertexSubsetRelease(state->placed);
   if (state->radiusBfsStamp)
     GVIZ_DEALLOC(state->radiusBfsStamp);
   gvizDequeRelease(&state->radiusBfsQueue);
@@ -372,7 +373,7 @@ static void verticesWithinRadius(gvizGRIPState *state, gvizGraph *g,
 
 int iterMISFiltration(gvizGRIPState *state, size_t i, GVIZ_BIT_ARRAY vertices,
                       gvizArray *verticesArr) {
-
+  printf("creating partitoin %zu, initializing...\n", i);
   gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
   GVIZ_BIT_UNIT newVertices[GVIZ_ARRAY_UNITS(embedding->graph->vertices.count)];
   GVIZ_BIT_UNIT
@@ -381,6 +382,7 @@ int iterMISFiltration(gvizGRIPState *state, size_t i, GVIZ_BIT_ARRAY vertices,
   memset(newVertices, 0, sizeof(newVertices));
   memset(newMisStates, 0, sizeof(newMisStates));
 
+  printf("looping over vertices\n");
   for (size_t j = 0; j < verticesArr->count; j++) {
     curr = *(size_t *)gvizArrayAtIndex(verticesArr, j);
 
@@ -392,15 +394,20 @@ int iterMISFiltration(gvizGRIPState *state, size_t i, GVIZ_BIT_ARRAY vertices,
     gvizSetBit(newVertices, curr);
     gvizSetBit(newMisStates, curr);
 
+    // printf("running verticesWithinRadius()...   ");
     verticesWithinRadius(state, embedding->graph, curr, 1ULL << (i - 1),
                          newMisStates);
+    // printf("returned\n");
   }
+
+  printf("finished loop. cleaning up \n");
 
   // Loop again, to find the vertices that did not make it to the new subset
   // We loop backwards since we are mutating the array we are looping over.
   // The way this is done, it is safe.
   size_t *ptr = &(state->misFiltration[state->misBorder[i - 1] - 1]);
   for (size_t j = verticesArr->count; j-- > 0;) {
+    // printf("entering deletion loop\n");
     curr = *(size_t *)gvizArrayAtIndex(verticesArr, j);
     if (!gvizTestBit(newVertices, curr)) {
       // printf("writing to mistfiltration array, curr - arr = %zu\n",
@@ -424,6 +431,7 @@ int iterMISFiltration(gvizGRIPState *state, size_t i, GVIZ_BIT_ARRAY vertices,
   }
 
   while (state->misBorder[i] < embedding->embedding.dim + 1) {
+    printf("migrating one\n");
     migrateOneToFinalLayer(state, newVertices, i + 1);
   }
 
@@ -439,6 +447,7 @@ int iterMISFiltration(gvizGRIPState *state, size_t i, GVIZ_BIT_ARRAY vertices,
 }
 
 size_t createMISFiltration(gvizGRIPState *state) {
+  printf("Creating MIS filtration\n");
   gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
   GVIZ_BIT_UNIT curr[GVIZ_ARRAY_UNITS(embedding->graph->vertices.count)];
   memset(curr, 0, sizeof(curr));
@@ -447,6 +456,7 @@ size_t createMISFiltration(gvizGRIPState *state) {
   gvizArrayInitAtCapacity(&currVertices, sizeof(size_t),
                           embedding->graph->vertices.count);
 
+  printf("creating first partition");
   makeFirstMISPartition(state, &currVertices);
   for (size_t i = 0; i < currVertices.count; i++) {
     gvizSetBit(curr, *(size_t *)gvizArrayAtIndex(&currVertices, i));
@@ -454,8 +464,11 @@ size_t createMISFiltration(gvizGRIPState *state) {
 
   size_t i = 2;
   while (iterMISFiltration(state, i, curr, &currVertices)) {
+    // printf("creating new layer \n");
     i++;
   }
+
+  printf("filtration completed fully. cleaning up and returning\n");
 
   gvizArrayRelease(&currVertices);
 
@@ -470,7 +483,7 @@ void placeLayerVertices(gvizGRIPState *state) {
   // place each new vertex at barrycenter of previous vertices
   for (size_t i = state->misBorder[layer + 1]; i < state->misBorder[layer];
        i++) {
-    assert(!gvizTestBit(state->placed, state->misFiltration[i]));
+    assert(!gvizVertexSubsetTest(state->placed, state->misFiltration[i]));
 
     // printf("placing vertex %zu\n", state->misFiltration[i]);
     gvizFoundVertex found[INITIAL_PLACEMENT_K];
@@ -505,7 +518,7 @@ void placeLayerVertices(gvizGRIPState *state) {
 
   // Set all as placed
   for (size_t i = state->misBorder[layer + 1]; i < state->misBorder[layer]; i++)
-    gvizSetBit(state->placed, state->misFiltration[i]);
+    gvizVertexSubsetShowVertex(state->placed, state->misFiltration[i]);
 }
 
 void updateLocalTemp(gvizGRIPState *state, size_t v) {
@@ -533,8 +546,7 @@ void updateLocalTemp(gvizGRIPState *state, size_t v) {
 }
 
 // TODO: highly parallelizable
-void calculateSpringForces(gvizGRIPState *state, size_t v, size_t layer,
-                           GVIZ_BIT_ARRAY filter) {
+void calculateSpringForces(gvizGRIPState *state, size_t v, size_t layer) {
   gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
   double f[embedding->embedding.dim];
   memset(f, 0, sizeof(f));
@@ -617,13 +629,12 @@ void gvizGRIPEmbedderBegin(gvizGRIPState *state) {
   state->layerCount = createMISFiltration(state);
   state->currLayer = state->layerCount - 1;
 
-
   double simplex[embedding->embedding.dim * (embedding->embedding.dim + 1)];
   makeRegularSimplex(embedding->embedding.dim, GVIZ_EDGE_LENGTH * 1000,
                      simplex);
 
   for (size_t j = 0; j < embedding->embedding.dim + 1; j++) {
-    gvizSetBit(state->placed, state->misFiltration[j]);
+    gvizVertexSubsetShowVertex(state->placed, state->misFiltration[j]);
     cblas_dcopy(
         embedding->embedding.dim, simplex + j * embedding->embedding.dim, 1,
         gvizEmbeddedGraphGetVPosition(embedding, state->misFiltration[j]), 1);
@@ -663,7 +674,7 @@ void runRefinementRound(gvizGRIPState *state) {
     // oldDisp = disp
     cblas_dcopy(embedding->embedding.dim, dec->disp, 1, dec->oldDisp, 1);
 
-    calculateSpringForces(state, curr, layer, state->placed);
+    calculateSpringForces(state, curr, layer);
 
     if (!gvizTestBit(state->dispCalculated, curr)) {
       gvizSetBit(state->dispCalculated, curr);

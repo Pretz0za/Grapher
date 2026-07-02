@@ -3,8 +3,8 @@
 #include "unity/unity.h"
 #include "unity/unity_internals.h"
 
-#define MESH_W 45
-#define MESH_H 85
+#define MESH_W 50
+#define MESH_H 80
 #define MESH_D ((MESH_W - 1) + (MESH_H - 1))
 
 void setUp(void) {}

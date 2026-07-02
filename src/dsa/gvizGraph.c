@@ -419,7 +419,7 @@ int gvizGraphBFSTree(gvizGraph *g, gvizGraph *out, size_t source,
 }
 
 int gvizGraphKNearestNeighbors(gvizGraph *g, gvizFoundVertex *out, size_t k,
-                               size_t source, GVIZ_BIT_ARRAY filter) {
+                               size_t source, gvizVertexSubset filter) {
   if (k == 0)
     return 0;
   int err;
@@ -460,7 +460,7 @@ int gvizGraphKNearestNeighbors(gvizGraph *g, gvizFoundVertex *out, size_t k,
       gvizFoundVertex next = {currNeighbor, curr.dist + 1};
 
       // If satisfies filter, increment count and add to out
-      if (!filter || gvizTestBit(filter, currNeighbor)) {
+      if (!filter || gvizVertexSubsetTest(filter, currNeighbor)) {
         out[count++] = next;
         if (count >= k) {
           gvizDequeRelease(&queue);

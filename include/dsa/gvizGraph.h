@@ -343,6 +343,6 @@ int gvizGraphBFSTree(gvizGraph *g, gvizGraph *out, size_t source,
  * otherwise, a BFS is performed until K vertices in filter are found.
  */
 int gvizGraphKNearestNeighbors(gvizGraph *g, gvizFoundVertex *out, size_t k,
-                               size_t source, GVIZ_BIT_ARRAY filter);
+                               size_t source, gvizVertexSubset filter);
 
 #endif

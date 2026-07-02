@@ -17,7 +17,7 @@ typedef struct gvizGRIPState {
   size_t layerCount;
   size_t currLayer;
   size_t currRound;
-  GVIZ_BIT_ARRAY placed;
+  gvizVertexSubset placed;
   size_t *misFiltration;
   size_t *misBorder;
   size_t *rounds;
