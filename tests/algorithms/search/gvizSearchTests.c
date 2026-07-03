@@ -129,6 +129,31 @@ void test_searchKNearest_withFilter(void) {
   gvizGraphRelease(&g);
 }
 
+void test_searchKNearest_scratch_matches_stateless(void) {
+  gvizGraph g;
+  add_path4(&g);
+  gvizGraphBuildLayout(&g);
+
+  gvizSubgraph sg = gvizSubgraphCreateFull(&g);
+  gvizKNearestScratch scratch;
+  TEST_ASSERT_EQUAL_INT(0, gvizKNearestScratchInit(&scratch, 4));
+
+  gvizFoundVertex a[3];
+  gvizFoundVertex b[3];
+  int countA = gvizSearchKNearest(&sg, a, 3, 0, NULL);
+  int countB =
+      gvizSearchKNearestScratch(&sg, b, 3, 0, NULL, &scratch);
+  TEST_ASSERT_EQUAL_INT(countA, countB);
+  for (int i = 0; i < countA; i++) {
+    TEST_ASSERT_EQUAL_UINT64(a[i].v, b[i].v);
+    TEST_ASSERT_EQUAL_UINT64(a[i].dist, b[i].dist);
+  }
+
+  gvizKNearestScratchRelease(&scratch);
+  gvizSubgraphRelease(&sg);
+  gvizGraphRelease(&g);
+}
+
 int main(void) {
   UNITY_BEGIN();
   RUN_TEST(test_searchBreadthFirst_path);
@@ -136,5 +161,6 @@ int main(void) {
   RUN_TEST(test_searchDepthFirst_path);
   RUN_TEST(test_searchKNearest_triangle);
   RUN_TEST(test_searchKNearest_withFilter);
+  RUN_TEST(test_searchKNearest_scratch_matches_stateless);
   return UNITY_END();
 }

@@ -2,6 +2,7 @@
 #define _GVIZ_GRIP_H_
 
 #include "algorithms/search/gvizKNearest.h"
+#include "core/gvizThreadPool.h"
 #include "ds/gvizArray.h"
 #include "ds/gvizDeque.h"
 #include "ds/gvizSubgraph.h"
@@ -29,6 +30,11 @@ typedef struct gvizGRIPState {
   size_t *radiusBfsStamp;
   size_t radiusBfsEpoch;
   gvizDeque radiusBfsQueue;
+  /** One KNN scratch buffer per pool worker plus one for the caller thread. */
+  gvizKNearestScratch *knnScratch;
+  size_t knnScratchCount;
+  /** Worker pool for data-parallel phases. NULL => serial fallback. */
+  gvizThreadPool *pool;
 } gvizGRIPState;
 
 /**

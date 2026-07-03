@@ -5,6 +5,8 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 option(ENABLE_ASAN "Enable AddressSanitizer" OFF)
 
+find_package(Threads REQUIRED)
+
 if(ENABLE_ASAN)
     add_compile_options(-fsanitize=address -fno-omit-frame-pointer)
     add_link_options(-fsanitize=address)
@@ -23,6 +25,8 @@ add_library(planar STATIC
 target_include_directories(planar PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/third-party/)
 
 add_library(graphvis STATIC
+    src/core/gvizThreadPool.c
+
     src/ds/gvizGraph.c
     src/ds/gvizTree.c
     src/ds/gvizArray.c
@@ -57,7 +61,11 @@ target_link_libraries(graphvis
     planar
     openblas
     m
+    Threads::Threads
 )
+
+# Core tests
+add_executable(gvizThreadPoolTests third-party/unity/unity.c tests/core/gvizThreadPoolTests.c)
 
 # DS tests
 add_executable(gvizArrayTests third-party/unity/unity.c tests/ds/gvizArrayTests.c)
@@ -75,6 +83,7 @@ add_executable(gvizGRIPTests third-party/unity/unity.c tests/embedders/gvizGRIPT
 add_executable(gvizPlanarTests third-party/unity/unity.c tests/embedders/gvizPlanarTests.c)
 add_executable(gvizTutteTests third-party/unity/unity.c tests/embedders/gvizTutteTests.c)
 
+target_compile_definitions(gvizThreadPoolTests PRIVATE UNITY_INCLUDE_DOUBLE)
 target_compile_definitions(gvizArrayTests PRIVATE UNITY_INCLUDE_DOUBLE)
 target_compile_definitions(gvizGraphTests PRIVATE UNITY_INCLUDE_DOUBLE)
 target_compile_definitions(gvizBitArrayTests PRIVATE UNITY_INCLUDE_DOUBLE)
@@ -86,6 +95,8 @@ target_compile_definitions(gvizGRIPTests PRIVATE UNITY_INCLUDE_DOUBLE)
 target_compile_definitions(gvizPlanarTests PRIVATE UNITY_INCLUDE_DOUBLE)
 target_compile_definitions(gvizTutteTests PRIVATE UNITY_INCLUDE_DOUBLE)
 
+set_target_properties(gvizThreadPoolTests PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/core)
 set_target_properties(gvizArrayTests PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/ds)
 set_target_properties(gvizGraphTests PROPERTIES
@@ -109,6 +120,7 @@ set_target_properties(gvizPlanarTests PROPERTIES
 set_target_properties(gvizTutteTests PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/embedders)
 
+target_link_libraries(gvizThreadPoolTests PRIVATE graphvis)
 target_link_libraries(gvizArrayTests PRIVATE graphvis)
 target_link_libraries(gvizGraphTests PRIVATE graphvis)
 target_link_libraries(gvizBitArrayTests PRIVATE graphvis)
@@ -122,6 +134,7 @@ target_link_libraries(gvizPlanarTests PRIVATE graphvis)
 target_link_libraries(gvizTutteTests PRIVATE graphvis)
 
 enable_testing()
+add_test(NAME gvizThreadPoolTests COMMAND gvizThreadPoolTests)
 add_test(NAME gvizArrayTests COMMAND gvizArrayTests)
 add_test(NAME gvizGraphTests COMMAND gvizGraphTests)
 add_test(NAME gvizBitArrayTests COMMAND gvizBitArrayTests)
