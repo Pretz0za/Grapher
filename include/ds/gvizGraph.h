@@ -114,6 +114,9 @@ int gvizGraphInitAtCapacity(gvizGraph *g, int directed, size_t initialCapacity);
 /** Returns the number of vertices in @p g. */
 size_t gvizGraphSize(const gvizGraph *g);
 
+/** Returns whether @p g is directed. */
+int gvizGraphIsDirected(const gvizGraph *g);
+
 /**
  * Returns the number of edges in @p g. Requires a current layout from
  * gvizGraphBuildLayout; returns 0 if @p g->layout is NULL.

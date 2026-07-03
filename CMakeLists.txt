@@ -70,6 +70,7 @@ add_executable(gvizSubgraphTests third-party/unity/unity.c tests/ds/gvizSubgraph
 add_executable(gvizSearchTests third-party/unity/unity.c tests/algorithms/search/gvizSearchTests.c)
 
 # Embedder tests
+add_executable(gvizEmbeddedGraphTests third-party/unity/unity.c tests/embedders/gvizEmbeddedGraphTests.c)
 add_executable(gvizGRIPTests third-party/unity/unity.c tests/embedders/gvizGRIPTests.c)
 add_executable(gvizPlanarTests third-party/unity/unity.c tests/embedders/gvizPlanarTests.c)
 add_executable(gvizTutteTests third-party/unity/unity.c tests/embedders/gvizTutteTests.c)
@@ -80,6 +81,7 @@ target_compile_definitions(gvizBitArrayTests PRIVATE UNITY_INCLUDE_DOUBLE)
 target_compile_definitions(gvizDequeTests PRIVATE UNITY_INCLUDE_DOUBLE)
 target_compile_definitions(gvizSubgraphTests PRIVATE UNITY_INCLUDE_DOUBLE)
 target_compile_definitions(gvizSearchTests PRIVATE UNITY_INCLUDE_DOUBLE)
+target_compile_definitions(gvizEmbeddedGraphTests PRIVATE UNITY_INCLUDE_DOUBLE)
 target_compile_definitions(gvizGRIPTests PRIVATE UNITY_INCLUDE_DOUBLE)
 target_compile_definitions(gvizPlanarTests PRIVATE UNITY_INCLUDE_DOUBLE)
 target_compile_definitions(gvizTutteTests PRIVATE UNITY_INCLUDE_DOUBLE)
@@ -98,6 +100,8 @@ set_target_properties(gvizSubgraphTests PROPERTIES
 set_target_properties(gvizSearchTests PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/algorithms/search)
 
+set_target_properties(gvizEmbeddedGraphTests PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/embedders)
 set_target_properties(gvizGRIPTests PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/embedders)
 set_target_properties(gvizPlanarTests PROPERTIES
@@ -112,6 +116,7 @@ target_link_libraries(gvizDequeTests PRIVATE graphvis)
 target_link_libraries(gvizSubgraphTests PRIVATE graphvis)
 target_link_libraries(gvizSearchTests PRIVATE graphvis)
 
+target_link_libraries(gvizEmbeddedGraphTests PRIVATE graphvis)
 target_link_libraries(gvizGRIPTests PRIVATE graphvis)
 target_link_libraries(gvizPlanarTests PRIVATE graphvis)
 target_link_libraries(gvizTutteTests PRIVATE graphvis)
@@ -123,6 +128,7 @@ add_test(NAME gvizBitArrayTests COMMAND gvizBitArrayTests)
 add_test(NAME gvizDequeTests COMMAND gvizDequeTests)
 add_test(NAME gvizSubgraphTests COMMAND gvizSubgraphTests)
 add_test(NAME gvizSearchTests COMMAND gvizSearchTests)
+add_test(NAME gvizEmbeddedGraphTests COMMAND gvizEmbeddedGraphTests)
 add_test(NAME gvizGRIPTests COMMAND gvizGRIPTests)
 add_test(NAME gvizPlanarTests COMMAND gvizPlanarTests)
 add_test(NAME gvizTutteTests COMMAND gvizTutteTests)

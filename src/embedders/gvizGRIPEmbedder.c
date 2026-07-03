@@ -19,11 +19,36 @@
 
 #define GVIZ_EDGE_LENGTH 10.0
 
-#define INITIAL_PLACEMENT_K 128
-#define REFINEMENT_K 128
+#define INITIAL_PLACEMENT_K 32
+#define REFINEMENT_K 16
 
 static const double gvizGRIPr = 0.15;
 static const double gvizGRIPs = 3;
+
+/**
+ * Actions exposed to front-ends (renderers, scripts). They let an interactive
+ * session drive the multilevel schedule (e.g. bind a key to
+ * "grip.refineRound") without the front-end knowing anything about GRIP.
+ */
+static void gripActionRefineRound(gvizEmbeddedGraph *embedding, void *userData,
+                                  const gvizActionPayload *payload) {
+  (void)userData;
+  (void)payload;
+  gvizGRIPState *state = (gvizGRIPState *)embedding;
+  if (state->layerCount == 0)
+    return; // gvizGRIPEmbedderBegin has not run yet
+  runRefinementRound(state);
+}
+
+static void gripActionNextStage(gvizEmbeddedGraph *embedding, void *userData,
+                                const gvizActionPayload *payload) {
+  (void)userData;
+  (void)payload;
+  gvizGRIPState *state = (gvizGRIPState *)embedding;
+  if (state->layerCount == 0)
+    return;
+  beginNewStage(state);
+}
 
 int gvizGRIPEmbedderInit(gvizGRIPState *state, gvizSubgraph subgraph,
                          size_t diameter, size_t dimension) {
@@ -105,6 +130,14 @@ int gvizGRIPEmbedderInit(gvizGRIPState *state, gvizSubgraph subgraph,
     disp += dimension;
     oldDisp += dimension;
   }
+
+  gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
+  if (gvizEmbeddedGraphAddAction(embedding, "grip.refineRound",
+                                 gripActionRefineRound, NULL) < 0)
+    return -1;
+  if (gvizEmbeddedGraphAddAction(embedding, "grip.nextStage",
+                                 gripActionNextStage, NULL) < 0)
+    return -1;
 
   return 0;
 }
@@ -442,6 +475,7 @@ size_t createMISFiltration(gvizGRIPState *state) {
   return i + 1;
 }
 
+// TODO: highly parallelizable
 // DO NOT CALL FOR FIRST LAYER
 void placeLayerVertices(gvizGRIPState *state) {
   gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;

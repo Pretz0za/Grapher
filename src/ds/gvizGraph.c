@@ -77,6 +77,10 @@ size_t gvizGraphSize(const gvizGraph *g) {
 	return g->vertices.count;
 }
 
+int gvizGraphIsDirected(const gvizGraph *g) {
+	return g->directed;
+}
+
 size_t gvizGraphEdgeCount(const gvizGraph *g) {
   if (!g->layout)
     return 0;

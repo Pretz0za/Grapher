@@ -11,6 +11,7 @@ int gvizEmbeddedGraphInit(gvizEmbeddedGraph *embedding, gvizSubgraph subgraph,
   embedding->subgraph = subgraph;
   const gvizGraph *graph = subgraph.g;
   embedding->embedding.dim = n;
+  embedding->actions = (gvizActionRegistry){0};
   embedding->embedding.vertexPositions =
       GVIZ_ALLOC(sizeof(double) * gvizGraphSize(graph) * n);
   if (!embedding->embedding.vertexPositions)
@@ -27,6 +28,109 @@ void gvizEmbeddedGraphRelease(gvizEmbeddedGraph *embedding) {
     GVIZ_DEALLOC(embedding->embedding.vertexPositions);
     embedding->embedding.vertexPositions = NULL;
   }
+  if (embedding->actions.actions) {
+    GVIZ_DEALLOC(embedding->actions.actions);
+  }
+  embedding->actions = (gvizActionRegistry){0};
+}
+
+size_t gvizEmbeddedGraphDim(const gvizEmbeddedGraph *embedding) {
+  return embedding->embedding.dim;
+}
+
+size_t gvizEmbeddedGraphPositionCount(const gvizEmbeddedGraph *embedding) {
+  return gvizGraphSize(embedding->subgraph.g);
+}
+
+const double *gvizEmbeddedGraphPositions(const gvizEmbeddedGraph *embedding) {
+  return embedding->embedding.vertexPositions;
+}
+
+const gvizSubgraph *
+gvizEmbeddedGraphStructure(const gvizEmbeddedGraph *embedding) {
+  return &embedding->subgraph;
+}
+
+static gvizAction *findActionMutable(const gvizEmbeddedGraph *embedding,
+                                     const char *name) {
+  for (size_t i = 0; i < embedding->actions.count; i++) {
+    if (strcmp(embedding->actions.actions[i].name, name) == 0)
+      return &embedding->actions.actions[i];
+  }
+  return NULL;
+}
+
+int gvizEmbeddedGraphAddAction(gvizEmbeddedGraph *embedding, const char *name,
+                               gvizActionHandler handler, void *userData) {
+  if (!embedding || !name || !handler)
+    return -1;
+
+  gvizAction *existing = findActionMutable(embedding, name);
+  if (existing) {
+    existing->handler = handler;
+    existing->userData = userData;
+    return 0;
+  }
+
+  gvizActionRegistry *reg = &embedding->actions;
+  if (reg->count == reg->capacity) {
+    size_t newCapacity = reg->capacity ? reg->capacity * 2 : 4;
+    gvizAction *grown =
+        GVIZ_REALLOC(reg->actions, newCapacity * sizeof(gvizAction));
+    if (!grown)
+      return -1;
+    reg->actions = grown;
+    reg->capacity = newCapacity;
+  }
+
+  reg->actions[reg->count++] =
+      (gvizAction){.name = name, .handler = handler, .userData = userData};
+  return 0;
+}
+
+int gvizEmbeddedGraphRemoveAction(gvizEmbeddedGraph *embedding,
+                                  const char *name) {
+  if (!embedding || !name)
+    return -1;
+
+  gvizAction *found = findActionMutable(embedding, name);
+  if (!found)
+    return -1;
+
+  gvizActionRegistry *reg = &embedding->actions;
+  *found = reg->actions[--reg->count];
+  return 0;
+}
+
+const gvizAction *
+gvizEmbeddedGraphFindAction(const gvizEmbeddedGraph *embedding,
+                            const char *name) {
+  if (!embedding || !name)
+    return NULL;
+  return findActionMutable(embedding, name);
+}
+
+size_t gvizEmbeddedGraphActionCount(const gvizEmbeddedGraph *embedding) {
+  return embedding->actions.count;
+}
+
+const gvizAction *gvizEmbeddedGraphActionAt(const gvizEmbeddedGraph *embedding,
+                                            size_t idx) {
+  if (idx >= embedding->actions.count)
+    return NULL;
+  return &embedding->actions.actions[idx];
+}
+
+int gvizEmbeddedGraphInvokeAction(gvizEmbeddedGraph *embedding,
+                                  const char *name,
+                                  const gvizActionPayload *payload) {
+  const gvizAction *action = gvizEmbeddedGraphFindAction(embedding, name);
+  if (!action)
+    return -1;
+
+  gvizActionPayload zeroed = {0};
+  action->handler(embedding, action->userData, payload ? payload : &zeroed);
+  return 0;
 }
 
 double *gvizEmbeddedGraphGetVPosition(gvizEmbeddedGraph *embedding,
