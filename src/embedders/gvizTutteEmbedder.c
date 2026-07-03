@@ -2,12 +2,13 @@
 #include "core/alloc.h"
 #include "dsa/gvizArray.h"
 #include "dsa/gvizGraph.h"
+#include "dsa/gvizSubgraph.h"
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
 
 static size_t numVertices(const gvizTutteState *s) {
-    return ((gvizEmbeddedGraph *)s)->graph->vertices.count;
+    return gvizGraphSize(((gvizEmbeddedGraph *)s)->subgraph.g);
 }
 
 static size_t dim(const gvizTutteState *s) {
@@ -24,13 +25,13 @@ static void setPos(gvizTutteState *s, size_t u, double *p) {
 
 /* ---- init / release ------------------------------------------------------- */
 
-int gvizTutteEmbedderInit(gvizTutteState *s, gvizGraph *g, size_t dimension,
-                           double epsilon) {
-    int res = gvizEmbeddedGraphInit((gvizEmbeddedGraph *)s, g, dimension);
+int gvizTutteEmbedderInit(gvizTutteState *s, gvizSubgraph subgraph,
+                           size_t dimension, double epsilon) {
+    int res = gvizEmbeddedGraphInit((gvizEmbeddedGraph *)s, subgraph, dimension);
     if (res < 0)
         return res;
 
-    size_t N = g->vertices.count;
+    size_t N = gvizGraphSize(subgraph.g);
 
     s->boundary = NULL;
     s->boundaryCount = 0;
@@ -152,24 +153,28 @@ static double *neighborReadPos(gvizTutteState *s, size_t v) {
 
 /* Computes the unweighted barycenter of u's neighbors into out[dim]. */
 static void computeBarycenter(gvizTutteState *s, size_t u, double *out) {
-    gvizGraph *g = ((gvizEmbeddedGraph *)s)->graph;
-    gvizArray *nb = gvizGraphGetVertexNeighbors(g, u);
+    const gvizSubgraph *sg = &((gvizEmbeddedGraph *)s)->subgraph;
     size_t d = dim(s);
+    size_t count = 0;
     memset(out, 0, sizeof(double) * d);
-    for (size_t j = 0; j < nb->count; j++) {
-        size_t v = *(size_t *)gvizArrayAtIndex(nb, j);
+
+    gvizSubgraphNeighborIterator nit = gvizSubgraphNeighborIteratorCreate(sg, u);
+    size_t v;
+    while (gvizSubgraphNeighborIterate(&nit, &v)) {
         double *vp = neighborReadPos(s, v);
         for (size_t k = 0; k < d; k++)
             out[k] += vp[k];
+        count++;
     }
+    if (count == 0)
+        return;
     for (size_t k = 0; k < d; k++)
-        out[k] /= (double)nb->count;
+        out[k] /= (double)count;
 }
 
 /* Moves u by alpha toward its barycenter; returns L2 displacement. */
 static double relaxVertex(gvizTutteState *s, size_t u, double alpha) {
-    gvizArray *nb = gvizGraphGetVertexNeighbors(((gvizEmbeddedGraph *)s)->graph, u);
-    if (nb->count == 0)
+    if (gvizSubgraphDegree(&((gvizEmbeddedGraph *)s)->subgraph, u) == 0)
         return 0.0;
 
     size_t d = dim(s);

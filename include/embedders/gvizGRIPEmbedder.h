@@ -1,6 +1,7 @@
 #ifndef _GVIZ_GRIP_H_
 #define _GVIZ_GRIP_H_
 
+#include "dsa/gvizArray.h"
 #include "dsa/gvizDeque.h"
 #include "dsa/gvizSubgraph.h"
 #include "embedders/gvizEmbeddedGraph.h"
@@ -35,8 +36,8 @@ typedef struct gvizGRIPState {
  *
  * @return 0 on success, -1 on allocation failure.
  */
-int gvizGRIPEmbedderInit(gvizGRIPState *state, gvizGraph *graph,
-                          size_t diameter, size_t dimension);
+int gvizGRIPEmbedderInit(gvizGRIPState *state, gvizSubgraph subgraph,
+                         size_t diameter, size_t dimension);
 
 /** Runs the full GRIP embedding pipeline on @p state. */
 int gvizGRIPEmbedderEmbed(gvizGRIPState *state);

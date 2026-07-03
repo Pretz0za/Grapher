@@ -1,7 +1,10 @@
 #ifndef _GVIZ_PLANAR_H_
 #define _GVIZ_PLANAR_H_
 
+#include "dsa/gvizArray.h"
+#include "dsa/gvizGraph.h"
 #include "dsa/gvizBitArray.h"
+#include "dsa/gvizSubgraph.h"
 #include "embedders/gvizEmbeddedGraph.h"
 
 typedef struct gvizPlanarEmbedderState {
@@ -15,7 +18,7 @@ typedef struct gvizPlanarEmbedderState {
  *
  * @return 0 if planar, non-zero otherwise.
  */
-int gvizPlanarEmbedderInit(gvizPlanarEmbedderState *state, gvizGraph *g);
+int gvizPlanarEmbedderInit(gvizPlanarEmbedderState *state, gvizSubgraph subgraph);
 
 /** Releases @p state, including any Kuratowski subdivision graph. */
 void gvizPlanarEmbedderRelease(gvizPlanarEmbedderState *g);

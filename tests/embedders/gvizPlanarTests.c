@@ -1,5 +1,6 @@
 #include "dsa/gvizArray.h"
 #include "dsa/gvizGraph.h"
+#include "dsa/gvizSubgraph.h"
 #include "embedders/gvizEmbeddedGraph.h"
 #include "embedders/gvizPlanarEmbedder.h"
 #include "embedders/gvizSchnyderWood.h"
@@ -10,6 +11,11 @@
 
 void setUp(void) {}
 void tearDown() {}
+
+static gvizSubgraph makeFullSubgraph(gvizGraph *g) {
+  gvizGraphBuildLayout(g);
+  return gvizSubgraphCreateFull(g);
+}
 
 int indexOf(size_t *arr, size_t target, size_t count) {
   for (size_t i = 0; i < count; i++) {
@@ -45,7 +51,7 @@ void test_planar() {
   gvizGraphAddEdge(&g, 2, 3);
 
   gvizPlanarEmbedderState state;
-  int res = gvizPlanarEmbedderInit(&state, &g);
+  int res = gvizPlanarEmbedderInit(&state, makeFullSubgraph(&g));
 
   TEST_ASSERT_EQUAL(0, res);
 
@@ -94,7 +100,7 @@ void test_nonPlanar() {
   gvizGraphAddEdge(&g, 2, 5);
 
   gvizPlanarEmbedderState state;
-  int res = gvizPlanarEmbedderInit(&state, &g);
+  int res = gvizPlanarEmbedderInit(&state, makeFullSubgraph(&g));
 
   TEST_ASSERT_EQUAL(-2, res);
 
@@ -119,7 +125,7 @@ void test_triangulation() {
   gvizGraphAddEdge(&g, 5, 3);
 
   gvizPlanarEmbedderState state;
-  int res = gvizPlanarEmbedderInit(&state, &g);
+  int res = gvizPlanarEmbedderInit(&state, makeFullSubgraph(&g));
 
   TEST_ASSERT_EQUAL(0, res);
 
@@ -205,7 +211,7 @@ void test_schnyderWood_K4(void) {
   gvizGraphAddEdge(&g, 2, 3);
 
   gvizPlanarEmbedderState state;
-  TEST_ASSERT_EQUAL(0, gvizPlanarEmbedderInit(&state, &g));
+  TEST_ASSERT_EQUAL(0, gvizPlanarEmbedderInit(&state, makeFullSubgraph(&g)));
 
   gvizSchnyderWood sw;
   TEST_ASSERT_EQUAL(0, gvizSchnyderWoodInit(&sw, &g));
@@ -235,7 +241,7 @@ void test_schnyderWood_hexagon(void) {
   gvizGraphAddEdge(&g, 5, 3);
 
   gvizPlanarEmbedderState state;
-  TEST_ASSERT_EQUAL(0, gvizPlanarEmbedderInit(&state, &g));
+  TEST_ASSERT_EQUAL(0, gvizPlanarEmbedderInit(&state, makeFullSubgraph(&g)));
 
   gvizFaceIteratorContext faces;
   gvizFaceIteratorInit(&state, &faces);

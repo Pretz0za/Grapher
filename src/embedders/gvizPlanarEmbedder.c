@@ -4,6 +4,7 @@
 #include "dsa/gvizArray.h"
 #include "dsa/gvizBitArray.h"
 #include "dsa/gvizGraph.h"
+#include "dsa/gvizSubgraph.h"
 #include "embedders/gvizEmbeddedGraph.h"
 #include "utils/serializers.h"
 #include <assert.h>
@@ -54,26 +55,29 @@ void gvizAdjacencyFromGP(graphP theGraph, int v, gvizArray *out,
 
   *outDegree = degree;
 }
-int gvizPlanarEmbedderInit(gvizPlanarEmbedderState *state, gvizGraph *graph) {
+int gvizPlanarEmbedderInit(gvizPlanarEmbedderState *state, gvizSubgraph subgraph) {
   state->kuratowskiSubdivision = NULL;
 
   gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
-  gvizEmbeddedGraphInit(embedding, graph, 2);
+  gvizEmbeddedGraphInit(embedding, subgraph, 2);
 
-  size_t N = embedding->graph->vertices.count;
+  const gvizGraph *graph = embedding->subgraph.g;
+  size_t N = gvizGraphSize(graph);
 
   // Copy the gvizGraph into a new BoyerMyrvold graph struct.
   graphP g = gp_New();
 
-  if (gp_InitGraph(g, N) != OK)
+  if (gp_InitGraph(g, (int)N) != OK)
     return -1;
 
   for (size_t i = 0; i < N; i++) {
-    gvizArray *neighbors = gvizGraphGetVertexNeighbors(embedding->graph, i);
+    if (!gvizSubgraphHasVertex(&embedding->subgraph, i))
+      continue;
 
-    for (size_t j = 0; j < neighbors->count; j++) {
-      size_t curr = *(size_t *)gvizArrayAtIndex(neighbors, j);
-
+    gvizSubgraphNeighborIterator nit =
+        gvizSubgraphNeighborIteratorCreate(&embedding->subgraph, i);
+    size_t curr;
+    while (gvizSubgraphNeighborIterate(&nit, &curr)) {
       if (curr > i)
         continue;
 
@@ -117,8 +121,9 @@ int gvizPlanarEmbedderInit(gvizPlanarEmbedderState *state, gvizGraph *graph) {
     return -1;
 
   // copy rotation order to gviz:
+  gvizGraph *mutableGraph = (gvizGraph *)graph;
   for (size_t i = 0; i < N; i++) {
-    gvizArray *neighbors = gvizGraphGetVertexNeighbors(embedding->graph, i);
+    gvizArray *neighbors = gvizGraphGetVertexNeighbors(mutableGraph, i);
     int degree;
     gvizAdjacencyFromGP(g, i, neighbors, &degree);
   }
@@ -136,7 +141,7 @@ void gvizPlanarEmbedderRelease(gvizPlanarEmbedderState *g) {
 int gvizFaceIteratorInit(const gvizPlanarEmbedderState *state,
                          gvizFaceIteratorContext *context) {
   gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
-  size_t N = embedding->graph->vertices.count;
+  size_t N = embedding->subgraph.g->vertices.count;
   context->dCount = 0;
 
   context->borders = GVIZ_ALLOC(sizeof(size_t) * N);
@@ -146,7 +151,7 @@ int gvizFaceIteratorInit(const gvizPlanarEmbedderState *state,
 
   // Counts darts. Each edge is counted twice, but thats intended.
   for (size_t i = 0; i < N; i++) {
-    gvizArray *neighbors = gvizGraphGetVertexNeighbors(embedding->graph, i);
+    gvizArray *neighbors = gvizGraphGetVertexNeighbors(embedding->subgraph.g, i);
     context->borders[i] = context->dCount;
     context->dCount += neighbors->count;
   }
@@ -189,7 +194,7 @@ size_t previousNeighbor(const gvizGraph *g, size_t u, size_t v) {
 int gvizPlanarEmbedderFaces(const gvizPlanarEmbedderState *state,
                              gvizFaceIteratorContext *context) {
   gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
-  size_t N = embedding->graph->vertices.count, M = context->dCount / 2;
+  size_t N = embedding->subgraph.g->vertices.count, M = context->dCount / 2;
 
   typedef struct {
     size_t u;
@@ -204,7 +209,7 @@ int gvizPlanarEmbedderFaces(const gvizPlanarEmbedderState *state,
   dart d;
 
   for (size_t u = 0; u < N; u++) {
-    gvizArray *neighbors = gvizGraphGetVertexNeighbors(embedding->graph, u);
+    gvizArray *neighbors = gvizGraphGetVertexNeighbors(embedding->subgraph.g, u);
 
     for (size_t i = 0; i < neighbors->count; i++) {
       d = (dart){u, i};
@@ -222,12 +227,12 @@ int gvizPlanarEmbedderFaces(const gvizPlanarEmbedderState *state,
         MARK_DART(d);
 
         gvizArray *uNeighbors =
-            gvizGraphGetVertexNeighbors(embedding->graph, d.u);
+            gvizGraphGetVertexNeighbors(embedding->subgraph.g, d.u);
 
         size_t v = *(size_t *)gvizArrayAtIndex(uNeighbors, d.idx);
         gvizArrayPush(&face, &v);
 
-        d = (dart){v, previousNeighbor(embedding->graph, v, d.u)};
+        d = (dart){v, previousNeighbor(embedding->subgraph.g, v, d.u)};
       }
 
       if (face.count > 0) {
@@ -260,7 +265,7 @@ void gvizPlanarEmbedderTriangulate(const gvizPlanarEmbedderState *state,
         size_t u = *(size_t *)gvizArrayAtIndex(face, x);
         size_t v = *(size_t *)gvizArrayAtIndex(face, y);
 
-        if (u == v || gvizGraphEdgeExists(embedding->graph, u, v))
+        if (u == v || gvizGraphEdgeExists(embedding->subgraph.g, u, v))
           continue;
 
         // indices of the adjacency list, so we add edges without breaking the
@@ -268,14 +273,14 @@ void gvizPlanarEmbedderTriangulate(const gvizPlanarEmbedderState *state,
         size_t idx1 = *(size_t *)gvizArrayAtIndex(face, (x + 1) % face->count);
 
         idx1 = gvizArrayFindOne(
-            gvizGraphGetVertexNeighbors(embedding->graph, u), &idx1);
+            gvizGraphGetVertexNeighbors(embedding->subgraph.g, u), &idx1);
         assert(idx1 != -1);
         idx1 = (idx1 + 1) %
-               gvizGraphGetVertexNeighbors(embedding->graph, u)->count;
+               gvizGraphGetVertexNeighbors(embedding->subgraph.g, u)->count;
 
         size_t idx2 = *(size_t *)gvizArrayAtIndex(face, (y - 1) % face->count);
         idx2 = gvizArrayFindOne(
-            gvizGraphGetVertexNeighbors(embedding->graph, v), &idx2);
+            gvizGraphGetVertexNeighbors(embedding->subgraph.g, v), &idx2);
         assert(idx2 != -1);
 
         gvizArray newFace;
@@ -291,24 +296,24 @@ void gvizPlanarEmbedderTriangulate(const gvizPlanarEmbedderState *state,
 
         printf("adding edge from %zu to %zu.\n", u, v);
         printf("u adjacency list before: ");
-        gvizArrayPrint(gvizGraphGetVertexNeighbors(embedding->graph, u), stdout,
+        gvizArrayPrint(gvizGraphGetVertexNeighbors(embedding->subgraph.g, u), stdout,
                        gvizSerializeUINT64, 8);
 
         printf("v adjacency list before: ");
-        gvizArrayPrint(gvizGraphGetVertexNeighbors(embedding->graph, v), stdout,
+        gvizArrayPrint(gvizGraphGetVertexNeighbors(embedding->subgraph.g, v), stdout,
                        gvizSerializeUINT64, 8);
 
-        gvizArrayInsert(gvizGraphGetVertexNeighbors(embedding->graph, u), &v,
+        gvizArrayInsert(gvizGraphGetVertexNeighbors(embedding->subgraph.g, u), &v,
                         idx1);
-        gvizArrayInsert(gvizGraphGetVertexNeighbors(embedding->graph, v), &u,
+        gvizArrayInsert(gvizGraphGetVertexNeighbors(embedding->subgraph.g, v), &u,
                         idx2);
 
         printf("u adjacency list after: ");
-        gvizArrayPrint(gvizGraphGetVertexNeighbors(embedding->graph, u), stdout,
+        gvizArrayPrint(gvizGraphGetVertexNeighbors(embedding->subgraph.g, u), stdout,
                        gvizSerializeUINT64, 8);
 
         printf("u adjacency list after: ");
-        gvizArrayPrint(gvizGraphGetVertexNeighbors(embedding->graph, v), stdout,
+        gvizArrayPrint(gvizGraphGetVertexNeighbors(embedding->subgraph.g, v), stdout,
                        gvizSerializeUINT64, 8);
 
         context->dCount += 2;

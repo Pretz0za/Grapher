@@ -1,4 +1,5 @@
 #include "dsa/gvizGraph.h"
+#include "dsa/gvizSubgraph.h"
 #include "embedders/gvizGRIPEmbedder.h"
 #include "unity/unity.h"
 #include "unity/unity_internals.h"
@@ -45,7 +46,9 @@ void test_filtration_nestedLayers(void) {
   gvizGRIPState state;
   gvizGraph graph = build_rect_mesh(MESH_H, MESH_W);
 
-  gvizGRIPEmbedderInit(&state, &graph, MESH_D, 2);
+  gvizGraphBuildLayout(&graph);
+  gvizSubgraph sg = gvizSubgraphCreateFull(&graph);
+  gvizGRIPEmbedderInit(&state, sg, MESH_D, 2);
   size_t layers = createMISFiltration(&state);
 
   for (size_t i = 1; i < layers; i++) {
@@ -60,7 +63,9 @@ void test_filtration_eachVertexAppearsOnce(void) {
   gvizGRIPState state;
   gvizGraph graph = build_rect_mesh(MESH_H, MESH_W);
 
-  gvizGRIPEmbedderInit(&state, &graph, MESH_D, 2);
+  gvizGraphBuildLayout(&graph);
+  gvizSubgraph sg = gvizSubgraphCreateFull(&graph);
+  gvizGRIPEmbedderInit(&state, sg, MESH_D, 2);
   size_t layers = createMISFiltration(&state);
   size_t sum = 0;
 
@@ -79,7 +84,9 @@ void test_filtration_layer2_is_nonempty_and_builds_depth(void) {
   gvizGRIPState state;
   gvizGraph graph = build_rect_mesh(SMALL_MESH_H, SMALL_MESH_W);
 
-  gvizGRIPEmbedderInit(&state, &graph, 18, 2);
+  gvizGraphBuildLayout(&graph);
+  gvizSubgraph sg = gvizSubgraphCreateFull(&graph);
+  gvizGRIPEmbedderInit(&state, sg, 18, 2);
   size_t layers = createMISFiltration(&state);
 
   TEST_ASSERT_GREATER_THAN(4, layers);
@@ -95,7 +102,9 @@ void test_filtration_final_layer_has_simplex_count(void) {
   gvizGRIPState state;
   gvizGraph graph = build_rect_mesh(SMALL_MESH_H, SMALL_MESH_W);
 
-  gvizGRIPEmbedderInit(&state, &graph, 18, 2);
+  gvizGraphBuildLayout(&graph);
+  gvizSubgraph sg = gvizSubgraphCreateFull(&graph);
+  gvizGRIPEmbedderInit(&state, sg, 18, 2);
   size_t layers = createMISFiltration(&state);
   size_t final = layers - 1;
 
@@ -109,23 +118,27 @@ void test_filtration_perLayerVertexSpacingAndMaximality(void) {
   gvizGRIPState state;
   gvizGraph graph = build_rect_mesh(MESH_H, MESH_W);
 
-  gvizGRIPEmbedderInit(&state, &graph, MESH_D, 2);
+  gvizGraphBuildLayout(&graph);
+  gvizSubgraph sg = gvizSubgraphCreateFull(&graph);
+  gvizGRIPEmbedderInit(&state, sg, MESH_D, 2);
   size_t layers = createMISFiltration(&state);
 
   TEST_ASSERT_GREATER_THAN(4, layers);
+
+  gvizSubgraph fullSg = gvizSubgraphCreateFull(&graph);
+  size_t distances[graph.vertices.count];
 
   for (size_t i = 2; i < layers - 1; i++) {
     size_t end = state.misBorder[i];
     size_t minDist = (1ULL << (i - 1)) + 1;
 
     for (size_t a = 0; a < end; a++) {
-      gvizGraph bfs;
-      gvizGraphBFSTree(&graph, &bfs, state.misFiltration[a], 0, 1);
+      gvizSubgraph bfs = gvizSubgraphCreateEmpty(&graph);
+      gvizSubgraphBFSTree(&fullSg, &bfs, state.misFiltration[a], 0, distances);
       char errStr[4096];
 
       for (size_t b = a + 1; b < end; b++) {
-        size_t dist = (size_t)gvizGraphGetVertexData(
-            &bfs, bfs.map[state.misFiltration[b]]);
+        size_t dist = distances[state.misFiltration[b]];
         if (dist < minDist) {
           snprintf(errStr, sizeof(errStr),
                    "Layer: %zu, a: %zu, b: %zu, misFiltration[a]: %zu, "
@@ -136,28 +149,29 @@ void test_filtration_perLayerVertexSpacingAndMaximality(void) {
         TEST_ASSERT_GREATER_OR_EQUAL_UINT64_MESSAGE(minDist, dist, errStr);
       }
 
-      gvizGraphRelease(&bfs);
+      gvizSubgraphRelease(&bfs);
     }
 
     for (size_t a = end; a < state.misBorder[i - 1]; a++) {
-      gvizGraph bfs;
-      gvizGraphBFSTree(&graph, &bfs, state.misFiltration[a], 0, 1);
+      gvizSubgraph bfs = gvizSubgraphCreateEmpty(&graph);
+      gvizSubgraphBFSTree(&fullSg, &bfs, state.misFiltration[a], 0, distances);
       int found = 0;
 
       for (size_t b = 0; b < end; b++) {
-        size_t dist = (size_t)gvizGraphGetVertexData(
-            &bfs, bfs.map[state.misFiltration[b]]);
+        size_t dist = distances[state.misFiltration[b]];
         if (dist < minDist) {
           found = 1;
           break;
         }
       }
 
-      gvizGraphRelease(&bfs);
+      gvizSubgraphRelease(&bfs);
 
       TEST_ASSERT_TRUE(found);
     }
   }
+
+  gvizSubgraphRelease(&fullSg);
 
   gvizGRIPEmbedderRelease(&state);
   gvizGraphRelease(&graph);

@@ -1,6 +1,7 @@
 #include "utils/graphs.h"
 #include "core/alloc.h"
 #include "dsa/gvizGraph.h"
+#include "dsa/gvizSubgraph.h"
 #include <assert.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -497,10 +498,13 @@ gvizGraph build_equilateral_tri_mesh(size_t depth) {
 }
 
 int isConnected(gvizGraph *g) {
-  gvizGraph bfs;
-  gvizGraphBFSTree(g, &bfs, 0, 0, 0);
-  int res = bfs.vertices.count == g->vertices.count;
-  gvizGraphRelease(&bfs);
+  gvizGraphBuildLayout(g);
+  gvizSubgraph sg = gvizSubgraphCreateFull(g);
+  gvizSubgraph tree = gvizSubgraphCreateEmpty(g);
+  gvizSubgraphBFSTree(&sg, &tree, 0, 0, NULL);
+  int res = gvizSubgraphVertexCount(&tree) == gvizGraphSize(g);
+  gvizSubgraphRelease(&tree);
+  gvizSubgraphRelease(&sg);
   return res;
 }
 

@@ -1,4 +1,5 @@
 #include "dsa/gvizGraph.h"
+#include "dsa/gvizSubgraph.h"
 #include "embedders/gvizEmbeddedGraph.h"
 #include "embedders/gvizTutteEmbedder.h"
 #include "unity/unity.h"
@@ -7,6 +8,11 @@
 
 void setUp(void) {}
 void tearDown(void) {}
+
+static gvizSubgraph makeFullSubgraph(gvizGraph *g) {
+    gvizGraphBuildLayout(g);
+    return gvizSubgraphCreateFull(g);
+}
 
 /* Build K4: vertices 0-2 form the outer triangle, vertex 3 is the interior. */
 static void buildK4(gvizGraph *g) {
@@ -30,7 +36,7 @@ void test_tutte_k4_centroid(void) {
     buildK4(&g);
 
     gvizTutteState s;
-    TEST_ASSERT_EQUAL(0, gvizTutteEmbedderInit(&s, &g, 2, 1e-8));
+    TEST_ASSERT_EQUAL(0, gvizTutteEmbedderInit(&s, makeFullSubgraph(&g), 2, 1e-8));
 
     size_t boundary[3] = {0, 1, 2};
     gvizTutteFixConvexPolygon(&s, boundary, 3, 100.0);
@@ -60,7 +66,7 @@ void test_tutte_boundary_pinned(void) {
     buildK4(&g);
 
     gvizTutteState s;
-    TEST_ASSERT_EQUAL(0, gvizTutteEmbedderInit(&s, &g, 2, 1e-8));
+    TEST_ASSERT_EQUAL(0, gvizTutteEmbedderInit(&s, makeFullSubgraph(&g), 2, 1e-8));
 
     size_t boundary[3] = {0, 1, 2};
     gvizTutteFixConvexPolygon(&s, boundary, 3, 50.0);
@@ -105,7 +111,7 @@ void test_tutte_convergence(void) {
         }
 
     gvizTutteState s;
-    TEST_ASSERT_EQUAL(0, gvizTutteEmbedderInit(&s, &g, 2, 1e-5));
+    TEST_ASSERT_EQUAL(0, gvizTutteEmbedderInit(&s, makeFullSubgraph(&g), 2, 1e-5));
 
     /* Collect rim vertices in CCW order: top, right, bottom (rev), left (rev). */
     size_t rim[16];
@@ -136,8 +142,8 @@ void test_tutte_jacobi_vs_gs(void) {
     buildK4(&g);
 
     gvizTutteState sJ, sGS;
-    TEST_ASSERT_EQUAL(0, gvizTutteEmbedderInit(&sJ, &g, 2, 1e-8));
-    TEST_ASSERT_EQUAL(0, gvizTutteEmbedderInit(&sGS, &g, 2, 1e-8));
+    TEST_ASSERT_EQUAL(0, gvizTutteEmbedderInit(&sJ, makeFullSubgraph(&g), 2, 1e-8));
+    TEST_ASSERT_EQUAL(0, gvizTutteEmbedderInit(&sGS, makeFullSubgraph(&g), 2, 1e-8));
 
     size_t boundary[3] = {0, 1, 2};
     gvizTutteFixConvexPolygon(&sJ, boundary, 3, 100.0);
@@ -172,7 +178,7 @@ void test_tutte_init_validation(void) {
     buildK4(&g);
 
     gvizTutteState s;
-    TEST_ASSERT_EQUAL(0, gvizTutteEmbedderInit(&s, &g, 2, 0.0));
+    TEST_ASSERT_EQUAL(0, gvizTutteEmbedderInit(&s, makeFullSubgraph(&g), 2, 0.0));
 
     /* Too few boundary vertices. */
     size_t tooFew[2] = {0, 1};

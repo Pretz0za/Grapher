@@ -71,5 +71,4 @@ gvizGraph build_mobius_strip(size_t rows, size_t cols);
 /** Builds a Klein bottle mesh with @p rows by @p cols vertices. */
 gvizGraph build_klein_bottle(size_t rows, size_t cols);
 
-/** Returns 1 if @p g is connected, 0 otherwise. */
 int isConnected(gvizGraph *g);

@@ -1,11 +1,31 @@
 #include "dsa/gvizSubgraph.h"
 #include "dsa/gvizArray.h"
 #include "dsa/gvizBitArray.h"
+#include "dsa/gvizDeque.h"
 #include "dsa/gvizGraph.h"
 #include <stdlib.h>
+#include <string.h>
+
+static bool subgraph_has_vertices(const gvizSubgraph *sg) {
+  return sg && sg->g && sg->g->layout && sg->vs;
+}
 
 static bool subgraph_is_full(const gvizSubgraph *sg) {
-  return sg && sg->g && sg->g->layout && sg->vs && sg->es.bitset;
+  return subgraph_has_vertices(sg) && sg->es.bitset;
+}
+
+static bool subgraph_is_vertex_induced(const gvizSubgraph *sg) {
+  return subgraph_has_vertices(sg) && !sg->es.bitset;
+}
+
+static void bitarray_fill_all(GVIZ_BIT_ARRAY arr, size_t nbits) {
+  if (!arr || nbits == 0)
+    return;
+  size_t units = GVIZ_ARRAY_UNITS(nbits);
+  memset(arr, 0xFF, units);
+  size_t rem = nbits % GVIZ_BITS_PER_UNIT;
+  if (rem != 0)
+    arr[units - 1] &= (GVIZ_BIT_UNIT)(((GVIZ_BIT_UNIT)1 << rem) - 1);
 }
 
 static size_t layout_vertex_from_bit(const gvizGraphLayout *layout, size_t bit,
@@ -182,11 +202,6 @@ gvizSubgraph gvizSubgraphCreateVertexInduced(const struct gvizGraph *g,
   return (gvizSubgraph){g, vs, (gvizEdgeSubset){0}};
 }
 
-gvizSubgraph gvizSubgraphCreateEdgeInduced(const struct gvizGraph *g,
-                                           gvizEdgeSubset es) {
-  return (gvizSubgraph){g, NULL, es};
-}
-
 gvizSubgraph gvizSubgraphCreateEmpty(const struct gvizGraph *g) {
   gvizVertexSubset vs = gvizVertexSubsetCreateEmpty(g);
   if (!vs)
@@ -235,31 +250,6 @@ void gvizSubgraphMakeEdgeSubset(gvizSubgraph *sg) {
   }
 }
 
-void gvizSubgraphMakeVertexSubset(gvizSubgraph *sg) {
-  if (!sg || !sg->g || !sg->es.bitset || !sg->es.layout || sg->vs)
-    return;
-
-  sg->vs = gvizVertexSubsetCreateEmpty(sg->g);
-  if (!sg->vs)
-    return;
-
-  const struct gvizGraph *g = sg->g;
-  const gvizGraphLayout *layout = sg->es.layout;
-
-  gvizBitArrayIterator it = gvizEdgeSubsetIteratorCreate(sg->es);
-  size_t pos;
-  while (gvizBitArrayIterate(&it, &pos)) {
-    size_t idx;
-    size_t u = layout_vertex_from_bit(layout, pos, &idx);
-    gvizVertexSubsetShowVertex(sg->vs, u);
-    gvizArray *nb = gvizGraphGetVertexNeighbors(g, u);
-    if (!nb || idx >= nb->count)
-      continue;
-    size_t v = *(size_t *)gvizArrayAtIndex(nb, idx);
-    gvizVertexSubsetShowVertex(sg->vs, v);
-  }
-}
-
 void gvizSubgraphShowVertex(const gvizSubgraph *sg, size_t u) {
   if (!sg || !sg->vs)
     return;
@@ -270,12 +260,12 @@ void gvizSubgraphHideVertex(const gvizSubgraph *sg, size_t u) {
   if (!sg || !sg->vs)
     return;
   gvizVertexSubsetHideVertex(sg->vs, u);
-  if (sg->es.bitset)
+  if (subgraph_is_full(sg))
     subgraph_clear_incident_edges(sg, u);
 }
 
 void gvizSubgraphShowEdge(const gvizSubgraph *sg, size_t u, size_t v) {
-  if (!sg || !sg->es.bitset)
+  if (!subgraph_is_full(sg))
     return;
   size_t idx;
   if (subgraph_find_edge_idx(sg, u, v, &idx) < 0)
@@ -284,7 +274,7 @@ void gvizSubgraphShowEdge(const gvizSubgraph *sg, size_t u, size_t v) {
 }
 
 void gvizSubgraphHideEdge(const gvizSubgraph *sg, size_t u, size_t v) {
-  if (!sg || !sg->es.bitset)
+  if (!subgraph_is_full(sg))
     return;
   size_t idx;
   if (subgraph_find_edge_idx(sg, u, v, &idx) < 0)
@@ -293,13 +283,12 @@ void gvizSubgraphHideEdge(const gvizSubgraph *sg, size_t u, size_t v) {
 }
 
 int gvizSubgraphRebuild(gvizSubgraph *sg) {
-  if (!sg || !sg->g)
+  if (!sg || !sg->g || !sg->vs)
     return -1;
 
-  int full = sg->vs && sg->es.bitset;
-  int vertex_induced = sg->vs && !sg->es.bitset;
-  int edge_induced = !sg->vs && sg->es.bitset;
-  if (!full && !vertex_induced && !edge_induced)
+  int full = subgraph_is_full(sg);
+  int vertex_induced = subgraph_is_vertex_induced(sg);
+  if (!full && !vertex_induced)
     return -1;
 
   size_t old_nverts =
@@ -307,7 +296,7 @@ int gvizSubgraphRebuild(gvizSubgraph *sg) {
 
   gvizVertexSubset old_vs = sg->vs;
   gvizEdgeSubset old_es = sg->es;
-  if (full || edge_induced)
+  if (full)
     sg->es.bitset = NULL;
 
   gvizGraphBuildLayout((gvizGraph *)sg->g);
@@ -316,108 +305,364 @@ int gvizSubgraphRebuild(gvizSubgraph *sg) {
 
   size_t new_nverts = sg->g->layout->nvertices;
 
-  if (sg->vs || old_vs) {
-    GVIZ_BIT_ARRAY neu = gvizBitArrayResize(old_vs, old_nverts, new_nverts);
-    if (!neu) {
-      if (old_es.bitset && !sg->es.bitset)
-        sg->es = old_es;
-      return -1;
-    }
-    if (old_vs && old_vs != neu)
-      gvizVertexSubsetRelease(old_vs);
-    sg->vs = neu;
+  GVIZ_BIT_ARRAY neu = gvizBitArrayResize(old_vs, old_nverts, new_nverts);
+  if (!neu) {
+    if (old_es.bitset && !sg->es.bitset)
+      sg->es = old_es;
+    return -1;
   }
+  if (old_vs && old_vs != neu)
+    gvizVertexSubsetRelease(old_vs);
+  sg->vs = neu;
 
-  if (full || edge_induced) {
-    gvizEdgeSubset neu = (gvizEdgeSubset){0};
-    if (edge_subset_migrate(&neu, sg->g, old_es) < 0) {
+  if (full) {
+    gvizEdgeSubset migrated = (gvizEdgeSubset){0};
+    if (edge_subset_migrate(&migrated, sg->g, old_es) < 0) {
       if (old_es.bitset)
         gvizEdgeSubsetRelease(old_es);
       return -1;
     }
     if (old_es.bitset)
       gvizEdgeSubsetRelease(old_es);
-    sg->es = neu;
+    sg->es = migrated;
   }
 
   return 0;
 }
 
 bool gvizSubgraphHasVertex(const gvizSubgraph *sg, size_t u) {
-  if (!subgraph_is_full(sg))
+  if (!subgraph_has_vertices(sg))
     return false;
   return gvizVertexSubsetTest(sg->vs, u);
 }
 
 size_t gvizSubgraphVertexCount(const gvizSubgraph *sg) {
-  if (!subgraph_is_full(sg))
+  if (!subgraph_has_vertices(sg))
     return 0;
   return gvizVertexSubsetCount(sg->vs, sg->g->layout->nvertices);
 }
 
 bool gvizSubgraphHasEdge(const gvizSubgraph *sg, size_t u, size_t v) {
-  if (!subgraph_is_full(sg))
+  if (!subgraph_has_vertices(sg))
     return false;
   if (!gvizVertexSubsetTest(sg->vs, u) || !gvizVertexSubsetTest(sg->vs, v))
     return false;
+
   size_t idx;
   if (subgraph_find_edge_idx(sg, u, v, &idx) < 0)
     return false;
-  return gvizEdgeSubsetTestEdge(sg->es, u, idx);
+
+  if (subgraph_is_full(sg))
+    return gvizEdgeSubsetTestEdge(sg->es, u, idx);
+  return true;
 }
 
 size_t gvizSubgraphDegree(const gvizSubgraph *sg, size_t u) {
-  if (!subgraph_is_full(sg) || !gvizVertexSubsetTest(sg->vs, u))
+  if (!subgraph_has_vertices(sg) || !gvizVertexSubsetTest(sg->vs, u))
     return 0;
-  return gvizEdgeSubsetVertexEdgeCount(sg->es, u);
+
+  if (subgraph_is_full(sg))
+    return gvizEdgeSubsetVertexEdgeCount(sg->es, u);
+
+  gvizArray *nb = gvizGraphGetVertexNeighbors(sg->g, u);
+  if (!nb)
+    return 0;
+
+  size_t degree = 0;
+  for (size_t i = 0; i < nb->count; i++) {
+    size_t v = *(size_t *)gvizArrayAtIndex(nb, i);
+    if (gvizVertexSubsetTest(sg->vs, v))
+      degree++;
+  }
+  return degree;
 }
 
 size_t gvizSubgraphEdgeCount(const gvizSubgraph *sg) {
-  if (!subgraph_is_full(sg))
+  if (!subgraph_has_vertices(sg))
     return 0;
-  return gvizEdgeSubsetCount(sg->es);
+
+  if (subgraph_is_full(sg))
+    return gvizEdgeSubsetCount(sg->es);
+
+  size_t count = 0;
+  size_t n = sg->g->layout->nvertices;
+  gvizBitArrayIterator vit = gvizVertexSubsetIteratorCreate(sg->vs, n);
+  size_t u;
+  while (gvizBitArrayIterate(&vit, &u)) {
+    gvizArray *nb = gvizGraphGetVertexNeighbors(sg->g, u);
+    if (!nb)
+      continue;
+    for (size_t i = 0; i < nb->count; i++) {
+      size_t v = *(size_t *)gvizArrayAtIndex(nb, i);
+      if (gvizVertexSubsetTest(sg->vs, v))
+        count++;
+    }
+  }
+  return count;
 }
 
 gvizSubgraphVertexIterator gvizSubgraphVertexIteratorCreate(
     const gvizSubgraph *sg) {
   gvizSubgraphVertexIterator it = {sg, {0}};
-  if (!subgraph_is_full(sg))
+  if (!subgraph_has_vertices(sg))
     return it;
   it.it = gvizVertexSubsetIteratorCreate(sg->vs, sg->g->layout->nvertices);
   return it;
 }
 
 bool gvizSubgraphVertexIterate(gvizSubgraphVertexIterator *it, size_t *out_u) {
-  if (!it || !subgraph_is_full(it->sg))
+  if (!it || !subgraph_has_vertices(it->sg))
     return false;
   return gvizBitArrayIterate(&it->it, out_u);
 }
 
 gvizSubgraphNeighborIterator gvizSubgraphNeighborIteratorCreate(
     const gvizSubgraph *sg, size_t u) {
-  gvizSubgraphNeighborIterator it = {sg, u, 0, {0}};
-  if (!subgraph_is_full(sg) || !gvizVertexSubsetTest(sg->vs, u))
+  gvizSubgraphNeighborIterator it = {sg, u, 0, {0}, 0};
+  if (!subgraph_has_vertices(sg) || !gvizVertexSubsetTest(sg->vs, u))
     return it;
-  const gvizGraphLayout *layout = sg->g->layout;
-  it.base = layout->vertexOffsets[u];
-  it.it = gvizEdgeSubsetIteratorCreateVertexRange(sg->es, u);
+
+  if (subgraph_is_full(sg)) {
+    const gvizGraphLayout *layout = sg->g->layout;
+    it.base = layout->vertexOffsets[u];
+    it.it = gvizEdgeSubsetIteratorCreateVertexRange(sg->es, u);
+    it.adj_idx = SIZE_MAX;
+    return it;
+  }
+
+  it.adj_idx = 0;
   return it;
 }
 
 bool gvizSubgraphNeighborIterate(gvizSubgraphNeighborIterator *it,
                                  size_t *out_v) {
-  if (!it || !subgraph_is_full(it->sg))
+  if (!it || !subgraph_has_vertices(it->sg))
     return false;
 
-  size_t pos;
-  if (!gvizBitArrayIterate(&it->it, &pos))
-    return false;
+  if (subgraph_is_full(it->sg)) {
+    size_t pos;
+    if (!gvizBitArrayIterate(&it->it, &pos))
+      return false;
 
-  size_t idx = pos - it->base;
+    size_t idx = pos - it->base;
+    gvizArray *nb = gvizGraphGetVertexNeighbors(it->sg->g, it->u);
+    if (!nb || idx >= nb->count)
+      return false;
+
+    *out_v = *(size_t *)gvizArrayAtIndex(nb, idx);
+    return true;
+  }
+
   gvizArray *nb = gvizGraphGetVertexNeighbors(it->sg->g, it->u);
-  if (!nb || idx >= nb->count)
+  if (!nb)
     return false;
 
-  *out_v = *(size_t *)gvizArrayAtIndex(nb, idx);
-  return true;
+  while (it->adj_idx < nb->count) {
+    size_t v = *(size_t *)gvizArrayAtIndex(nb, it->adj_idx++);
+    if (gvizVertexSubsetTest(it->sg->vs, v)) {
+      *out_v = v;
+      return true;
+    }
+  }
+  return false;
+}
+
+void gvizSubgraphMakeFull(gvizSubgraph *sg) {
+  if (!sg || !sg->g || !sg->g->layout || !sg->vs || !sg->es.bitset)
+    return;
+
+  const gvizGraphLayout *layout = sg->g->layout;
+  bitarray_fill_all(sg->vs, layout->nvertices);
+  bitarray_fill_all(sg->es.bitset, layout->vertexOffsets[layout->nvertices]);
+}
+
+gvizSubgraph gvizSubgraphCreateFull(const struct gvizGraph *g) {
+  if (!g || !g->layout)
+    return (gvizSubgraph){NULL, NULL, (gvizEdgeSubset){0}};
+
+  gvizSubgraph sg = gvizSubgraphCreateEmpty(g);
+  if (!sg.vs)
+    return sg;
+
+  gvizSubgraphMakeFull(&sg);
+  return sg;
+}
+
+int gvizSubgraphDFSTree(const gvizSubgraph *sg, gvizSubgraph *out,
+                        size_t source) {
+  if (!sg || !out || !subgraph_has_vertices(sg) || !subgraph_is_full(out))
+    return -1;
+  if (!gvizSubgraphHasVertex(sg, source))
+    return -1;
+
+  size_t n = sg->g->layout->nvertices;
+  GVIZ_BIT_UNIT seen[GVIZ_ARRAY_UNITS(n)];
+  memset(seen, 0, sizeof(seen));
+  gvizSetBit(seen, source);
+
+  gvizSubgraphShowVertex(out, source);
+
+  gvizDeque stack;
+  if (gvizDequeInit(&stack, sizeof(size_t)) < 0)
+    return -1;
+  if (gvizDequePush(&stack, &source) < 0) {
+    gvizDequeRelease(&stack);
+    return -1;
+  }
+
+  while (!gvizDequeIsEmpty(&stack)) {
+    size_t curr;
+    gvizDequePopRight(&stack, &curr);
+
+    gvizSubgraphNeighborIterator nit =
+        gvizSubgraphNeighborIteratorCreate(sg, curr);
+    size_t neighbor;
+    while (gvizSubgraphNeighborIterate(&nit, &neighbor)) {
+      if (gvizTestBit(seen, neighbor))
+        continue;
+      gvizSetBit(seen, neighbor);
+
+      gvizSubgraphShowVertex(out, neighbor);
+      gvizSubgraphShowEdge(out, curr, neighbor);
+
+      if (gvizDequePush(&stack, &neighbor) < 0) {
+        gvizDequeRelease(&stack);
+        return -1;
+      }
+    }
+  }
+
+  gvizDequeRelease(&stack);
+  return 0;
+}
+
+int gvizSubgraphBFSTree(const gvizSubgraph *sg, gvizSubgraph *out, size_t source,
+                        size_t maxDepth, size_t *distances) {
+  if (!sg || !out || !subgraph_has_vertices(sg) || !subgraph_is_full(out))
+    return -1;
+  if (!gvizSubgraphHasVertex(sg, source))
+    return -1;
+
+  size_t n = sg->g->layout->nvertices;
+  if (distances) {
+    for (size_t i = 0; i < n; i++)
+      distances[i] = SIZE_MAX;
+    distances[source] = 0;
+  }
+
+  typedef struct {
+    size_t v;
+    size_t d;
+  } NodeDepth;
+
+  gvizDeque queue;
+  if (gvizDequeInit(&queue, sizeof(NodeDepth)) < 0)
+    return -1;
+
+  GVIZ_BIT_UNIT seen[GVIZ_ARRAY_UNITS(n)];
+  memset(seen, 0, sizeof(seen));
+  gvizSetBit(seen, source);
+
+  gvizSubgraphShowVertex(out, source);
+
+  NodeDepth start = {source, 0};
+  if (gvizDequePush(&queue, &start) < 0) {
+    gvizDequeRelease(&queue);
+    return -1;
+  }
+
+  while (!gvizDequeIsEmpty(&queue)) {
+    NodeDepth nd;
+    gvizDequePopLeft(&queue, &nd);
+
+    size_t curr = nd.v;
+    size_t currDepth = nd.d;
+
+    if (maxDepth && currDepth >= maxDepth)
+      continue;
+
+    gvizSubgraphNeighborIterator nit =
+        gvizSubgraphNeighborIteratorCreate(sg, curr);
+    size_t neighbor;
+    while (gvizSubgraphNeighborIterate(&nit, &neighbor)) {
+      if (gvizTestBit(seen, neighbor))
+        continue;
+      gvizSetBit(seen, neighbor);
+
+      size_t nextDepth = currDepth + 1;
+      if (distances)
+        distances[neighbor] = nextDepth;
+
+      gvizSubgraphShowVertex(out, neighbor);
+      gvizSubgraphShowEdge(out, curr, neighbor);
+
+      NodeDepth next = {neighbor, nextDepth};
+      if (gvizDequePush(&queue, &next) < 0) {
+        gvizDequeRelease(&queue);
+        return -1;
+      }
+    }
+  }
+
+  gvizDequeRelease(&queue);
+  return 0;
+}
+
+int gvizSubgraphKNearestNeighbors(const gvizSubgraph *sg, gvizFoundVertex *out,
+                                  size_t k, size_t source,
+                                  gvizVertexSubset filter) {
+  if (k == 0)
+    return 0;
+  if (!sg || !out || !subgraph_has_vertices(sg))
+    return -1;
+  if (!gvizSubgraphHasVertex(sg, source))
+    return -1;
+
+  size_t n = sg->g->layout->nvertices;
+
+  gvizDeque queue;
+  if (gvizDequeInit(&queue, sizeof(gvizFoundVertex)) < 0)
+    return -1;
+
+  GVIZ_BIT_UNIT seen[GVIZ_ARRAY_UNITS(n)];
+  memset(seen, 0, sizeof(seen));
+  gvizSetBit(seen, source);
+
+  gvizFoundVertex curr = {source, 0};
+  if (gvizDequePush(&queue, &curr) < 0) {
+    gvizDequeRelease(&queue);
+    return -1;
+  }
+
+  size_t count = 0;
+  while (!gvizDequeIsEmpty(&queue)) {
+    gvizDequePopLeft(&queue, &curr);
+
+    gvizSubgraphNeighborIterator nit =
+        gvizSubgraphNeighborIteratorCreate(sg, curr.v);
+    size_t neighbor;
+    while (gvizSubgraphNeighborIterate(&nit, &neighbor)) {
+      if (gvizTestBit(seen, neighbor))
+        continue;
+      gvizSetBit(seen, neighbor);
+
+      gvizFoundVertex next = {neighbor, curr.dist + 1};
+
+      if (!filter || gvizVertexSubsetTest(filter, neighbor)) {
+        out[count++] = next;
+        if (count >= k) {
+          gvizDequeRelease(&queue);
+          return (int)k;
+        }
+      }
+
+      if (gvizDequePush(&queue, &next) < 0) {
+        gvizDequeRelease(&queue);
+        return -1;
+      }
+    }
+  }
+
+  gvizDequeRelease(&queue);
+  return (int)count;
 }

@@ -2,7 +2,6 @@
 #include "cblas.h"
 #include "core/alloc.h"
 #include "dsa/gvizArray.h"
-#include "dsa/gvizBitArray.h"
 #include "dsa/gvizGraph.h"
 #include "dsa/gvizTree.h"
 #include "raymath.h"
@@ -32,26 +31,42 @@ typedef struct SubtreePairExtremes {
 
 Vector2 Vector2Swap(const Vector2 vec) { return (Vector2){vec.y, vec.x}; }
 
-float iterateContourRightward(const gvizEmbeddedTree *state, size_t *contour) {
-  gvizArray *neighbors = gvizGraphGetVertexNeighbors(
-      ((gvizEmbeddedGraph *)state)->graph, *contour);
+static const gvizGraph *rtGraph(const gvizEmbeddedTree *state) {
+  return ((const gvizEmbeddedGraph *)state)->subgraph.g;
+}
 
-  float out = state->dec[*contour].offsets[neighbors->count - 1];
-  *contour = *(size_t *)gvizArrayTail(neighbors);
+static int rtIsThreaded(const gvizEmbeddedTree *state, size_t v) {
+  return state->dec[v].threadTo != GVIZ_RT_NO_THREAD;
+}
+
+float iterateContourRightward(const gvizEmbeddedTree *state, size_t *contour) {
+  if (rtIsThreaded(state, *contour)) {
+    float out = state->dec[*contour].offsets[0];
+    *contour = state->dec[*contour].threadTo;
+    return out;
+  }
+
+  gvizArray *children = gvizGraphGetVertexNeighbors(rtGraph(state), *contour);
+  float out = state->dec[*contour].offsets[children->count - 1];
+  *contour = *(size_t *)gvizArrayAtIndex(children, children->count - 1);
   return out;
 }
 
 float iterateContourLeftward(const gvizEmbeddedTree *state, size_t *contour) {
-  gvizArray *neighbors = gvizGraphGetVertexNeighbors(
-      ((gvizEmbeddedGraph *)state)->graph, *contour);
+  if (rtIsThreaded(state, *contour)) {
+    float out = state->dec[*contour].offsets[0];
+    *contour = state->dec[*contour].threadTo;
+    return out;
+  }
+
+  gvizArray *children = gvizGraphGetVertexNeighbors(rtGraph(state), *contour);
   float out = state->dec[*contour].offsets[0];
-  *contour = *(size_t *)neighbors->arr;
+  *contour = *(size_t *)gvizArrayAtIndex(children, 0);
   return out;
 }
 
 size_t getAncestor(gvizEmbeddedTree *state, size_t root, size_t i) {
-  gvizArray *children =
-      gvizGraphGetVertexNeighbors(((gvizEmbeddedGraph *)state)->graph, root);
+  gvizArray *children = gvizGraphGetVertexNeighbors(rtGraph(state), root);
   size_t ancestor = state->dec[i].ancestor;
   int res = gvizArrayFindOne(children, &ancestor);
   return res == -1 ? gvizArrayFindOne(children, &state->defaultAncestor) : res;
@@ -79,10 +94,9 @@ void offsetsToSeperations(float *offsets, float *seperations,
 }
 
 void setAncestorAlongRightContour(gvizEmbeddedTree *state, size_t i) {
-  gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
   size_t curr = i;
   state->dec[curr].ancestor = i;
-  while (!gvizTreeIsLeaf(embedding->graph, curr)) {
+  while (!gvizTreeIsLeaf(rtGraph(state), curr)) {
     iterateContourRightward(state, &curr);
     state->dec[curr].ancestor = i;
   }
@@ -93,6 +107,7 @@ void initializeRTLeaf(gvizEmbeddedTree *state, size_t i, size_t level) {
   state->dec[i].lMost = i;
   state->dec[i].ancestor = i;
   state->dec[i].depth = level;
+  state->dec[i].threadTo = GVIZ_RT_NO_THREAD;
   if (level > state->height)
     state->height = level;
 
@@ -104,8 +119,7 @@ void initializeRTLeaf(gvizEmbeddedTree *state, size_t i, size_t level) {
 
 void initializeRTSubtreeRoot(gvizEmbeddedTree *state, size_t root,
                              size_t level) {
-  gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
-  gvizArray *children = gvizGraphGetVertexNeighbors(embedding->graph, root);
+  gvizArray *children = gvizGraphGetVertexNeighbors(rtGraph(state), root);
 
   if (gvizArrayIsEmpty(children)) { // Base case
     initializeRTLeaf(state, root, level);
@@ -128,24 +142,20 @@ void initializeRTSubtreeRoot(gvizEmbeddedTree *state, size_t root,
 void createThreads(gvizEmbeddedTree *state, size_t root, size_t i,
                    size_t *lrContour, size_t *rlContour,
                    SubtreePairExtremes *extremes, SeparationResult *res) {
-  gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
+  const gvizGraph *g = rtGraph(state);
 
   // left subtree (blob of subtrees) is deeper. thread rr.
-  if (!gvizTreeIsLeaf(embedding->graph, *lrContour) &&
-      gvizTreeIsLeaf(embedding->graph, *rlContour)) {
+  if (!gvizTreeIsLeaf(g, *lrContour) && gvizTreeIsLeaf(g, *rlContour)) {
     res->lOffset += iterateContourRightward(state, lrContour);
-    gvizGraphAddEdge(embedding->graph, extremes->rr, *lrContour);
-    gvizSetBit(state->thread, extremes->rr);
+    state->dec[extremes->rr].threadTo = *lrContour;
     state->dec[extremes->rr].offsets[0] = state->dec[extremes->rr].offsets[0] -
-                                          res->rmostSeperation + res->lOffset;
+                                            res->rmostSeperation + res->lOffset;
 
   }
   // right subtree is deeper. thread ll.
-  else if (gvizTreeIsLeaf(embedding->graph, *lrContour) &&
-           !gvizTreeIsLeaf(embedding->graph, *rlContour)) {
+  else if (gvizTreeIsLeaf(g, *lrContour) && !gvizTreeIsLeaf(g, *rlContour)) {
     res->rOffset += iterateContourLeftward(state, rlContour);
-    gvizGraphAddEdge(embedding->graph, extremes->ll, *rlContour);
-    gvizSetBit(state->thread, extremes->ll);
+    state->dec[extremes->ll].threadTo = *rlContour;
     state->dec[extremes->ll].offsets[0] =
         state->dec[extremes->ll].offsets[0] + res->totalNewSeperation / 2.0 +
         state->dec[root].offsets[i] + res->rOffset;
@@ -175,10 +185,10 @@ SeparationResult separateAlongContours(gvizEmbeddedTree *state,
                                        size_t *lrContour, size_t *rlContour) {
   assert(state->parents[*lrContour] == state->parents[*rlContour]);
 
-  gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
+  const gvizGraph *g = rtGraph(state);
   float lOffset = 0, rOffset = 0, lstep, rstep, currsep = 1.0;
   size_t ancestor, root = state->parents[*lrContour];
-  gvizArray *children = gvizGraphGetVertexNeighbors(embedding->graph, root);
+  gvizArray *children = gvizGraphGetVertexNeighbors(g, root);
 
   // tracks how much seperation needs to be added to merge the right subtree.
   // newSeperation[i] = x, means all seperations with index >= i will gain x
@@ -189,8 +199,7 @@ SeparationResult separateAlongContours(gvizEmbeddedTree *state,
   memset(newSeperations, 0, sizeof(float) * rightSubtreeIndex);
   newSeperations[rightSubtreeIndex - 1] = 1.0;
 
-  while (!gvizTreeIsLeaf(embedding->graph, *lrContour) &&
-         !gvizTreeIsLeaf(embedding->graph, *rlContour)) {
+  while (!gvizTreeIsLeaf(g, *lrContour) && !gvizTreeIsLeaf(g, *rlContour)) {
 
     // take one step along each contour, stores x-displacement
     rstep = iterateContourLeftward(state, rlContour);
@@ -250,8 +259,8 @@ void combineSubtreeLeft(gvizEmbeddedTree *state, size_t root, size_t i) {
   if (i == 0)
     return;
 
-  gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
-  gvizArray *children = gvizGraphGetVertexNeighbors(embedding->graph, root);
+  const gvizGraph *g = rtGraph(state);
+  gvizArray *children = gvizGraphGetVertexNeighbors(g, root);
   size_t lrContour, rlContour, rightSubtree;
 
   lrContour = *(size_t *)gvizArrayAtIndex(children, i - 1);
@@ -270,8 +279,7 @@ void combineSubtreeLeft(gvizEmbeddedTree *state, size_t root, size_t i) {
 
   // Maintain ancestor values.
   // If the right subtree was deeper or as deep
-  if (!gvizTreeIsLeaf(embedding->graph, rlContour) ||
-      gvizTreeIsLeaf(embedding->graph, lrContour)) {
+  if (!gvizTreeIsLeaf(g, rlContour) || gvizTreeIsLeaf(g, lrContour)) {
     // New default ancestor
     state->defaultAncestor = rightSubtree;
   } else {
@@ -285,8 +293,7 @@ void combineSubtreeLeft(gvizEmbeddedTree *state, size_t root, size_t i) {
 
 int gvizEmbeddedTreeCalculateOffsets(gvizEmbeddedTree *state, size_t root,
                                      size_t level) {
-  gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
-  gvizArray *children = gvizGraphGetVertexNeighbors(embedding->graph, root);
+  gvizArray *children = gvizGraphGetVertexNeighbors(rtGraph(state), root);
 
   // Divide
   for (size_t i = 0; i < children->count; i++) {
@@ -306,7 +313,7 @@ int gvizEmbeddedTreeCalculateOffsets(gvizEmbeddedTree *state, size_t root,
   return 0;
 }
 
-int gvizEmbeddedTreeRTInit(gvizEmbeddedTree *state, gvizGraph *graph,
+int gvizEmbeddedTreeRTInit(gvizEmbeddedTree *state, gvizSubgraph subgraph,
                            size_t root) {
 
   // This memset allows us to simply run gvizEmbeddedTreeRelease if init ever
@@ -314,35 +321,31 @@ int gvizEmbeddedTreeRTInit(gvizEmbeddedTree *state, gvizGraph *graph,
   memset(state, 0, sizeof(gvizEmbeddedTree));
   int res;
 
-  res = gvizEmbeddedGraphInit((gvizEmbeddedGraph *)state, graph, 2);
+  const gvizGraph *graph = subgraph.g;
+  res = gvizEmbeddedGraphInit((gvizEmbeddedGraph *)state, subgraph, 2);
   if (res < 0)
     return res;
-  state->parents = GVIZ_ALLOC(sizeof(int) * graph->vertices.count);
+  state->parents = GVIZ_ALLOC(sizeof(int) * gvizGraphSize(graph));
   if (!state->parents)
     return -1;
   if (gvizGraphIsTree(graph, state->parents) < 0) {
     return -1;
   }
 
-  state->dec = GVIZ_ALLOC(sizeof(gvizRTDecorators) * graph->vertices.count);
+  state->dec = GVIZ_ALLOC(sizeof(gvizRTDecorators) * gvizGraphSize(graph));
   if (!state->dec)
     return -1;
-
-  state->thread = GVIZ_ALLOC(sizeof(GVIZ_BIT_UNIT) *
-                             GVIZ_ARRAY_UNITS(graph->vertices.count));
-  if (!state->thread)
-    return -1;
-  memset(state->thread, 0,
-         sizeof(GVIZ_BIT_UNIT) * GVIZ_ARRAY_UNITS(graph->vertices.count));
+  for (size_t i = 0; i < gvizGraphSize(graph); i++)
+    state->dec[i].threadTo = GVIZ_RT_NO_THREAD;
 
   state->offsetsOrigin =
-      GVIZ_ALLOC(sizeof(float) * (graph->vertices.count - 1 +
+      GVIZ_ALLOC(sizeof(float) * (gvizGraphSize(graph) - 1 +
                                   gvizTreeCountLeaves(graph, root)));
   if (!state->offsetsOrigin)
     return -1;
   memset(state->offsetsOrigin, 0,
          sizeof(float) *
-             (graph->vertices.count - 1 + gvizTreeCountLeaves(graph, root)));
+             (gvizGraphSize(graph) - 1 + gvizTreeCountLeaves(graph, root)));
 
   state->height = 0;
   state->offsetsOffset = 0;
@@ -354,21 +357,16 @@ void gvizEmbeddedTreeRTRelease(gvizEmbeddedTree *state) {
     GVIZ_DEALLOC(state->dec);
   if (state->parents)
     GVIZ_DEALLOC(state->parents);
-  if (state->thread)
-    GVIZ_DEALLOC(state->thread);
   if (state->offsetsOrigin)
     GVIZ_DEALLOC(state->offsetsOrigin);
-  if (state->graph.embedding.vertexPositions) {
-    GVIZ_DEALLOC(state->graph.embedding.vertexPositions);
-  }
+  gvizEmbeddedGraphRelease(&state->graph);
 }
 
 // TODO: add an option to choose between horizontal and vertical. (x,y)->(y,x)
 int gvizEmbeddedTreeEmbed(gvizEmbeddedTree *state, size_t root,
                           double *position) {
-  gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
-  gvizArray *children = gvizGraphGetVertexNeighbors(embedding->graph, root);
-  gvizEmbeddedGraphSetVPosition(embedding, root, position);
+  gvizArray *children = gvizGraphGetVertexNeighbors(rtGraph(state), root);
+  gvizEmbeddedGraphSetVPosition((gvizEmbeddedGraph *)state, root, position);
   for (size_t i = 0; i < children->count; i++) {
 
     double newPos[2] = {state->dec[root].offsets[i] * XSEPERATION, YSEPERATION};

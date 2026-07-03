@@ -2,7 +2,7 @@
 #define _GVIZ_EMBEDDED_GRAPH_H_
 
 #include "dsa/gvizBitArray.h"
-#include "dsa/gvizGraph.h"
+#include "dsa/gvizSubgraph.h"
 
 typedef struct gvizDFSState {
 
@@ -16,18 +16,20 @@ typedef struct gvizEmbedding {
 } gvizEmbedding;
 
 typedef struct gvizEmbeddedGraph {
-  gvizGraph *graph;
+  gvizSubgraph subgraph;
   gvizEmbedding embedding;
 
 } gvizEmbeddedGraph;
 
 /**
  * Initializes @p embedding to hold @p dimension-dimensional positions for every
- * vertex in @p graph. Positions are zeroed.
+ * vertex in the parent graph of @p subgraph. Takes ownership of @p subgraph's
+ * vertex and edge subsets; the caller must not release them afterward.
+ * Positions are zeroed and indexed by parent-graph vertex id.
  *
  * @return 0 on success, -1 on allocation failure.
  */
-int gvizEmbeddedGraphInit(gvizEmbeddedGraph *embedding, gvizGraph *graph,
+int gvizEmbeddedGraphInit(gvizEmbeddedGraph *embedding, gvizSubgraph subgraph,
                           size_t dimension);
 
 /** Releases the position buffer owned by @p embedding. */

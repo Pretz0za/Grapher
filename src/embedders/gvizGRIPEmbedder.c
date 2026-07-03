@@ -23,16 +23,17 @@
 static const double gvizGRIPr = 0.15;
 static const double gvizGRIPs = 3;
 
-int gvizGRIPEmbedderInit(gvizGRIPState *state, gvizGraph *graph,
+int gvizGRIPEmbedderInit(gvizGRIPState *state, gvizSubgraph subgraph,
                          size_t diameter, size_t dimension) {
   int res;
-  size_t N = graph->vertices.count;
+  const gvizGraph *graph = subgraph.g;
+  size_t N = gvizGraphSize(graph);
 
   state->currLayer = 0;
   state->layerCount = 0;
   state->currRound = 0;
 
-  res = gvizEmbeddedGraphInit((gvizEmbeddedGraph *)state, graph, dimension);
+  res = gvizEmbeddedGraphInit((gvizEmbeddedGraph *)state, subgraph, dimension);
   if (res < 0)
     return res;
 
@@ -239,19 +240,22 @@ void gvizGRIPEmbedderRelease(gvizGRIPState *state) {
 // NOTE: Can be potentially made better by randomizing the order of the
 // vertices. either by shuffling or assigning random priorities to each vertex;
 void makeFirstMISPartition(gvizGRIPState *state, gvizVertexSubset out) {
-  gvizGraph *g = state->graph.graph;
-  GVIZ_BIT_UNIT states[GVIZ_ARRAY_UNITS(g->vertices.count)];
+  const gvizSubgraph *sg = &((gvizEmbeddedGraph *)state)->subgraph;
+  size_t nvertices = gvizGraphSize(sg->g);
+  GVIZ_BIT_UNIT states[GVIZ_ARRAY_UNITS(nvertices)];
   memset(states, 0, sizeof(states));
 
-  size_t *curr = &state->misFiltration[g->vertices.count - 1];
+  size_t *curr = &state->misFiltration[nvertices - 1];
 
-  for (size_t i = 0; i < g->vertices.count; i++) {
+  for (size_t i = 0; i < nvertices; i++) {
+    if (!gvizSubgraphHasVertex(sg, i))
+      continue;
     if (!gvizTestBit(states, i)) {
       gvizVertexSubsetShowVertex(out, i);
 
-      gvizArray *neighbors = gvizGraphGetVertexNeighbors(g, i);
-      for (size_t j = 0; j < neighbors->count; j++) {
-        size_t neighbor = *(size_t *)gvizArrayAtIndex(neighbors, j);
+      gvizSubgraphNeighborIterator nit = gvizSubgraphNeighborIteratorCreate(sg, i);
+      size_t neighbor;
+      while (gvizSubgraphNeighborIterate(&nit, &neighbor)) {
         if (!gvizTestBit(states, neighbor)) {
           gvizSetBit(states, neighbor);
           *curr-- = neighbor;
@@ -260,48 +264,43 @@ void makeFirstMISPartition(gvizGRIPState *state, gvizVertexSubset out) {
     }
   }
 
-  state->misBorder[1] = gvizVertexSubsetCount(out, g->vertices.count);
+  state->misBorder[1] = gvizVertexSubsetCount(out, nvertices);
 }
 
 void migrateOneToFinalLayer(gvizGRIPState *state, GVIZ_BIT_ARRAY finalLayer,
                             size_t count) {
-  size_t distances[state->misBorder[count - 2]];
+  const gvizSubgraph *sg = &((gvizEmbeddedGraph *)state)->subgraph;
+  size_t distances[gvizGraphSize(sg->g)];
+  size_t borderSpan[state->misBorder[count - 2]];
   for (size_t j = 0; j < state->misBorder[count - 2]; j++) {
-    distances[j] = SIZE_MAX;
+    borderSpan[j] = SIZE_MAX;
   }
 
-  gvizGraph bfs;
+  gvizSubgraph bfs = gvizSubgraphCreateEmpty(sg->g);
 
   for (size_t i = 0; i < state->misBorder[count - 1]; i++) {
-    // NOTE: No max depth. place for optimization here
-
-    // last parameter specifies we want a bfs.map that maps from original idx
-    // to bfs idx, instead of the other way around.
-    gvizGraphBFSTree(((gvizEmbeddedGraph *)state)->graph, &bfs,
-                     state->misFiltration[i], 0, 1);
+    gvizSubgraphRelease(&bfs);
+    bfs = gvizSubgraphCreateEmpty(sg->g);
+    gvizSubgraphBFSTree(sg, &bfs, state->misFiltration[i], 0, distances);
 
     for (size_t j = state->misBorder[count - 1];
          j < state->misBorder[count - 2]; j++) {
-
-      size_t vertex = bfs.map[state->misFiltration[j]];
-
-      // interpret the pointer as a size_t, read the code for BFS.
-      size_t dist = (size_t)gvizGraphGetVertexData(&bfs, vertex);
-      distances[j] = distances[j] > dist ? dist : distances[j];
+      size_t dist = distances[state->misFiltration[j]];
+      borderSpan[j] = borderSpan[j] > dist ? dist : borderSpan[j];
     }
-
-    gvizGraphRelease(&bfs);
   }
+
+  gvizSubgraphRelease(&bfs);
 
   size_t *maxDistVertex, maxDist = 0;
   for (int i = state->misBorder[count - 1]; i < state->misBorder[count - 2];
        i++) {
-    if (maxDist < distances[i]) {
-      maxDist = distances[i];
+    if (maxDist < borderSpan[i]) {
+      maxDist = borderSpan[i];
       maxDistVertex = &state->misFiltration[i];
     }
-    if (maxDist < distances[i]) {
-      maxDist = distances[i];
+    if (maxDist < borderSpan[i]) {
+      maxDist = borderSpan[i];
       maxDistVertex = &state->misFiltration[i];
     }
   }
@@ -312,10 +311,10 @@ void migrateOneToFinalLayer(gvizGRIPState *state, GVIZ_BIT_ARRAY finalLayer,
   return;
 }
 
-static void verticesWithinRadius(gvizGRIPState *state, gvizGraph *g,
+static void verticesWithinRadius(gvizGRIPState *state, const gvizSubgraph *sg,
                                  size_t source, size_t maxDepth,
                                  GVIZ_BIT_ARRAY out) {
-  size_t nvertices = g->vertices.count;
+  size_t nvertices = gvizGraphSize(sg->g);
   size_t *stamp = state->radiusBfsStamp;
   size_t epoch = ++state->radiusBfsEpoch;
   if (epoch == 0) {
@@ -343,20 +342,19 @@ static void verticesWithinRadius(gvizGRIPState *state, gvizGraph *g,
     if (maxDepth && currDepth >= maxDepth)
       continue;
 
-    gvizArray *currNeighbors = gvizGraphGetVertexNeighbors(g, curr);
-
-    for (size_t i = 0; i < currNeighbors->count; i++) {
-      size_t currNeighbor = *(size_t *)gvizArrayAtIndex(currNeighbors, i);
-
-      if (stamp[currNeighbor] == epoch)
+    gvizSubgraphNeighborIterator nit =
+        gvizSubgraphNeighborIteratorCreate(sg, curr);
+    size_t neighbor;
+    while (gvizSubgraphNeighborIterate(&nit, &neighbor)) {
+      if (stamp[neighbor] == epoch)
         continue;
-      stamp[currNeighbor] = epoch;
+      stamp[neighbor] = epoch;
 
       size_t nextDepth = currDepth + 1;
       if (nextDepth <= maxDepth)
-        gvizSetBit(out, currNeighbor);
+        gvizSetBit(out, neighbor);
 
-      gvizFoundVertex next = {.v = currNeighbor, .dist = nextDepth};
+      gvizFoundVertex next = {.v = neighbor, .dist = nextDepth};
       if (gvizDequePush(queue, &next) < 0)
         return;
     }
@@ -366,10 +364,11 @@ static void verticesWithinRadius(gvizGRIPState *state, gvizGraph *g,
 int iterMISFiltration(gvizGRIPState *state, size_t i,
                       gvizVertexSubset vertices) {
   gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
-  size_t nvertices = gvizGraphSize(embedding->graph);
+  const gvizSubgraph *sg = &embedding->subgraph;
+  size_t nvertices = gvizGraphSize(sg->g);
 
-  gvizVertexSubset newVertices = gvizVertexSubsetCreateEmpty(embedding->graph);
-  gvizVertexSubset newMisStates = gvizVertexSubsetCreateEmpty(embedding->graph);
+  gvizVertexSubset newVertices = gvizVertexSubsetCreateEmpty(sg->g);
+  gvizVertexSubset newMisStates = gvizVertexSubsetCreateEmpty(sg->g);
   if (!newVertices || !newMisStates) {
     if (newVertices)
       gvizVertexSubsetRelease(newVertices);
@@ -388,8 +387,7 @@ int iterMISFiltration(gvizGRIPState *state, size_t i,
     gvizVertexSubsetShowVertex(newVertices, curr);
     gvizVertexSubsetShowVertex(newMisStates, curr);
 
-    verticesWithinRadius(state, embedding->graph, curr, 1ULL << (i - 1),
-                         newMisStates);
+    verticesWithinRadius(state, sg, curr, 1ULL << (i - 1), newMisStates);
   }
 
   it = gvizVertexSubsetIteratorCreate(vertices, nvertices);
@@ -412,10 +410,11 @@ int iterMISFiltration(gvizGRIPState *state, size_t i,
 
 size_t createMISFiltration(gvizGRIPState *state) {
   gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
-  size_t nvertices = gvizGraphSize(embedding->graph);
+  const gvizSubgraph *sg = &embedding->subgraph;
+  size_t nvertices = gvizGraphSize(sg->g);
   size_t dim = embedding->embedding.dim;
 
-  gvizVertexSubset curr = gvizVertexSubsetCreateEmpty(embedding->graph);
+  gvizVertexSubset curr = gvizVertexSubsetCreateEmpty(sg->g);
   if (!curr)
     return 0;
 
@@ -455,8 +454,9 @@ void placeLayerVertices(gvizGRIPState *state) {
     gvizFoundVertex found[INITIAL_PLACEMENT_K];
 
     size_t count =
-        gvizGraphKNearestNeighbors(embedding->graph, found, INITIAL_PLACEMENT_K,
-                                   state->misFiltration[i], state->placed);
+        gvizSubgraphKNearestNeighbors(&embedding->subgraph, found,
+                                      INITIAL_PLACEMENT_K,
+                                      state->misFiltration[i], state->placed);
 
     assert(count > 0);
 
@@ -531,10 +531,10 @@ void calculateSpringForces(gvizGRIPState *state, size_t v, size_t layer) {
 
   } else {
 
-    gvizArray *neighbors = gvizGraphGetVertexNeighbors(embedding->graph, v);
-    for (size_t i = 0; i < neighbors->count; i++) {
-      size_t other = *(size_t *)gvizArrayAtIndex(neighbors, i);
-
+    gvizSubgraphNeighborIterator nit =
+        gvizSubgraphNeighborIteratorCreate(&embedding->subgraph, v);
+    size_t other;
+    while (gvizSubgraphNeighborIterate(&nit, &other)) {
       gvizPairwiseFRRepForce(
           embedding->embedding.dim, gvizEmbeddedGraphGetVPosition(embedding, v),
           gvizEmbeddedGraphGetVPosition(embedding, other), GVIZ_EDGE_LENGTH, f);
@@ -562,7 +562,7 @@ void clearDecorators(gvizGRIPState *state) {
 
   memset(state->dispCalculated, 0,
          sizeof(GVIZ_BIT_UNIT) *
-             GVIZ_ARRAY_UNITS(embedding->graph->vertices.count));
+             GVIZ_ARRAY_UNITS(gvizGraphSize(embedding->subgraph.g)));
 
   // TODO: can be made into one memset call. take out all arrays from decorator
   for (size_t i = 0; i < state->misBorder[state->currLayer]; i++) {
@@ -582,8 +582,8 @@ void updateKNNs(gvizGRIPState *state) {
     size_t curr = state->misFiltration[i];
     gvizArray knn = state->dec[curr].knn;
     knn.count =
-        gvizGraphKNearestNeighbors(embedding->graph, knn.arr, REFINEMENT_K,
-                                   state->misFiltration[i], state->placed);
+        gvizSubgraphKNearestNeighbors(&embedding->subgraph, knn.arr, REFINEMENT_K,
+                                      state->misFiltration[i], state->placed);
   }
 }
 

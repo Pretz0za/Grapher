@@ -236,24 +236,9 @@ void test_subgraphCreateVertexInduced(void) {
   TEST_ASSERT_FALSE(gvizTestBit(sg.vs, 1));
   TEST_ASSERT_TRUE(gvizTestBit(sg.vs, 2));
   TEST_ASSERT_NULL(sg.es.bitset);
-
-  gvizSubgraphRelease(&sg);
-  gvizGraphRelease(&g);
-}
-
-void test_subgraphCreateEdgeInduced(void) {
-  gvizGraph g;
-  add_triangle(&g);
-  gvizGraphBuildLayout(&g);
-
-  gvizEdgeSubset es = gvizEdgeSubsetCreateEmpty(&g);
-  gvizEdgeSubsetShowEdge(es, 0, 0);
-
-  gvizSubgraph sg = gvizSubgraphCreateEdgeInduced(&g, es);
-  TEST_ASSERT_EQUAL_PTR(&g, sg.g);
-  TEST_ASSERT_NULL(sg.vs);
-  TEST_ASSERT_EQUAL_PTR(g.layout, sg.es.layout);
-  TEST_ASSERT_TRUE(gvizTestBit(sg.es.bitset, g.layout->vertexOffsets[0]));
+  TEST_ASSERT_TRUE(gvizSubgraphHasVertex(&sg, 0));
+  TEST_ASSERT_TRUE(gvizSubgraphHasEdge(&sg, 0, 2));
+  TEST_ASSERT_FALSE(gvizSubgraphHasEdge(&sg, 0, 1));
 
   gvizSubgraphRelease(&sg);
   gvizGraphRelease(&g);
@@ -350,23 +335,23 @@ void test_makeEdgeSubset_partial_vertices(void) {
   gvizGraphRelease(&g);
 }
 
-void test_makeVertexSubset_edge_induced(void) {
+void test_vertex_induced_query_without_edge_subset(void) {
   gvizGraph g;
-  build_square(&g);
+  add_triangle(&g);
   gvizGraphBuildLayout(&g);
 
-  gvizEdgeSubset es = gvizEdgeSubsetCreateEmpty(&g);
-  gvizEdgeSubsetShowEdge(es, 0, 0);
-  gvizEdgeSubsetShowEdge(es, 2, 1);
+  gvizVertexSubset vs = gvizVertexSubsetCreateEmpty(&g);
+  gvizVertexSubsetShowVertex(vs, 0);
+  gvizVertexSubsetShowVertex(vs, 1);
+  gvizVertexSubsetShowVertex(vs, 2);
+  gvizSubgraph sg = gvizSubgraphCreateVertexInduced(&g, vs);
 
-  gvizSubgraph sg = gvizSubgraphCreateEdgeInduced(&g, es);
-  gvizSubgraphMakeVertexSubset(&sg);
+  TEST_ASSERT_EQUAL_UINT64(3, gvizSubgraphVertexCount(&sg));
+  TEST_ASSERT_EQUAL_UINT64(6, gvizSubgraphEdgeCount(&sg));
+  TEST_ASSERT_EQUAL_UINT64(2, gvizSubgraphDegree(&sg, 0));
 
-  TEST_ASSERT_NOT_NULL(sg.vs);
-  TEST_ASSERT_TRUE(gvizTestBit(sg.vs, 0));
-  TEST_ASSERT_TRUE(gvizTestBit(sg.vs, 1));
-  TEST_ASSERT_TRUE(gvizTestBit(sg.vs, 2));
-  TEST_ASSERT_TRUE(gvizTestBit(sg.vs, 3));
+  size_t nbrs[4];
+  TEST_ASSERT_EQUAL_UINT64(2, collect_neighbors(&sg, 0, nbrs, 4));
 
   gvizSubgraphRelease(&sg);
   gvizGraphRelease(&g);
@@ -472,7 +457,7 @@ void test_subgraph_neighbor_iteration(void) {
   gvizGraphRelease(&g);
 }
 
-void test_subgraph_query_unsupported_on_induced(void) {
+void test_subgraph_query_vertex_induced_partial(void) {
   gvizGraph g;
   add_triangle(&g);
   gvizGraphBuildLayout(&g);
@@ -481,8 +466,9 @@ void test_subgraph_query_unsupported_on_induced(void) {
   gvizVertexSubsetShowVertex(vs, 0);
   gvizSubgraph sg = gvizSubgraphCreateVertexInduced(&g, vs);
 
-  TEST_ASSERT_FALSE(gvizSubgraphHasVertex(&sg, 0));
-  TEST_ASSERT_EQUAL_UINT64(0, gvizSubgraphVertexCount(&sg));
+  TEST_ASSERT_TRUE(gvizSubgraphHasVertex(&sg, 0));
+  TEST_ASSERT_EQUAL_UINT64(1, gvizSubgraphVertexCount(&sg));
+  TEST_ASSERT_EQUAL_UINT64(0, gvizSubgraphDegree(&sg, 0));
 
   gvizSubgraphRelease(&sg);
   gvizGraphRelease(&g);
@@ -538,29 +524,6 @@ void test_subgraph_rebuild_vertex_induced_no_edge_subset(void) {
   gvizGraphRelease(&g);
 }
 
-void test_subgraph_rebuild_edge_induced_no_vertex_subset(void) {
-  gvizGraph g;
-  gvizGraphInit(&g, 0);
-  gvizGraphAddVertex(&g, NULL, NULL, NULL);
-  gvizGraphAddVertex(&g, NULL, NULL, NULL);
-  gvizGraphAddEdge(&g, 0, 1);
-  gvizGraphBuildLayout(&g);
-
-  gvizEdgeSubset es = gvizEdgeSubsetCreateEmpty(&g);
-  gvizEdgeSubsetShowEdge(es, 0, 0);
-  gvizSubgraph sg = gvizSubgraphCreateEdgeInduced(&g, es);
-
-  gvizGraphAddVertex(&g, NULL, NULL, NULL);
-  TEST_ASSERT_EQUAL_INT(0, gvizSubgraphRebuild(&sg));
-
-  TEST_ASSERT_NULL(sg.vs);
-  TEST_ASSERT_NOT_NULL(sg.es.bitset);
-  TEST_ASSERT_TRUE(gvizTestBit(sg.es.bitset, g.layout->vertexOffsets[0]));
-
-  gvizSubgraphRelease(&sg);
-  gvizGraphRelease(&g);
-}
-
 void test_subgraph_rebuild_drops_removed_edge(void) {
   gvizGraph g;
   gvizGraphInit(&g, 0);
@@ -601,19 +564,17 @@ int main(void) {
   RUN_TEST(test_edgeSubset_independent_of_subgraph);
   RUN_TEST(test_subgraphCreateEmpty);
   RUN_TEST(test_subgraphCreateVertexInduced);
-  RUN_TEST(test_subgraphCreateEdgeInduced);
   RUN_TEST(test_vertexSubset_show_hide);
   RUN_TEST(test_makeEdgeSubset_vertex_induced);
   RUN_TEST(test_makeEdgeSubset_partial_vertices);
-  RUN_TEST(test_makeVertexSubset_edge_induced);
+  RUN_TEST(test_vertex_induced_query_without_edge_subset);
   RUN_TEST(test_subgraph_view_hide_vertex_and_edge);
   RUN_TEST(test_subgraph_query_counts);
   RUN_TEST(test_subgraph_vertex_iteration);
   RUN_TEST(test_subgraph_neighbor_iteration);
-  RUN_TEST(test_subgraph_query_unsupported_on_induced);
+  RUN_TEST(test_subgraph_query_vertex_induced_partial);
   RUN_TEST(test_subgraph_rebuild_full_preserves_bits);
   RUN_TEST(test_subgraph_rebuild_vertex_induced_no_edge_subset);
-  RUN_TEST(test_subgraph_rebuild_edge_induced_no_vertex_subset);
   RUN_TEST(test_subgraph_rebuild_drops_removed_edge);
 
   int result = UNITY_END();

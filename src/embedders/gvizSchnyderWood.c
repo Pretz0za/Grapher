@@ -375,11 +375,11 @@ void gvizSchnyderWoodEmbed(const gvizSchnyderWood *sw,
       // TODO: fix this. finding previous neighbor is not enough
 
       gvizArray boundary = getRegionBoundary(i, &paths[r], &paths[(r + 1) % 3]);
-      int v = findVertexInsideFace(embedding->graph, &boundary, pathVertices);
+      int v = findVertexInsideFace((gvizGraph *)embedding->subgraph.g, &boundary, pathVertices);
 
       size_t count = 0;
       if (v != -1 && !(gvizTestBit(pathVertices, v))) {
-        count = verticesInRegion(embedding->graph, v, pathVertices);
+        count = verticesInRegion((gvizGraph *)embedding->subgraph.g, v, pathVertices);
       }
       count += paths[r].count;
       coordinates[r] = (double)count;

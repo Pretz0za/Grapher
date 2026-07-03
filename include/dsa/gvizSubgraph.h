@@ -39,6 +39,8 @@ typedef struct {
 	size_t u;
 	size_t base;
 	gvizBitArrayIterator it;
+	/** Parent adjacency index when iterating a vertex-induced subgraph. */
+	size_t adj_idx;
 } gvizSubgraphNeighborIterator;
 
 /** Allocates an empty vertex subset sized for @p g. */
@@ -101,19 +103,15 @@ gvizBitArrayIterator gvizEdgeSubsetIteratorCreateVertexRange(
     const gvizEdgeSubset es, size_t u);
 
 /**
- * Creates a vertex-induced subgraph view: @p vs is owned, edge subset is NULL.
- * Call gvizSubgraphMakeEdgeSubset to populate edges.
+ * Creates a vertex-induced subgraph: @p vs is owned, edge subset is NULL.
+ * Edges are defined implicitly: (u, v) is present when both endpoints are in @p vs
+ * and the edge exists in the parent graph. Call gvizSubgraphMakeEdgeSubset to
+ * materialize an explicit edge subset (full subgraph) when needed.
  */
 gvizSubgraph gvizSubgraphCreateVertexInduced(const struct gvizGraph *g, gvizVertexSubset v);
 
 /**
- * Creates an edge-induced subgraph view: @p es is owned, vertex subset is NULL.
- * Call gvizSubgraphMakeVertexSubset to populate vertices.
- */
-gvizSubgraph gvizSubgraphCreateEdgeInduced(const struct gvizGraph *g, gvizEdgeSubset es);
-
-/**
- * Creates a subgraph with empty vertex and edge subsets.
+ * Creates a full subgraph with empty vertex and edge subsets.
  * Requires a current layout from gvizGraphBuildLayout.
  */
 gvizSubgraph gvizSubgraphCreateEmpty(const struct gvizGraph *g);
@@ -122,16 +120,10 @@ gvizSubgraph gvizSubgraphCreateEmpty(const struct gvizGraph *g);
 void gvizSubgraphRelease(gvizSubgraph *sg);
 
 /**
- * Allocates and fills the edge subset for a vertex-induced subgraph.
- * Requires a current layout; no-op if @p sg already has an edge subset.
+ * Materializes the edge subset for a vertex-induced subgraph, converting it to a
+ * full subgraph. Requires a current layout; no-op if @p sg already has an edge subset.
  */
 void gvizSubgraphMakeEdgeSubset(gvizSubgraph *sg);
-
-/**
- * Allocates and fills the vertex subset for an edge-induced subgraph.
- * No-op if @p sg already has a vertex subset.
- */
-void gvizSubgraphMakeVertexSubset(gvizSubgraph *sg);
 
 /** Marks vertex @p u present; also clears its incident edges if an edge subset exists. */
 void gvizSubgraphShowVertex(const gvizSubgraph *sg, size_t u);
@@ -139,46 +131,97 @@ void gvizSubgraphShowVertex(const gvizSubgraph *sg, size_t u);
 /** Marks vertex @p u absent and clears its incident edges in the edge subset. */
 void gvizSubgraphHideVertex(const gvizSubgraph *sg, size_t u);
 
-/** Marks edge (@p u, @p v) present; no-op if the edge is not in the parent graph. */
+/** Marks edge (@p u, @p v) present; full subgraphs only (no-op on vertex-induced). */
 void gvizSubgraphShowEdge(const gvizSubgraph *sg, size_t u, size_t v);
 
-/** Marks edge (@p u, @p v) absent; no-op if the edge is not in the parent graph. */
+/** Marks edge (@p u, @p v) absent; full subgraphs only (no-op on vertex-induced). */
 void gvizSubgraphHideEdge(const gvizSubgraph *sg, size_t u, size_t v);
 
 /**
  * Rebuilds subsets after the parent graph structure changed.
- * Recomputes the layout, resizes the vertex subset, and remaps edge bits.
- * Preserves vertex-induced (no edge subset) or edge-induced (no vertex subset) mode.
+ * Recomputes the layout, resizes the vertex subset, and remaps edge bits on full
+ * subgraphs. Preserves vertex-induced mode (no edge subset).
  *
  * @return 0 on success, -1 on failure.
  */
 int gvizSubgraphRebuild(gvizSubgraph *sg);
 
-/** Returns whether @p u is in the subgraph. Requires both subsets to be present. */
+/** Returns whether @p u is in the subgraph vertex subset. */
 bool gvizSubgraphHasVertex(const gvizSubgraph *sg, size_t u);
 
-/** Returns the vertex count. Requires both subsets to be present. */
+/** Returns the number of vertices in the subgraph. */
 size_t gvizSubgraphVertexCount(const gvizSubgraph *sg);
 
-/** Returns whether edge (@p u, @p v) is in the subgraph. Requires both subsets. */
+/** Returns whether edge (@p u, @p v) is in the subgraph. */
 bool gvizSubgraphHasEdge(const gvizSubgraph *sg, size_t u, size_t v);
 
-/** Returns the degree of @p u within the subgraph. Requires both subsets. */
+/** Returns the degree of @p u within the subgraph. */
 size_t gvizSubgraphDegree(const gvizSubgraph *sg, size_t u);
 
-/** Returns the edge count within the subgraph. Requires both subsets. */
+/** Returns the edge count within the subgraph. */
 size_t gvizSubgraphEdgeCount(const gvizSubgraph *sg);
 
-/** Creates an iterator over vertices in @p sg. Requires both subsets. */
+/** Creates an iterator over vertices in @p sg. */
 gvizSubgraphVertexIterator gvizSubgraphVertexIteratorCreate(const gvizSubgraph *sg);
 
 /** Advances the vertex iterator; writes the next vertex index to @p *out_u. */
 bool gvizSubgraphVertexIterate(gvizSubgraphVertexIterator *it, size_t *out_u);
 
-/** Creates an iterator over neighbors of @p u within @p sg. Requires both subsets. */
+/** Creates an iterator over neighbors of @p u within @p sg. */
 gvizSubgraphNeighborIterator gvizSubgraphNeighborIteratorCreate(const gvizSubgraph *sg, size_t u);
 
 /** Advances the neighbor iterator; writes the next neighbor to @p *out_v. */
 bool gvizSubgraphNeighborIterate(gvizSubgraphNeighborIterator *it, size_t *out_v);
+
+typedef struct gvizFoundVertex {
+  size_t v;
+  size_t dist;
+} gvizFoundVertex;
+
+/**
+ * Marks every vertex and edge in the parent graph as present in @p sg.
+ * Requires both subsets to already be allocated (e.g. from gvizSubgraphCreateEmpty).
+ * No-op if @p sg is missing subsets or layout.
+ */
+void gvizSubgraphMakeFull(gvizSubgraph *sg);
+
+/**
+ * Creates a subgraph view containing all vertices and edges of @p g.
+ * Requires a current layout from gvizGraphBuildLayout.
+ * Caller owns the returned subsets and must call gvizSubgraphRelease.
+ */
+gvizSubgraph gvizSubgraphCreateFull(const struct gvizGraph *g);
+
+/**
+ * Performs a depth-first search tree within @p sg from @p source.
+ * Writes the tree into @p out (must be an empty subgraph on the same parent graph).
+ *
+ * @return 0 on success, -1 on invalid input or if @p source is not in @p sg.
+ */
+int gvizSubgraphDFSTree(const gvizSubgraph *sg, gvizSubgraph *out, size_t source);
+
+/**
+ * Performs a breadth-first search tree within @p sg from @p source.
+ * Writes the tree into @p out (must be an empty subgraph on the same parent graph).
+ * If @p distances is non-NULL, writes BFS depth for each reached vertex into
+ * @p distances[0..nvertices-1] (SIZE_MAX where unreachable).
+ *
+ * @param maxDepth 0 for unlimited depth; otherwise stops expanding beyond this depth.
+ *
+ * @return 0 on success, -1 on invalid input or if @p source is not in @p sg.
+ */
+int gvizSubgraphBFSTree(const gvizSubgraph *sg, gvizSubgraph *out, size_t source,
+                        size_t maxDepth, size_t *distances);
+
+/**
+ * Finds up to @p k nearest vertices within @p sg from @p source by edge count.
+ * Only vertices marked in @p filter are counted toward @p k; if @p filter is NULL,
+ * all vertices in @p sg are eligible.
+ *
+ * @return The number of neighbors written to @p out, or a negative value on error.
+ */
+int gvizSubgraphKNearestNeighbors(const gvizSubgraph *sg, gvizFoundVertex *out,
+                                  size_t k, size_t source,
+                                  gvizVertexSubset filter);
 
 #endif

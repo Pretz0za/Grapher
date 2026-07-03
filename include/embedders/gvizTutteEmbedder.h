@@ -37,8 +37,8 @@ typedef struct gvizTutteState {
  * @p epsilon is the convergence threshold; pass 0 for GVIZ_TUTTE_DEFAULT_EPSILON.
  * Returns 0 on success, -1 on allocation failure.
  */
-int gvizTutteEmbedderInit(gvizTutteState *s, gvizGraph *g, size_t dimension,
-                           double epsilon);
+int gvizTutteEmbedderInit(gvizTutteState *s, gvizSubgraph subgraph,
+                           size_t dimension, double epsilon);
 
 /** Releases all memory owned by @p s. */
 void gvizTutteEmbedderRelease(gvizTutteState *s);

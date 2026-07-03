@@ -2,7 +2,6 @@
 #define _GVIZ_EMBEDDED_TREE_H_
 
 #include "core/alloc.h"
-#include "dsa/gvizBitArray.h"
 #include "embedders/gvizEmbeddedGraph.h"
 
 // Per vertex decorators for Reingold-Tilford
@@ -15,7 +14,12 @@ typedef struct gvizRTDecorators {
   size_t depth;   /**< The depth of this Vertex in the whole tree. */
   int ancestor; /**< The root of the subtree (if known) this vertex belongs to.
                  */
+  /** Contour thread target; GVIZ_RT_NO_THREAD when absent. */
+  size_t threadTo;
 } gvizRTDecorators;
+
+/** Sentinel for @p gvizRTDecorators.threadTo meaning no thread is set. */
+#define GVIZ_RT_NO_THREAD ((size_t)-1)
 
 // Embedding algorithm state for Reingold-Tilford tidy tree layouts.
 typedef struct gvizEmbeddedTree {
@@ -25,7 +29,6 @@ typedef struct gvizEmbeddedTree {
   float *offsetsOrigin;    /**< Points the a big memory block that stores all
                                 decorator offset arrays contiguously. */
   int *parents;
-  GVIZ_BIT_ARRAY thread; /**< Boolean array tracking vertices were threaded. */
   size_t height;         /**< The calculated height of the whole tree. */
   size_t defaultAncestor;
   size_t offsetsOffset; /**< The current memory offset from offsetsOrigin. Used
@@ -39,7 +42,7 @@ typedef struct gvizEmbeddedTree {
  *
  * @return 0 on success, -1 on allocation failure or if @p graph is not a tree.
  */
-int gvizEmbeddedTreeRTInit(gvizEmbeddedTree *state, gvizGraph *graph,
+int gvizEmbeddedTreeRTInit(gvizEmbeddedTree *state, gvizSubgraph subgraph,
                            size_t root);
 
 /**
