@@ -58,6 +58,7 @@ int gvizSchnyderWoodInit(gvizSchnyderWood *sw, const gvizGraph *g);
  */
 void gvizSchnyderWoodRelease(gvizSchnyderWood *sw);
 
+/** Computes a straight-line embedding from @p sw into @p embedding (2D). */
 void gvizSchnyderWoodEmbed(const gvizSchnyderWood *sw,
                            gvizEmbeddedGraph *embedding);
 

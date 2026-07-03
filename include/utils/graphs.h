@@ -40,34 +40,36 @@ typedef struct {
   size_t a, b, c, d; // indices of the four corners of the tetrahedron
 } SierpinskiTetrahedron;
 
+/** Like sierpinskiRecurse, but for a tetrahedron with corners @p a–@p d. */
 static int sierpinskiTetrahedronRecurse(gvizGraph *g, int depth, size_t a,
                                         size_t b, size_t c, size_t d);
 
+/** Builds an undirected Sierpinski tetrahedron graph of the given @p depth. */
 gvizGraph createSierpinskiTetrahedron(int depth, SierpinskiTetrahedron *st);
 
+/** Builds an undirected Sierpinski triangle graph of the given @p depth. */
 gvizGraph createSierpinski(int depth, SierpinskiTriangle *st);
 
-// Sierpinski Carpet
-// At depth d: 8^d nodes, each level replaces each node with a 3x3 grid minus
-// center We model it as the grid graph of the carpet boundary/structure Nodes
-// indexed by (level, position), built recursively via substitution
-
-// Simpler flat model: generate the actual grid points that survive the carpet
-// construction A point (i,j) in a 3^d x 3^d grid is in the carpet if at no
-// level k does both (floor(i/3^k) % 3 == 1) and (floor(j/3^k) % 3 == 1)
-
+/** Builds the grid graph of a Sierpinski carpet at @p depth. */
 gvizGraph build_sierpinski_carpet(size_t depth);
 
+/** Builds a tetrahedral mesh graph refined to @p depth. */
 gvizGraph build_tetrahedral_mesh(size_t depth);
 
+/** Builds an L-by-W rectangular grid mesh (undirected). */
 gvizGraph build_rect_mesh(size_t L, size_t W);
 
+/** Builds an equilateral triangular mesh with @p depth rows. */
 gvizGraph build_equilateral_tri_mesh(size_t depth);
 
+/** Builds an L-by-W grid with periodic boundary identifications (knotted). */
 gvizGraph build_knotted_rect_mesh(size_t L, size_t W);
 
+/** Builds a Möbius strip mesh with @p rows by @p cols vertices. */
 gvizGraph build_mobius_strip(size_t rows, size_t cols);
 
+/** Builds a Klein bottle mesh with @p rows by @p cols vertices. */
 gvizGraph build_klein_bottle(size_t rows, size_t cols);
 
+/** Returns 1 if @p g is connected, 0 otherwise. */
 int isConnected(gvizGraph *g);

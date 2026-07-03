@@ -43,6 +43,7 @@ typedef struct gvizGraph {
   size_t *map;        /**< If this is a subgraph, this maps to the indices to
                         their corresponding image in the original graph. */
   int directed;       /**< Whether or not the graph is directed. */
+  /** Shared edge layout; NULL until gvizGraphBuildLayout. Not auto-updated. */
   gvizGraphLayout *layout;
 } gvizGraph;
 
@@ -59,6 +60,12 @@ typedef struct gvizGraph {
  * @retval -1 If the allocation failed or v is NULL.
  */
 int gvizVertexInit(gvizVertex *v, void *data);
+
+/**
+ * Like gvizVertexInit, but pre-allocates the adjacency list to @p initialCapacity.
+ *
+ * @return 0 on success, -1 if @p v is NULL or allocation fails.
+ */
 int gvizVertexInitAtCapacity(gvizVertex *v, void *data, size_t initialCapacity);
 
 /**
@@ -96,8 +103,15 @@ int gvizVertexClone(gvizVertex *dest, const gvizVertex *src);
  * @return a
  */
 int gvizGraphInit(gvizGraph *g, int directed);
+
+/**
+ * Like gvizGraphInit, but pre-allocates the vertex array to @p initialCapacity.
+ *
+ * @return 0 on success, -1 if @p g is NULL or allocation fails.
+ */
 int gvizGraphInitAtCapacity(gvizGraph *g, int directed, size_t initialCapacity);
 
+/** Returns the number of vertices in @p g. */
 size_t gvizGraphSize(const gvizGraph *g);
 
 /**
@@ -188,7 +202,8 @@ void gvizGraphClear(gvizGraph *g);
 /**
  * Attemps to add an edge (u, v) to a Graph. If @p g is undirected, u will
  * also be added to v's adjacency list. May reallocate to increase the size of
- * affected vertex/vertices.
+ * affected vertex/vertices. Invalidates @p g->layout until gvizGraphBuildLayout
+ * is called again.
  *
  * @param g    A pointer to the Graph the vertex will be added to.
  * @param from The index of u in g->vertices.
@@ -202,7 +217,8 @@ int gvizGraphAddEdge(gvizGraph *g, size_t from, size_t to);
 
 /**
  * Attempts to remove and edge (u, v) from a Graph. If @p g is undirected, u
- * will also be removed from v's adjacency list.
+ * will also be removed from v's adjacency list. Invalidates @p g->layout until
+ * gvizGraphBuildLayout is called again.
  *
  * @param g    A pointer to the Graph to remove the edge from.
  * @param from The index of u in @p g->vertices.

@@ -34,6 +34,12 @@ typedef struct {
  * array fails. @p arr is still valid.
  */
 int gvizArrayInit(gvizArray *arr, size_t elementSize);
+
+/**
+ * Like gvizArrayInit, but pre-allocates the underlying array to @p initialCapacity.
+ *
+ * @return 0 on success, -1 if @p arr is NULL or allocation fails.
+ */
 int gvizArrayInitAtCapacity(gvizArray *arr, size_t elementSize,
                             size_t initialCapacity);
 

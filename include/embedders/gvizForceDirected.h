@@ -5,15 +5,24 @@
 
 #define gvizNumericEpsilon 1e-7
 
-// Kamada Kawai Force Vector calculation
+/**
+ * Accumulates the Kamada-Kawai spring force between @p vPos and @p uPos into @p acc.
+ * @p gDist is graph distance; @p edgeLength is the target edge length.
+ */
 void gvizPairwiseKKForce(int n, double *vPos, double *uPos, size_t gDist,
                          double edgeLength, double *acc);
 
-// Fruchterman Reingold Attraction Force Vector calculation
+/**
+ * Accumulates the Fruchterman-Reingold attractive force between @p vPos and @p uPos
+ * into @p acc.
+ */
 void gvizPairwiseFRAttForce(int n, double *vPos, double *uPos,
                             double edgeLength, double *acc);
 
-// Fruchterman Reingold Repulsive Force Vector calculation
+/**
+ * Accumulates the Fruchterman-Reingold repulsive force between @p vPos and @p uPos
+ * into @p acc.
+ */
 void gvizPairwiseFRRepForce(int n, double *vPos, double *uPos,
                             double edgeLength, double *acc);
 

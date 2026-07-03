@@ -33,11 +33,32 @@ typedef struct gvizEmbeddedTree {
 
 } gvizEmbeddedTree;
 
+/**
+ * Initializes Reingold-Tilford state for the directed tree @p graph rooted at @p root.
+ * @p state is zeroed first so gvizEmbeddedTreeRTRelease is safe after a failed init.
+ *
+ * @return 0 on success, -1 on allocation failure or if @p graph is not a tree.
+ */
 int gvizEmbeddedTreeRTInit(gvizEmbeddedTree *state, gvizGraph *graph,
                            size_t root);
+
+/**
+ * Computes horizontal offsets for the subtree rooted at @p root at @p level.
+ *
+ * @return 0 on success, -1 on failure.
+ */
 int gvizEmbeddedTreeCalculateOffsets(gvizEmbeddedTree *state, size_t root,
                                      size_t level);
+
+/** Releases all memory owned by @p state. */
 void gvizEmbeddedTreeRTRelease(gvizEmbeddedTree *state);
+
+/**
+ * Recursively assigns 2D positions starting from @p root at @p position.
+ * Call gvizEmbeddedTreeCalculateOffsets first.
+ *
+ * @return 0 on success.
+ */
 int gvizEmbeddedTreeEmbed(gvizEmbeddedTree *state, size_t root,
                           double *position);
 

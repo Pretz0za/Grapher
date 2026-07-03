@@ -129,14 +129,29 @@ gvizBitArrayIterator gvizBitArrayIteratorCreateRange(GVIZ_BIT_ARRAY arr,
  */
 bool gvizBitArrayIterate(gvizBitArrayIterator *it, size_t *out_idx);
 
+/** Allocates a zeroed bit array of @p nbits bits. Returns NULL on failure. */
 GVIZ_BIT_ARRAY gvizBitArrayAlloc(size_t nbits);
+
+/** Frees @p arr. */
 void gvizBitArrayFree(GVIZ_BIT_ARRAY arr);
+
+/**
+ * Resizes a bit array from @p old_nbits to @p new_nbits bits.
+ * Returns a new allocation; the caller must free @p arr if the pointer differs.
+ */
 GVIZ_BIT_ARRAY gvizBitArrayResize(GVIZ_BIT_ARRAY arr, size_t old_nbits,
                                   size_t new_nbits);
 
+/** Returns whether bit @p k is set. */
 bool gvizBitArrayTest(GVIZ_BIT_ARRAY arr, size_t k);
+
+/** Sets bit @p k. */
 void gvizBitArraySet(GVIZ_BIT_ARRAY arr, size_t k);
+
+/** Clears bit @p k. */
 void gvizBitArrayClear(GVIZ_BIT_ARRAY arr, size_t k);
+
+/** Clears bits in the half-open range [@p start, @p end). */
 void gvizBitArrayClearRange(GVIZ_BIT_ARRAY arr, size_t start, size_t end);
 
 /**
@@ -146,7 +161,10 @@ void gvizBitArrayClearRange(GVIZ_BIT_ARRAY arr, size_t start, size_t end);
 void gvizBitArrayCopyBits(GVIZ_BIT_ARRAY dest, const GVIZ_BIT_ARRAY src,
                           size_t count);
 
+/** Returns the number of set bits in the first @p nbits bits of @p arr. */
 size_t gvizBitArrayPopcount(GVIZ_BIT_ARRAY arr, size_t nbits);
+
+/** Returns the number of set bits in the half-open range [@p start, @p end). */
 size_t gvizBitArrayPopcountRange(GVIZ_BIT_ARRAY arr, size_t start, size_t end);
 
 #endif
