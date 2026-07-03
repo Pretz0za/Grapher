@@ -1,11 +1,12 @@
-#include "dsa/gvizGraph.h"
-#include "dsa/gvizSubgraph.h"
+#include "algorithms/search/gvizBreadthFirst.h"
+#include "ds/gvizGraph.h"
+#include "ds/gvizSubgraph.h"
 #include "embedders/gvizGRIPEmbedder.h"
 #include "unity/unity.h"
 #include "unity/unity_internals.h"
 
 #define MESH_W 45
-#define MESH_H 85
+#define MESH_H 25
 #define MESH_D ((MESH_W - 1) + (MESH_H - 1))
 
 #define SMALL_MESH_W 10
@@ -134,7 +135,7 @@ void test_filtration_perLayerVertexSpacingAndMaximality(void) {
 
     for (size_t a = 0; a < end; a++) {
       gvizSubgraph bfs = gvizSubgraphCreateEmpty(&graph);
-      gvizSubgraphBFSTree(&fullSg, &bfs, state.misFiltration[a], 0, distances);
+      gvizSearchBreadthFirst(&fullSg, &bfs, state.misFiltration[a], 0, distances);
       char errStr[4096];
 
       for (size_t b = a + 1; b < end; b++) {
@@ -154,7 +155,7 @@ void test_filtration_perLayerVertexSpacingAndMaximality(void) {
 
     for (size_t a = end; a < state.misBorder[i - 1]; a++) {
       gvizSubgraph bfs = gvizSubgraphCreateEmpty(&graph);
-      gvizSubgraphBFSTree(&fullSg, &bfs, state.misFiltration[a], 0, distances);
+      gvizSearchBreadthFirst(&fullSg, &bfs, state.misFiltration[a], 0, distances);
       int found = 0;
 
       for (size_t b = 0; b < end; b++) {

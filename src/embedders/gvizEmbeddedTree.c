@@ -1,9 +1,9 @@
 #include "embedders/gvizEmbeddedTree.h"
 #include "cblas.h"
 #include "core/alloc.h"
-#include "dsa/gvizArray.h"
-#include "dsa/gvizGraph.h"
-#include "dsa/gvizTree.h"
+#include "ds/gvizArray.h"
+#include "ds/gvizGraph.h"
+#include "ds/gvizTree.h"
 #include "raymath.h"
 #include "embedders/gvizEmbeddedGraph.h"
 #include <assert.h>

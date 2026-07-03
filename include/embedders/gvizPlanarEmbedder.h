@@ -1,10 +1,10 @@
 #ifndef _GVIZ_PLANAR_H_
 #define _GVIZ_PLANAR_H_
 
-#include "dsa/gvizArray.h"
-#include "dsa/gvizGraph.h"
-#include "dsa/gvizBitArray.h"
-#include "dsa/gvizSubgraph.h"
+#include "ds/gvizArray.h"
+#include "ds/gvizGraph.h"
+#include "ds/gvizBitArray.h"
+#include "ds/gvizSubgraph.h"
 #include "embedders/gvizEmbeddedGraph.h"
 
 typedef struct gvizPlanarEmbedderState {

@@ -1,6 +1,6 @@
-#include "dsa/gvizTree.h"
-#include "dsa/gvizArray.h"
-#include "dsa/gvizGraph.h"
+#include "ds/gvizTree.h"
+#include "ds/gvizArray.h"
+#include "ds/gvizGraph.h"
 
 int gvizGraphIsTree(const gvizGraph *graph, int *parents) {
   if (!graph->directed)

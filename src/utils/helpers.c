@@ -1,6 +1,6 @@
 #include "utils/helpers.h"
 #include "cblas.h"
-#include "dsa/gvizArray.h"
+#include "ds/gvizArray.h"
 #include <assert.h>
 #include <stddef.h>
 #include <stdlib.h>

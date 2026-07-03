@@ -1,11 +1,13 @@
 #include "embedders/gvizGRIPEmbedder.h"
 #include "cblas.h"
 #include "core/alloc.h"
-#include "dsa/gvizArray.h"
-#include "dsa/gvizBitArray.h"
-#include "dsa/gvizDeque.h"
-#include "dsa/gvizGraph.h"
-#include "dsa/gvizSubgraph.h"
+#include "algorithms/search/gvizBreadthFirst.h"
+#include "algorithms/search/gvizKNearest.h"
+#include "ds/gvizArray.h"
+#include "ds/gvizBitArray.h"
+#include "ds/gvizDeque.h"
+#include "ds/gvizGraph.h"
+#include "ds/gvizSubgraph.h"
 #include "embedders/gvizEmbeddedGraph.h"
 #include "embedders/gvizForceDirected.h"
 #include "utils/helpers.h"
@@ -281,7 +283,7 @@ void migrateOneToFinalLayer(gvizGRIPState *state, GVIZ_BIT_ARRAY finalLayer,
   for (size_t i = 0; i < state->misBorder[count - 1]; i++) {
     gvizSubgraphRelease(&bfs);
     bfs = gvizSubgraphCreateEmpty(sg->g);
-    gvizSubgraphBFSTree(sg, &bfs, state->misFiltration[i], 0, distances);
+    gvizSearchBreadthFirst(sg, &bfs, state->misFiltration[i], 0, distances);
 
     for (size_t j = state->misBorder[count - 1];
          j < state->misBorder[count - 2]; j++) {
@@ -454,7 +456,7 @@ void placeLayerVertices(gvizGRIPState *state) {
     gvizFoundVertex found[INITIAL_PLACEMENT_K];
 
     size_t count =
-        gvizSubgraphKNearestNeighbors(&embedding->subgraph, found,
+        gvizSearchKNearest(&embedding->subgraph, found,
                                       INITIAL_PLACEMENT_K,
                                       state->misFiltration[i], state->placed);
 
@@ -582,7 +584,7 @@ void updateKNNs(gvizGRIPState *state) {
     size_t curr = state->misFiltration[i];
     gvizArray knn = state->dec[curr].knn;
     knn.count =
-        gvizSubgraphKNearestNeighbors(&embedding->subgraph, knn.arr, REFINEMENT_K,
+        gvizSearchKNearest(&embedding->subgraph, knn.arr, REFINEMENT_K,
                                       state->misFiltration[i], state->placed);
   }
 }

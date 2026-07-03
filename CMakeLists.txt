@@ -23,12 +23,16 @@ add_library(planar STATIC
 target_include_directories(planar PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/third-party/)
 
 add_library(graphvis STATIC
-    src/dsa/gvizGraph.c
-    src/dsa/gvizTree.c
-    src/dsa/gvizArray.c
-    src/dsa/gvizDeque.c
-    src/dsa/gvizBitArray.c
-    src/dsa/gvizSubgraph.c
+    src/ds/gvizGraph.c
+    src/ds/gvizTree.c
+    src/ds/gvizArray.c
+    src/ds/gvizDeque.c
+    src/ds/gvizBitArray.c
+    src/ds/gvizSubgraph.c
+
+    src/algorithms/search/gvizBreadthFirst.c
+    src/algorithms/search/gvizDepthFirst.c
+    src/algorithms/search/gvizKNearest.c
 
     src/embedders/gvizEmbeddedGraph.c
     src/embedders/gvizEmbeddedTree.c
@@ -55,12 +59,15 @@ target_link_libraries(graphvis
     m
 )
 
-# DSA tests
-add_executable(gvizArrayTests third-party/unity/unity.c tests/dsa/gvizArrayTests.c)
-add_executable(gvizGraphTests third-party/unity/unity.c tests/dsa/gvizGraphTests.c)
-add_executable(gvizBitArrayTests third-party/unity/unity.c tests/dsa/gvizBitArrayTests.c)
-add_executable(gvizDequeTests third-party/unity/unity.c tests/dsa/gvizDequeTests.c)
-add_executable(gvizSubgraphTests third-party/unity/unity.c tests/dsa/gvizSubgraphTests.c)
+# DS tests
+add_executable(gvizArrayTests third-party/unity/unity.c tests/ds/gvizArrayTests.c)
+add_executable(gvizGraphTests third-party/unity/unity.c tests/ds/gvizGraphTests.c)
+add_executable(gvizBitArrayTests third-party/unity/unity.c tests/ds/gvizBitArrayTests.c)
+add_executable(gvizDequeTests third-party/unity/unity.c tests/ds/gvizDequeTests.c)
+add_executable(gvizSubgraphTests third-party/unity/unity.c tests/ds/gvizSubgraphTests.c)
+
+# Algorithm tests
+add_executable(gvizSearchTests third-party/unity/unity.c tests/algorithms/search/gvizSearchTests.c)
 
 # Embedder tests
 add_executable(gvizGRIPTests third-party/unity/unity.c tests/embedders/gvizGRIPTests.c)
@@ -72,20 +79,24 @@ target_compile_definitions(gvizGraphTests PRIVATE UNITY_INCLUDE_DOUBLE)
 target_compile_definitions(gvizBitArrayTests PRIVATE UNITY_INCLUDE_DOUBLE)
 target_compile_definitions(gvizDequeTests PRIVATE UNITY_INCLUDE_DOUBLE)
 target_compile_definitions(gvizSubgraphTests PRIVATE UNITY_INCLUDE_DOUBLE)
+target_compile_definitions(gvizSearchTests PRIVATE UNITY_INCLUDE_DOUBLE)
 target_compile_definitions(gvizGRIPTests PRIVATE UNITY_INCLUDE_DOUBLE)
 target_compile_definitions(gvizPlanarTests PRIVATE UNITY_INCLUDE_DOUBLE)
 target_compile_definitions(gvizTutteTests PRIVATE UNITY_INCLUDE_DOUBLE)
 
 set_target_properties(gvizArrayTests PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/dsa)
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/ds)
 set_target_properties(gvizGraphTests PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/dsa)
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/ds)
 set_target_properties(gvizBitArrayTests PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/dsa)
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/ds)
 set_target_properties(gvizDequeTests PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/dsa)
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/ds)
 set_target_properties(gvizSubgraphTests PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/dsa)
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/ds)
+
+set_target_properties(gvizSearchTests PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/algorithms/search)
 
 set_target_properties(gvizGRIPTests PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/embedders)
@@ -99,6 +110,7 @@ target_link_libraries(gvizGraphTests PRIVATE graphvis)
 target_link_libraries(gvizBitArrayTests PRIVATE graphvis)
 target_link_libraries(gvizDequeTests PRIVATE graphvis)
 target_link_libraries(gvizSubgraphTests PRIVATE graphvis)
+target_link_libraries(gvizSearchTests PRIVATE graphvis)
 
 target_link_libraries(gvizGRIPTests PRIVATE graphvis)
 target_link_libraries(gvizPlanarTests PRIVATE graphvis)
@@ -110,6 +122,7 @@ add_test(NAME gvizGraphTests COMMAND gvizGraphTests)
 add_test(NAME gvizBitArrayTests COMMAND gvizBitArrayTests)
 add_test(NAME gvizDequeTests COMMAND gvizDequeTests)
 add_test(NAME gvizSubgraphTests COMMAND gvizSubgraphTests)
+add_test(NAME gvizSearchTests COMMAND gvizSearchTests)
 add_test(NAME gvizGRIPTests COMMAND gvizGRIPTests)
 add_test(NAME gvizPlanarTests COMMAND gvizPlanarTests)
 add_test(NAME gvizTutteTests COMMAND gvizTutteTests)

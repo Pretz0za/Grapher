@@ -1,7 +1,8 @@
 #include "utils/graphs.h"
 #include "core/alloc.h"
-#include "dsa/gvizGraph.h"
-#include "dsa/gvizSubgraph.h"
+#include "algorithms/search/gvizBreadthFirst.h"
+#include "ds/gvizGraph.h"
+#include "ds/gvizSubgraph.h"
 #include <assert.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -501,7 +502,7 @@ int isConnected(gvizGraph *g) {
   gvizGraphBuildLayout(g);
   gvizSubgraph sg = gvizSubgraphCreateFull(g);
   gvizSubgraph tree = gvizSubgraphCreateEmpty(g);
-  gvizSubgraphBFSTree(&sg, &tree, 0, 0, NULL);
+  gvizSearchBreadthFirst(&sg, &tree, 0, 0, NULL);
   int res = gvizSubgraphVertexCount(&tree) == gvizGraphSize(g);
   gvizSubgraphRelease(&tree);
   gvizSubgraphRelease(&sg);

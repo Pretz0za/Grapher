@@ -1,4 +1,4 @@
-#include "dsa/gvizGraph.h"
+#include "ds/gvizGraph.h"
 
 typedef struct {
   gvizGraph *g;

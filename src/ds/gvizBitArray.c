@@ -1,4 +1,4 @@
-#include "dsa/gvizBitArray.h"
+#include "ds/gvizBitArray.h"
 #include "core/alloc.h"
 #include <stdlib.h>
 #include <string.h>

@@ -1,8 +1,8 @@
 #include "embedders/gvizTutteEmbedder.h"
 #include "core/alloc.h"
-#include "dsa/gvizArray.h"
-#include "dsa/gvizGraph.h"
-#include "dsa/gvizSubgraph.h"
+#include "ds/gvizArray.h"
+#include "ds/gvizGraph.h"
+#include "ds/gvizSubgraph.h"
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>

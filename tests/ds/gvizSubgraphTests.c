@@ -1,6 +1,6 @@
 #include "unity/unity.h"
-#include "dsa/gvizGraph.h"
-#include "dsa/gvizSubgraph.h"
+#include "ds/gvizGraph.h"
+#include "ds/gvizSubgraph.h"
 #include <string.h>
 
 void setUp(void) {}

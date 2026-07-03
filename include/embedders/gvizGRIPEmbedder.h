@@ -1,9 +1,10 @@
 #ifndef _GVIZ_GRIP_H_
 #define _GVIZ_GRIP_H_
 
-#include "dsa/gvizArray.h"
-#include "dsa/gvizDeque.h"
-#include "dsa/gvizSubgraph.h"
+#include "algorithms/search/gvizKNearest.h"
+#include "ds/gvizArray.h"
+#include "ds/gvizDeque.h"
+#include "ds/gvizSubgraph.h"
 #include "embedders/gvizEmbeddedGraph.h"
 
 typedef struct gvizGRIPDecorators {

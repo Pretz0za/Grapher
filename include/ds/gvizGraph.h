@@ -2,7 +2,7 @@
 #define __GRAPH_H__
 
 #include "core/alloc.h"
-#include "dsa/gvizBitArray.h"
+#include "ds/gvizBitArray.h"
 #include "gvizArray.h"
 #include "gvizSubgraph.h"
 

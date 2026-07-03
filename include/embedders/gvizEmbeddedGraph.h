@@ -1,8 +1,8 @@
 #ifndef _GVIZ_EMBEDDED_GRAPH_H_
 #define _GVIZ_EMBEDDED_GRAPH_H_
 
-#include "dsa/gvizBitArray.h"
-#include "dsa/gvizSubgraph.h"
+#include "ds/gvizBitArray.h"
+#include "ds/gvizSubgraph.h"
 
 typedef struct gvizDFSState {
 

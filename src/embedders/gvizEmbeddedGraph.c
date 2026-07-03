@@ -1,7 +1,7 @@
 #include "embedders/gvizEmbeddedGraph.h"
 #include "cblas.h"
 #include "core/alloc.h"
-#include "dsa/gvizGraph.h"
+#include "ds/gvizGraph.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

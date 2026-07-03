@@ -6,7 +6,7 @@
 #undef GVIZ_GRAPH_ALLOC
 #undef GVIZ_GRAPH_REALLOC
 #undef GVIZ_GRAPH_DEALLOC
-#include "dsa/gvizGraph.h"
+#include "ds/gvizGraph.h"
 #include <stdlib.h>
 #include <string.h>
 

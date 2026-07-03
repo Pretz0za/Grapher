@@ -1,7 +1,7 @@
 #ifndef _GVIZ_SCHNYDER_WOOD_H_
 #define _GVIZ_SCHNYDER_WOOD_H_
 
-#include "dsa/gvizGraph.h"
+#include "ds/gvizGraph.h"
 #include "embedders/gvizEmbeddedGraph.h"
 #include <stddef.h>
 

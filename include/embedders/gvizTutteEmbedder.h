@@ -1,8 +1,8 @@
 #ifndef _GVIZ_TUTTE_EMBEDDING_H_
 #define _GVIZ_TUTTE_EMBEDDING_H_
 
-#include "dsa/gvizBitArray.h"
-#include "dsa/gvizGraph.h"
+#include "ds/gvizBitArray.h"
+#include "ds/gvizGraph.h"
 #include "embedders/gvizEmbeddedGraph.h"
 
 #define GVIZ_TUTTE_DEFAULT_EPSILON 1e-5

@@ -1,7 +1,7 @@
 #ifndef __GVIZ_SUBGRAPH_H__
 #define __GVIZ_SUBGRAPH_H__
 
-#include "dsa/gvizBitArray.h"
+#include "ds/gvizBitArray.h"
 #include <stdbool.h>
 
 struct gvizGraph;
@@ -173,11 +173,6 @@ gvizSubgraphNeighborIterator gvizSubgraphNeighborIteratorCreate(const gvizSubgra
 /** Advances the neighbor iterator; writes the next neighbor to @p *out_v. */
 bool gvizSubgraphNeighborIterate(gvizSubgraphNeighborIterator *it, size_t *out_v);
 
-typedef struct gvizFoundVertex {
-  size_t v;
-  size_t dist;
-} gvizFoundVertex;
-
 /**
  * Marks every vertex and edge in the parent graph as present in @p sg.
  * Requires both subsets to already be allocated (e.g. from gvizSubgraphCreateEmpty).
@@ -191,37 +186,5 @@ void gvizSubgraphMakeFull(gvizSubgraph *sg);
  * Caller owns the returned subsets and must call gvizSubgraphRelease.
  */
 gvizSubgraph gvizSubgraphCreateFull(const struct gvizGraph *g);
-
-/**
- * Performs a depth-first search tree within @p sg from @p source.
- * Writes the tree into @p out (must be an empty subgraph on the same parent graph).
- *
- * @return 0 on success, -1 on invalid input or if @p source is not in @p sg.
- */
-int gvizSubgraphDFSTree(const gvizSubgraph *sg, gvizSubgraph *out, size_t source);
-
-/**
- * Performs a breadth-first search tree within @p sg from @p source.
- * Writes the tree into @p out (must be an empty subgraph on the same parent graph).
- * If @p distances is non-NULL, writes BFS depth for each reached vertex into
- * @p distances[0..nvertices-1] (SIZE_MAX where unreachable).
- *
- * @param maxDepth 0 for unlimited depth; otherwise stops expanding beyond this depth.
- *
- * @return 0 on success, -1 on invalid input or if @p source is not in @p sg.
- */
-int gvizSubgraphBFSTree(const gvizSubgraph *sg, gvizSubgraph *out, size_t source,
-                        size_t maxDepth, size_t *distances);
-
-/**
- * Finds up to @p k nearest vertices within @p sg from @p source by edge count.
- * Only vertices marked in @p filter are counted toward @p k; if @p filter is NULL,
- * all vertices in @p sg are eligible.
- *
- * @return The number of neighbors written to @p out, or a negative value on error.
- */
-int gvizSubgraphKNearestNeighbors(const gvizSubgraph *sg, gvizFoundVertex *out,
-                                  size_t k, size_t source,
-                                  gvizVertexSubset filter);
 
 #endif

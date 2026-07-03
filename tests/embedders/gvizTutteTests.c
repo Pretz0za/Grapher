@@ -1,5 +1,5 @@
-#include "dsa/gvizGraph.h"
-#include "dsa/gvizSubgraph.h"
+#include "ds/gvizGraph.h"
+#include "ds/gvizSubgraph.h"
 #include "embedders/gvizEmbeddedGraph.h"
 #include "embedders/gvizTutteEmbedder.h"
 #include "unity/unity.h"

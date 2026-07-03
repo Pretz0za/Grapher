@@ -1,8 +1,8 @@
 #ifndef __GRAPH_HELPERS_H__
 #define __GRAPH_HELPERS_H__
 
-#include "dsa/gvizArray.h"
-#include "dsa/gvizGraph.h"
+#include "ds/gvizArray.h"
+#include "ds/gvizGraph.h"
 #include <stddef.h>
 #include <stdio.h>
 

@@ -1,9 +1,9 @@
 #include "embedders/gvizSchnyderWood.h"
 #include "core/alloc.h"
-#include "dsa/gvizArray.h"
-#include "dsa/gvizBitArray.h"
-#include "dsa/gvizDeque.h"
-#include "dsa/gvizGraph.h"
+#include "ds/gvizArray.h"
+#include "ds/gvizBitArray.h"
+#include "ds/gvizDeque.h"
+#include "ds/gvizGraph.h"
 #include "embedders/gvizEmbeddedGraph.h"
 #include <assert.h>
 #include <stdio.h>

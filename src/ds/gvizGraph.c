@@ -1,6 +1,6 @@
-#include "dsa/gvizGraph.h"
-#include "dsa/gvizArray.h"
-#include "dsa/gvizBitArray.h"
+#include "ds/gvizGraph.h"
+#include "ds/gvizArray.h"
+#include "ds/gvizBitArray.h"
 #include "utils/helpers.h"
 #include <stdint.h>
 #include <stdio.h>
