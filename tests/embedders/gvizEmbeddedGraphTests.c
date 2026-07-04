@@ -139,11 +139,156 @@ void test_actions_growPastInitialCapacity(void) {
   gvizGraphRelease(&g);
 }
 
+// STATS: -----------------------------------------------------------------------
+
+void test_stats_registerAndAppend(void) {
+  gvizGraph g;
+  gvizEmbeddedGraph eg = makeEmbedding(&g, 3, 2);
+
+  TEST_ASSERT_EQUAL_size_t(0, gvizEmbeddedGraphStatSeriesCount(&eg));
+  TEST_ASSERT_NULL(gvizEmbeddedGraphFindStatSeries(&eg, "missing"));
+  TEST_ASSERT_NULL(gvizEmbeddedGraphStatSeriesAt(&eg, 0));
+
+  gvizStatSeries *heat =
+      gvizEmbeddedGraphAddStatSeries(&eg, "test.heat", GVIZ_STAT_CHART_LINE_LOG);
+  TEST_ASSERT_NOT_NULL(heat);
+  TEST_ASSERT_EQUAL_INT(GVIZ_STAT_CHART_LINE_LOG, heat->kind);
+  TEST_ASSERT_EQUAL_size_t(1, gvizEmbeddedGraphStatSeriesCount(&eg));
+
+  TEST_ASSERT_EQUAL_INT(0, gvizEmbeddedGraphStatAppend(&eg, "test.heat", 1.5));
+  TEST_ASSERT_EQUAL_INT(0, gvizEmbeddedGraphStatAppend(&eg, "test.heat", 0.5));
+
+  const gvizStatSeries *found = gvizEmbeddedGraphFindStatSeries(&eg, "test.heat");
+  TEST_ASSERT_NOT_NULL(found);
+  TEST_ASSERT_EQUAL_size_t(2, found->count);
+  TEST_ASSERT_EQUAL_DOUBLE(1.5, found->samples[0]);
+  TEST_ASSERT_EQUAL_DOUBLE(0.5, found->samples[1]);
+  TEST_ASSERT_EQUAL_UINT64(2, found->revision);
+
+  gvizEmbeddedGraphRelease(&eg);
+  gvizGraphRelease(&g);
+}
+
+void test_stats_appendAutoCreatesSeries(void) {
+  gvizGraph g;
+  gvizEmbeddedGraph eg = makeEmbedding(&g, 3, 2);
+
+  TEST_ASSERT_EQUAL_INT(0, gvizEmbeddedGraphStatAppend(&eg, "test.auto", 3.0));
+  const gvizStatSeries *s = gvizEmbeddedGraphFindStatSeries(&eg, "test.auto");
+  TEST_ASSERT_NOT_NULL(s);
+  TEST_ASSERT_EQUAL_INT(GVIZ_STAT_CHART_LINE, s->kind);
+  TEST_ASSERT_EQUAL_size_t(1, s->count);
+  TEST_ASSERT_EQUAL_PTR(s, gvizEmbeddedGraphStatSeriesAt(&eg, 0));
+
+  gvizEmbeddedGraphRelease(&eg);
+  gvizGraphRelease(&g);
+}
+
+void test_stats_clearKeepsSeriesRegistered(void) {
+  gvizGraph g;
+  gvizEmbeddedGraph eg = makeEmbedding(&g, 3, 2);
+
+  gvizEmbeddedGraphStatAppend(&eg, "test.s", 1.0);
+  gvizEmbeddedGraphStatAppend(&eg, "test.s", 2.0);
+  const gvizStatSeries *s = gvizEmbeddedGraphFindStatSeries(&eg, "test.s");
+  uint64_t revBefore = s->revision;
+
+  gvizEmbeddedGraphStatClear(&eg, "test.s");
+  TEST_ASSERT_EQUAL_size_t(0, s->count);
+  TEST_ASSERT_EQUAL_UINT64(revBefore + 1, s->revision);
+  TEST_ASSERT_EQUAL_size_t(1, gvizEmbeddedGraphStatSeriesCount(&eg));
+
+  gvizEmbeddedGraphStatClear(&eg, "missing"); // no-op, must not crash
+
+  gvizEmbeddedGraphRelease(&eg);
+  gvizGraphRelease(&g);
+}
+
+void test_stats_growPastInitialCapacities(void) {
+  gvizGraph g;
+  gvizEmbeddedGraph eg = makeEmbedding(&g, 3, 2);
+
+  static const char *names[] = {"s0", "s1", "s2", "s3", "s4", "s5"};
+  for (size_t i = 0; i < 6; i++)
+    for (size_t k = 0; k < 200; k++)
+      TEST_ASSERT_EQUAL_INT(
+          0, gvizEmbeddedGraphStatAppend(&eg, names[i], (double)k));
+
+  TEST_ASSERT_EQUAL_size_t(6, gvizEmbeddedGraphStatSeriesCount(&eg));
+  for (size_t i = 0; i < 6; i++) {
+    const gvizStatSeries *s = gvizEmbeddedGraphFindStatSeries(&eg, names[i]);
+    TEST_ASSERT_NOT_NULL(s);
+    TEST_ASSERT_EQUAL_size_t(200, s->count);
+    TEST_ASSERT_EQUAL_DOUBLE(199.0, s->samples[199]);
+  }
+
+  gvizEmbeddedGraphRelease(&eg);
+  gvizGraphRelease(&g);
+}
+
+// DRAW MASK: -------------------------------------------------------------------
+
+void test_drawMask_defaultsShowAll(void) {
+  gvizGraph g;
+  gvizEmbeddedGraph eg = makeEmbedding(&g, 4, 2);
+
+  TEST_ASSERT_EQUAL_UINT64(0, gvizEmbeddedGraphDrawMaskRevision(&eg));
+  TEST_ASSERT_TRUE(gvizEmbeddedGraphIsVertexVisible(&eg, 0));
+  TEST_ASSERT_TRUE(gvizEmbeddedGraphIsVertexVisible(&eg, 3));
+  TEST_ASSERT_TRUE(gvizEmbeddedGraphIsEdgeVisible(&eg, 0, 1));
+  TEST_ASSERT_TRUE(gvizEmbeddedGraphIsEdgeVisible(&eg, 2, 3));
+
+  gvizEmbeddedGraphRelease(&eg);
+  gvizGraphRelease(&g);
+}
+
+void test_drawMask_vertexFilterAndNoEdges(void) {
+  gvizGraph g;
+  gvizEmbeddedGraph eg = makeEmbedding(&g, 4, 2);
+  gvizEmbeddedGraphDrawMaskHideVertex(&eg, 0);
+  gvizEmbeddedGraphDrawMaskHideVertex(&eg, 3);
+
+  gvizEmbeddedGraphSetDrawMaskEdgePolicy(&eg, GVIZ_DRAW_EDGES_NONE);
+  TEST_ASSERT_EQUAL_UINT64(1, gvizEmbeddedGraphDrawMaskRevision(&eg));
+  TEST_ASSERT_FALSE(gvizEmbeddedGraphIsVertexVisible(&eg, 0));
+  TEST_ASSERT_TRUE(gvizEmbeddedGraphIsVertexVisible(&eg, 1));
+  TEST_ASSERT_TRUE(gvizEmbeddedGraphIsVertexVisible(&eg, 2));
+  TEST_ASSERT_FALSE(gvizEmbeddedGraphIsVertexVisible(&eg, 3));
+  TEST_ASSERT_FALSE(gvizEmbeddedGraphIsEdgeVisible(&eg, 1, 2));
+
+  gvizEmbeddedGraphRelease(&eg);
+  gvizGraphRelease(&g);
+}
+
+void test_drawMask_edgesIfBothVisible(void) {
+  gvizGraph g;
+  gvizEmbeddedGraph eg = makeEmbedding(&g, 4, 2);
+  gvizEmbeddedGraphDrawMaskHideVertex(&eg, 3);
+
+  gvizEmbeddedGraphSetDrawMaskEdgePolicy(&eg, GVIZ_DRAW_EDGES_IF_BOTH_VISIBLE);
+  TEST_ASSERT_TRUE(gvizEmbeddedGraphIsEdgeVisible(&eg, 0, 1));
+  TEST_ASSERT_TRUE(gvizEmbeddedGraphIsEdgeVisible(&eg, 1, 2));
+  TEST_ASSERT_FALSE(gvizEmbeddedGraphIsEdgeVisible(&eg, 2, 3));
+
+  gvizEmbeddedGraphResetDrawMask(&eg);
+  TEST_ASSERT_TRUE(gvizEmbeddedGraphIsEdgeVisible(&eg, 2, 3));
+
+  gvizEmbeddedGraphRelease(&eg);
+  gvizGraphRelease(&g);
+}
+
 int main(void) {
   UNITY_BEGIN();
   RUN_TEST(test_accessors_matchStruct);
   RUN_TEST(test_actions_registerFindInvoke);
   RUN_TEST(test_actions_replaceAndRemove);
   RUN_TEST(test_actions_growPastInitialCapacity);
+  RUN_TEST(test_stats_registerAndAppend);
+  RUN_TEST(test_stats_appendAutoCreatesSeries);
+  RUN_TEST(test_stats_clearKeepsSeriesRegistered);
+  RUN_TEST(test_stats_growPastInitialCapacities);
+  RUN_TEST(test_drawMask_defaultsShowAll);
+  RUN_TEST(test_drawMask_vertexFilterAndNoEdges);
+  RUN_TEST(test_drawMask_edgesIfBothVisible);
   return UNITY_END();
 }

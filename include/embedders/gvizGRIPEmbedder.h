@@ -8,6 +8,24 @@
 #include "ds/gvizSubgraph.h"
 #include "embedders/gvizEmbeddedGraph.h"
 
+/** How placement/refinement neighbor counts are chosen per layer. */
+typedef enum gvizGRIPKPolicy {
+  /** Same @c placementKMax / @c refinementKMax at every layer. */
+  GVIZ_GRIP_K_CONSTANT = 0,
+  /** @c maxK >> currLayer — smaller on coarse layers (legacy fast path). */
+  GVIZ_GRIP_K_LAYER_DECAY,
+  /** @c maxK >> depthFromCoarse — larger on coarse layers. */
+  GVIZ_GRIP_K_LAYER_GROW,
+  /** Placement uses @ref GVIZ_GRIP_K_LAYER_DECAY; refinement stays constant. */
+  GVIZ_GRIP_K_PLACEMENT_DECAY,
+} gvizGRIPKPolicy;
+
+/** Displacement statistics from the most recent refinement round. */
+typedef struct gvizGRIPRoundStats {
+  double maxDisplacement;
+  double meanDisplacement;
+} gvizGRIPRoundStats;
+
 typedef struct gvizGRIPDecorators {
   gvizArray knn;
   double *disp;
@@ -21,7 +39,6 @@ typedef struct gvizGRIPState {
   size_t layerCount;
   size_t currLayer;
   size_t currRound;
-  gvizVertexSubset placed;
   size_t *misFiltration;
   size_t *misBorder;
   size_t *rounds;
@@ -35,6 +52,12 @@ typedef struct gvizGRIPState {
   size_t knnScratchCount;
   /** Worker pool for data-parallel phases. NULL => serial fallback. */
   gvizThreadPool *pool;
+  /** Upper bounds for KNN search; arrays are sized to @c knnCapacity. */
+  size_t placementKMax;
+  size_t refinementKMax;
+  size_t knnCapacity;
+  gvizGRIPKPolicy kPolicy;
+  gvizGRIPRoundStats lastRoundStats;
 } gvizGRIPState;
 
 /**
@@ -45,6 +68,18 @@ typedef struct gvizGRIPState {
  */
 int gvizGRIPEmbedderInit(gvizGRIPState *state, gvizSubgraph subgraph,
                          size_t diameter, size_t dimension);
+
+/**
+ * Configures neighbor counts for placement and refinement. @p knnCapacity sizes
+ * per-vertex KNN storage and must be >= both max values. Defaults after init:
+ * placement/refinement max 128, capacity 256, @ref GVIZ_GRIP_K_CONSTANT.
+ */
+void gvizGRIPEmbedderConfigureK(gvizGRIPState *state, size_t placementKMax,
+                                size_t refinementKMax, size_t knnCapacity,
+                                gvizGRIPKPolicy policy);
+
+/** Returns stats collected by the last call to runRefinementRound. */
+gvizGRIPRoundStats gvizGRIPEmbedderLastRoundStats(const gvizGRIPState *state);
 
 /** Runs the full GRIP embedding pipeline on @p state. */
 int gvizGRIPEmbedderEmbed(gvizGRIPState *state);

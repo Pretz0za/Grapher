@@ -80,6 +80,7 @@ add_executable(gvizSearchTests third-party/unity/unity.c tests/algorithms/search
 # Embedder tests
 add_executable(gvizEmbeddedGraphTests third-party/unity/unity.c tests/embedders/gvizEmbeddedGraphTests.c)
 add_executable(gvizGRIPTests third-party/unity/unity.c tests/embedders/gvizGRIPTests.c)
+add_executable(gvizGRIPKBench tests/embedders/gvizGRIPKBench.c)
 add_executable(gvizPlanarTests third-party/unity/unity.c tests/embedders/gvizPlanarTests.c)
 add_executable(gvizTutteTests third-party/unity/unity.c tests/embedders/gvizTutteTests.c)
 
@@ -113,6 +114,8 @@ set_target_properties(gvizSearchTests PROPERTIES
 
 set_target_properties(gvizEmbeddedGraphTests PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/embedders)
+set_target_properties(gvizGRIPKBench PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/embedders)
 set_target_properties(gvizGRIPTests PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/embedders)
 set_target_properties(gvizPlanarTests PROPERTIES
@@ -129,6 +132,7 @@ target_link_libraries(gvizSubgraphTests PRIVATE graphvis)
 target_link_libraries(gvizSearchTests PRIVATE graphvis)
 
 target_link_libraries(gvizEmbeddedGraphTests PRIVATE graphvis)
+target_link_libraries(gvizGRIPKBench PRIVATE graphvis)
 target_link_libraries(gvizGRIPTests PRIVATE graphvis)
 target_link_libraries(gvizPlanarTests PRIVATE graphvis)
 target_link_libraries(gvizTutteTests PRIVATE graphvis)

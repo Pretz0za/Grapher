@@ -3,6 +3,8 @@
 
 #include "ds/gvizBitArray.h"
 #include "ds/gvizSubgraph.h"
+#include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 typedef struct gvizDFSState {
@@ -57,10 +59,65 @@ typedef struct gvizActionRegistry {
   size_t capacity;
 } gvizActionRegistry;
 
+/** How a front-end should chart a stat series. Chosen by the embedder. */
+typedef enum gvizStatChartKind {
+  /** Line chart, linear y axis (default). */
+  GVIZ_STAT_CHART_LINE = 0,
+  /** Line chart, logarithmic y axis (for quantities spanning decades). */
+  GVIZ_STAT_CHART_LINE_LOG = 1,
+} gvizStatChartKind;
+
+/**
+ * A named time series recorded by the creator of an embedded graph (typically
+ * an embedder) and charted by front-ends. Samples are appended one double at
+ * a time; the sample index is the x axis (round, iteration, ...).
+ */
+typedef struct gvizStatSeries {
+  /** Stable identifier, e.g. "grip.heat". Not copied; the string must outlive
+   *  the embedded graph. */
+  const char *name;
+  gvizStatChartKind kind;
+  double *samples;
+  size_t count;
+  size_t capacity;
+  /** Incremented on every append/clear; front-ends compare it to re-chart
+   *  without polling the data. */
+  uint64_t revision;
+} gvizStatSeries;
+
+typedef struct gvizStatRegistry {
+  gvizStatSeries *series;
+  size_t count;
+  size_t capacity;
+} gvizStatRegistry;
+
+/** Controls which vertices and edges front-ends (renderers) should draw. */
+typedef enum gvizDrawEdgePolicy {
+  /** Draw every edge in the subgraph (default). */
+  GVIZ_DRAW_EDGES_ALL = 0,
+  /** Draw no edges. */
+  GVIZ_DRAW_EDGES_NONE = 1,
+  /** Draw edge (u, v) only when both endpoints pass the vertex filter. */
+  GVIZ_DRAW_EDGES_IF_BOTH_VISIBLE = 2,
+} gvizDrawEdgePolicy;
+
+typedef struct gvizDrawMask {
+  /** Owned subset: a vertex is visible when its bit is set and it is in the
+   *  subgraph. Initialized to all subgraph vertices on gvizEmbeddedGraphInit. */
+  gvizVertexSubset visibleVertices;
+  gvizDrawEdgePolicy edgePolicy;
+  /** Incremented when the mask is reset, the edge policy changes, or
+   *  gvizEmbeddedGraphDrawMaskNotifyChanged is called; renderers may compare
+   *  this to detect mask changes without polling the bitset. */
+  uint64_t revision;
+} gvizDrawMask;
+
 typedef struct gvizEmbeddedGraph {
   gvizSubgraph subgraph;
   gvizEmbedding embedding;
   gvizActionRegistry actions;
+  gvizDrawMask drawMask;
+  gvizStatRegistry stats;
 
 } gvizEmbeddedGraph;
 
@@ -100,6 +157,52 @@ const double *gvizEmbeddedGraphPositions(const gvizEmbeddedGraph *embedding);
 
 /** Returns the subgraph describing the structure of the embedded graph. */
 const gvizSubgraph *gvizEmbeddedGraphStructure(const gvizEmbeddedGraph *embedding);
+
+// DRAW MASK (for renderers): --------------------------------------------------
+//
+// The embedder creator sets which vertices and edges should be drawn. Defaults
+// show the full subgraph. Front-ends read the mask each frame (or watch
+// gvizEmbeddedGraphDrawMaskRevision) and filter geometry accordingly.
+
+/** Sets the edge filter policy and bumps drawMask.revision. */
+void gvizEmbeddedGraphSetDrawMaskEdgePolicy(gvizEmbeddedGraph *embedding,
+                                            gvizDrawEdgePolicy edgePolicy);
+
+/** Marks vertex @p u visible in the draw mask (does not bump revision). */
+void gvizEmbeddedGraphDrawMaskShowVertex(gvizEmbeddedGraph *embedding, size_t u);
+
+/** Marks vertex @p u hidden in the draw mask (does not bump revision). */
+void gvizEmbeddedGraphDrawMaskHideVertex(gvizEmbeddedGraph *embedding, size_t u);
+
+/**
+ * Bumps drawMask.revision after a batch of Show/Hide calls so renderers
+ * rebuild filtered geometry.
+ */
+void gvizEmbeddedGraphDrawMaskNotifyChanged(gvizEmbeddedGraph *embedding);
+
+/** Resets the mask to the default (all subgraph vertices, all edges). */
+void gvizEmbeddedGraphResetDrawMask(gvizEmbeddedGraph *embedding);
+
+/** Returns the current draw mask (read-only). */
+const gvizDrawMask *
+gvizEmbeddedGraphGetDrawMask(const gvizEmbeddedGraph *embedding);
+
+/** Monotonic counter; changes whenever the mask is set or reset. */
+uint64_t gvizEmbeddedGraphDrawMaskRevision(const gvizEmbeddedGraph *embedding);
+
+/**
+ * Returns whether vertex @p u should be drawn under the current mask and
+ * subgraph.
+ */
+bool gvizEmbeddedGraphIsVertexVisible(const gvizEmbeddedGraph *embedding,
+                                      size_t u);
+
+/**
+ * Returns whether edge (@p u, @p v) should be drawn under the current mask
+ * (both endpoints must be in the subgraph when iterating).
+ */
+bool gvizEmbeddedGraphIsEdgeVisible(const gvizEmbeddedGraph *embedding, size_t u,
+                                    size_t v);
 
 // ACTIONS: --------------------------------------------------------------------
 //
@@ -142,6 +245,51 @@ const gvizAction *gvizEmbeddedGraphActionAt(const gvizEmbeddedGraph *embedding,
 int gvizEmbeddedGraphInvokeAction(gvizEmbeddedGraph *embedding,
                                   const char *name,
                                   const gvizActionPayload *payload);
+
+// STATS: ----------------------------------------------------------------------
+//
+// The creator of an embedded graph may record named time series ("how did the
+// mean heat evolve per round?") on it. Front-ends discover the series by
+// enumeration and chart them; the front-end needs no knowledge of the embedder
+// and the embedder needs no knowledge of the front-end.
+
+/**
+ * Registers a stat series on @p embedding and returns it. If a series with the
+ * same name already exists, its kind is updated and it is returned unchanged.
+ * @p name is not copied and must outlive the embedding (string literals are
+ * the expected usage).
+ *
+ * @return the series, or NULL on allocation failure or NULL arguments.
+ */
+gvizStatSeries *gvizEmbeddedGraphAddStatSeries(gvizEmbeddedGraph *embedding,
+                                               const char *name,
+                                               gvizStatChartKind kind);
+
+/**
+ * Appends @p value to the series named @p name, creating it (with
+ * @ref GVIZ_STAT_CHART_LINE) if it does not exist yet. This is the one-liner
+ * embedders are expected to call from their inner loop.
+ *
+ * @return 0 on success, -1 on allocation failure or NULL arguments.
+ */
+int gvizEmbeddedGraphStatAppend(gvizEmbeddedGraph *embedding, const char *name,
+                                double value);
+
+/** Discards all samples of the series named @p name (the series itself stays
+ *  registered). No-op if no such series exists. */
+void gvizEmbeddedGraphStatClear(gvizEmbeddedGraph *embedding, const char *name);
+
+/** Returns the number of registered stat series. */
+size_t gvizEmbeddedGraphStatSeriesCount(const gvizEmbeddedGraph *embedding);
+
+/** Returns the @p idx-th registered series; NULL if out of bounds. */
+const gvizStatSeries *
+gvizEmbeddedGraphStatSeriesAt(const gvizEmbeddedGraph *embedding, size_t idx);
+
+/** Returns the series named @p name, or NULL if none is registered. */
+const gvizStatSeries *
+gvizEmbeddedGraphFindStatSeries(const gvizEmbeddedGraph *embedding,
+                                const char *name);
 
 /** Walks to the next face in a planar rotation system. */
 int gvizEmbeddedGraphNextFace(gvizEmbeddedGraph *embedding,
