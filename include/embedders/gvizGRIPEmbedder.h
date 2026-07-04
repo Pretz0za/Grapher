@@ -18,6 +18,15 @@ typedef enum gvizGRIPKPolicy {
   GVIZ_GRIP_K_LAYER_GROW,
   /** Placement uses @ref GVIZ_GRIP_K_LAYER_DECAY; refinement stays constant. */
   GVIZ_GRIP_K_PLACEMENT_DECAY,
+  /**
+   * Refinement k scales inversely with the active-layer vertex count so the
+   * per-round cost stays roughly constant: k = refinementKMax * N / active,
+   * capped at @c knnCapacity. Sparse (coarse/mid) layers get long-range
+   * springs, which keeps articulated substructures rigid — without them a
+   * subgraph attached through a single vertex can slowly fold onto the rest
+   * of the layout. Placement uses @ref GVIZ_GRIP_K_LAYER_DECAY.
+   */
+  GVIZ_GRIP_K_BUDGET,
 } gvizGRIPKPolicy;
 
 /** Displacement statistics from the most recent refinement round. */

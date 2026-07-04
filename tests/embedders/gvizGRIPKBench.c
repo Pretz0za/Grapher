@@ -39,6 +39,8 @@ static const KPolicyCase POLICIES[] = {
     {"grow_64", 64, 64, GVIZ_GRIP_K_LAYER_GROW},
     {"place_decay_ref_128", 128, 128, GVIZ_GRIP_K_PLACEMENT_DECAY},
     {"place_decay_ref_256", 256, 256, GVIZ_GRIP_K_PLACEMENT_DECAY},
+    {"budget_64_32", 64, 32, GVIZ_GRIP_K_BUDGET},
+    {"budget_128_64", 128, 64, GVIZ_GRIP_K_BUDGET},
 };
 
 static BenchScore runPolicy(const gvizGraph *graph, size_t dim,

@@ -55,6 +55,8 @@ static size_t gripComputeK(const gvizGRIPState *state, size_t maxK,
     policy = GVIZ_GRIP_K_LAYER_DECAY;
   else if (!forPlacement && policy == GVIZ_GRIP_K_PLACEMENT_DECAY)
     policy = GVIZ_GRIP_K_CONSTANT;
+  else if (forPlacement && policy == GVIZ_GRIP_K_BUDGET)
+    policy = GVIZ_GRIP_K_LAYER_DECAY;
 
   size_t k;
   switch (policy) {
@@ -69,6 +71,15 @@ static size_t gripComputeK(const gvizGRIPState *state, size_t maxK,
         state->layerCount > 0 ? state->layerCount - 1 - state->currLayer : 0;
     k = maxK >> depthFromCoarse;
     break;
+  }
+  case GVIZ_GRIP_K_BUDGET: {
+    size_t active = state->misBorder[state->currLayer];
+    size_t finest = state->misBorder[0];
+    if (active == 0)
+      return gripClampK(maxK, minK, cap);
+    double scaled = (double)maxK * ((double)finest / (double)active);
+    k = scaled >= (double)cap ? cap : (size_t)scaled;
+    return gripClampK(k, minK, cap);
   }
   case GVIZ_GRIP_K_PLACEMENT_DECAY:
     k = maxK;
@@ -844,6 +855,125 @@ static void refinementPass1Range(void *ctx, size_t begin, size_t end) {
   }
 }
 
+// Rigid translations and rotations are zero modes of the layout energy:
+// nothing in the spring forces resists them, and the adaptive heat rewards
+// their coherent direction, so any residual net force (e.g. from asymmetric
+// KNN lists) makes the whole embedding drift or spin indefinitely. Subtracting
+// the mean displacement pins the barycenter without altering relative motion.
+static void removeNetTranslation(gvizGRIPState *state) {
+  gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
+  size_t dim = embedding->embedding.dim;
+  size_t count = state->misBorder[state->currLayer];
+  if (count == 0)
+    return;
+
+  double mean[dim];
+  memset(mean, 0, sizeof(mean));
+  for (size_t i = 0; i < count; i++)
+    cblas_daxpy(dim, 1.0, state->dec[state->misFiltration[i]].disp, 1, mean,
+                1);
+  cblas_dscal(dim, 1.0 / (double)count, mean, 1);
+
+  for (size_t i = 0; i < count; i++)
+    cblas_daxpy(dim, -1.0, mean, 1, state->dec[state->misFiltration[i]].disp,
+                1);
+}
+
+static int solve3x3(double a[3][3], const double *b, double *x) {
+  size_t idx[3] = {0, 1, 2};
+  double rhs[3] = {b[0], b[1], b[2]};
+
+  for (size_t col = 0; col < 3; col++) {
+    size_t piv = col;
+    for (size_t row = col + 1; row < 3; row++)
+      if (fabs(a[idx[row]][col]) > fabs(a[idx[piv]][col]))
+        piv = row;
+    if (fabs(a[idx[piv]][col]) < gvizNumericEpsilon)
+      return -1;
+    size_t tmp = idx[col];
+    idx[col] = idx[piv];
+    idx[piv] = tmp;
+
+    for (size_t row = col + 1; row < 3; row++) {
+      double f = a[idx[row]][col] / a[idx[col]][col];
+      for (size_t j = col; j < 3; j++)
+        a[idx[row]][j] -= f * a[idx[col]][j];
+      rhs[idx[row]] -= f * rhs[idx[col]];
+    }
+  }
+
+  for (size_t col = 3; col-- > 0;) {
+    double s = rhs[idx[col]];
+    for (size_t j = col + 1; j < 3; j++)
+      s -= a[idx[col]][j] * x[j];
+    x[col] = s / a[idx[col]][col];
+  }
+  return 0;
+}
+
+// Projects the best-fit rigid rotation about the barycenter out of the
+// displacements: omega = I^-1 L with L the "angular momentum" of the disp
+// field and I the inertia tensor of the active vertices. 2D/3D only; other
+// dimensions are left untouched.
+static void removeNetRotation(gvizGRIPState *state) {
+  gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
+  size_t dim = embedding->embedding.dim;
+  size_t count = state->misBorder[state->currLayer];
+  if (count < 3 || (dim != 2 && dim != 3))
+    return;
+
+  double com[3] = {0, 0, 0};
+  for (size_t i = 0; i < count; i++) {
+    double *p =
+        gvizEmbeddedGraphGetVPosition(embedding, state->misFiltration[i]);
+    for (size_t d = 0; d < dim; d++)
+      com[d] += p[d];
+  }
+  for (size_t d = 0; d < dim; d++)
+    com[d] /= (double)count;
+
+  double L[3] = {0, 0, 0};
+  double inertia[3][3] = {{0}};
+  for (size_t i = 0; i < count; i++) {
+    size_t v = state->misFiltration[i];
+    double *p = gvizEmbeddedGraphGetVPosition(embedding, v);
+    double *d = state->dec[v].disp;
+    double r[3] = {p[0] - com[0], p[1] - com[1],
+                   dim == 3 ? p[2] - com[2] : 0.0};
+    double dz = dim == 3 ? d[2] : 0.0;
+
+    L[0] += r[1] * dz - r[2] * d[1];
+    L[1] += r[2] * d[0] - r[0] * dz;
+    L[2] += r[0] * d[1] - r[1] * d[0];
+
+    double r2 = r[0] * r[0] + r[1] * r[1] + r[2] * r[2];
+    for (size_t a = 0; a < 3; a++)
+      for (size_t b = 0; b < 3; b++)
+        inertia[a][b] += (a == b ? r2 : 0.0) - r[a] * r[b];
+  }
+
+  double omega[3] = {0, 0, 0};
+  if (dim == 2) {
+    if (fabs(inertia[2][2]) < gvizNumericEpsilon)
+      return;
+    omega[2] = L[2] / inertia[2][2];
+  } else if (solve3x3(inertia, L, omega) < 0) {
+    return;
+  }
+
+  for (size_t i = 0; i < count; i++) {
+    size_t v = state->misFiltration[i];
+    double *p = gvizEmbeddedGraphGetVPosition(embedding, v);
+    double *d = state->dec[v].disp;
+    double r[3] = {p[0] - com[0], p[1] - com[1],
+                   dim == 3 ? p[2] - com[2] : 0.0};
+    d[0] -= omega[1] * r[2] - omega[2] * r[1];
+    d[1] -= omega[2] * r[0] - omega[0] * r[2];
+    if (dim == 3)
+      d[2] -= omega[0] * r[1] - omega[1] * r[0];
+  }
+}
+
 void runRefinementRound(gvizGRIPState *state) {
   gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
   size_t layer = state->currLayer;
@@ -853,6 +983,9 @@ void runRefinementRound(gvizGRIPState *state) {
 
   gvizThreadPoolForRange(state->pool, 0, state->misBorder[layer],
                          PARALLEL_GRAIN, refinementPass1Range, state);
+
+  removeNetTranslation(state);
+  removeNetRotation(state);
 
   double maxDisp = 0.0;
   double sumDisp = 0.0;

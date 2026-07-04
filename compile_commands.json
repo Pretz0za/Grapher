@@ -1,241 +1,313 @@
 [
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -fsanitize=address -fno-omit-frame-pointer -o CMakeFiles/planar.dir/third-party/boyerMyrvold/graphEmbed.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/boyerMyrvold/graphEmbed.c",
+  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/third-party -O3 -DNDEBUG -std=gnu11 -o CMakeFiles/planar.dir/third-party/boyerMyrvold/graphEmbed.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/boyerMyrvold/graphEmbed.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/third-party/boyerMyrvold/graphEmbed.c",
   "output": "CMakeFiles/planar.dir/third-party/boyerMyrvold/graphEmbed.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -fsanitize=address -fno-omit-frame-pointer -o CMakeFiles/planar.dir/third-party/boyerMyrvold/graphIO.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/boyerMyrvold/graphIO.c",
+  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/third-party -O3 -DNDEBUG -std=gnu11 -o CMakeFiles/planar.dir/third-party/boyerMyrvold/graphIO.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/boyerMyrvold/graphIO.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/third-party/boyerMyrvold/graphIO.c",
   "output": "CMakeFiles/planar.dir/third-party/boyerMyrvold/graphIO.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -fsanitize=address -fno-omit-frame-pointer -o CMakeFiles/planar.dir/third-party/boyerMyrvold/graphIsolator.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/boyerMyrvold/graphIsolator.c",
+  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/third-party -O3 -DNDEBUG -std=gnu11 -o CMakeFiles/planar.dir/third-party/boyerMyrvold/graphIsolator.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/boyerMyrvold/graphIsolator.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/third-party/boyerMyrvold/graphIsolator.c",
   "output": "CMakeFiles/planar.dir/third-party/boyerMyrvold/graphIsolator.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -fsanitize=address -fno-omit-frame-pointer -o CMakeFiles/planar.dir/third-party/boyerMyrvold/graphNonplanar.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/boyerMyrvold/graphNonplanar.c",
+  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/third-party -O3 -DNDEBUG -std=gnu11 -o CMakeFiles/planar.dir/third-party/boyerMyrvold/graphNonplanar.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/boyerMyrvold/graphNonplanar.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/third-party/boyerMyrvold/graphNonplanar.c",
   "output": "CMakeFiles/planar.dir/third-party/boyerMyrvold/graphNonplanar.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -fsanitize=address -fno-omit-frame-pointer -o CMakeFiles/planar.dir/third-party/boyerMyrvold/graphPreprocess.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/boyerMyrvold/graphPreprocess.c",
+  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/third-party -O3 -DNDEBUG -std=gnu11 -o CMakeFiles/planar.dir/third-party/boyerMyrvold/graphPreprocess.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/boyerMyrvold/graphPreprocess.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/third-party/boyerMyrvold/graphPreprocess.c",
   "output": "CMakeFiles/planar.dir/third-party/boyerMyrvold/graphPreprocess.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -fsanitize=address -fno-omit-frame-pointer -o CMakeFiles/planar.dir/third-party/boyerMyrvold/graphStructure.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/boyerMyrvold/graphStructure.c",
+  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/third-party -O3 -DNDEBUG -std=gnu11 -o CMakeFiles/planar.dir/third-party/boyerMyrvold/graphStructure.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/boyerMyrvold/graphStructure.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/third-party/boyerMyrvold/graphStructure.c",
   "output": "CMakeFiles/planar.dir/third-party/boyerMyrvold/graphStructure.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -fsanitize=address -fno-omit-frame-pointer -o CMakeFiles/planar.dir/third-party/boyerMyrvold/listcoll.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/boyerMyrvold/listcoll.c",
+  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/third-party -O3 -DNDEBUG -std=gnu11 -o CMakeFiles/planar.dir/third-party/boyerMyrvold/listcoll.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/boyerMyrvold/listcoll.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/third-party/boyerMyrvold/listcoll.c",
   "output": "CMakeFiles/planar.dir/third-party/boyerMyrvold/listcoll.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -fsanitize=address -fno-omit-frame-pointer -o CMakeFiles/planar.dir/third-party/boyerMyrvold/stack.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/boyerMyrvold/stack.c",
+  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/third-party -O3 -DNDEBUG -std=gnu11 -o CMakeFiles/planar.dir/third-party/boyerMyrvold/stack.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/boyerMyrvold/stack.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/third-party/boyerMyrvold/stack.c",
   "output": "CMakeFiles/planar.dir/third-party/boyerMyrvold/stack.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -fsanitize=address -fno-omit-frame-pointer -o CMakeFiles/graphvis.dir/src/dsa/gvizGraph.c.o -c /Users/abdulaziz.alahmadi/gviz/src/dsa/gvizGraph.c",
-  "file": "/Users/abdulaziz.alahmadi/gviz/src/dsa/gvizGraph.c",
-  "output": "CMakeFiles/graphvis.dir/src/dsa/gvizGraph.c.o"
+  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -O3 -DNDEBUG -std=gnu11 -o CMakeFiles/graphvis.dir/src/core/gvizThreadPool.c.o -c /Users/abdulaziz.alahmadi/gviz/src/core/gvizThreadPool.c",
+  "file": "/Users/abdulaziz.alahmadi/gviz/src/core/gvizThreadPool.c",
+  "output": "CMakeFiles/graphvis.dir/src/core/gvizThreadPool.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -fsanitize=address -fno-omit-frame-pointer -o CMakeFiles/graphvis.dir/src/dsa/gvizTree.c.o -c /Users/abdulaziz.alahmadi/gviz/src/dsa/gvizTree.c",
-  "file": "/Users/abdulaziz.alahmadi/gviz/src/dsa/gvizTree.c",
-  "output": "CMakeFiles/graphvis.dir/src/dsa/gvizTree.c.o"
+  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -O3 -DNDEBUG -std=gnu11 -o CMakeFiles/graphvis.dir/src/ds/gvizGraph.c.o -c /Users/abdulaziz.alahmadi/gviz/src/ds/gvizGraph.c",
+  "file": "/Users/abdulaziz.alahmadi/gviz/src/ds/gvizGraph.c",
+  "output": "CMakeFiles/graphvis.dir/src/ds/gvizGraph.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -fsanitize=address -fno-omit-frame-pointer -o CMakeFiles/graphvis.dir/src/dsa/gvizArray.c.o -c /Users/abdulaziz.alahmadi/gviz/src/dsa/gvizArray.c",
-  "file": "/Users/abdulaziz.alahmadi/gviz/src/dsa/gvizArray.c",
-  "output": "CMakeFiles/graphvis.dir/src/dsa/gvizArray.c.o"
+  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -O3 -DNDEBUG -std=gnu11 -o CMakeFiles/graphvis.dir/src/ds/gvizTree.c.o -c /Users/abdulaziz.alahmadi/gviz/src/ds/gvizTree.c",
+  "file": "/Users/abdulaziz.alahmadi/gviz/src/ds/gvizTree.c",
+  "output": "CMakeFiles/graphvis.dir/src/ds/gvizTree.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -fsanitize=address -fno-omit-frame-pointer -o CMakeFiles/graphvis.dir/src/dsa/gvizDeque.c.o -c /Users/abdulaziz.alahmadi/gviz/src/dsa/gvizDeque.c",
-  "file": "/Users/abdulaziz.alahmadi/gviz/src/dsa/gvizDeque.c",
-  "output": "CMakeFiles/graphvis.dir/src/dsa/gvizDeque.c.o"
+  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -O3 -DNDEBUG -std=gnu11 -o CMakeFiles/graphvis.dir/src/ds/gvizArray.c.o -c /Users/abdulaziz.alahmadi/gviz/src/ds/gvizArray.c",
+  "file": "/Users/abdulaziz.alahmadi/gviz/src/ds/gvizArray.c",
+  "output": "CMakeFiles/graphvis.dir/src/ds/gvizArray.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -fsanitize=address -fno-omit-frame-pointer -o CMakeFiles/graphvis.dir/src/dsa/gvizBitArray.c.o -c /Users/abdulaziz.alahmadi/gviz/src/dsa/gvizBitArray.c",
-  "file": "/Users/abdulaziz.alahmadi/gviz/src/dsa/gvizBitArray.c",
-  "output": "CMakeFiles/graphvis.dir/src/dsa/gvizBitArray.c.o"
+  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -O3 -DNDEBUG -std=gnu11 -o CMakeFiles/graphvis.dir/src/ds/gvizDeque.c.o -c /Users/abdulaziz.alahmadi/gviz/src/ds/gvizDeque.c",
+  "file": "/Users/abdulaziz.alahmadi/gviz/src/ds/gvizDeque.c",
+  "output": "CMakeFiles/graphvis.dir/src/ds/gvizDeque.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -fsanitize=address -fno-omit-frame-pointer -o CMakeFiles/graphvis.dir/src/dsa/gvizSubgraph.c.o -c /Users/abdulaziz.alahmadi/gviz/src/dsa/gvizSubgraph.c",
-  "file": "/Users/abdulaziz.alahmadi/gviz/src/dsa/gvizSubgraph.c",
-  "output": "CMakeFiles/graphvis.dir/src/dsa/gvizSubgraph.c.o"
+  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -O3 -DNDEBUG -std=gnu11 -o CMakeFiles/graphvis.dir/src/ds/gvizBitArray.c.o -c /Users/abdulaziz.alahmadi/gviz/src/ds/gvizBitArray.c",
+  "file": "/Users/abdulaziz.alahmadi/gviz/src/ds/gvizBitArray.c",
+  "output": "CMakeFiles/graphvis.dir/src/ds/gvizBitArray.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -fsanitize=address -fno-omit-frame-pointer -o CMakeFiles/graphvis.dir/src/embedders/gvizEmbeddedGraph.c.o -c /Users/abdulaziz.alahmadi/gviz/src/embedders/gvizEmbeddedGraph.c",
+  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -O3 -DNDEBUG -std=gnu11 -o CMakeFiles/graphvis.dir/src/ds/gvizSubgraph.c.o -c /Users/abdulaziz.alahmadi/gviz/src/ds/gvizSubgraph.c",
+  "file": "/Users/abdulaziz.alahmadi/gviz/src/ds/gvizSubgraph.c",
+  "output": "CMakeFiles/graphvis.dir/src/ds/gvizSubgraph.c.o"
+},
+{
+  "directory": "/Users/abdulaziz.alahmadi/gviz/build",
+  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -O3 -DNDEBUG -std=gnu11 -o CMakeFiles/graphvis.dir/src/algorithms/search/gvizBreadthFirst.c.o -c /Users/abdulaziz.alahmadi/gviz/src/algorithms/search/gvizBreadthFirst.c",
+  "file": "/Users/abdulaziz.alahmadi/gviz/src/algorithms/search/gvizBreadthFirst.c",
+  "output": "CMakeFiles/graphvis.dir/src/algorithms/search/gvizBreadthFirst.c.o"
+},
+{
+  "directory": "/Users/abdulaziz.alahmadi/gviz/build",
+  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -O3 -DNDEBUG -std=gnu11 -o CMakeFiles/graphvis.dir/src/algorithms/search/gvizDepthFirst.c.o -c /Users/abdulaziz.alahmadi/gviz/src/algorithms/search/gvizDepthFirst.c",
+  "file": "/Users/abdulaziz.alahmadi/gviz/src/algorithms/search/gvizDepthFirst.c",
+  "output": "CMakeFiles/graphvis.dir/src/algorithms/search/gvizDepthFirst.c.o"
+},
+{
+  "directory": "/Users/abdulaziz.alahmadi/gviz/build",
+  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -O3 -DNDEBUG -std=gnu11 -o CMakeFiles/graphvis.dir/src/algorithms/search/gvizKNearest.c.o -c /Users/abdulaziz.alahmadi/gviz/src/algorithms/search/gvizKNearest.c",
+  "file": "/Users/abdulaziz.alahmadi/gviz/src/algorithms/search/gvizKNearest.c",
+  "output": "CMakeFiles/graphvis.dir/src/algorithms/search/gvizKNearest.c.o"
+},
+{
+  "directory": "/Users/abdulaziz.alahmadi/gviz/build",
+  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -O3 -DNDEBUG -std=gnu11 -o CMakeFiles/graphvis.dir/src/embedders/gvizEmbeddedGraph.c.o -c /Users/abdulaziz.alahmadi/gviz/src/embedders/gvizEmbeddedGraph.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/src/embedders/gvizEmbeddedGraph.c",
   "output": "CMakeFiles/graphvis.dir/src/embedders/gvizEmbeddedGraph.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -fsanitize=address -fno-omit-frame-pointer -o CMakeFiles/graphvis.dir/src/embedders/gvizEmbeddedTree.c.o -c /Users/abdulaziz.alahmadi/gviz/src/embedders/gvizEmbeddedTree.c",
+  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -O3 -DNDEBUG -std=gnu11 -o CMakeFiles/graphvis.dir/src/embedders/gvizEmbeddedTree.c.o -c /Users/abdulaziz.alahmadi/gviz/src/embedders/gvizEmbeddedTree.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/src/embedders/gvizEmbeddedTree.c",
   "output": "CMakeFiles/graphvis.dir/src/embedders/gvizEmbeddedTree.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -fsanitize=address -fno-omit-frame-pointer -o CMakeFiles/graphvis.dir/src/embedders/gvizGRIPEmbedder.c.o -c /Users/abdulaziz.alahmadi/gviz/src/embedders/gvizGRIPEmbedder.c",
+  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -O3 -DNDEBUG -std=gnu11 -o CMakeFiles/graphvis.dir/src/embedders/gvizGRIPEmbedder.c.o -c /Users/abdulaziz.alahmadi/gviz/src/embedders/gvizGRIPEmbedder.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/src/embedders/gvizGRIPEmbedder.c",
   "output": "CMakeFiles/graphvis.dir/src/embedders/gvizGRIPEmbedder.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -fsanitize=address -fno-omit-frame-pointer -o CMakeFiles/graphvis.dir/src/embedders/gvizForceDirected.c.o -c /Users/abdulaziz.alahmadi/gviz/src/embedders/gvizForceDirected.c",
+  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -O3 -DNDEBUG -std=gnu11 -o CMakeFiles/graphvis.dir/src/embedders/gvizForceDirected.c.o -c /Users/abdulaziz.alahmadi/gviz/src/embedders/gvizForceDirected.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/src/embedders/gvizForceDirected.c",
   "output": "CMakeFiles/graphvis.dir/src/embedders/gvizForceDirected.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -fsanitize=address -fno-omit-frame-pointer -o CMakeFiles/graphvis.dir/src/embedders/gvizPlanarEmbedder.c.o -c /Users/abdulaziz.alahmadi/gviz/src/embedders/gvizPlanarEmbedder.c",
+  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -O3 -DNDEBUG -std=gnu11 -o CMakeFiles/graphvis.dir/src/embedders/gvizPlanarEmbedder.c.o -c /Users/abdulaziz.alahmadi/gviz/src/embedders/gvizPlanarEmbedder.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/src/embedders/gvizPlanarEmbedder.c",
   "output": "CMakeFiles/graphvis.dir/src/embedders/gvizPlanarEmbedder.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -fsanitize=address -fno-omit-frame-pointer -o CMakeFiles/graphvis.dir/src/embedders/gvizSchnyderWood.c.o -c /Users/abdulaziz.alahmadi/gviz/src/embedders/gvizSchnyderWood.c",
+  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -O3 -DNDEBUG -std=gnu11 -o CMakeFiles/graphvis.dir/src/embedders/gvizSchnyderWood.c.o -c /Users/abdulaziz.alahmadi/gviz/src/embedders/gvizSchnyderWood.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/src/embedders/gvizSchnyderWood.c",
   "output": "CMakeFiles/graphvis.dir/src/embedders/gvizSchnyderWood.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -fsanitize=address -fno-omit-frame-pointer -o CMakeFiles/graphvis.dir/src/embedders/gvizTutteEmbedder.c.o -c /Users/abdulaziz.alahmadi/gviz/src/embedders/gvizTutteEmbedder.c",
+  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -O3 -DNDEBUG -std=gnu11 -o CMakeFiles/graphvis.dir/src/embedders/gvizTutteEmbedder.c.o -c /Users/abdulaziz.alahmadi/gviz/src/embedders/gvizTutteEmbedder.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/src/embedders/gvizTutteEmbedder.c",
   "output": "CMakeFiles/graphvis.dir/src/embedders/gvizTutteEmbedder.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -fsanitize=address -fno-omit-frame-pointer -o CMakeFiles/graphvis.dir/src/utils/graphs.c.o -c /Users/abdulaziz.alahmadi/gviz/src/utils/graphs.c",
+  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -O3 -DNDEBUG -std=gnu11 -o CMakeFiles/graphvis.dir/src/utils/graphs.c.o -c /Users/abdulaziz.alahmadi/gviz/src/utils/graphs.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/src/utils/graphs.c",
   "output": "CMakeFiles/graphvis.dir/src/utils/graphs.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -fsanitize=address -fno-omit-frame-pointer -o CMakeFiles/graphvis.dir/src/utils/serializers.c.o -c /Users/abdulaziz.alahmadi/gviz/src/utils/serializers.c",
+  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -O3 -DNDEBUG -std=gnu11 -o CMakeFiles/graphvis.dir/src/utils/serializers.c.o -c /Users/abdulaziz.alahmadi/gviz/src/utils/serializers.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/src/utils/serializers.c",
   "output": "CMakeFiles/graphvis.dir/src/utils/serializers.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -fsanitize=address -fno-omit-frame-pointer -o CMakeFiles/graphvis.dir/src/utils/helpers.c.o -c /Users/abdulaziz.alahmadi/gviz/src/utils/helpers.c",
+  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -O3 -DNDEBUG -std=gnu11 -o CMakeFiles/graphvis.dir/src/utils/helpers.c.o -c /Users/abdulaziz.alahmadi/gviz/src/utils/helpers.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/src/utils/helpers.c",
   "output": "CMakeFiles/graphvis.dir/src/utils/helpers.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -fsanitize=address -fno-omit-frame-pointer -o CMakeFiles/gvizArrayTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -O3 -DNDEBUG -std=gnu11 -o CMakeFiles/gvizThreadPoolTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
+  "file": "/Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
+  "output": "CMakeFiles/gvizThreadPoolTests.dir/third-party/unity/unity.c.o"
+},
+{
+  "directory": "/Users/abdulaziz.alahmadi/gviz/build",
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -O3 -DNDEBUG -std=gnu11 -o CMakeFiles/gvizThreadPoolTests.dir/tests/core/gvizThreadPoolTests.c.o -c /Users/abdulaziz.alahmadi/gviz/tests/core/gvizThreadPoolTests.c",
+  "file": "/Users/abdulaziz.alahmadi/gviz/tests/core/gvizThreadPoolTests.c",
+  "output": "CMakeFiles/gvizThreadPoolTests.dir/tests/core/gvizThreadPoolTests.c.o"
+},
+{
+  "directory": "/Users/abdulaziz.alahmadi/gviz/build",
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -O3 -DNDEBUG -std=gnu11 -o CMakeFiles/gvizArrayTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "output": "CMakeFiles/gvizArrayTests.dir/third-party/unity/unity.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -fsanitize=address -fno-omit-frame-pointer -o CMakeFiles/gvizArrayTests.dir/tests/dsa/gvizArrayTests.c.o -c /Users/abdulaziz.alahmadi/gviz/tests/dsa/gvizArrayTests.c",
-  "file": "/Users/abdulaziz.alahmadi/gviz/tests/dsa/gvizArrayTests.c",
-  "output": "CMakeFiles/gvizArrayTests.dir/tests/dsa/gvizArrayTests.c.o"
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -O3 -DNDEBUG -std=gnu11 -o CMakeFiles/gvizArrayTests.dir/tests/ds/gvizArrayTests.c.o -c /Users/abdulaziz.alahmadi/gviz/tests/ds/gvizArrayTests.c",
+  "file": "/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizArrayTests.c",
+  "output": "CMakeFiles/gvizArrayTests.dir/tests/ds/gvizArrayTests.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -fsanitize=address -fno-omit-frame-pointer -o CMakeFiles/gvizGraphTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -O3 -DNDEBUG -std=gnu11 -o CMakeFiles/gvizGraphTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "output": "CMakeFiles/gvizGraphTests.dir/third-party/unity/unity.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -fsanitize=address -fno-omit-frame-pointer -o CMakeFiles/gvizGraphTests.dir/tests/dsa/gvizGraphTests.c.o -c /Users/abdulaziz.alahmadi/gviz/tests/dsa/gvizGraphTests.c",
-  "file": "/Users/abdulaziz.alahmadi/gviz/tests/dsa/gvizGraphTests.c",
-  "output": "CMakeFiles/gvizGraphTests.dir/tests/dsa/gvizGraphTests.c.o"
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -O3 -DNDEBUG -std=gnu11 -o CMakeFiles/gvizGraphTests.dir/tests/ds/gvizGraphTests.c.o -c /Users/abdulaziz.alahmadi/gviz/tests/ds/gvizGraphTests.c",
+  "file": "/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizGraphTests.c",
+  "output": "CMakeFiles/gvizGraphTests.dir/tests/ds/gvizGraphTests.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -fsanitize=address -fno-omit-frame-pointer -o CMakeFiles/gvizBitArrayTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -O3 -DNDEBUG -std=gnu11 -o CMakeFiles/gvizBitArrayTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "output": "CMakeFiles/gvizBitArrayTests.dir/third-party/unity/unity.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -fsanitize=address -fno-omit-frame-pointer -o CMakeFiles/gvizBitArrayTests.dir/tests/dsa/gvizBitArrayTests.c.o -c /Users/abdulaziz.alahmadi/gviz/tests/dsa/gvizBitArrayTests.c",
-  "file": "/Users/abdulaziz.alahmadi/gviz/tests/dsa/gvizBitArrayTests.c",
-  "output": "CMakeFiles/gvizBitArrayTests.dir/tests/dsa/gvizBitArrayTests.c.o"
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -O3 -DNDEBUG -std=gnu11 -o CMakeFiles/gvizBitArrayTests.dir/tests/ds/gvizBitArrayTests.c.o -c /Users/abdulaziz.alahmadi/gviz/tests/ds/gvizBitArrayTests.c",
+  "file": "/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizBitArrayTests.c",
+  "output": "CMakeFiles/gvizBitArrayTests.dir/tests/ds/gvizBitArrayTests.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -fsanitize=address -fno-omit-frame-pointer -o CMakeFiles/gvizDequeTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -O3 -DNDEBUG -std=gnu11 -o CMakeFiles/gvizDequeTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "output": "CMakeFiles/gvizDequeTests.dir/third-party/unity/unity.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -fsanitize=address -fno-omit-frame-pointer -o CMakeFiles/gvizDequeTests.dir/tests/dsa/gvizDequeTests.c.o -c /Users/abdulaziz.alahmadi/gviz/tests/dsa/gvizDequeTests.c",
-  "file": "/Users/abdulaziz.alahmadi/gviz/tests/dsa/gvizDequeTests.c",
-  "output": "CMakeFiles/gvizDequeTests.dir/tests/dsa/gvizDequeTests.c.o"
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -O3 -DNDEBUG -std=gnu11 -o CMakeFiles/gvizDequeTests.dir/tests/ds/gvizDequeTests.c.o -c /Users/abdulaziz.alahmadi/gviz/tests/ds/gvizDequeTests.c",
+  "file": "/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizDequeTests.c",
+  "output": "CMakeFiles/gvizDequeTests.dir/tests/ds/gvizDequeTests.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -fsanitize=address -fno-omit-frame-pointer -o CMakeFiles/gvizSubgraphTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -O3 -DNDEBUG -std=gnu11 -o CMakeFiles/gvizSubgraphTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "output": "CMakeFiles/gvizSubgraphTests.dir/third-party/unity/unity.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -fsanitize=address -fno-omit-frame-pointer -o CMakeFiles/gvizSubgraphTests.dir/tests/dsa/gvizSubgraphTests.c.o -c /Users/abdulaziz.alahmadi/gviz/tests/dsa/gvizSubgraphTests.c",
-  "file": "/Users/abdulaziz.alahmadi/gviz/tests/dsa/gvizSubgraphTests.c",
-  "output": "CMakeFiles/gvizSubgraphTests.dir/tests/dsa/gvizSubgraphTests.c.o"
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -O3 -DNDEBUG -std=gnu11 -o CMakeFiles/gvizSubgraphTests.dir/tests/ds/gvizSubgraphTests.c.o -c /Users/abdulaziz.alahmadi/gviz/tests/ds/gvizSubgraphTests.c",
+  "file": "/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizSubgraphTests.c",
+  "output": "CMakeFiles/gvizSubgraphTests.dir/tests/ds/gvizSubgraphTests.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -fsanitize=address -fno-omit-frame-pointer -o CMakeFiles/gvizGRIPTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -O3 -DNDEBUG -std=gnu11 -o CMakeFiles/gvizSearchTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
+  "file": "/Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
+  "output": "CMakeFiles/gvizSearchTests.dir/third-party/unity/unity.c.o"
+},
+{
+  "directory": "/Users/abdulaziz.alahmadi/gviz/build",
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -O3 -DNDEBUG -std=gnu11 -o CMakeFiles/gvizSearchTests.dir/tests/algorithms/search/gvizSearchTests.c.o -c /Users/abdulaziz.alahmadi/gviz/tests/algorithms/search/gvizSearchTests.c",
+  "file": "/Users/abdulaziz.alahmadi/gviz/tests/algorithms/search/gvizSearchTests.c",
+  "output": "CMakeFiles/gvizSearchTests.dir/tests/algorithms/search/gvizSearchTests.c.o"
+},
+{
+  "directory": "/Users/abdulaziz.alahmadi/gviz/build",
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -O3 -DNDEBUG -std=gnu11 -o CMakeFiles/gvizEmbeddedGraphTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
+  "file": "/Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
+  "output": "CMakeFiles/gvizEmbeddedGraphTests.dir/third-party/unity/unity.c.o"
+},
+{
+  "directory": "/Users/abdulaziz.alahmadi/gviz/build",
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -O3 -DNDEBUG -std=gnu11 -o CMakeFiles/gvizEmbeddedGraphTests.dir/tests/embedders/gvizEmbeddedGraphTests.c.o -c /Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizEmbeddedGraphTests.c",
+  "file": "/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizEmbeddedGraphTests.c",
+  "output": "CMakeFiles/gvizEmbeddedGraphTests.dir/tests/embedders/gvizEmbeddedGraphTests.c.o"
+},
+{
+  "directory": "/Users/abdulaziz.alahmadi/gviz/build",
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -O3 -DNDEBUG -std=gnu11 -o CMakeFiles/gvizGRIPTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "output": "CMakeFiles/gvizGRIPTests.dir/third-party/unity/unity.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -fsanitize=address -fno-omit-frame-pointer -o CMakeFiles/gvizGRIPTests.dir/tests/embedders/gvizGRIPTests.c.o -c /Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizGRIPTests.c",
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -O3 -DNDEBUG -std=gnu11 -o CMakeFiles/gvizGRIPTests.dir/tests/embedders/gvizGRIPTests.c.o -c /Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizGRIPTests.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizGRIPTests.c",
   "output": "CMakeFiles/gvizGRIPTests.dir/tests/embedders/gvizGRIPTests.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -fsanitize=address -fno-omit-frame-pointer -o CMakeFiles/gvizPlanarTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
+  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -O3 -DNDEBUG -std=gnu11 -o CMakeFiles/gvizGRIPKBench.dir/tests/embedders/gvizGRIPKBench.c.o -c /Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizGRIPKBench.c",
+  "file": "/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizGRIPKBench.c",
+  "output": "CMakeFiles/gvizGRIPKBench.dir/tests/embedders/gvizGRIPKBench.c.o"
+},
+{
+  "directory": "/Users/abdulaziz.alahmadi/gviz/build",
+  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -O3 -DNDEBUG -std=gnu11 -o CMakeFiles/gvizGRIPLayerProbe.dir/tests/embedders/gvizGRIPLayerProbe.c.o -c /Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizGRIPLayerProbe.c",
+  "file": "/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizGRIPLayerProbe.c",
+  "output": "CMakeFiles/gvizGRIPLayerProbe.dir/tests/embedders/gvizGRIPLayerProbe.c.o"
+},
+{
+  "directory": "/Users/abdulaziz.alahmadi/gviz/build",
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -O3 -DNDEBUG -std=gnu11 -o CMakeFiles/gvizPlanarTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "output": "CMakeFiles/gvizPlanarTests.dir/third-party/unity/unity.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -fsanitize=address -fno-omit-frame-pointer -o CMakeFiles/gvizPlanarTests.dir/tests/embedders/gvizPlanarTests.c.o -c /Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizPlanarTests.c",
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -O3 -DNDEBUG -std=gnu11 -o CMakeFiles/gvizPlanarTests.dir/tests/embedders/gvizPlanarTests.c.o -c /Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizPlanarTests.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizPlanarTests.c",
   "output": "CMakeFiles/gvizPlanarTests.dir/tests/embedders/gvizPlanarTests.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -fsanitize=address -fno-omit-frame-pointer -o CMakeFiles/gvizTutteTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -O3 -DNDEBUG -std=gnu11 -o CMakeFiles/gvizTutteTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "output": "CMakeFiles/gvizTutteTests.dir/third-party/unity/unity.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -fsanitize=address -fno-omit-frame-pointer -o CMakeFiles/gvizTutteTests.dir/tests/embedders/gvizTutteTests.c.o -c /Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizTutteTests.c",
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -O3 -DNDEBUG -std=gnu11 -o CMakeFiles/gvizTutteTests.dir/tests/embedders/gvizTutteTests.c.o -c /Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizTutteTests.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizTutteTests.c",
   "output": "CMakeFiles/gvizTutteTests.dir/tests/embedders/gvizTutteTests.c.o"
 }
