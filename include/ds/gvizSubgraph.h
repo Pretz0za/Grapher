@@ -52,6 +52,9 @@ void gvizVertexSubsetShowVertex(const gvizVertexSubset vs, size_t u);
 /** Marks vertex @p u as absent in @p vs. */
 void gvizVertexSubsetHideVertex(const gvizVertexSubset vs, size_t u);
 
+/** Clears all vertices in the first @p nvertices indices of @p vs. */
+void gvizVertexSubsetClearAll(const gvizVertexSubset vs, size_t nvertices);
+
 /** Frees @p vs. */
 void gvizVertexSubsetRelease(const gvizVertexSubset vs);
 

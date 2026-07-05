@@ -1,5 +1,5 @@
 #include "embedders/gvizEmbeddedGraph.h"
-#include "cblas.h"
+#include "core/gvizVec.h"
 #include "core/alloc.h"
 #include "ds/gvizGraph.h"
 #include <stdio.h>
@@ -78,6 +78,11 @@ void gvizEmbeddedGraphDrawMaskShowVertex(gvizEmbeddedGraph *embedding,
 void gvizEmbeddedGraphDrawMaskHideVertex(gvizEmbeddedGraph *embedding,
                                          size_t u) {
   gvizVertexSubsetHideVertex(embedding->drawMask.visibleVertices, u);
+}
+
+void gvizEmbeddedGraphDrawMaskClearVertices(gvizEmbeddedGraph *embedding) {
+  gvizVertexSubsetClearAll(embedding->drawMask.visibleVertices,
+                           gvizGraphSize(embedding->subgraph.g));
 }
 
 void gvizEmbeddedGraphDrawMaskNotifyChanged(gvizEmbeddedGraph *embedding) {
@@ -321,14 +326,14 @@ double *gvizEmbeddedGraphGetVPosition(gvizEmbeddedGraph *embedding,
 
 void gvizEmbeddedGraphSetVPosition(gvizEmbeddedGraph *embedding, size_t idx,
                                    double *position) {
-  cblas_dcopy(embedding->embedding.dim, position, 1,
-              gvizEmbeddedGraphGetVPosition(embedding, idx), 1);
+  gvizVecCopy(embedding->embedding.dim, position,
+              gvizEmbeddedGraphGetVPosition(embedding, idx));
 }
 
 void gvizEmbeddedGraphAddVPosition(gvizEmbeddedGraph *embedding, size_t idx,
                                    double *position) {
-  cblas_daxpy(embedding->embedding.dim, 1, position, 1,
-              gvizEmbeddedGraphGetVPosition(embedding, idx), 1);
+  gvizVecAxpy(embedding->embedding.dim, 1.0, position,
+              gvizEmbeddedGraphGetVPosition(embedding, idx));
 }
 
 int gvizEmbeddedGraphSaveEmbedding(gvizEmbeddedGraph *embedding,

@@ -1,5 +1,5 @@
 #include "utils/helpers.h"
-#include "cblas.h"
+#include "core/gvizVec.h"
 #include "ds/gvizArray.h"
 #include <assert.h>
 #include <stddef.h>
@@ -39,9 +39,9 @@ double *barrycenter(size_t n, const double *positions, const gvizArray *indices,
   memset(out, 0, sizeof(double) * n);
   for (size_t i = 0; i < indices->count; i++) {
     size_t idx = *(size_t *)gvizArrayAtIndex(indices, i);
-    cblas_daxpy(n, 1, positions + idx, 1, out, 1);
+    gvizVecAxpy(n, 1.0, positions + idx, out);
   }
-  cblas_dscal(n, 1.0 / indices->count, out, 1);
+  gvizVecScale(n, 1.0 / (double)indices->count, out);
 
   return 0;
 }

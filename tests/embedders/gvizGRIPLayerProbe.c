@@ -1,5 +1,6 @@
 #include "algorithms/search/gvizBreadthFirst.h"
-#include "cblas.h"
+#include "core/gvizVec.h"
+#include "ds/gvizArray.h"
 #include "ds/gvizGraph.h"
 #include "ds/gvizSubgraph.h"
 #include "embedders/gvizGRIPEmbedder.h"
@@ -19,7 +20,7 @@ typedef struct {
 } RoundMetrics;
 
 static size_t activeCount(const gvizGRIPState *s) {
-  return s->misBorder[s->currLayer];
+  return *(const size_t *)gvizArrayAtIndex(&s->misBorder, s->currLayer);
 }
 
 static void computeCOM(gvizGRIPState *s, double *com) {
@@ -49,12 +50,12 @@ static RoundMetrics measureRound(gvizGRIPState *s) {
     double *d = s->dec[s->misFiltration[i]].disp;
     for (size_t k = 0; k < dim; k++)
       meanDispVec[k] += d[k];
-    sumDispNorm += cblas_dnrm2((int)dim, d, 1);
+    sumDispNorm += gvizVecNorm2(dim, d);
   }
   for (size_t k = 0; k < dim; k++)
     meanDispVec[k] /= (double)n;
 
-  m.drift = cblas_dnrm2((int)dim, meanDispVec, 1);
+  m.drift = gvizVecNorm2(dim, meanDispVec);
   m.meanDisp = sumDispNorm / (double)n;
   m.coherence = m.meanDisp > 1e-12 ? m.drift / m.meanDisp : 0.0;
 
@@ -70,8 +71,8 @@ static RoundMetrics measureRound(gvizGRIPState *s) {
     double r[3] = {0, 0, 0};
     for (size_t k = 0; k < dim; k++)
       r[k] = p[k] - m.com[k];
-    double rn = cblas_dnrm2((int)dim, r, 1);
-    double dn = cblas_dnrm2((int)dim, d, 1);
+    double rn = gvizVecNorm2(dim, r);
+    double dn = gvizVecNorm2(dim, d);
     sumR2 += rn * rn;
     sumRD += rn * dn;
     if (dim == 3) {
@@ -83,7 +84,7 @@ static RoundMetrics measureRound(gvizGRIPState *s) {
     }
   }
   m.gyration = sqrt(sumR2 / (double)n);
-  double L = cblas_dnrm2(3, angMom, 1);
+  double L = gvizVecNorm2(3, angMom);
   m.rotCoherence = sumRD > 1e-12 ? L / sumRD : 0.0;
   return m;
 }
@@ -185,7 +186,7 @@ int main(int argc, char **argv) {
       if (r < 3 || (r + 1) % 10 == 0 || r == rounds - 1) {
         double dcom[3] = {m.com[0] - com0[0], m.com[1] - com0[1],
                           m.com[2] - com0[2]};
-        double cum = cblas_dnrm2(3, dcom, 1);
+        double cum = gvizVecNorm2(3, dcom);
         double foldAvg, foldMin;
         foldMetric(&state, 4, &foldAvg, &foldMin);
         printf("%5zu %5zu %8zu | %10.4f %10.4f %6.3f | %10.2f %8.3f | %10.2f "

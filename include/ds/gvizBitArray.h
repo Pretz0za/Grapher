@@ -151,6 +151,9 @@ void gvizBitArraySet(GVIZ_BIT_ARRAY arr, size_t k);
 /** Clears bit @p k. */
 void gvizBitArrayClear(GVIZ_BIT_ARRAY arr, size_t k);
 
+/** Clears all bits in the first @p nbits indices of @p arr. */
+void gvizBitArrayClearAll(GVIZ_BIT_ARRAY arr, size_t nbits);
+
 /** Clears bits in the half-open range [@p start, @p end). */
 void gvizBitArrayClearRange(GVIZ_BIT_ARRAY arr, size_t start, size_t end);
 

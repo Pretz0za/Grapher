@@ -1,4 +1,5 @@
 #include "algorithms/search/gvizBreadthFirst.h"
+#include "ds/gvizArray.h"
 #include "ds/gvizGraph.h"
 #include "ds/gvizSubgraph.h"
 #include "embedders/gvizGRIPEmbedder.h"
@@ -14,6 +15,10 @@
 
 void setUp(void) {}
 void tearDown(void) {}
+
+static size_t gripMisBorderAt(const gvizGRIPState *state, size_t i) {
+  return *(const size_t *)gvizArrayAtIndex(&state->misBorder, i);
+}
 
 gvizGraph build_rect_mesh(size_t L, size_t W) {
   gvizGraph g;
@@ -53,7 +58,7 @@ void test_filtration_nestedLayers(void) {
   size_t layers = createMISFiltration(&state);
 
   for (size_t i = 1; i < layers; i++) {
-    TEST_ASSERT(state.misBorder[i] <= state.misBorder[i - 1]);
+    TEST_ASSERT(gripMisBorderAt(&state, i) <= gripMisBorderAt(&state, i - 1));
   }
 
   gvizGRIPEmbedderRelease(&state);
@@ -91,9 +96,9 @@ void test_filtration_layer2_is_nonempty_and_builds_depth(void) {
   size_t layers = createMISFiltration(&state);
 
   TEST_ASSERT_GREATER_THAN(4, layers);
-  TEST_ASSERT_GREATER_THAN(0, state.misBorder[1]);
-  TEST_ASSERT_GREATER_THAN(0, state.misBorder[2]);
-  TEST_ASSERT_TRUE(state.misBorder[2] < state.misBorder[1]);
+  TEST_ASSERT_GREATER_THAN(0, gripMisBorderAt(&state, 1));
+  TEST_ASSERT_GREATER_THAN(0, gripMisBorderAt(&state, 2));
+  TEST_ASSERT_TRUE(gripMisBorderAt(&state, 2) < gripMisBorderAt(&state, 1));
 
   gvizGRIPEmbedderRelease(&state);
   gvizGraphRelease(&graph);
@@ -109,7 +114,7 @@ void test_filtration_final_layer_has_simplex_count(void) {
   size_t layers = createMISFiltration(&state);
   size_t final = layers - 1;
 
-  TEST_ASSERT_EQUAL_UINT64(3, state.misBorder[final]);
+  TEST_ASSERT_EQUAL_UINT64(3, gripMisBorderAt(&state, final));
 
   gvizGRIPEmbedderRelease(&state);
   gvizGraphRelease(&graph);
@@ -130,7 +135,7 @@ void test_filtration_perLayerVertexSpacingAndMaximality(void) {
   size_t distances[graph.vertices.count];
 
   for (size_t i = 2; i < layers - 1; i++) {
-    size_t end = state.misBorder[i];
+    size_t end = gripMisBorderAt(&state, i);
     size_t minDist = (1ULL << (i - 1)) + 1;
 
     for (size_t a = 0; a < end; a++) {
@@ -153,7 +158,7 @@ void test_filtration_perLayerVertexSpacingAndMaximality(void) {
       gvizSubgraphRelease(&bfs);
     }
 
-    for (size_t a = end; a < state.misBorder[i - 1]; a++) {
+    for (size_t a = end; a < gripMisBorderAt(&state, i - 1); a++) {
       gvizSubgraph bfs = gvizSubgraphCreateEmpty(&graph);
       gvizSearchBreadthFirst(&fullSg, &bfs, state.misFiltration[a], 0, distances);
       int found = 0;

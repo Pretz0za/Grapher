@@ -114,6 +114,10 @@ void gvizVertexSubsetHideVertex(const gvizVertexSubset vs, size_t u) {
   gvizBitArrayClear(vs, u);
 }
 
+void gvizVertexSubsetClearAll(const gvizVertexSubset vs, size_t nvertices) {
+  gvizBitArrayClearAll(vs, nvertices);
+}
+
 void gvizVertexSubsetRelease(const gvizVertexSubset vs) {
   gvizBitArrayFree(vs);
 }

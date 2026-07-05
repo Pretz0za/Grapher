@@ -1,5 +1,5 @@
 #include "embedders/gvizEmbeddedTree.h"
-#include "cblas.h"
+#include "core/gvizVec.h"
 #include "core/alloc.h"
 #include "ds/gvizArray.h"
 #include "ds/gvizGraph.h"
@@ -370,7 +370,7 @@ int gvizEmbeddedTreeEmbed(gvizEmbeddedTree *state, size_t root,
   for (size_t i = 0; i < children->count; i++) {
 
     double newPos[2] = {state->dec[root].offsets[i] * XSEPERATION, YSEPERATION};
-    cblas_daxpy(2, 1, position, 1, newPos, 1);
+    gvizVecAxpy(2, 1.0, position, newPos);
 
     gvizEmbeddedTreeEmbed(state, *(size_t *)gvizArrayAtIndex(children, i),
                           newPos);

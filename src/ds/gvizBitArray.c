@@ -139,6 +139,12 @@ void gvizBitArraySet(GVIZ_BIT_ARRAY arr, size_t k) { gvizSetBit(arr, k); }
 
 void gvizBitArrayClear(GVIZ_BIT_ARRAY arr, size_t k) { gvizClearBit(arr, k); }
 
+void gvizBitArrayClearAll(GVIZ_BIT_ARRAY arr, size_t nbits) {
+  if (!arr || nbits == 0)
+    return;
+  memset(arr, 0, GVIZ_ARRAY_UNITS(nbits) * sizeof(GVIZ_BIT_UNIT));
+}
+
 void gvizBitArrayClearRange(GVIZ_BIT_ARRAY arr, size_t start, size_t end) {
   if (start >= end)
     return;

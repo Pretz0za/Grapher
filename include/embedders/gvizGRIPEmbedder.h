@@ -49,7 +49,7 @@ typedef struct gvizGRIPState {
   size_t currLayer;
   size_t currRound;
   size_t *misFiltration;
-  size_t *misBorder;
+  gvizArray misBorder;
   size_t *rounds;
   gvizGRIPDecorators *dec;
   GVIZ_BIT_ARRAY dispCalculated;

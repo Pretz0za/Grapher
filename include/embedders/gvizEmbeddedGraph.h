@@ -174,6 +174,9 @@ void gvizEmbeddedGraphDrawMaskShowVertex(gvizEmbeddedGraph *embedding, size_t u)
 /** Marks vertex @p u hidden in the draw mask (does not bump revision). */
 void gvizEmbeddedGraphDrawMaskHideVertex(gvizEmbeddedGraph *embedding, size_t u);
 
+/** Clears all vertices in the draw mask (does not bump revision). */
+void gvizEmbeddedGraphDrawMaskClearVertices(gvizEmbeddedGraph *embedding);
+
 /**
  * Bumps drawMask.revision after a batch of Show/Hide calls so renderers
  * rebuild filtered geometry.
