@@ -52,4 +52,12 @@ int gvizSearchKNearestScratch(const gvizSubgraph *sg, gvizFoundVertex *out,
                               size_t k, size_t source, gvizVertexSubset filter,
                               gvizKNearestScratch *scratch);
 
+/** Resets counters used when @c GVIZ_KNN_PROFILE is set in the environment. */
+void gvizKNNProfileReset(void);
+
+/** Reads cumulative KNN BFS visit stats from @ref gvizKNNProfileReset. */
+void gvizKNNProfileSnapshot(unsigned long long *queries,
+                            unsigned long long *visited,
+                            unsigned long long *maxVisited);
+
 #endif

@@ -1,5 +1,6 @@
 #include "unity/unity.h"
 #include "algorithms/search/gvizBreadthFirst.h"
+#include "algorithms/search/gvizConnectedComponents.h"
 #include "algorithms/search/gvizDepthFirst.h"
 #include "algorithms/search/gvizKNearest.h"
 #include "ds/gvizGraph.h"
@@ -129,6 +130,57 @@ void test_searchKNearest_withFilter(void) {
   gvizGraphRelease(&g);
 }
 
+void test_connectedComponents_singleComponent(void) {
+  gvizGraph g;
+  add_triangle(&g);
+  gvizGraphBuildLayout(&g);
+
+  gvizSubgraph sg = gvizSubgraphCreateFull(&g);
+  size_t labels[3];
+  size_t count = 0;
+
+  TEST_ASSERT_EQUAL_INT(0, gvizConnectedComponents(&sg, labels, &count));
+  TEST_ASSERT_EQUAL_UINT64(1, count);
+  TEST_ASSERT_EQUAL_UINT64(0, labels[0]);
+  TEST_ASSERT_EQUAL_UINT64(0, labels[1]);
+  TEST_ASSERT_EQUAL_UINT64(0, labels[2]);
+
+  gvizSubgraphRelease(&sg);
+  gvizGraphRelease(&g);
+}
+
+void test_connectedComponents_disconnected(void) {
+  gvizGraph g;
+  gvizGraphInit(&g, 0);
+  for (int i = 0; i < 5; i++)
+    gvizGraphAddVertex(&g, NULL, NULL, NULL);
+  gvizGraphAddEdge(&g, 0, 1);
+  gvizGraphAddEdge(&g, 2, 3);
+  gvizGraphBuildLayout(&g);
+
+  gvizSubgraph sg = gvizSubgraphCreateFull(&g);
+  size_t labels[5];
+  size_t sizes[3];
+  size_t count = 0;
+
+  TEST_ASSERT_EQUAL_INT(0, gvizConnectedComponents(&sg, labels, &count));
+  TEST_ASSERT_EQUAL_UINT64(3, count);
+  TEST_ASSERT_EQUAL_UINT64(0, labels[0]);
+  TEST_ASSERT_EQUAL_UINT64(0, labels[1]);
+  TEST_ASSERT_EQUAL_UINT64(1, labels[2]);
+  TEST_ASSERT_EQUAL_UINT64(1, labels[3]);
+  TEST_ASSERT_EQUAL_UINT64(2, labels[4]);
+
+  memset(sizes, 0, sizeof(sizes));
+  gvizConnectedComponentSizes(labels, 5, count, sizes);
+  TEST_ASSERT_EQUAL_UINT64(2, sizes[0]);
+  TEST_ASSERT_EQUAL_UINT64(2, sizes[1]);
+  TEST_ASSERT_EQUAL_UINT64(1, sizes[2]);
+
+  gvizSubgraphRelease(&sg);
+  gvizGraphRelease(&g);
+}
+
 void test_searchKNearest_scratch_matches_stateless(void) {
   gvizGraph g;
   add_path4(&g);
@@ -159,6 +211,8 @@ int main(void) {
   RUN_TEST(test_searchBreadthFirst_path);
   RUN_TEST(test_searchBreadthFirst_maxDepth);
   RUN_TEST(test_searchDepthFirst_path);
+  RUN_TEST(test_connectedComponents_singleComponent);
+  RUN_TEST(test_connectedComponents_disconnected);
   RUN_TEST(test_searchKNearest_triangle);
   RUN_TEST(test_searchKNearest_withFilter);
   RUN_TEST(test_searchKNearest_scratch_matches_stateless);

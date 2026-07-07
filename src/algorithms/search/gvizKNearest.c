@@ -2,8 +2,34 @@
 #include "core/alloc.h"
 #include "ds/gvizGraph.h"
 #include "ds/gvizSubgraph.h"
+#include <stdatomic.h>
 #include <stdlib.h>
 #include <string.h>
+
+typedef struct gvizKNNProfileTotals {
+  _Atomic unsigned long long queries;
+  _Atomic unsigned long long visited;
+  _Atomic unsigned long long maxVisited;
+} gvizKNNProfileTotals;
+
+static gvizKNNProfileTotals gvizKnnProfile;
+
+void gvizKNNProfileReset(void) {
+  atomic_store(&gvizKnnProfile.queries, 0);
+  atomic_store(&gvizKnnProfile.visited, 0);
+  atomic_store(&gvizKnnProfile.maxVisited, 0);
+}
+
+void gvizKNNProfileSnapshot(unsigned long long *queries,
+                            unsigned long long *visited,
+                            unsigned long long *maxVisited) {
+  if (queries)
+    *queries = atomic_load(&gvizKnnProfile.queries);
+  if (visited)
+    *visited = atomic_load(&gvizKnnProfile.visited);
+  if (maxVisited)
+    *maxVisited = atomic_load(&gvizKnnProfile.maxVisited);
+}
 
 static bool search_input_valid(const gvizSubgraph *sg) {
   return sg && sg->g && sg->g->layout && sg->vs;
@@ -72,6 +98,7 @@ int gvizSearchKNearestScratch(const gvizSubgraph *sg, gvizFoundVertex *out,
     return -1;
 
   size_t count = 0;
+  size_t visited = 1;
   while (!gvizDequeIsEmpty(queue)) {
     gvizDequePopLeft(queue, &curr);
 
@@ -82,18 +109,42 @@ int gvizSearchKNearestScratch(const gvizSubgraph *sg, gvizFoundVertex *out,
       if (scratch->stamp[neighbor] == epoch)
         continue;
       scratch->stamp[neighbor] = epoch;
+      visited++;
 
       gvizFoundVertex next = {neighbor, curr.dist + 1};
 
       if (!filter || gvizVertexSubsetTest(filter, neighbor)) {
         out[count++] = next;
-        if (count >= k)
+        if (count >= k) {
+          if (getenv("GVIZ_KNN_PROFILE")) {
+            atomic_fetch_add_explicit(&gvizKnnProfile.queries, 1,
+                                      memory_order_relaxed);
+            atomic_fetch_add_explicit(&gvizKnnProfile.visited, visited,
+                                      memory_order_relaxed);
+            unsigned long long prev = atomic_load(&gvizKnnProfile.maxVisited);
+            while (visited > prev &&
+                   !atomic_compare_exchange_weak(
+                       &gvizKnnProfile.maxVisited, &prev, visited))
+              ;
+          }
           return (int)k;
+        }
       }
 
       if (gvizDequePush(queue, &next) < 0)
         return -1;
     }
+  }
+
+  if (getenv("GVIZ_KNN_PROFILE")) {
+    atomic_fetch_add_explicit(&gvizKnnProfile.queries, 1, memory_order_relaxed);
+    atomic_fetch_add_explicit(&gvizKnnProfile.visited, visited,
+                              memory_order_relaxed);
+    unsigned long long prev = atomic_load(&gvizKnnProfile.maxVisited);
+    while (visited > prev &&
+           !atomic_compare_exchange_weak(&gvizKnnProfile.maxVisited, &prev,
+                                         visited))
+      ;
   }
 
   return (int)count;

@@ -36,6 +36,7 @@ add_library(graphvis STATIC
 
     src/algorithms/search/gvizBreadthFirst.c
     src/algorithms/search/gvizDepthFirst.c
+    src/algorithms/search/gvizConnectedComponents.c
     src/algorithms/search/gvizKNearest.c
 
     src/embedders/gvizEmbeddedGraph.c
@@ -47,6 +48,7 @@ add_library(graphvis STATIC
     src/embedders/gvizTutteEmbedder.c
 
     src/utils/graphs.c
+    src/utils/graphLoader.c
     src/utils/serializers.c
     src/utils/helpers.c
 )
@@ -82,13 +84,17 @@ add_executable(gvizEmbeddedGraphTests third-party/unity/unity.c tests/embedders/
 add_executable(gvizGRIPTests third-party/unity/unity.c tests/embedders/gvizGRIPTests.c)
 add_executable(gvizGRIPKBench tests/embedders/gvizGRIPKBench.c)
 add_executable(gvizGRIPLayerProbe tests/embedders/gvizGRIPLayerProbe.c)
+add_executable(gvizGRIPMigrateBench tests/embedders/gvizGRIPMigrateBench.c)
+add_executable(gvizGRIPFiltrationDebug tests/embedders/gvizGRIPFiltrationDebug.c)
+add_executable(gvizGRIPPlaceBench tests/embedders/gvizGRIPPlaceBench.c)
 add_executable(gvizPlanarTests third-party/unity/unity.c tests/embedders/gvizPlanarTests.c)
 add_executable(gvizTutteTests third-party/unity/unity.c tests/embedders/gvizTutteTests.c)
 
 target_compile_definitions(gvizThreadPoolTests PRIVATE UNITY_INCLUDE_DOUBLE)
 target_compile_definitions(gvizVecTests PRIVATE UNITY_INCLUDE_DOUBLE)
 target_compile_definitions(gvizArrayTests PRIVATE UNITY_INCLUDE_DOUBLE)
-target_compile_definitions(gvizGraphTests PRIVATE UNITY_INCLUDE_DOUBLE)
+target_compile_definitions(gvizGraphTests PRIVATE UNITY_INCLUDE_DOUBLE
+    GVIZ_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/data")
 target_compile_definitions(gvizBitArrayTests PRIVATE UNITY_INCLUDE_DOUBLE)
 target_compile_definitions(gvizDequeTests PRIVATE UNITY_INCLUDE_DOUBLE)
 target_compile_definitions(gvizSubgraphTests PRIVATE UNITY_INCLUDE_DOUBLE)
@@ -122,6 +128,12 @@ set_target_properties(gvizGRIPKBench PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/embedders)
 set_target_properties(gvizGRIPLayerProbe PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/embedders)
+set_target_properties(gvizGRIPMigrateBench PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/embedders)
+set_target_properties(gvizGRIPFiltrationDebug PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/embedders)
+set_target_properties(gvizGRIPPlaceBench PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/embedders)
 set_target_properties(gvizGRIPTests PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/embedders)
 set_target_properties(gvizPlanarTests PROPERTIES
@@ -141,6 +153,13 @@ target_link_libraries(gvizSearchTests PRIVATE graphvis)
 target_link_libraries(gvizEmbeddedGraphTests PRIVATE graphvis)
 target_link_libraries(gvizGRIPKBench PRIVATE graphvis)
 target_link_libraries(gvizGRIPLayerProbe PRIVATE graphvis)
+target_link_libraries(gvizGRIPMigrateBench PRIVATE graphvis)
+target_include_directories(gvizGRIPMigrateBench PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/embedders)
+target_link_libraries(gvizGRIPFiltrationDebug PRIVATE graphvis)
+target_link_libraries(gvizGRIPPlaceBench PRIVATE graphvis)
+target_include_directories(gvizGRIPFiltrationDebug PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/embedders)
 target_link_libraries(gvizGRIPTests PRIVATE graphvis)
 target_link_libraries(gvizPlanarTests PRIVATE graphvis)
 target_link_libraries(gvizTutteTests PRIVATE graphvis)

@@ -29,10 +29,12 @@ typedef enum gvizGRIPKPolicy {
   GVIZ_GRIP_K_BUDGET,
 } gvizGRIPKPolicy;
 
-/** Displacement statistics from the most recent refinement round. */
+/** Displacement and force statistics from the most recent refinement round. */
 typedef struct gvizGRIPRoundStats {
   double maxDisplacement;
   double meanDisplacement;
+  /** Mean raw spring-force magnitude before heat scaling. */
+  double meanForce;
 } gvizGRIPRoundStats;
 
 typedef struct gvizGRIPDecorators {
@@ -41,6 +43,8 @@ typedef struct gvizGRIPDecorators {
   double *oldDisp;
   double oldCos;
   double heat;
+  /** Raw force magnitude from the latest force evaluation (pre heat scaling). */
+  double lastForceMag;
 } gvizGRIPDecorators;
 
 typedef struct gvizGRIPState {
@@ -67,10 +71,17 @@ typedef struct gvizGRIPState {
   size_t knnCapacity;
   gvizGRIPKPolicy kPolicy;
   gvizGRIPRoundStats lastRoundStats;
+  /** 0 = stats on (default for zero-initialized state), 1 = disabled via
+   *  gvizGRIPEmbedderConfigureStats before init. */
+  uint8_t statsRegisterMode;
+  /** Resolved at init: whether stat series are registered and appended. */
+  bool statsEnabled;
 } gvizGRIPState;
 
 /**
- * Initializes GRIP embedder state for @p graph in @p dimension dimensions.
+ * Initializes GRIP embedder state for @p graph in @p dimension dimensions (2, 3,
+ * or 4). In 4D, net rotation is removed by projecting it out of all six
+ * coordinate-plane rotations each refinement round.
  * @p diameter may be 0 if unknown; it sizes internal MIS-filtration buffers.
  *
  * @return 0 on success, -1 on allocation failure.
@@ -86,6 +97,14 @@ int gvizGRIPEmbedderInit(gvizGRIPState *state, gvizSubgraph subgraph,
 void gvizGRIPEmbedderConfigureK(gvizGRIPState *state, size_t placementKMax,
                                 size_t refinementKMax, size_t knnCapacity,
                                 gvizGRIPKPolicy policy);
+
+/**
+ * Enables or disables live stat series on the embedded graph. When disabled,
+ * no gvizStatSeries are registered and refinement rounds skip
+ * gvizEmbeddedGraphStatAppend (zero chart overhead). Default is enabled.
+ * Call before gvizGRIPEmbedderInit.
+ */
+void gvizGRIPEmbedderConfigureStats(gvizGRIPState *state, bool enable);
 
 /** Returns stats collected by the last call to runRefinementRound. */
 gvizGRIPRoundStats gvizGRIPEmbedderLastRoundStats(const gvizGRIPState *state);

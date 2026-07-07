@@ -7,8 +7,12 @@
 #undef GVIZ_GRAPH_REALLOC
 #undef GVIZ_GRAPH_DEALLOC
 #include "ds/gvizGraph.h"
+#include "utils/graphLoader.h"
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#define GVIZ_SAMPLE_EDGES_PATH GVIZ_TEST_DATA_DIR "/sample.edges"
 
 /**
  * Test fixture setup and teardown functions for graph tests.
@@ -756,6 +760,76 @@ void test_graph_EdgeExistsInvalidIndices(void) {
   gvizGraphRelease(&g);
 }
 
+static int neighbor_contains(gvizArray *neighbors, size_t target) {
+  for (size_t i = 0; i < neighbors->count; i++) {
+    if (*(size_t *)gvizArrayAtIndex(neighbors, i) == target)
+      return 1;
+  }
+  return 0;
+}
+
+void test_graphLoadFromEdgesFile_SampleUndirected(void) {
+  gvizGraph g;
+  gvizEdgesFileOptions opts;
+  gvizEdgesFileOptionsInit(&opts);
+
+  int result = gvizGraphLoadFromEdgesFile(GVIZ_SAMPLE_EDGES_PATH, &opts, &g);
+  TEST_ASSERT_EQUAL_INT(0, result);
+  TEST_ASSERT_EQUAL_UINT64(4, gvizGraphSize(&g));
+  TEST_ASSERT_EQUAL_INT(0, gvizGraphIsDirected(&g));
+
+  gvizGraphBuildLayout(&g);
+  TEST_ASSERT_EQUAL_UINT64(4, gvizGraphEdgeCount(&g));
+
+  TEST_ASSERT_EQUAL_INT(1, gvizGraphEdgeExists(&g, 0, 1));
+  TEST_ASSERT_EQUAL_INT(1, gvizGraphEdgeExists(&g, 0, 2));
+  TEST_ASSERT_EQUAL_INT(1, gvizGraphEdgeExists(&g, 1, 2));
+  TEST_ASSERT_EQUAL_INT(1, gvizGraphEdgeExists(&g, 2, 3));
+
+  gvizArray *n3 = gvizGraphGetVertexNeighbors(&g, 2);
+  TEST_ASSERT_EQUAL_UINT64(3, n3->count);
+  TEST_ASSERT_TRUE(neighbor_contains(n3, 0));
+  TEST_ASSERT_TRUE(neighbor_contains(n3, 1));
+  TEST_ASSERT_TRUE(neighbor_contains(n3, 3));
+
+  gvizGraphRelease(&g);
+}
+
+void test_graphLoadFromEdgesFile_Directed(void) {
+  const char *path = GVIZ_TEST_DATA_DIR "/directed_sample.edges";
+  FILE *file = fopen(path, "w");
+  TEST_ASSERT_NOT_NULL(file);
+  fprintf(file, "0 1\n1 2\n");
+  fclose(file);
+
+  gvizGraph g;
+  gvizEdgesFileOptions opts;
+  gvizEdgesFileOptionsInit(&opts);
+  opts.directed = 1;
+  opts.zero_based = 1;
+
+  int result = gvizGraphLoadFromEdgesFile(path, &opts, &g);
+  TEST_ASSERT_EQUAL_INT(0, result);
+  TEST_ASSERT_EQUAL_UINT64(3, gvizGraphSize(&g));
+  TEST_ASSERT_EQUAL_INT(1, gvizGraphIsDirected(&g));
+  TEST_ASSERT_EQUAL_INT(1, gvizGraphEdgeExists(&g, 0, 1));
+  TEST_ASSERT_EQUAL_INT(1, gvizGraphEdgeExists(&g, 1, 2));
+  TEST_ASSERT_EQUAL_INT(0, gvizGraphEdgeExists(&g, 1, 0));
+
+  gvizGraphRelease(&g);
+  remove(path);
+}
+
+void test_graphLoadFromEdgesFile_MissingFile(void) {
+  gvizGraph g;
+  gvizEdgesFileOptions opts;
+  gvizEdgesFileOptionsInit(&opts);
+
+  int result =
+      gvizGraphLoadFromEdgesFile(GVIZ_TEST_DATA_DIR "/missing.edges", &opts, &g);
+  TEST_ASSERT_EQUAL_INT(-1, result);
+}
+
 int main(void) {
   UNITY_BEGIN();
 
@@ -798,6 +872,9 @@ int main(void) {
   RUN_TEST(test_graph_UndirectedSymmetry);
   RUN_TEST(test_graph_BuildAndModify);
   RUN_TEST(test_graph_EdgeExistsInvalidIndices);
+  RUN_TEST(test_graphLoadFromEdgesFile_SampleUndirected);
+  RUN_TEST(test_graphLoadFromEdgesFile_Directed);
+  RUN_TEST(test_graphLoadFromEdgesFile_MissingFile);
 
   int result = UNITY_END();
 

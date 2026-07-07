@@ -5,3 +5,4 @@ projects/
 *.o
 .CLAUDE.md
 .claude/
+/data/
