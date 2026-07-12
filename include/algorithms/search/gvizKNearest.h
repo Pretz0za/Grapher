@@ -5,6 +5,13 @@
 #include "ds/gvizSubgraph.h"
 #include <stddef.h>
 
+/** Max visible seeds for the batched KNN path (see gvizSearchKNearestFromVisibleBatch). */
+#define GVIZ_KNN_BATCH_VISIBLE_MAX 256
+/** Avg degree above this: per-vertex KNN tends to scan the whole component. */
+#define GVIZ_KNN_BATCH_MIN_AVG_DEGREE 32.0
+/** On sparse graphs, batch only when targets dwarf the visible seed count. */
+#define GVIZ_KNN_BATCH_TARGET_RATIO 8
+
 typedef struct gvizFoundVertex {
   size_t v;
   size_t dist;
@@ -51,6 +58,40 @@ int gvizSearchKNearest(const gvizSubgraph *sg, gvizFoundVertex *out, size_t k,
 int gvizSearchKNearestScratch(const gvizSubgraph *sg, gvizFoundVertex *out,
                               size_t k, size_t source, gvizVertexSubset filter,
                               gvizKNearestScratch *scratch);
+
+typedef struct gvizKNNBatchTarget {
+  size_t vertex;
+  gvizFoundVertex *out;
+  size_t count;
+} gvizKNNBatchTarget;
+
+/**
+ * Finds up to @p k nearest @p visible vertices for each entry in @p targets by
+ * running one BFS per visible seed instead of one BFS per target. Intended when
+ * @c |visible| is much smaller than @c |targets| (early GRIP layers).
+ *
+ * Each @p targets[i].out must hold at least @p k slots. On success,
+ * @p targets[i].count is the number of neighbors written (may be less than @p k
+ * if fewer visible vertices are reachable).
+ *
+ * @return 0 on success, -1 on error, 1 if the batch path does not apply
+ *         (@p visible is NULL, empty, larger than @ref GVIZ_KNN_BATCH_VISIBLE_MAX,
+ *         or not smaller than @p targetCount).
+ */
+int gvizSearchKNearestFromVisibleBatch(const gvizSubgraph *sg,
+                                       gvizVertexSubset visible, size_t k,
+                                       gvizKNNBatchTarget *targets,
+                                       size_t targetCount,
+                                       gvizKNearestScratch *scratch);
+
+/**
+ * Heuristic for whether batched KNN is likely faster than per-vertex search.
+ * On sparse graphs per-vertex BFS stops early; batch always runs |visible|
+ * full sweeps and is slower unless the graph is hub-heavy or there are many
+ * more targets than visible seeds.
+ */
+int gvizSearchKNearestPreferBatch(const gvizSubgraph *sg, size_t visibleCount,
+                                  size_t targetCount);
 
 /** Resets counters used when @c GVIZ_KNN_PROFILE is set in the environment. */
 void gvizKNNProfileReset(void);

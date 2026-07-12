@@ -183,6 +183,9 @@ int gvizGRIPEmbedderInit(gvizGRIPState *state, gvizSubgraph subgraph,
   int res;
   const gvizGraph *graph = subgraph.g;
   size_t N = gvizGraphSize(graph);
+  size_t activeCount = gvizSubgraphVertexCount(&subgraph);
+  if (activeCount == 0)
+    return -1;
 
   state->currLayer = 0;
   state->layerCount = 0;
@@ -205,7 +208,7 @@ int gvizGRIPEmbedderInit(gvizGRIPState *state, gvizSubgraph subgraph,
   res = gvizArrayInitAtCapacity(&state->misBorder, sizeof(size_t), tmp);
   if (res < 0)
     return res;
-  if (gvizArrayPush(&state->misBorder, &N) < 0)
+  if (gvizArrayPush(&state->misBorder, &activeCount) < 0)
     return -1;
 
   state->misFiltration = GVIZ_ALLOC(sizeof(size_t) * N);
@@ -443,13 +446,14 @@ void gvizGRIPEmbedderRelease(gvizGRIPState *state) {
 void makeFirstMISPartition(gvizGRIPState *state, gvizVertexSubset out) {
   const gvizSubgraph *sg = &((gvizEmbeddedGraph *)state)->subgraph;
   size_t nvertices = gvizGraphSize(sg->g);
+  size_t activeCount = gvizSubgraphVertexCount(sg);
   size_t stateUnits = GVIZ_ARRAY_UNITS(nvertices);
   GVIZ_BIT_ARRAY states = GVIZ_ALLOC(stateUnits * sizeof(GVIZ_BIT_UNIT));
   if (!states)
     return;
   gvizBitArrayClearAll(states, nvertices);
 
-  size_t *curr = &state->misFiltration[nvertices - 1];
+  size_t *curr = &state->misFiltration[activeCount - 1];
 
   for (size_t i = 0; i < nvertices; i++) {
     if (!gvizSubgraphHasVertex(sg, i))
@@ -792,17 +796,58 @@ static void placeVertexRange(void *ctx, size_t begin, size_t end) {
 
 // DO NOT CALL FOR FIRST LAYER
 void placeLayerVertices(gvizGRIPState *state) {
+  gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
   size_t layer = state->currLayer;
   size_t begin = gripMisBorderAt(state, layer + 1);
   size_t end = gripMisBorderAt(state, layer);
+  size_t placeCount = end - begin;
+  size_t placementK = gripPlacementK(state);
+  size_t nvertices = gvizGraphSize(embedding->subgraph.g);
+  gvizVertexSubset visible = gripVisibleVertices(state);
+  size_t visibleCount = gvizVertexSubsetCount(visible, nvertices);
+  int batchPlaced = 0;
 
-  gvizThreadPoolForRange(state->pool, begin, end, PARALLEL_GRAIN,
-                         placeVertexRange, state);
+  if (placeCount > 0 && visibleCount > 0 && visibleCount < placeCount &&
+      gvizSearchKNearestPreferBatch(&embedding->subgraph, visibleCount,
+                                    placeCount)) {
+    gvizKNNBatchTarget *targets = GVIZ_ALLOC(placeCount * sizeof(*targets));
+    gvizFoundVertex *found =
+        GVIZ_ALLOC(placeCount * placementK * sizeof(gvizFoundVertex));
+    if (targets && found) {
+      for (size_t i = 0; i < placeCount; i++) {
+        targets[i].vertex = state->misFiltration[begin + i];
+        targets[i].out = found + i * placementK;
+        targets[i].count = 0;
+      }
+      if (gvizSearchKNearestFromVisibleBatch(
+              &embedding->subgraph, visible, placementK, targets, placeCount,
+              gripKnnScratchForCaller(state)) == 0) {
+        batchPlaced = 1;
+        for (size_t i = 0; i < placeCount; i++) {
+          assert(targets[i].count > 0);
+          size_t indices[targets[i].count];
+          for (size_t j = 0; j < targets[i].count; j++)
+            indices[j] = targets[i].out[j].v * embedding->embedding.dim;
+          gvizArray tmp = {indices, sizeof(size_t), targets[i].count,
+                           targets[i].count};
+          double pos[embedding->embedding.dim];
+          barrycenter(embedding->embedding.dim,
+                      embedding->embedding.vertexPositions, &tmp, pos);
+          gvizEmbeddedGraphSetVPosition(embedding, targets[i].vertex, pos);
+        }
+      }
+    }
+    GVIZ_DEALLOC(targets);
+    GVIZ_DEALLOC(found);
+  }
+
+  if (!batchPlaced)
+    gvizThreadPoolForRange(state->pool, begin, end, PARALLEL_GRAIN,
+                           placeVertexRange, state);
 
   // Mark layer vertices visible in the draw mask
   for (size_t i = begin; i < end; i++)
-    gvizEmbeddedGraphDrawMaskShowVertex((gvizEmbeddedGraph *)state,
-                                        state->misFiltration[i]);
+    gvizEmbeddedGraphDrawMaskShowVertex(embedding, state->misFiltration[i]);
 }
 
 void updateLocalTemp(gvizGRIPState *state, size_t v) {
@@ -908,9 +953,40 @@ static void updateKNNRange(void *ctx, size_t begin, size_t end) {
 }
 
 void updateKNNs(gvizGRIPState *state) {
+  gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
   size_t end = gripMisBorderAt(state, state->currLayer);
-  gvizThreadPoolForRange(state->pool, 0, end, PARALLEL_GRAIN, updateKNNRange,
-                         state);
+  size_t refinementK = gripRefinementK(state);
+  size_t nvertices = gvizGraphSize(embedding->subgraph.g);
+  gvizVertexSubset visible = gripVisibleVertices(state);
+  size_t visibleCount = gvizVertexSubsetCount(visible, nvertices);
+  int batchUpdated = 0;
+
+  if (end > 0 && visibleCount > 0 && visibleCount < end &&
+      gvizSearchKNearestPreferBatch(&embedding->subgraph, visibleCount, end)) {
+    gvizKNNBatchTarget *targets = GVIZ_ALLOC(end * sizeof(*targets));
+    if (targets) {
+      for (size_t i = 0; i < end; i++) {
+        size_t curr = state->misFiltration[i];
+        targets[i].vertex = curr;
+        targets[i].out = state->dec[curr].knn.arr;
+        targets[i].count = 0;
+      }
+      if (gvizSearchKNearestFromVisibleBatch(
+              &embedding->subgraph, visible, refinementK, targets, end,
+              gripKnnScratchForCaller(state)) == 0) {
+        batchUpdated = 1;
+        for (size_t i = 0; i < end; i++) {
+          size_t curr = state->misFiltration[i];
+          state->dec[curr].knn.count = targets[i].count;
+        }
+      }
+    }
+    GVIZ_DEALLOC(targets);
+  }
+
+  if (!batchUpdated)
+    gvizThreadPoolForRange(state->pool, 0, end, PARALLEL_GRAIN, updateKNNRange,
+                           state);
 }
 
 void gvizGRIPEmbedderBegin(gvizGRIPState *state) {

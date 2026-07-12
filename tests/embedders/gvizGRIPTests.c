@@ -120,6 +120,46 @@ void test_filtration_final_layer_has_simplex_count(void) {
   gvizGraphRelease(&graph);
 }
 
+void test_filtration_finest_border_matches_subgraph(void) {
+  gvizGRIPState state;
+  gvizGraph graph;
+  gvizGraphInitAtCapacity(&graph, 0, 8);
+
+  for (size_t i = 0; i < 4; i++)
+    gvizGraphAddVertex(&graph, NULL, NULL, NULL);
+  for (size_t i = 0; i < 4; i++)
+    gvizGraphAddVertex(&graph, NULL, NULL, NULL);
+
+  gvizGraphAddEdge(&graph, 0, 1);
+  gvizGraphAddEdge(&graph, 1, 2);
+  gvizGraphAddEdge(&graph, 2, 3);
+  gvizGraphAddEdge(&graph, 4, 5);
+  gvizGraphAddEdge(&graph, 5, 6);
+
+  gvizGraphBuildLayout(&graph);
+
+  gvizVertexSubset component = gvizVertexSubsetCreateEmpty(&graph);
+  for (size_t v = 0; v < 4; v++)
+    gvizVertexSubsetShowVertex(component, v);
+  gvizSubgraph sg = gvizSubgraphCreateVertexInduced(&graph, component);
+
+  TEST_ASSERT_EQUAL_UINT64(4, gvizSubgraphVertexCount(&sg));
+  TEST_ASSERT_EQUAL_UINT64(8, gvizGraphSize(&graph));
+
+  gvizGRIPEmbedderInit(&state, sg, 4, 2);
+  size_t layers = createMISFiltration(&state);
+
+  TEST_ASSERT_GREATER_THAN(1, layers);
+  TEST_ASSERT_EQUAL_UINT64(4, gripMisBorderAt(&state, 0));
+
+  for (size_t i = 0; i < gripMisBorderAt(&state, 0); i++) {
+    TEST_ASSERT_TRUE(gvizSubgraphHasVertex(&sg, state.misFiltration[i]));
+  }
+
+  gvizGRIPEmbedderRelease(&state);
+  gvizGraphRelease(&graph);
+}
+
 void test_filtration_perLayerVertexSpacingAndMaximality(void) {
   gvizGRIPState state;
   gvizGraph graph = build_rect_mesh(MESH_H, MESH_W);
@@ -189,6 +229,7 @@ int main() {
   RUN_TEST(test_filtration_eachVertexAppearsOnce);
   RUN_TEST(test_filtration_layer2_is_nonempty_and_builds_depth);
   RUN_TEST(test_filtration_final_layer_has_simplex_count);
+  RUN_TEST(test_filtration_finest_border_matches_subgraph);
   RUN_TEST(test_filtration_perLayerVertexSpacingAndMaximality);
   return UNITY_END();
 }
