@@ -104,6 +104,7 @@ void test_nonPlanar() {
 
   TEST_ASSERT_EQUAL(-2, res);
 
+  gvizPlanarEmbedderRelease(&state);
   gvizGraphRelease(&g);
 }
 
@@ -286,12 +287,128 @@ void test_schnyderWood_hexagon(void) {
   gvizGraphRelease(&g);
 }
 
+static void collectSubgraphNeighbors(const gvizSubgraph *sg, size_t u,
+                                     size_t *out, size_t *count) {
+  *count = 0;
+  size_t v;
+  gvizSubgraphNeighborIterator nit = gvizSubgraphNeighborIteratorCreate(sg, u);
+  while (gvizSubgraphNeighborIterate(&nit, &v))
+    out[(*count)++] = v;
+}
+
+void test_subgraph_neighbor_ccw_order(void) {
+  gvizGraph g;
+  gvizGraphInit(&g, 0);
+
+  for (int i = 0; i < 4; i++)
+    gvizGraphAddVertex(&g, NULL, NULL, NULL);
+
+  gvizGraphAddEdge(&g, 0, 2);
+  gvizGraphAddEdge(&g, 0, 1);
+  gvizGraphAddEdge(&g, 0, 3);
+  gvizGraphAddEdge(&g, 1, 2);
+  gvizGraphAddEdge(&g, 2, 3);
+
+  gvizPlanarEmbedderState state;
+  TEST_ASSERT_EQUAL(0, gvizPlanarEmbedderInit(&state, makeFullSubgraph(&g)));
+
+  size_t correctOrder[3] = {3, 2, 1};
+  size_t nbrs[8];
+  size_t ncount = 0;
+  collectSubgraphNeighbors(&state.embedding.subgraph, 0, nbrs, &ncount);
+  TEST_ASSERT_EQUAL(3, ncount);
+
+  size_t prev = nbrs[0];
+  for (size_t i = 1; i < ncount; i++) {
+    int next = getNextVertex(correctOrder, prev, 3);
+    TEST_ASSERT_NOT_EQUAL(-1, next);
+    TEST_ASSERT_EQUAL_UINT64((size_t)next, nbrs[i]);
+    prev = nbrs[i];
+  }
+
+  gvizPlanarEmbedderRelease(&state);
+  gvizGraphRelease(&g);
+}
+
+void test_face_walk_triangle(void) {
+  gvizGraph g;
+  gvizGraphInit(&g, 0);
+
+  for (int i = 0; i < 3; i++)
+    gvizGraphAddVertex(&g, NULL, NULL, NULL);
+
+  gvizGraphAddEdge(&g, 0, 1);
+  gvizGraphAddEdge(&g, 1, 2);
+  gvizGraphAddEdge(&g, 2, 0);
+
+  gvizPlanarEmbedderState state;
+  TEST_ASSERT_EQUAL(0, gvizPlanarEmbedderInit(&state, makeFullSubgraph(&g)));
+
+  gvizPlanarFaceWalk walk;
+  TEST_ASSERT_EQUAL(
+      0, gvizPlanarFaceWalkBegin(&state.embedding.subgraph,
+                                 (gvizPlanarHalfEdge){0, 1}, &walk));
+
+  size_t seen[4];
+  size_t seenCount = 0;
+  int step;
+  do {
+    step = gvizPlanarFaceWalkStep(&walk, &seen[seenCount]);
+    if (step >= 0)
+      seenCount++;
+  } while (step == 1);
+
+  TEST_ASSERT_EQUAL(0, step);
+  TEST_ASSERT_EQUAL(3, seenCount);
+
+  gvizPlanarEmbedderRelease(&state);
+  gvizGraphRelease(&g);
+}
+
+void test_vertex_induced_subgraph_planar(void) {
+  gvizGraph g;
+  gvizGraphInit(&g, 0);
+
+  for (int i = 0; i < 5; i++)
+    gvizGraphAddVertex(&g, NULL, NULL, NULL);
+
+  gvizGraphAddEdge(&g, 0, 1);
+  gvizGraphAddEdge(&g, 1, 2);
+  gvizGraphAddEdge(&g, 2, 3);
+  gvizGraphAddEdge(&g, 3, 0);
+  gvizGraphAddEdge(&g, 0, 4);
+
+  gvizGraphBuildLayout(&g);
+  gvizVertexSubset vs = gvizVertexSubsetCreateEmpty(&g);
+  for (size_t i = 0; i < 4; i++)
+    gvizVertexSubsetShowVertex(vs, i);
+
+  gvizSubgraph sg = gvizSubgraphCreateVertexInduced(&g, vs);
+  gvizPlanarEmbedderState state;
+  TEST_ASSERT_EQUAL(0, gvizPlanarEmbedderInit(&state, sg));
+
+  TEST_ASSERT_EQUAL(4, gvizSubgraphVertexCount(&state.embedding.subgraph));
+  TEST_ASSERT_EQUAL(8, gvizSubgraphEdgeCount(&state.embedding.subgraph));
+
+  gvizFaceIteratorContext faces;
+  TEST_ASSERT_EQUAL(0, gvizFaceIteratorInit(&state, &faces));
+  TEST_ASSERT_EQUAL(0, gvizPlanarEmbedderFaces(&state, &faces));
+  TEST_ASSERT_TRUE(faces.faces.count >= 1);
+
+  gvizFaceIteratorRelease(&faces);
+  gvizPlanarEmbedderRelease(&state);
+  gvizGraphRelease(&g);
+}
+
 int main() {
   UNITY_BEGIN();
 
   RUN_TEST(test_planar);
   RUN_TEST(test_nonPlanar);
   RUN_TEST(test_triangulation);
+  RUN_TEST(test_subgraph_neighbor_ccw_order);
+  RUN_TEST(test_face_walk_triangle);
+  RUN_TEST(test_vertex_induced_subgraph_planar);
   RUN_TEST(test_schnyderWood_K4);
   RUN_TEST(test_schnyderWood_hexagon);
 

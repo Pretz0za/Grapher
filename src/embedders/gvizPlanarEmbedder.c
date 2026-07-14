@@ -1,25 +1,23 @@
 #include "embedders/gvizPlanarEmbedder.h"
+#include "embedders/gvizSchnyderWood.h"
 #include "boyerMyrvold/appconst.h"
 #include "boyerMyrvold/graph.h"
+#include "core/alloc.h"
 #include "ds/gvizArray.h"
 #include "ds/gvizBitArray.h"
 #include "ds/gvizGraph.h"
 #include "ds/gvizSubgraph.h"
 #include "embedders/gvizEmbeddedGraph.h"
-#include "utils/serializers.h"
 #include <assert.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-void gvizAdjacencyFromGP(graphP theGraph, int v, gvizArray *out,
-                         int *outDegree) {
-
+static void gvizAdjacencyFromGP(graphP theGraph, int v, gvizArray *out,
+                                int *outDegree) {
   int N = theGraph->N;
-  int startArc, J, degree = 0;
+  int J;
 
   *outDegree = 0;
-
   if (!out)
     return;
 
@@ -28,108 +26,172 @@ void gvizAdjacencyFromGP(graphP theGraph, int v, gvizArray *out,
   if (theGraph == NULL || v < 0 || v >= N)
     return;
 
-  // No incident edges -> isolated vertex
-  if (theGraph->G[v].link[0] < 2 * N) // link[0] points to vertex => no edges
-    return;
+  J = theGraph->G[v].link[1];
+  while (J >= N) {
+    size_t curr = (size_t)theGraph->G[J].v;
+    if (curr < (size_t)N)
+      gvizArrayPush(out, &curr);
+    J = theGraph->G[J].link[1];
+  }
 
-  startArc = J = theGraph->G[v].link[0];
+  for (size_t i = 0; i + i < out->count; i++) {
+    size_t a = *(size_t *)gvizArrayAtIndex(out, i);
+    size_t b = *(size_t *)gvizArrayAtIndex(out, out->count - 1 - i);
+    *(size_t *)gvizArrayAtIndex(out, i) = b;
+    *(size_t *)gvizArrayAtIndex(out, out->count - 1 - i) = a;
+  }
 
-  do {
-    // J is an edge record incident to v
-    // Neighbor of v through this edge record
-    size_t curr = theGraph->G[J].v;
-
-    if (curr == v) {
-      break;
-    }
-
-    degree++;
-    gvizArrayPush(out, &curr);
-
-    // Step to next edge record in v's circular adjacency list.
-    // Use link[0] or link[1] consistently; it just picks direction.
-    J = theGraph->G[J].link[0];
-
-    // J should always be >= 2*N here if the structure is consistent
-  } while (J != startArc);
-
-  *outDegree = degree;
+  *outDegree = (int)out->count;
 }
-int gvizPlanarEmbedderInit(gvizPlanarEmbedderState *state, gvizSubgraph subgraph) {
-  state->kuratowskiSubdivision = NULL;
 
-  gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
-  gvizEmbeddedGraphInit(embedding, subgraph, 2);
+static gvizGraph *kuratowskiFromBoyer(graphP g) {
+  gvizGraph *kg = GVIZ_ALLOC(sizeof(gvizGraph));
+  if (!kg)
+    return NULL;
 
-  const gvizGraph *graph = embedding->subgraph.g;
-  size_t N = gvizGraphSize(graph);
+  gvizGraphInitAtCapacity(kg, 0, g->N);
 
-  // Copy the gvizGraph into a new BoyerMyrvold graph struct.
-  graphP g = gp_New();
+  for (int i = 0; i < g->N; i++)
+    gvizGraphAddVertex(kg, NULL, NULL, NULL);
 
-  if (gp_InitGraph(g, (int)N) != OK)
+  for (int u = 0; u < g->N; u++) {
+    int J = g->G[u].link[0];
+    if (J < 2 * g->N)
+      continue;
+    int startArc = J;
+    do {
+      int v = g->G[J].v;
+      if (v < u)
+        gvizGraphAddEdge(kg, u, v);
+      J = g->G[J].link[0];
+    } while (J != startArc);
+  }
+
+  return kg;
+}
+
+static void mergeRotationIntoAdjacency(gvizGraph *graph, const gvizSubgraph *sg,
+                                       graphP boyer, size_t u) {
+  gvizArray boyerOrder;
+  gvizArrayInit(&boyerOrder, sizeof(size_t));
+  int degree = 0;
+  gvizAdjacencyFromGP(boyer, (int)u, &boyerOrder, &degree);
+
+  gvizArray *neighbors = gvizGraphGetVertexNeighbors(graph, u);
+  gvizArray preserved;
+  gvizArrayInit(&preserved, sizeof(size_t));
+
+  for (size_t i = 0; i < neighbors->count; i++) {
+    size_t v = *(size_t *)gvizArrayAtIndex(neighbors, i);
+    if (!gvizSubgraphHasEdge(sg, u, v))
+      gvizArrayPush(&preserved, &v);
+  }
+
+  neighbors->count = 0;
+  for (size_t i = 0; i < boyerOrder.count; i++) {
+    size_t v = *(size_t *)gvizArrayAtIndex(&boyerOrder, i);
+    gvizArrayPush(neighbors, &v);
+  }
+  for (size_t i = 0; i < preserved.count; i++) {
+    size_t v = *(size_t *)gvizArrayAtIndex(&preserved, i);
+    if (gvizArrayFindOne(neighbors, &v) < 0)
+      gvizArrayPush(neighbors, &v);
+  }
+
+  gvizArrayRelease(&boyerOrder);
+  gvizArrayRelease(&preserved);
+}
+
+static int copyBoyerGraphIntoSubgraph(const gvizSubgraph *sg, graphP boyer) {
+  size_t u;
+  gvizSubgraphVertexIterator vit = gvizSubgraphVertexIteratorCreate(sg);
+  while (gvizSubgraphVertexIterate(&vit, &u)) {
+    size_t v;
+    gvizSubgraphNeighborIterator nit =
+        gvizSubgraphNeighborIteratorCreate(sg, u);
+    while (gvizSubgraphNeighborIterate(&nit, &v)) {
+      if (v > u)
+        continue;
+      if (gp_AddEdge(boyer, (int)u, 0, (int)v, 0) != OK)
+        return -1;
+    }
+  }
+  return 0;
+}
+
+int gvizSubgraphApplyPlanarRotation(gvizSubgraph *subgraph,
+                                    gvizGraph **kuratowski) {
+  if (!subgraph || !subgraph->g)
     return -1;
 
-  for (size_t i = 0; i < N; i++) {
-    if (!gvizSubgraphHasVertex(&embedding->subgraph, i))
-      continue;
+  const gvizGraph *graph = subgraph->g;
+  size_t N = gvizGraphSize(graph);
 
-    gvizSubgraphNeighborIterator nit =
-        gvizSubgraphNeighborIteratorCreate(&embedding->subgraph, i);
-    size_t curr;
-    while (gvizSubgraphNeighborIterate(&nit, &curr)) {
-      if (curr > i)
-        continue;
+  graphP boyer = gp_New();
+  if (!boyer)
+    return -1;
 
-      if (gp_AddEdge(g, (int)i, 0, (int)curr, 0) != OK) {
+  if (gp_InitGraph(boyer, (int)N) != OK) {
+    gp_Free(&boyer);
+    return -1;
+  }
+
+  if (copyBoyerGraphIntoSubgraph(subgraph, boyer) < 0) {
+    gp_Free(&boyer);
+    return -1;
+  }
+
+  int res = gp_Embed(boyer, 0);
+  if (res == NONPLANAR) {
+    if (kuratowski) {
+      *kuratowski = kuratowskiFromBoyer(boyer);
+      if (!*kuratowski) {
+        gp_Free(&boyer);
         return -1;
       }
     }
+    gp_Free(&boyer);
+    return -2;
   }
 
-  // embed
-  int res = gp_Embed(g, 0);
-
-  if (res == NONPLANAR) {
-    state->kuratowskiSubdivision = GVIZ_ALLOC(sizeof(gvizGraph));
-    gvizGraph *kg = state->kuratowskiSubdivision;
-
-    gvizGraphInitAtCapacity(kg, 0, g->N);
-
-    for (int i = 0; i < g->N; i++)
-      gvizGraphAddVertex(kg, NULL, NULL, NULL);
-
-    for (int u = 0; u < g->N; u++) {
-      int J = g->G[u].link[0];
-      if (J < 2 * g->N)
-        continue; // isolated
-      int startArc = J;
-      do {
-        int v = g->G[J].v;
-        if (v < u) { // add each undirected edge once
-          gvizGraphAddEdge(kg, u, v);
-        }
-        J = g->G[J].link[0];
-      } while (J != startArc);
-    }
-
-    gp_Free(&g);
-    return -2; // or some code telling caller "non-planar, obstruction stored"
+  if (res != OK) {
+    gp_Free(&boyer);
+    return -1;
   }
 
-  if (res != OK)
+  if (gp_SortVertices(boyer) != OK) {
+    gp_Free(&boyer);
+    return -1;
+  }
+
+  gvizGraph *mutableGraph = (gvizGraph *)graph;
+  gvizSubgraphVertexIterator vit = gvizSubgraphVertexIteratorCreate(subgraph);
+  size_t u;
+  while (gvizSubgraphVertexIterate(&vit, &u))
+    mergeRotationIntoAdjacency(mutableGraph, subgraph, boyer, u);
+
+  gp_Free(&boyer);
+
+  gvizGraphBuildLayout(mutableGraph);
+  if (gvizSubgraphRebuild(subgraph) < 0)
     return -1;
 
-  // copy rotation order to gviz:
-  gvizGraph *mutableGraph = (gvizGraph *)graph;
-  for (size_t i = 0; i < N; i++) {
-    gvizArray *neighbors = gvizGraphGetVertexNeighbors(mutableGraph, i);
-    int degree;
-    gvizAdjacencyFromGP(g, i, neighbors, &degree);
-  }
-
-  gp_Free(&g);
   return 0;
+}
+
+int gvizPlanarEmbedderInit(gvizPlanarEmbedderState *state,
+                           gvizSubgraph subgraph) {
+  state->kuratowskiSubdivision = NULL;
+
+  gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
+  if (gvizEmbeddedGraphInit(embedding, subgraph, 2) < 0)
+    return -1;
+
+  int res = gvizSubgraphApplyPlanarRotation(&embedding->subgraph,
+                                            &state->kuratowskiSubdivision);
+  if (res == 0)
+    embedding->planarEmbedded = 1;
+  return res;
 }
 
 void gvizPlanarEmbedderRelease(gvizPlanarEmbedderState *g) {
@@ -138,23 +200,89 @@ void gvizPlanarEmbedderRelease(gvizPlanarEmbedderState *g) {
     GVIZ_DEALLOC(g->kuratowskiSubdivision);
 }
 
+size_t gvizPlanarPrevNeighborCCW(const gvizGraph *g, size_t u, size_t v) {
+  gvizArray *neighbors = gvizGraphGetVertexNeighbors(g, u);
+  int idx = gvizArrayFindOne(neighbors, &v);
+  assert(idx >= 0);
+  return *(size_t *)gvizArrayAtIndex(
+      neighbors, (idx == 0 ? neighbors->count : (size_t)idx) - 1);
+}
+
+size_t gvizPlanarNextNeighborCCW(const gvizGraph *g, size_t u, size_t v) {
+  gvizArray *neighbors = gvizGraphGetVertexNeighbors(g, u);
+  int idx = gvizArrayFindOne(neighbors, &v);
+  assert(idx >= 0);
+  return *(size_t *)gvizArrayAtIndex(neighbors, ((size_t)idx + 1) % neighbors->count);
+}
+
+gvizPlanarHalfEdge gvizPlanarHalfEdgeTwin(gvizPlanarHalfEdge e) {
+  return (gvizPlanarHalfEdge){e.v, e.u};
+}
+
+gvizPlanarHalfEdge gvizPlanarHalfEdgeNext(const gvizSubgraph *sg,
+                                           gvizPlanarHalfEdge e) {
+  size_t w = gvizPlanarPrevNeighborCCW(sg->g, e.v, e.u);
+  return (gvizPlanarHalfEdge){e.v, w};
+}
+
+int gvizPlanarFaceWalkBegin(const gvizSubgraph *sg, gvizPlanarHalfEdge start,
+                            gvizPlanarFaceWalk *walk) {
+  if (!sg || !walk || !gvizSubgraphHasEdge(sg, start.u, start.v))
+    return -1;
+
+  walk->sg = sg;
+  walk->start = start;
+  walk->current = start;
+  walk->active = 1;
+  return 0;
+}
+
+int gvizPlanarFaceWalkStep(gvizPlanarFaceWalk *walk, size_t *outV) {
+  if (!walk || !walk->active || !outV)
+    return -1;
+
+  *outV = walk->current.v;
+  walk->current = gvizPlanarHalfEdgeNext(walk->sg, walk->current);
+
+  if (walk->current.u == walk->start.u && walk->current.v == walk->start.v)
+    return 0;
+  return 1;
+}
+
+static size_t subgraphDartCount(const gvizSubgraph *sg) {
+  size_t darts = 0;
+  size_t u;
+  gvizSubgraphVertexIterator vit = gvizSubgraphVertexIteratorCreate(sg);
+  while (gvizSubgraphVertexIterate(&vit, &u))
+    darts += gvizGraphGetVertexNeighbors(sg->g, u)->count;
+  return darts;
+}
+
+static void buildDartBorders(const gvizSubgraph *sg, size_t *borders,
+                             size_t *dCount) {
+  const gvizGraph *graph = sg->g;
+  size_t N = gvizGraphSize(graph);
+  *dCount = 0;
+
+  for (size_t u = 0; u < N; u++) {
+    borders[u] = *dCount;
+    if (gvizSubgraphHasVertex(sg, u))
+      *dCount += gvizGraphGetVertexNeighbors(graph, u)->count;
+  }
+}
+
 int gvizFaceIteratorInit(const gvizPlanarEmbedderState *state,
                          gvizFaceIteratorContext *context) {
-  gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
-  size_t N = embedding->subgraph.g->vertices.count;
-  context->dCount = 0;
+  const gvizEmbeddedGraph *embedding = (const gvizEmbeddedGraph *)state;
+  const gvizSubgraph *sg = &embedding->subgraph;
+  size_t N = gvizGraphSize(sg->g);
 
+  context->dCount = subgraphDartCount(sg);
   context->borders = GVIZ_ALLOC(sizeof(size_t) * N);
   if (!context->borders)
     return -1;
-  memset(context->borders, 0, sizeof(size_t) * N);
 
-  // Counts darts. Each edge is counted twice, but thats intended.
-  for (size_t i = 0; i < N; i++) {
-    gvizArray *neighbors = gvizGraphGetVertexNeighbors(embedding->subgraph.g, i);
-    context->borders[i] = context->dCount;
-    context->dCount += neighbors->count;
-  }
+  buildDartBorders(sg, context->borders, &context->dCount);
 
   context->visited =
       GVIZ_ALLOC(sizeof(GVIZ_BIT_UNIT) * GVIZ_ARRAY_UNITS(context->dCount));
@@ -180,25 +308,13 @@ void gvizFaceIteratorRelease(gvizFaceIteratorContext *context) {
   for (size_t i = 0; i < context->faces.count; i++)
     gvizArrayRelease(gvizArrayAtIndex(&context->faces, i));
   gvizArrayRelease(&context->faces);
-  return;
 }
 
-// The previous half-edge out of u, in it's rotation system
-size_t previousNeighbor(const gvizGraph *g, size_t u, size_t v) {
-  gvizArray *neighbors = gvizGraphGetVertexNeighbors(g, u);
-  size_t idx = gvizArrayFindOne(neighbors, &v);
-  assert(idx >= 0);
-  return (idx == 0 ? neighbors->count : idx) - 1;
-}
-
-int gvizPlanarEmbedderFaces(const gvizPlanarEmbedderState *state,
-                             gvizFaceIteratorContext *context) {
-  gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
-  size_t N = embedding->subgraph.g->vertices.count, M = context->dCount / 2;
-
+int gvizPlanarTraceFace(const gvizSubgraph *sg, gvizFaceIteratorContext *context,
+                        size_t u, size_t adjIdx, gvizArray *face) {
   typedef struct {
     size_t u;
-    size_t idx; // idx in u's adjacency list
+    size_t idx;
   } dart;
 
 #define VISITED_DART(d)                                                        \
@@ -206,82 +322,91 @@ int gvizPlanarEmbedderFaces(const gvizPlanarEmbedderState *state,
 #define MARK_DART(d)                                                           \
   (gvizSetBit(context->visited, context->borders[d.u] + d.idx))
 
-  dart d;
+  dart d = {u, adjIdx};
 
-  for (size_t u = 0; u < N; u++) {
-    gvizArray *neighbors = gvizGraphGetVertexNeighbors(embedding->subgraph.g, u);
+  while (!VISITED_DART(d)) {
+    MARK_DART(d);
+
+    gvizArray *uNeighbors = gvizGraphGetVertexNeighbors(sg->g, d.u);
+    size_t v = *(size_t *)gvizArrayAtIndex(uNeighbors, d.idx);
+    gvizArrayPush(face, &v);
+
+    gvizArray *vNeighbors = gvizGraphGetVertexNeighbors(sg->g, v);
+    int prev = gvizArrayFindOne(vNeighbors, &d.u);
+    assert(prev >= 0);
+    d = (dart){v, (prev == 0 ? vNeighbors->count : (size_t)prev) - 1};
+  }
+
+  return 0;
+}
+
+int gvizPlanarEmbedderFaces(const gvizPlanarEmbedderState *state,
+                             gvizFaceIteratorContext *context) {
+  const gvizEmbeddedGraph *embedding = (const gvizEmbeddedGraph *)state;
+  const gvizSubgraph *sg = &embedding->subgraph;
+  size_t N = gvizGraphSize(sg->g);
+
+  size_t u;
+  gvizSubgraphVertexIterator vit = gvizSubgraphVertexIteratorCreate(sg);
+  while (gvizSubgraphVertexIterate(&vit, &u)) {
+    gvizArray *neighbors = gvizGraphGetVertexNeighbors(sg->g, u);
 
     for (size_t i = 0; i < neighbors->count; i++) {
-      d = (dart){u, i};
+      size_t v = *(size_t *)gvizArrayAtIndex(neighbors, i);
+      if (!gvizSubgraphHasEdge(sg, u, v))
+        continue;
 
-      // check if the half edge u -> v is visited
-      if (VISITED_DART(d))
+      if (gvizTestBit(context->visited, context->borders[u] + i))
         continue;
 
       gvizArray face;
       if (gvizArrayInit(&face, sizeof(size_t)) < 0)
         return -1;
 
-      // main loop. traverse current face:
-      while (!VISITED_DART(d)) {
-        MARK_DART(d);
-
-        gvizArray *uNeighbors =
-            gvizGraphGetVertexNeighbors(embedding->subgraph.g, d.u);
-
-        size_t v = *(size_t *)gvizArrayAtIndex(uNeighbors, d.idx);
-        gvizArrayPush(&face, &v);
-
-        d = (dart){v, previousNeighbor(embedding->subgraph.g, v, d.u)};
+      if (gvizPlanarTraceFace(sg, context, u, i, &face) < 0) {
+        gvizArrayRelease(&face);
+        return -1;
       }
 
-      if (face.count > 0) {
+      if (face.count >= 3)
         gvizArrayPush(&context->faces, &face);
-        // new face:
-        gvizArrayInit(&face, sizeof(size_t));
-      } else
+      else
         gvizArrayRelease(&face);
     }
   }
 
+  (void)N;
   return 0;
 }
 
-// iterate faces. Any face with 4 or more vertices -> add one edge
 void gvizPlanarEmbedderTriangulate(const gvizPlanarEmbedderState *state,
                                     gvizFaceIteratorContext *context) {
-  gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
+  const gvizEmbeddedGraph *embedding = (const gvizEmbeddedGraph *)state;
+  const gvizSubgraph *sg = &embedding->subgraph;
+  gvizGraph *graph = (gvizGraph *)sg->g;
+
   for (size_t i = 0; i < context->faces.count; i++) {
     gvizArray *face = (gvizArray *)gvizArrayAtIndex(&context->faces, i);
   t:
     if (face->count == 3)
       continue;
 
-    printf("current face: ");
-    gvizArrayPrint(face, stdout, gvizSerializeUINT64, 8);
-
     for (size_t x = 0; x < 4; x++) {
       for (size_t y = x + 1; y < 4; y++) {
         size_t u = *(size_t *)gvizArrayAtIndex(face, x);
         size_t v = *(size_t *)gvizArrayAtIndex(face, y);
 
-        if (u == v || gvizGraphEdgeExists(embedding->subgraph.g, u, v))
+        if (u == v || gvizGraphEdgeExists(graph, u, v))
           continue;
 
-        // indices of the adjacency list, so we add edges without breaking the
-        // rotation order.
         size_t idx1 = *(size_t *)gvizArrayAtIndex(face, (x + 1) % face->count);
-
-        idx1 = gvizArrayFindOne(
-            gvizGraphGetVertexNeighbors(embedding->subgraph.g, u), &idx1);
-        assert(idx1 != -1);
-        idx1 = (idx1 + 1) %
-               gvizGraphGetVertexNeighbors(embedding->subgraph.g, u)->count;
+        idx1 = gvizArrayFindOne(gvizGraphGetVertexNeighbors(graph, u), &idx1);
+        assert(idx1 != (size_t)-1);
+        idx1 = (idx1 + 1) % gvizGraphGetVertexNeighbors(graph, u)->count;
 
         size_t idx2 = *(size_t *)gvizArrayAtIndex(face, (y - 1) % face->count);
-        idx2 = gvizArrayFindOne(
-            gvizGraphGetVertexNeighbors(embedding->subgraph.g, v), &idx2);
-        assert(idx2 != -1);
+        idx2 = gvizArrayFindOne(gvizGraphGetVertexNeighbors(graph, v), &idx2);
+        assert(idx2 != (size_t)-1);
 
         gvizArray newFace;
         gvizArrayInit(&newFace, sizeof(size_t));
@@ -294,34 +419,86 @@ void gvizPlanarEmbedderTriangulate(const gvizPlanarEmbedderState *state,
         gvizArrayPush(&newFace, &v);
         gvizArrayPush(&context->faces, &newFace);
 
-        printf("adding edge from %zu to %zu.\n", u, v);
-        printf("u adjacency list before: ");
-        gvizArrayPrint(gvizGraphGetVertexNeighbors(embedding->subgraph.g, u), stdout,
-                       gvizSerializeUINT64, 8);
-
-        printf("v adjacency list before: ");
-        gvizArrayPrint(gvizGraphGetVertexNeighbors(embedding->subgraph.g, v), stdout,
-                       gvizSerializeUINT64, 8);
-
-        gvizArrayInsert(gvizGraphGetVertexNeighbors(embedding->subgraph.g, u), &v,
-                        idx1);
-        gvizArrayInsert(gvizGraphGetVertexNeighbors(embedding->subgraph.g, v), &u,
-                        idx2);
-
-        printf("u adjacency list after: ");
-        gvizArrayPrint(gvizGraphGetVertexNeighbors(embedding->subgraph.g, u), stdout,
-                       gvizSerializeUINT64, 8);
-
-        printf("u adjacency list after: ");
-        gvizArrayPrint(gvizGraphGetVertexNeighbors(embedding->subgraph.g, v), stdout,
-                       gvizSerializeUINT64, 8);
+        gvizArrayInsert(gvizGraphGetVertexNeighbors(graph, u), &v, idx1);
+        gvizArrayInsert(gvizGraphGetVertexNeighbors(graph, v), &u, idx2);
+        gvizSubgraphShowEdge((gvizSubgraph *)&embedding->subgraph, u, v);
 
         context->dCount += 2;
-
         goto t;
       }
     }
   }
+
+  gvizGraphBuildLayout(graph);
+  gvizSubgraphRebuild((gvizSubgraph *)&embedding->subgraph);
 }
 
-int gvizPlanarEmbedderEmbed(gvizPlanarEmbedderState *state) {}
+int gvizPlanarLargestFaceBoundary(const gvizGraph *g, const gvizSubgraph *sg,
+                                  size_t *out, size_t max, size_t *count) {
+  if (!g || !sg || !out || !count)
+    return -1;
+
+  gvizPlanarEmbedderState state;
+  memset(&state, 0, sizeof(state));
+  state.embedding.subgraph = *sg;
+  state.embedding.subgraph.g = g;
+
+  gvizFaceIteratorContext ctx;
+  if (gvizFaceIteratorInit(&state, &ctx) < 0)
+    return -1;
+
+  if (gvizPlanarEmbedderFaces(&state, &ctx) < 0) {
+    gvizFaceIteratorRelease(&ctx);
+    return -1;
+  }
+
+  size_t best = 0;
+  size_t bestIdx = (size_t)-1;
+  for (size_t i = 0; i < ctx.faces.count; i++) {
+    gvizArray *face = (gvizArray *)gvizArrayAtIndex(&ctx.faces, i);
+    if (face->count < 3)
+      continue;
+    if (face->count > best) {
+      best = face->count;
+      bestIdx = i;
+    }
+  }
+
+  if (bestIdx == (size_t)-1 || best > max) {
+    gvizFaceIteratorRelease(&ctx);
+    return -1;
+  }
+
+  gvizArray *face = (gvizArray *)gvizArrayAtIndex(&ctx.faces, bestIdx);
+  *count = face->count;
+  for (size_t i = 0; i < face->count; i++)
+    out[i] = *(size_t *)gvizArrayAtIndex(face, i);
+
+  gvizFaceIteratorRelease(&ctx);
+  return 0;
+}
+
+int gvizPlanarEmbedderEmbed(gvizPlanarEmbedderState *state) {
+  gvizFaceIteratorContext faces;
+  if (gvizFaceIteratorInit(state, &faces) < 0)
+    return -1;
+
+  if (gvizPlanarEmbedderFaces(state, &faces) < 0) {
+    gvizFaceIteratorRelease(&faces);
+    return -1;
+  }
+
+  gvizPlanarEmbedderTriangulate(state, &faces);
+
+  gvizSchnyderWood sw;
+  gvizGraph *g = (gvizGraph *)state->embedding.subgraph.g;
+  if (gvizSchnyderWoodInit(&sw, g) < 0) {
+    gvizFaceIteratorRelease(&faces);
+    return -1;
+  }
+
+  gvizSchnyderWoodEmbed(&sw, (gvizEmbeddedGraph *)state);
+  gvizSchnyderWoodRelease(&sw);
+  gvizFaceIteratorRelease(&faces);
+  return 0;
+}

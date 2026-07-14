@@ -1,7 +1,9 @@
 #include "embedders/gvizEmbeddedGraph.h"
+#include "embedders/gvizPlanarEmbedder.h"
 #include "core/gvizVec.h"
 #include "core/alloc.h"
 #include "ds/gvizGraph.h"
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -23,6 +25,8 @@ static void drawMaskShowAllSubgraphVertices(gvizEmbeddedGraph *embedding) {
 int gvizEmbeddedGraphInit(gvizEmbeddedGraph *embedding, gvizSubgraph subgraph,
                           size_t n) {
   embedding->subgraph = subgraph;
+  embedding->planarEmbedded = 0;
+  embedding->highlight = (gvizSubgraph){0};
   const gvizGraph *graph = subgraph.g;
   embedding->embedding.dim = n;
   embedding->actions = (gvizActionRegistry){0};
@@ -43,6 +47,7 @@ int gvizEmbeddedGraphInit(gvizEmbeddedGraph *embedding, gvizSubgraph subgraph,
 }
 
 void gvizEmbeddedGraphRelease(gvizEmbeddedGraph *embedding) {
+  gvizEmbeddedGraphClearHighlight(embedding);
   gvizSubgraphRelease(&embedding->subgraph);
   if (embedding->embedding.vertexPositions) {
     GVIZ_DEALLOC(embedding->embedding.vertexPositions);
@@ -386,4 +391,218 @@ int gvizEmbeddedGraphLoadEmbedding(gvizEmbeddedGraph *embedding,
 
   fclose(f);
   return 0;
+}
+
+static int pointInPolygon(const gvizEmbeddedGraph *embedding,
+                          const gvizArray *face, double x, double y) {
+  size_t n = face->count;
+  if (n < 3)
+    return 0;
+
+  int inside = 0;
+  for (size_t i = 0, j = n - 1; i < n; j = i++) {
+    size_t vi = *(size_t *)gvizArrayAtIndex(face, i);
+    size_t vj = *(size_t *)gvizArrayAtIndex(face, j);
+    double *pi =
+        gvizEmbeddedGraphGetVPosition((gvizEmbeddedGraph *)embedding, vi);
+    double *pj =
+        gvizEmbeddedGraphGetVPosition((gvizEmbeddedGraph *)embedding, vj);
+
+    int intersect =
+        ((pi[1] > y) != (pj[1] > y)) &&
+        (x < (pj[0] - pi[0]) * (y - pi[1]) / (pj[1] - pi[1] + 0.0) + pi[0]);
+    if (intersect)
+      inside = !inside;
+  }
+  return inside;
+}
+
+static double polygonSignedArea(const gvizEmbeddedGraph *embedding,
+                                const gvizArray *face) {
+  double area = 0.0;
+  size_t n = face->count;
+  for (size_t i = 0; i < n; i++) {
+    size_t u = *(size_t *)gvizArrayAtIndex(face, i);
+    size_t v = *(size_t *)gvizArrayAtIndex(face, (i + 1) % n);
+    double *pu = gvizEmbeddedGraphGetVPosition((gvizEmbeddedGraph *)embedding, u);
+    double *pv = gvizEmbeddedGraphGetVPosition((gvizEmbeddedGraph *)embedding, v);
+    area += pu[0] * pv[1] - pv[0] * pu[1];
+  }
+  return area * 0.5;
+}
+
+static int faceToSubgraph(const gvizGraph *g, const gvizArray *face,
+                          gvizSubgraph *out) {
+  if (!g->layout)
+    gvizGraphBuildLayout((gvizGraph *)g);
+
+  *out = gvizSubgraphCreateEmpty(g);
+  if (!out->vs)
+    return -1;
+
+  for (size_t i = 0; i < face->count; i++) {
+    size_t u = *(size_t *)gvizArrayAtIndex(face, i);
+    gvizSubgraphShowVertex(out, u);
+  }
+
+  for (size_t i = 0; i < face->count; i++) {
+    size_t u = *(size_t *)gvizArrayAtIndex(face, i);
+    size_t v = *(size_t *)gvizArrayAtIndex(face, (i + 1) % face->count);
+    gvizSubgraphShowEdge(out, u, v);
+  }
+
+  return 0;
+}
+
+void gvizEmbeddedGraphFaceSearchRelease(gvizFaceSearchState *state) {
+  if (!state)
+    return;
+  for (size_t i = 0; i < state->faces.count; i++)
+    gvizArrayRelease(gvizArrayAtIndex(&state->faces, i));
+  gvizArrayRelease(&state->faces);
+  memset(state, 0, sizeof(*state));
+}
+
+int gvizEmbeddedGraphFaceSearchInit(gvizEmbeddedGraph *embedding,
+                                    gvizFaceSearchState *state) {
+  if (!embedding || !state || !embedding->planarEmbedded)
+    return -1;
+
+  memset(state, 0, sizeof(*state));
+  state->embedding = embedding;
+
+  gvizPlanarEmbedderState planar = {.embedding = *embedding};
+  gvizFaceIteratorContext ctx;
+  if (gvizFaceIteratorInit(&planar, &ctx) < 0)
+    return -1;
+
+  if (gvizPlanarEmbedderFaces(&planar, &ctx) < 0) {
+    gvizFaceIteratorRelease(&ctx);
+    return -1;
+  }
+
+  state->faces = ctx.faces;
+  ctx.faces = (gvizArray){0};
+  gvizFaceIteratorRelease(&ctx);
+  return 0;
+}
+
+int gvizEmbeddedGraphNextFace(gvizEmbeddedGraph *embedding,
+                              gvizFaceSearchState *state) {
+  if (!embedding || !state)
+    return -1;
+
+  if (state->nextFace >= state->faces.count)
+    return 1;
+
+  state->nextFace++;
+  return 0;
+}
+
+int gvizEmbeddedGraphApplyPlanarEmbedding(gvizEmbeddedGraph *embedding) {
+  if (!embedding)
+    return -1;
+
+  int res = gvizSubgraphApplyPlanarRotation(&embedding->subgraph, NULL);
+  if (res == 0)
+    embedding->planarEmbedded = 1;
+  return res;
+}
+
+int gvizEmbeddedGraphIsPlanarEmbedded(const gvizEmbeddedGraph *embedding) {
+  return embedding && embedding->planarEmbedded;
+}
+
+int gvizEmbeddedGraphFaceSubgraphAt(gvizEmbeddedGraph *embedding, double worldX,
+                                    double worldY, gvizSubgraph *out) {
+  if (!embedding || !out || !embedding->planarEmbedded)
+    return -1;
+
+  gvizPlanarEmbedderState planar = {.embedding = *embedding};
+  gvizFaceIteratorContext ctx;
+  if (gvizFaceIteratorInit(&planar, &ctx) < 0)
+    return -1;
+
+  if (gvizPlanarEmbedderFaces(&planar, &ctx) < 0) {
+    gvizFaceIteratorRelease(&ctx);
+    return -1;
+  }
+
+  double minX = INFINITY, minY = INFINITY, maxX = -INFINITY, maxY = -INFINITY;
+  size_t u;
+  gvizSubgraphVertexIterator vit =
+      gvizSubgraphVertexIteratorCreate(&embedding->subgraph);
+  while (gvizSubgraphVertexIterate(&vit, &u)) {
+    double *p = gvizEmbeddedGraphGetVPosition(embedding, u);
+    if (p[0] < minX)
+      minX = p[0];
+    if (p[1] < minY)
+      minY = p[1];
+    if (p[0] > maxX)
+      maxX = p[0];
+    if (p[1] > maxY)
+      maxY = p[1];
+  }
+
+  int pickLargest = (worldX < minX || worldX > maxX || worldY < minY || worldY > maxY);
+
+  size_t bestIdx = (size_t)-1;
+  double bestMetric = pickLargest ? -1.0 : INFINITY;
+
+  for (size_t i = 0; i < ctx.faces.count; i++) {
+    gvizArray *face = (gvizArray *)gvizArrayAtIndex(&ctx.faces, i);
+    if (face->count < 3)
+      continue;
+
+    if (!pickLargest && !pointInPolygon(embedding, face, worldX, worldY))
+      continue;
+
+    double area = fabs(polygonSignedArea(embedding, face));
+    if (pickLargest) {
+      if (area > bestMetric) {
+        bestMetric = area;
+        bestIdx = i;
+      }
+    } else if (area < bestMetric) {
+      bestMetric = area;
+      bestIdx = i;
+    }
+  }
+
+  if (bestIdx == (size_t)-1) {
+    gvizFaceIteratorRelease(&ctx);
+    return -1;
+  }
+
+  gvizArray *face = (gvizArray *)gvizArrayAtIndex(&ctx.faces, bestIdx);
+  int res = faceToSubgraph(embedding->subgraph.g, face, out);
+  gvizFaceIteratorRelease(&ctx);
+  return res;
+}
+
+void gvizEmbeddedGraphSetHighlight(gvizEmbeddedGraph *embedding,
+                                   gvizSubgraph highlight) {
+  if (!embedding)
+    return;
+  gvizEmbeddedGraphClearHighlight(embedding);
+  embedding->highlight = highlight;
+}
+
+void gvizEmbeddedGraphClearHighlight(gvizEmbeddedGraph *embedding) {
+  if (!embedding)
+    return;
+  if (embedding->highlight.vs || embedding->highlight.es.bitset)
+    gvizSubgraphRelease(&embedding->highlight);
+  embedding->highlight = (gvizSubgraph){0};
+}
+
+int gvizEmbeddedGraphHasHighlight(const gvizEmbeddedGraph *embedding) {
+  return embedding && embedding->highlight.vs != NULL;
+}
+
+const gvizSubgraph *
+gvizEmbeddedGraphGetHighlight(const gvizEmbeddedGraph *embedding) {
+  if (!embedding || !gvizEmbeddedGraphHasHighlight(embedding))
+    return NULL;
+  return &embedding->highlight;
 }

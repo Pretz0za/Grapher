@@ -1,6 +1,7 @@
 #ifndef _GVIZ_TUTTE_EMBEDDING_H_
 #define _GVIZ_TUTTE_EMBEDDING_H_
 
+#include "ds/gvizArray.h"
 #include "ds/gvizBitArray.h"
 #include "ds/gvizGraph.h"
 #include "embedders/gvizEmbeddedGraph.h"
@@ -30,11 +31,13 @@ typedef struct gvizTutteState {
     int useGaussSeidel;         /* 0=Jacobi (default), 1=Gauss-Seidel */
     double epsilon;
     double relaxationRate;      /* blend factor per second (default 5.0) */
+    int begun;
 } gvizTutteState;
 
 /**
  * Initializes the Tutte embedding state for graph @p g in @p dimension dims.
  * @p epsilon is the convergence threshold; pass 0 for GVIZ_TUTTE_DEFAULT_EPSILON.
+ * Registers actions "tutte.step" and "tutte.fixOuterFace".
  * Returns 0 on success, -1 on allocation failure.
  */
 int gvizTutteEmbedderInit(gvizTutteState *s, gvizSubgraph subgraph,
@@ -44,10 +47,21 @@ int gvizTutteEmbedderInit(gvizTutteState *s, gvizSubgraph subgraph,
 void gvizTutteEmbedderRelease(gvizTutteState *s);
 
 /**
+ * Verifies planarity, applies a combinatorial rotation system, pins the
+ * largest combinatorial face as the initial outer boundary on a regular convex
+ * polygon, and seeds interior vertices. @p dimension must be 2. Safe to call
+ * once per state lifetime.
+ *
+ * @return 0 on success, -1 on error, -2 if the graph is non-planar.
+ */
+int gvizTutteEmbedderBegin(gvizTutteState *s);
+
+/**
  * Pins @p count boundary vertices and copies their positions from
  * @p polygonPositions (row-major, dim doubles per vertex).
  * @p boundary must contain valid vertex indices; count must be >= 3.
- * Safe to call once. Returns 0 on success, -1 on invalid input.
+ * May be called again to change the outer face. Returns 0 on success, -1 on
+ * invalid input.
  */
 int gvizTutteEmbedderSetBoundary(gvizTutteState *s, const size_t *boundary,
                                   size_t count, const double *polygonPositions);
@@ -79,5 +93,14 @@ int gvizTutteEmbedderRun(gvizTutteState *s, size_t maxIters);
  */
 void gvizTutteFixConvexPolygon(gvizTutteState *s, const size_t *boundary,
                                size_t count, double radius);
+
+/**
+ * Pins the highlighted face boundary (gvizEmbeddedGraph highlight subgraph) on
+ * a regular convex polygon, re-seeds interior vertices, and resets convergence
+ * state.
+ *
+ * @return 0 on success, -1 when no highlight is set or boundary setup fails.
+ */
+int gvizTutteEmbedderFixOuterFace(gvizTutteState *s);
 
 #endif

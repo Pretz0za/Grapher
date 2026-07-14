@@ -5,6 +5,7 @@
 #include "ds/gvizSubgraph.h"
 #include <assert.h>
 #include <stdbool.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -607,4 +608,151 @@ gvizGraph build_klein_bottle(size_t rows, size_t cols) {
     }
   }
   return g;
+}
+
+static int parse_obj_vertex_ref(const char *s, size_t vertex_count,
+                                size_t *out) {
+  char *end = NULL;
+  long idx = strtol(s, &end, 10);
+  if (end == s || idx == 0)
+    return -1;
+  if (idx > 0) {
+    if ((size_t)idx > vertex_count)
+      return -1;
+    *out = (size_t)(idx - 1);
+    return 0;
+  }
+  long abs_idx = -idx;
+  if ((size_t)abs_idx > vertex_count)
+    return -1;
+  *out = vertex_count - (size_t)abs_idx;
+  return 0;
+}
+
+static int obj_add_edge_undup(gvizGraph *g, size_t a, size_t b) {
+  if (a == b)
+    return 0;
+  if (a > b) {
+    size_t tmp = a;
+    a = b;
+    b = tmp;
+  }
+  gvizArray *nbrs = gvizGraphGetVertexNeighbors(g, a);
+  if (!nbrs)
+    return -1;
+  for (size_t i = 0; i < nbrs->count; i++) {
+    if (*(size_t *)gvizArrayAtIndex(nbrs, i) == b)
+      return 0;
+  }
+  return gvizGraphAddEdge(g, a, b);
+}
+
+static int obj_face_push(size_t **verts, size_t *cap, size_t *len, size_t v) {
+  if (*len >= *cap) {
+    size_t new_cap = *cap ? *cap * 2 : 8;
+    size_t *next = GVIZ_REALLOC(*verts, new_cap * sizeof(size_t));
+    if (!next)
+      return -1;
+    *verts = next;
+    *cap = new_cap;
+  }
+  (*verts)[(*len)++] = v;
+  return 0;
+}
+
+static int obj_add_face_edges(gvizGraph *g, const size_t *verts, size_t len) {
+  if (len < 2)
+    return 0;
+  for (size_t i = 0; i + 1 < len; i++) {
+    if (obj_add_edge_undup(g, verts[i], verts[i + 1]) < 0)
+      return -1;
+  }
+  return obj_add_edge_undup(g, verts[len - 1], verts[0]);
+}
+
+static int obj_parse_face_line(gvizGraph *g, const char *line) {
+  size_t vertex_count = gvizGraphSize(g);
+  size_t *face_verts = NULL;
+  size_t face_cap = 0;
+  size_t face_len = 0;
+
+  while (*line) {
+    while (*line == ' ' || *line == '\t')
+      line++;
+    if (*line == '\0' || *line == '\n' || *line == '\r')
+      break;
+
+    size_t idx = 0;
+    if (parse_obj_vertex_ref(line, vertex_count, &idx) < 0) {
+      GVIZ_DEALLOC(face_verts);
+      return -1;
+    }
+    if (obj_face_push(&face_verts, &face_cap, &face_len, idx) < 0) {
+      GVIZ_DEALLOC(face_verts);
+      return -1;
+    }
+
+    while (*line && *line != ' ' && *line != '\t' && *line != '\n' &&
+           *line != '\r')
+      line++;
+  }
+
+  int err = obj_add_face_edges(g, face_verts, face_len);
+  GVIZ_DEALLOC(face_verts);
+  return err;
+}
+
+int gvizGraphLoadFromObjFile(const char *path, gvizGraph *out) {
+  if (!path || !out)
+    return -1;
+
+  memset(out, 0, sizeof(*out));
+  if (gvizGraphInit(out, 0) < 0)
+    return -1;
+
+  FILE *file = fopen(path, "r");
+  if (!file) {
+    gvizGraphRelease(out);
+    memset(out, 0, sizeof(*out));
+    return -1;
+  }
+
+  char *line = NULL;
+  size_t cap = 0;
+  ssize_t nread;
+  int err = 0;
+
+  while ((nread = getline(&line, &cap, file)) != -1) {
+    const char *p = line;
+    while (*p == ' ' || *p == '\t')
+      p++;
+    if (*p == '\0' || *p == '\n' || *p == '\r' || *p == '#')
+      continue;
+
+    if (p[0] == 'v' && (p[1] == ' ' || p[1] == '\t')) {
+      if (gvizGraphAddVertex(out, NULL, NULL, NULL) < 0) {
+        err = -1;
+        break;
+      }
+      continue;
+    }
+
+    if (p[0] == 'f' && (p[1] == ' ' || p[1] == '\t')) {
+      if (obj_parse_face_line(out, p + 2) < 0) {
+        err = -1;
+        break;
+      }
+    }
+  }
+
+  GVIZ_DEALLOC(line);
+  fclose(file);
+
+  if (err < 0 || gvizGraphSize(out) == 0) {
+    gvizGraphRelease(out);
+    memset(out, 0, sizeof(*out));
+    return -1;
+  }
+
+  return 0;
 }

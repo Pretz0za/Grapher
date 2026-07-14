@@ -72,3 +72,18 @@ gvizGraph build_mobius_strip(size_t rows, size_t cols);
 gvizGraph build_klein_bottle(size_t rows, size_t cols);
 
 int isConnected(gvizGraph *g);
+
+/**
+ * Loads an undirected graph from a Wavefront OBJ file.
+ *
+ * Each OBJ vertex (`v`) becomes one graph vertex; edges are inferred from face
+ * (`f`) loops (consecutive corners and the closing edge). Texture/normal indices
+ * on face tokens are ignored. Supports 1-based and negative relative vertex
+ * indices per the OBJ spec.
+ *
+ * @p out must be uninitialized on entry. On failure, any partial state is
+ * released and @p out is zeroed.
+ *
+ * @return 0 on success, -1 on I/O, parse, or allocation failure.
+ */
+int gvizGraphLoadFromObjFile(const char *path, gvizGraph *out);

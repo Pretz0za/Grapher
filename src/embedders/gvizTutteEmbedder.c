@@ -3,6 +3,7 @@
 #include "ds/gvizArray.h"
 #include "ds/gvizGraph.h"
 #include "ds/gvizSubgraph.h"
+#include "embedders/gvizPlanarEmbedder.h"
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
@@ -23,10 +24,33 @@ static void setPos(gvizTutteState *s, size_t u, double *p) {
     gvizEmbeddedGraphSetVPosition((gvizEmbeddedGraph *)s, u, p);
 }
 
-/* ---- init / release ------------------------------------------------------- */
+static void clearBoundaryBits(gvizTutteState *s) {
+    size_t N = numVertices(s);
+    memset(s->isBoundary, 0, sizeof(GVIZ_BIT_UNIT) * GVIZ_ARRAY_UNITS(N));
+}
+
+static void tutteActionStep(gvizEmbeddedGraph *embedding, void *userData,
+                            const gvizActionPayload *payload) {
+    (void)userData;
+    gvizTutteState *s = (gvizTutteState *)embedding;
+    if (!s->begun || !s->boundary)
+        return;
+    double dt = payload && payload->deltaTime > 0.0 ? payload->deltaTime : 1.0 / 60.0;
+    gvizTutteEmbedderStep(s, dt);
+}
+
+static void tutteActionFixOuterFace(gvizEmbeddedGraph *embedding, void *userData,
+                                    const gvizActionPayload *payload) {
+    (void)userData;
+    (void)payload;
+    gvizTutteState *s = (gvizTutteState *)embedding;
+    gvizTutteEmbedderFixOuterFace(s);
+}
 
 int gvizTutteEmbedderInit(gvizTutteState *s, gvizSubgraph subgraph,
                            size_t dimension, double epsilon) {
+    memset(s, 0, sizeof(*s));
+
     int res = gvizEmbeddedGraphInit((gvizEmbeddedGraph *)s, subgraph, dimension);
     if (res < 0)
         return res;
@@ -53,17 +77,100 @@ int gvizTutteEmbedderInit(gvizTutteState *s, gvizSubgraph subgraph,
     s->epsilon = (epsilon > 0.0) ? epsilon : GVIZ_TUTTE_DEFAULT_EPSILON;
     s->relaxationRate = 5.0;
 
+    gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)s;
+    if (gvizEmbeddedGraphAddAction(embedding, "tutte.step", tutteActionStep,
+                                   NULL) < 0)
+        return -1;
+    if (gvizEmbeddedGraphAddAction(embedding, "tutte.fixOuterFace",
+                                   tutteActionFixOuterFace, NULL) < 0)
+        return -1;
+
+    if (!gvizEmbeddedGraphAddStatSeries(embedding, "tutte.maxDelta",
+                                        GVIZ_STAT_CHART_LINE_LOG))
+        return -1;
+
     return 0;
 }
 
 void gvizTutteEmbedderRelease(gvizTutteState *s) {
-    if (s->boundary)   GVIZ_DEALLOC(s->boundary);
-    if (s->isBoundary) GVIZ_DEALLOC(s->isBoundary);
-    if (s->scratch)    GVIZ_DEALLOC(s->scratch);
+    if (s->boundary)
+        GVIZ_DEALLOC(s->boundary);
+    if (s->isBoundary)
+        GVIZ_DEALLOC(s->isBoundary);
+    if (s->scratch)
+        GVIZ_DEALLOC(s->scratch);
     gvizEmbeddedGraphRelease((gvizEmbeddedGraph *)s);
 }
 
-/* ---- boundary setup ------------------------------------------------------- */
+static int boundaryCycleFromSubgraph(const gvizSubgraph *sg, size_t *out,
+                                     size_t max, size_t *count) {
+    *count = 0;
+    gvizPlanarHalfEdge start = {0};
+    int found = 0;
+
+    gvizSubgraphVertexIterator vit = gvizSubgraphVertexIteratorCreate(sg);
+    size_t u;
+    while (gvizSubgraphVertexIterate(&vit, &u)) {
+        gvizSubgraphNeighborIterator nit =
+            gvizSubgraphNeighborIteratorCreate(sg, u);
+        size_t v;
+        while (gvizSubgraphNeighborIterate(&nit, &v)) {
+            if (!gvizSubgraphHasEdge(sg, u, v))
+                continue;
+            start.u = u;
+            start.v = v;
+            found = 1;
+            break;
+        }
+        if (found)
+            break;
+    }
+    if (!found)
+        return -1;
+
+    gvizPlanarFaceWalk walk;
+    if (gvizPlanarFaceWalkBegin(sg, start, &walk) < 0)
+        return -1;
+
+    int step;
+    do {
+        if (*count >= max)
+            return -1;
+        step = gvizPlanarFaceWalkStep(&walk, &out[(*count)++]);
+    } while (step == 1);
+
+    return (step == 0 && *count >= 3) ? 0 : -1;
+}
+
+int gvizTutteEmbedderBegin(gvizTutteState *s) {
+    if (!s || dim(s) != 2)
+        return -1;
+
+    gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)s;
+    int planar = gvizEmbeddedGraphApplyPlanarEmbedding(embedding);
+    if (planar == -2)
+        return -2;
+    if (planar < 0)
+        return -1;
+
+    size_t N = numVertices(s);
+    size_t *boundary = GVIZ_ALLOC(sizeof(size_t) * N);
+    if (!boundary)
+        return -1;
+
+    size_t boundaryCount = 0;
+    if (gvizPlanarLargestFaceBoundary(embedding->subgraph.g, &embedding->subgraph,
+                                      boundary, N, &boundaryCount) < 0) {
+        GVIZ_DEALLOC(boundary);
+        return -1;
+    }
+
+    gvizTutteFixConvexPolygon(s, boundary, boundaryCount, 200.0);
+    GVIZ_DEALLOC(boundary);
+    gvizTutteEmbedderSeedInterior(s);
+    s->begun = 1;
+    return 0;
+}
 
 int gvizTutteEmbedderSetBoundary(gvizTutteState *s, const size_t *boundary,
                                   size_t count, const double *positions) {
@@ -76,6 +183,10 @@ int gvizTutteEmbedderSetBoundary(gvizTutteState *s, const size_t *boundary,
     for (size_t i = 0; i < count; i++)
         if (boundary[i] >= N)
             return -1;
+
+    clearBoundaryBits(s);
+    if (s->boundary)
+        GVIZ_DEALLOC(s->boundary);
 
     s->boundary = GVIZ_ALLOC(sizeof(size_t) * count);
     if (!s->boundary)
@@ -132,9 +243,6 @@ void gvizTutteFixConvexPolygon(gvizTutteState *s, const size_t *boundary,
     gvizTutteEmbedderSetBoundary(s, boundary, count, positions);
 }
 
-/* ---- step ----------------------------------------------------------------- */
-
-/* Snapshot interior positions into scratch so Jacobi reads a consistent generation. */
 static void snapshotInterior(gvizTutteState *s) {
     size_t N = numVertices(s);
     size_t d = dim(s);
@@ -144,14 +252,12 @@ static void snapshotInterior(gvizTutteState *s) {
     }
 }
 
-/* Returns a pointer to vertex v's position to use as a neighbor read source. */
 static double *neighborReadPos(gvizTutteState *s, size_t v) {
     if (!s->useGaussSeidel && !gvizTestBit(s->isBoundary, v))
         return s->scratch + v * dim(s);
     return livePos(s, v);
 }
 
-/* Computes the unweighted barycenter of u's neighbors into out[dim]. */
 static void computeBarycenter(gvizTutteState *s, size_t u, double *out) {
     const gvizSubgraph *sg = &((gvizEmbeddedGraph *)s)->subgraph;
     size_t d = dim(s);
@@ -172,7 +278,6 @@ static void computeBarycenter(gvizTutteState *s, size_t u, double *out) {
         out[k] /= (double)count;
 }
 
-/* Moves u by alpha toward its barycenter; returns L2 displacement. */
 static double relaxVertex(gvizTutteState *s, size_t u, double alpha) {
     if (gvizSubgraphDegree(&((gvizEmbeddedGraph *)s)->subgraph, u) == 0)
         return 0.0;
@@ -198,8 +303,10 @@ double gvizTutteEmbedderStep(gvizTutteState *s, double dt) {
     size_t N = numVertices(s);
 
     double alpha = s->relaxationRate * dt;
-    if (alpha <= 0.0) return 0.0;
-    if (alpha > 1.0)  alpha = 1.0;
+    if (alpha <= 0.0)
+        return 0.0;
+    if (alpha > 1.0)
+        alpha = 1.0;
 
     if (!s->useGaussSeidel)
         snapshotInterior(s);
@@ -218,6 +325,9 @@ double gvizTutteEmbedderStep(gvizTutteState *s, double dt) {
     if (maxDelta < s->epsilon)
         s->converged = 1;
 
+    gvizEmbeddedGraphStatAppend((gvizEmbeddedGraph *)s, "tutte.maxDelta",
+                                maxDelta);
+
     return maxDelta;
 }
 
@@ -229,4 +339,30 @@ int gvizTutteEmbedderRun(gvizTutteState *s, size_t maxIters) {
         gvizTutteEmbedderStep(s, 1.0);
 
     return (int)s->iteration;
+}
+
+int gvizTutteEmbedderFixOuterFace(gvizTutteState *s) {
+    gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)s;
+    if (!s || !s->begun)
+        return -1;
+
+    const gvizSubgraph *highlight = gvizEmbeddedGraphGetHighlight(embedding);
+    if (!gvizEmbeddedGraphHasHighlight(embedding))
+        return -1;
+
+    size_t N = numVertices(s);
+    size_t *boundary = GVIZ_ALLOC(sizeof(size_t) * N);
+    if (!boundary)
+        return -1;
+
+    size_t boundaryCount = 0;
+    if (boundaryCycleFromSubgraph(highlight, boundary, N, &boundaryCount) < 0) {
+        GVIZ_DEALLOC(boundary);
+        return -1;
+    }
+
+    gvizTutteFixConvexPolygon(s, boundary, boundaryCount, 200.0);
+    GVIZ_DEALLOC(boundary);
+    gvizTutteEmbedderSeedInterior(s);
+    return 0;
 }
