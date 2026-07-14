@@ -74,6 +74,11 @@ add_executable(gvizBitArrayTests third-party/unity/unity.c tests/dsa/gvizBitArra
 add_executable(gvizDequeTests third-party/unity/unity.c tests/dsa/gvizDequeTests.c)
 add_executable(gvizGraphViewTests third-party/unity/unity.c tests/dsa/gvizGraphViewTests.c)
 
+add_executable(polytutteDemo
+    tests/renderer/polytutteDemo.c
+    src/app/gvizLayerPolyTutte.c
+)
+
 
 add_executable(gvizGRIPTests third-party/unity/unity.c tests/renderer/GRIP/gvizGRIPTests.c)
 add_executable(gvizPlanarTests third-party/unity/unity.c tests/renderer/planar/gvizPlanarTests.c)
@@ -102,6 +107,9 @@ set_target_properties(gvizDequeTests PROPERTIES
 set_target_properties(gvizGraphViewTests PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/dsa)
 
+set_target_properties(polytutteDemo PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/renderer/polytutteDemo)
+
 set_target_properties(gvizGRIPTests PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/renderer/GRIP)
 set_target_properties(gvizPlanarTests PROPERTIES
@@ -115,6 +123,9 @@ target_link_libraries(gvizGraphTests PRIVATE graphvis)
 target_link_libraries(gvizBitArrayTests PRIVATE graphvis)
 target_link_libraries(gvizDequeTests PRIVATE graphvis)
 target_link_libraries(gvizGraphViewTests PRIVATE graphvis)
+
+target_include_directories(polytutteDemo PRIVATE /usr/local/include)
+target_link_libraries(polytutteDemo PRIVATE graphvis)
 
 target_link_libraries(gvizGRIPTests PRIVATE graphvis)
 target_link_libraries(gvizPlanarTests PRIVATE graphvis)

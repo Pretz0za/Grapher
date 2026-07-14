@@ -25,6 +25,7 @@ enum {
   ACT_DELETE_LAYER,
   ACT_NEW_GRAPH,
   ACT_NEW_LAYER_FROM_GRAPH,
+  ACT_DELETE_GRAPH,
 };
 
 typedef struct AppState {
@@ -98,6 +99,7 @@ static void onPanelAreaContextMenu(gvizScene *s, int sx, int sy, void *ud) {
   if (h != GVIZ_SCENE_GRAPH_INVALID) {
     gvizContextMenuAddEntry(m, "New layer from this graph",
                             ACT_NEW_LAYER_FROM_GRAPH);
+    gvizContextMenuAddEntry(m, "Delete graph", ACT_DELETE_GRAPH);
     app->pendingGraphForLayer = h;
   } else {
     gvizContextMenuAddEntry(m, "New graph", ACT_NEW_GRAPH);
@@ -166,6 +168,8 @@ static void drainContextMenu(gvizScene *scene, AppState *app) {
     openGraphCreatePanel(scene, app);
   else if (result == ACT_NEW_LAYER_FROM_GRAPH)
     openCreatePanel(scene, app, GVIZ_SLOT_FROM_EXISTING_GRAPH, NULL);
+  else if (result == ACT_DELETE_GRAPH)
+    gvizSceneReleaseGraph(scene, app->pendingGraphForLayer);
 }
 
 static void drainGraphCreatePanel(gvizScene *scene, AppState *app) {

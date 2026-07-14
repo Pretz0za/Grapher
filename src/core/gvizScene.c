@@ -357,9 +357,21 @@ int gvizSceneAddLayer(gvizScene *s, gvizLayer *layer) {
     if (!s->layout.root) {
       s->layout.root = gvizSlotNodeNewLeaf(layer);
     } else if (!findLeafForLayer(s->layout.root, layer)) {
-      /* No explicit split: collapse into the rightmost leaf as a fallback. */
       gvizSlotNode *rm = findRightmostLeaf(s->layout.root);
-      if (rm && !rm->layer) rm->layer = layer;
+      if (rm) {
+        gvizSlotNode *oldLeaf = gvizSlotNodeNewLeaf(rm->layer);
+        gvizSlotNode *newLeaf = gvizSlotNodeNewLeaf(layer);
+        if (oldLeaf && newLeaf) {
+          rm->split = GVIZ_SPLIT_H;
+          rm->layer = NULL;
+          rm->a = oldLeaf;
+          rm->b = newLeaf;
+          rm->ratio = 0.5f;
+        } else {
+          if (oldLeaf) GVIZ_DEALLOC(oldLeaf);
+          if (newLeaf) GVIZ_DEALLOC(newLeaf);
+        }
+      }
     }
   }
   gvizSceneRecomputeSlots(s);
@@ -749,7 +761,8 @@ void gvizSceneHandleInput(gvizScene *s) {
         int hasModal = 0;
         for (size_t k = s->layers.count; k-- > 0;) {
           gvizLayer *ll = *(gvizLayer **)gvizArrayAtIndex(&s->layers, k);
-          if (ll->flags & GVIZ_LAYER_SCREEN_SPACE) { hasModal = 1; break; }
+          if ((ll->flags & GVIZ_LAYER_SCREEN_SPACE) &&
+              (ll->flags & GVIZ_LAYER_CAPTURES_INPUT)) { hasModal = 1; break; }
         }
         if (!hasModal) {
           if (!hit && s->onEmptyAreaContextMenu) {

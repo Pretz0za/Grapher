@@ -19,9 +19,9 @@
  */
 typedef struct gvizLayerGraphTree {
   gvizLayer layer;
-  gvizScene *scene;       /* borrowed; must outlive the panel */
-  float scrollY;          /* current vertical scroll offset (px) */
-  gvizArray collapsed;    /* unsigned char per graph slot; 1 = collapsed */
+  gvizScene *scene;    /* borrowed; must outlive the panel */
+  float scrollY;       /* current vertical scroll offset (px) */
+  gvizArray collapsed; /* unsigned char per graph slot; 1 = collapsed */
 } gvizLayerGraphTree;
 
 void gvizLayerGraphTreeInit(gvizLayerGraphTree *self, gvizScene *s, size_t z);

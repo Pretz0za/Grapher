@@ -45,7 +45,8 @@ Vector2 gvizCameraScreenToWorld2D(const gvizCamera *cam, Vector2 screen);
  * skips pan/zoom.
  * `centroid` and `radius` describe the content bounding sphere in world space.
  * When radius <= 0 the T and R shortcuts are disabled.
- * 2D controls: left-drag pan, scroll zoom, T pan-to-centroid, R rotate-about-centroid.
+ * 2D controls: left-drag pan, scroll zoom, T pan-to-centroid, R
+ * rotate-about-centroid.
  */
 void gvizCameraHandleInput2D(gvizCamera *cam, int vx, int vy, int vw, int vh,
                              float mx, float my, float mdx, float mdy,
@@ -61,8 +62,8 @@ void gvizCameraHandleInput2D(gvizCamera *cam, int vx, int vy, int vw, int vh,
  *   Cmd+scroll       — adjust FOV (10°–120°)
  *   T            — teleport to a good view distance from centroid, aim at it
  *   L            — aim at centroid without moving
- * `centroid` and `radius` describe the content bounding sphere. When radius <= 0
- * T and L are disabled. Pass interactive=0 to suppress all input.
+ * `centroid` and `radius` describe the content bounding sphere. When radius <=
+ * 0 T and L are disabled. Pass interactive=0 to suppress all input.
  */
 void gvizCameraHandleInput3D(gvizCamera *cam, int vx, int vy, int vw, int vh,
                              int interactive, Vector3 centroid, float radius);

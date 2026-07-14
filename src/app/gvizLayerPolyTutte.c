@@ -126,9 +126,10 @@ static void pt_highlightFace(gvizLayerPolyTutte *self, size_t faceIdx) {
 }
 
 static void pt_writeColors(gvizLayerPolyTutte *self, gvizEmbeddedGraph *eg) {
+  (void)eg;
   if (self->vbo.colorsCount == 0 || !self->vbo.colors)
     return;
-  gvizGraph *g = eg->view.graph;
+  gvizGraph *g = &self->graph;
   size_t N = g->vertices.count;
   size_t fi = 0;
   for (size_t u = 0; u < N; u++) {
