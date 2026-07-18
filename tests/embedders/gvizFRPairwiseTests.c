@@ -102,6 +102,39 @@ void test_frPairwise_nonEdgeRepels(void) {
   gvizGraphRelease(&g);
 }
 
+/* An edge pair placed much closer than edgeLength still nets repulsion: the
+ * corrected standard model always applies repulsion, and at short range
+ * f_r(d)=k^2/d dominates f_a(d)=d^2/k. Under the old exclusive model this
+ * pair would only ever feel attraction, so this fails against that code. */
+void test_frPairwise_edgeRepelsWhenVeryClose(void) {
+  gvizGraph g;
+  gvizGraphInit(&g, 0);
+  gvizGraphAddVertex(&g, NULL, NULL, NULL);
+  gvizGraphAddVertex(&g, NULL, NULL, NULL);
+  gvizGraphAddEdge(&g, 0, 1);
+
+  gvizFRPairwiseState s;
+  TEST_ASSERT_EQUAL(0,
+                    gvizFRPairwiseEmbedderInit(&s, makeFullSubgraph(&g), 2));
+
+  gvizEmbeddedGraph *eg = (gvizEmbeddedGraph *)&s;
+  double p0[2] = {-0.5, 0.0};
+  double p1[2] = {0.5, 0.0};
+  gvizEmbeddedGraphSetVPosition(eg, 0, p0);
+  gvizEmbeddedGraphSetVPosition(eg, 1, p1);
+
+  double before = dist2(gvizEmbeddedGraphGetVPosition(eg, 0),
+                        gvizEmbeddedGraphGetVPosition(eg, 1));
+  gvizFRPairwiseEmbedderStep(&s);
+  double after = dist2(gvizEmbeddedGraphGetVPosition(eg, 0),
+                       gvizEmbeddedGraphGetVPosition(eg, 1));
+
+  TEST_ASSERT_TRUE(after > before);
+
+  gvizFRPairwiseEmbedderRelease(&s);
+  gvizGraphRelease(&g);
+}
+
 void test_frPairwise_run_convergesOrStopsAtMaxIters(void) {
   gvizGraph g;
   gvizGraphInit(&g, 0);
@@ -128,6 +161,7 @@ int main(void) {
   RUN_TEST(test_frPairwise_begin_positionsWithinBox);
   RUN_TEST(test_frPairwise_edgeAttracts);
   RUN_TEST(test_frPairwise_nonEdgeRepels);
+  RUN_TEST(test_frPairwise_edgeRepelsWhenVeryClose);
   RUN_TEST(test_frPairwise_run_convergesOrStopsAtMaxIters);
   return UNITY_END();
 }

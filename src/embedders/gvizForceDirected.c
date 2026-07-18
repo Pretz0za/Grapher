@@ -28,3 +28,11 @@ void gvizPairwiseFRAttForce(int n, double *vPos, double *uPos, double k,
                             double *acc) {
   gvizVecAccFRAttForce((size_t)n, vPos, uPos, k, acc);
 }
+
+void gvizPairwiseFRRepForceWeighted(int n, double *vPos, double *comPos,
+                                    size_t mass, double k, double *acc) {
+  double scratch[n];
+  gvizVecZero((size_t)n, scratch);
+  gvizPairwiseFRRepForce(n, vPos, comPos, k, scratch);
+  gvizVecAxpy((size_t)n, (double)mass, scratch, acc);
+}

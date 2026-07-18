@@ -91,6 +91,12 @@
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
+  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -g -std=gnu11 -arch arm64 -o CMakeFiles/graphvis.dir/src/ds/gvizQuadtree.c.o -c /Users/abdulaziz.alahmadi/gviz/src/ds/gvizQuadtree.c",
+  "file": "/Users/abdulaziz.alahmadi/gviz/src/ds/gvizQuadtree.c",
+  "output": "CMakeFiles/graphvis.dir/src/ds/gvizQuadtree.c.o"
+},
+{
+  "directory": "/Users/abdulaziz.alahmadi/gviz/build",
   "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -g -std=gnu11 -arch arm64 -o CMakeFiles/graphvis.dir/src/algorithms/search/gvizBreadthFirst.c.o -c /Users/abdulaziz.alahmadi/gviz/src/algorithms/search/gvizBreadthFirst.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/src/algorithms/search/gvizBreadthFirst.c",
   "output": "CMakeFiles/graphvis.dir/src/algorithms/search/gvizBreadthFirst.c.o"
@@ -160,6 +166,12 @@
   "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -g -std=gnu11 -arch arm64 -o CMakeFiles/graphvis.dir/src/embedders/gvizTutteEmbedder.c.o -c /Users/abdulaziz.alahmadi/gviz/src/embedders/gvizTutteEmbedder.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/src/embedders/gvizTutteEmbedder.c",
   "output": "CMakeFiles/graphvis.dir/src/embedders/gvizTutteEmbedder.c.o"
+},
+{
+  "directory": "/Users/abdulaziz.alahmadi/gviz/build",
+  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -g -std=gnu11 -arch arm64 -o CMakeFiles/graphvis.dir/src/embedders/gvizSpringTutteEmbedder.c.o -c /Users/abdulaziz.alahmadi/gviz/src/embedders/gvizSpringTutteEmbedder.c",
+  "file": "/Users/abdulaziz.alahmadi/gviz/src/embedders/gvizSpringTutteEmbedder.c",
+  "output": "CMakeFiles/graphvis.dir/src/embedders/gvizSpringTutteEmbedder.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
@@ -271,6 +283,18 @@
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -g -std=gnu11 -arch arm64 -o CMakeFiles/gvizQuadtreeTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
+  "file": "/Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
+  "output": "CMakeFiles/gvizQuadtreeTests.dir/third-party/unity/unity.c.o"
+},
+{
+  "directory": "/Users/abdulaziz.alahmadi/gviz/build",
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -g -std=gnu11 -arch arm64 -o CMakeFiles/gvizQuadtreeTests.dir/tests/ds/gvizQuadtreeTests.c.o -c /Users/abdulaziz.alahmadi/gviz/tests/ds/gvizQuadtreeTests.c",
+  "file": "/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizQuadtreeTests.c",
+  "output": "CMakeFiles/gvizQuadtreeTests.dir/tests/ds/gvizQuadtreeTests.c.o"
+},
+{
+  "directory": "/Users/abdulaziz.alahmadi/gviz/build",
   "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -g -std=gnu11 -arch arm64 -o CMakeFiles/gvizSearchTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "output": "CMakeFiles/gvizSearchTests.dir/third-party/unity/unity.c.o"
@@ -364,6 +388,18 @@
   "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -g -std=gnu11 -arch arm64 -o CMakeFiles/gvizTuttePickTests.dir/tests/embedders/gvizTuttePickTests.c.o -c /Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizTuttePickTests.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizTuttePickTests.c",
   "output": "CMakeFiles/gvizTuttePickTests.dir/tests/embedders/gvizTuttePickTests.c.o"
+},
+{
+  "directory": "/Users/abdulaziz.alahmadi/gviz/build",
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -g -std=gnu11 -arch arm64 -o CMakeFiles/gvizSpringTutteTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
+  "file": "/Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
+  "output": "CMakeFiles/gvizSpringTutteTests.dir/third-party/unity/unity.c.o"
+},
+{
+  "directory": "/Users/abdulaziz.alahmadi/gviz/build",
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -g -std=gnu11 -arch arm64 -o CMakeFiles/gvizSpringTutteTests.dir/tests/embedders/gvizSpringTutteTests.c.o -c /Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizSpringTutteTests.c",
+  "file": "/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizSpringTutteTests.c",
+  "output": "CMakeFiles/gvizSpringTutteTests.dir/tests/embedders/gvizSpringTutteTests.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",

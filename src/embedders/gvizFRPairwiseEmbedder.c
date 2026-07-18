@@ -41,10 +41,9 @@ static void computeForceRange(void *ctx, size_t begin, size_t end) {
         continue;
       size_t u = state->vertices[j];
       double *uPos = gvizEmbeddedGraphGetVPosition(embedding, u);
+      gvizPairwiseFRRepForce(dim, vPos, uPos, state->edgeLength, repF);
       if (gvizSubgraphHasEdge(sg, v, u))
         gvizPairwiseFRAttForce(dim, vPos, uPos, state->edgeLength, attF);
-      else
-        gvizPairwiseFRRepForce(dim, vPos, uPos, state->edgeLength, repF);
     }
 
     gvizVecAxpy(dim, 1.0, attF, f);

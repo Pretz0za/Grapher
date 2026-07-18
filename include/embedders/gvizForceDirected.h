@@ -47,4 +47,15 @@ void gvizPairwiseFRAttForce(int n, double *vPos, double *uPos, double k,
 void gvizPairwiseFRRepForce(int n, double *vPos, double *uPos, double k,
                             double *acc);
 
+/**
+ * Accumulates the Fruchterman-Reingold repulsive force @p vPos would feel
+ * from @p mass bodies collapsed at their shared center of mass @p comPos,
+ * approximating their combined repulsion as a single pseudo-body of that
+ * mass instead of visiting each body individually. This is the Barnes-Hut
+ * approximation used by gvizForceEmbedder when a quadtree node is far enough
+ * away (per its opening-angle test) to be treated as one point.
+ */
+void gvizPairwiseFRRepForceWeighted(int n, double *vPos, double *comPos,
+                                    size_t mass, double k, double *acc);
+
 #endif

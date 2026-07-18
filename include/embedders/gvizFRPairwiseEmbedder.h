@@ -12,9 +12,10 @@
 
 /**
  * State for a brute-force pairwise Fruchterman-Reingold embedder. Every
- * round, every vertex pair exerts a force on each other: attractive if an
- * edge connects them, repulsive otherwise. O(V^2) per round; a simple
- * reference layout rather than a scalable one (contrast with GRIP).
+ * round, every distinct vertex pair exerts a repulsive force on each other;
+ * pairs connected by an edge additionally exert an attractive force on top of
+ * that repulsion. O(V^2) per round; a simple reference layout rather than a
+ * scalable one (contrast with GRIP).
  *
  * The first field MUST remain gvizEmbeddedGraph so that a pointer to this
  * struct may be safely cast to gvizEmbeddedGraph *.
@@ -90,13 +91,14 @@ void gvizFRPairwiseEmbedderBegin(gvizFRPairwiseState *state,
                                  unsigned int seed);
 
 /**
- * Runs one round: accumulates the pairwise attractive/repulsive force on
- * every active vertex against every other active vertex, then applies the
- * resulting displacement, clamped to at most the current temperature per
- * vertex (the standard Fruchterman-Reingold temperature cap). The temperature
- * cools by coolingFactor every round, floored at
- * edgeLength * GVIZ_FR_PAIRWISE_MIN_TEMP_FACTOR, which damps the back-and-forth
- * oscillation an uncooled fixed cap can fall into.
+ * Runs one round: accumulates the pairwise repulsive force between every
+ * active vertex and every other active vertex, plus the pairwise attractive
+ * force for every active vertex pair connected by an edge (on top of that
+ * pair's repulsion), then applies the resulting displacement, clamped to at
+ * most the current temperature per vertex (the standard Fruchterman-Reingold
+ * temperature cap). The temperature cools by coolingFactor every round,
+ * floored at edgeLength * GVIZ_FR_PAIRWISE_MIN_TEMP_FACTOR, which damps the
+ * back-and-forth oscillation an uncooled fixed cap can fall into.
  *
  * @return the maximum per-vertex displacement actually applied this round.
  */

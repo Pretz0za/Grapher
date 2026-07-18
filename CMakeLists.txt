@@ -33,6 +33,7 @@ add_library(graphvis STATIC
     src/ds/gvizDeque.c
     src/ds/gvizBitArray.c
     src/ds/gvizSubgraph.c
+    src/ds/gvizQuadtree.c
 
     src/algorithms/search/gvizBreadthFirst.c
     src/algorithms/search/gvizDepthFirst.c
@@ -44,6 +45,7 @@ add_library(graphvis STATIC
     src/embedders/gvizGRIPEmbedder.c
     src/embedders/gvizForceDirected.c
     src/embedders/gvizFRPairwiseEmbedder.c
+    src/embedders/gvizForceEmbedder.c
     src/embedders/gvizPlanarEmbedder.c
     src/embedders/gvizSchnyderWood.c
     src/embedders/gvizTutteEmbedder.c
@@ -77,6 +79,7 @@ add_executable(gvizGraphTests third-party/unity/unity.c tests/ds/gvizGraphTests.
 add_executable(gvizBitArrayTests third-party/unity/unity.c tests/ds/gvizBitArrayTests.c)
 add_executable(gvizDequeTests third-party/unity/unity.c tests/ds/gvizDequeTests.c)
 add_executable(gvizSubgraphTests third-party/unity/unity.c tests/ds/gvizSubgraphTests.c)
+add_executable(gvizQuadtreeTests third-party/unity/unity.c tests/ds/gvizQuadtreeTests.c)
 
 # Algorithm tests
 add_executable(gvizSearchTests third-party/unity/unity.c tests/algorithms/search/gvizSearchTests.c)
@@ -94,6 +97,7 @@ add_executable(gvizTutteTests third-party/unity/unity.c tests/embedders/gvizTutt
 add_executable(gvizTuttePickTests tests/embedders/gvizTuttePickTests.c)
 add_executable(gvizSpringTutteTests third-party/unity/unity.c tests/embedders/gvizSpringTutteTests.c)
 add_executable(gvizFRPairwiseTests third-party/unity/unity.c tests/embedders/gvizFRPairwiseTests.c)
+add_executable(gvizForceEmbedderTests third-party/unity/unity.c tests/embedders/gvizForceEmbedderTests.c)
 
 target_compile_definitions(gvizThreadPoolTests PRIVATE UNITY_INCLUDE_DOUBLE)
 target_compile_definitions(gvizVecTests PRIVATE UNITY_INCLUDE_DOUBLE)
@@ -103,6 +107,7 @@ target_compile_definitions(gvizGraphTests PRIVATE UNITY_INCLUDE_DOUBLE
 target_compile_definitions(gvizBitArrayTests PRIVATE UNITY_INCLUDE_DOUBLE)
 target_compile_definitions(gvizDequeTests PRIVATE UNITY_INCLUDE_DOUBLE)
 target_compile_definitions(gvizSubgraphTests PRIVATE UNITY_INCLUDE_DOUBLE)
+target_compile_definitions(gvizQuadtreeTests PRIVATE UNITY_INCLUDE_DOUBLE)
 target_compile_definitions(gvizSearchTests PRIVATE UNITY_INCLUDE_DOUBLE)
 target_compile_definitions(gvizEmbeddedGraphTests PRIVATE UNITY_INCLUDE_DOUBLE)
 target_compile_definitions(gvizGRIPTests PRIVATE UNITY_INCLUDE_DOUBLE)
@@ -110,6 +115,7 @@ target_compile_definitions(gvizPlanarTests PRIVATE UNITY_INCLUDE_DOUBLE)
 target_compile_definitions(gvizTutteTests PRIVATE UNITY_INCLUDE_DOUBLE)
 target_compile_definitions(gvizSpringTutteTests PRIVATE UNITY_INCLUDE_DOUBLE)
 target_compile_definitions(gvizFRPairwiseTests PRIVATE UNITY_INCLUDE_DOUBLE)
+target_compile_definitions(gvizForceEmbedderTests PRIVATE UNITY_INCLUDE_DOUBLE)
 
 set_target_properties(gvizThreadPoolTests PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/core)
@@ -124,6 +130,8 @@ set_target_properties(gvizBitArrayTests PROPERTIES
 set_target_properties(gvizDequeTests PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/ds)
 set_target_properties(gvizSubgraphTests PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/ds)
+set_target_properties(gvizQuadtreeTests PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/ds)
 
 set_target_properties(gvizSearchTests PROPERTIES
@@ -153,6 +161,8 @@ set_target_properties(gvizSpringTutteTests PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/embedders)
 set_target_properties(gvizFRPairwiseTests PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/embedders)
+set_target_properties(gvizForceEmbedderTests PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/embedders)
 
 target_link_libraries(gvizThreadPoolTests PRIVATE graphvis)
 target_link_libraries(gvizVecTests PRIVATE graphvis)
@@ -161,6 +171,7 @@ target_link_libraries(gvizGraphTests PRIVATE graphvis)
 target_link_libraries(gvizBitArrayTests PRIVATE graphvis)
 target_link_libraries(gvizDequeTests PRIVATE graphvis)
 target_link_libraries(gvizSubgraphTests PRIVATE graphvis)
+target_link_libraries(gvizQuadtreeTests PRIVATE graphvis)
 target_link_libraries(gvizSearchTests PRIVATE graphvis)
 
 target_link_libraries(gvizEmbeddedGraphTests PRIVATE graphvis)
@@ -179,6 +190,7 @@ target_link_libraries(gvizTutteTests PRIVATE graphvis)
 target_link_libraries(gvizTuttePickTests PRIVATE graphvis)
 target_link_libraries(gvizSpringTutteTests PRIVATE graphvis)
 target_link_libraries(gvizFRPairwiseTests PRIVATE graphvis)
+target_link_libraries(gvizForceEmbedderTests PRIVATE graphvis)
 
 enable_testing()
 add_test(NAME gvizThreadPoolTests COMMAND gvizThreadPoolTests)
@@ -188,6 +200,7 @@ add_test(NAME gvizGraphTests COMMAND gvizGraphTests)
 add_test(NAME gvizBitArrayTests COMMAND gvizBitArrayTests)
 add_test(NAME gvizDequeTests COMMAND gvizDequeTests)
 add_test(NAME gvizSubgraphTests COMMAND gvizSubgraphTests)
+add_test(NAME gvizQuadtreeTests COMMAND gvizQuadtreeTests)
 add_test(NAME gvizSearchTests COMMAND gvizSearchTests)
 add_test(NAME gvizEmbeddedGraphTests COMMAND gvizEmbeddedGraphTests)
 add_test(NAME gvizGRIPTests COMMAND gvizGRIPTests)
@@ -196,3 +209,4 @@ add_test(NAME gvizTutteTests COMMAND gvizTutteTests)
 add_test(NAME gvizTuttePickTests COMMAND gvizTuttePickTests)
 add_test(NAME gvizSpringTutteTests COMMAND gvizSpringTutteTests)
 add_test(NAME gvizFRPairwiseTests COMMAND gvizFRPairwiseTests)
+add_test(NAME gvizForceEmbedderTests COMMAND gvizForceEmbedderTests)
