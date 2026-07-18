@@ -47,20 +47,36 @@ void test_gvizVecAccKKForce(void) {
   assertVecNear(2, acc, (double[]){-1.5, -2.0}, 1e-12);
 }
 
+void test_gvizVecAccGRIPFRRepForce(void) {
+  double v[2] = {0.0, 0.0};
+  double u[2] = {2.0, 0.0};
+  double acc[2] = {0.0, 0.0};
+  gvizVecAccGRIPFRRepForce(2, v, u, 1.0, acc);
+  assertVecNear(2, acc, (double[]){8.0, 0.0}, 1e-12);
+}
+
+void test_gvizVecAccGRIPFRAttForce(void) {
+  double v[2] = {2.0, 0.0};
+  double u[2] = {0.0, 0.0};
+  double acc[2] = {0.0, 0.0};
+  gvizVecAccGRIPFRAttForce(2, v, u, 1.0, 0.05, acc);
+  assertVecNear(2, acc, (double[]){0.025, 0.0}, 1e-12);
+}
+
+void test_gvizVecAccFRAttForce(void) {
+  double v[2] = {0.0, 0.0};
+  double u[2] = {3.0, 4.0};
+  double acc[2] = {0.0, 0.0};
+  gvizVecAccFRAttForce(2, v, u, 5.0, acc);
+  assertVecNear(2, acc, (double[]){3.0, 4.0}, 1e-12);
+}
+
 void test_gvizVecAccFRRepForce(void) {
   double v[2] = {0.0, 0.0};
   double u[2] = {2.0, 0.0};
   double acc[2] = {0.0, 0.0};
   gvizVecAccFRRepForce(2, v, u, 1.0, acc);
-  assertVecNear(2, acc, (double[]){8.0, 0.0}, 1e-12);
-}
-
-void test_gvizVecAccFRAttForce(void) {
-  double v[2] = {2.0, 0.0};
-  double u[2] = {0.0, 0.0};
-  double acc[2] = {0.0, 0.0};
-  gvizVecAccFRAttForce(2, v, u, 1.0, 0.05, acc);
-  assertVecNear(2, acc, (double[]){0.025, 0.0}, 1e-12);
+  assertVecNear(2, acc, (double[]){-0.5, 0.0}, 1e-12);
 }
 
 void test_gvizVecDim4(void) {
@@ -86,8 +102,10 @@ int main(void) {
   RUN_TEST(test_gvizVecNormAndScale);
   RUN_TEST(test_gvizVecAxpy);
   RUN_TEST(test_gvizVecAccKKForce);
-  RUN_TEST(test_gvizVecAccFRRepForce);
+  RUN_TEST(test_gvizVecAccGRIPFRRepForce);
+  RUN_TEST(test_gvizVecAccGRIPFRAttForce);
   RUN_TEST(test_gvizVecAccFRAttForce);
+  RUN_TEST(test_gvizVecAccFRRepForce);
   RUN_TEST(test_gvizVecDim4);
   return UNITY_END();
 }

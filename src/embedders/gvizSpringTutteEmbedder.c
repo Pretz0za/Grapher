@@ -1,4 +1,4 @@
-#include "embedders/gvizTutteEmbedder.h"
+#include "embedders/gvizSpringTutteEmbedder.h"
 #include "core/alloc.h"
 #include "ds/gvizArray.h"
 #include "ds/gvizGraph.h"
@@ -8,47 +8,52 @@
 #include <stdlib.h>
 #include <string.h>
 
-static size_t numVertices(const gvizTutteState *s) {
+static size_t numVertices(const gvizSpringTutteState *s) {
     return gvizGraphSize(((gvizEmbeddedGraph *)s)->subgraph.g);
 }
 
-static size_t dim(const gvizTutteState *s) {
+static size_t dim(const gvizSpringTutteState *s) {
     return ((gvizEmbeddedGraph *)s)->embedding.dim;
 }
 
-static double *livePos(gvizTutteState *s, size_t u) {
+static double *livePos(gvizSpringTutteState *s, size_t u) {
     return gvizEmbeddedGraphGetVPosition((gvizEmbeddedGraph *)s, u);
 }
 
-static void setPos(gvizTutteState *s, size_t u, double *p) {
+static void setPos(gvizSpringTutteState *s, size_t u, double *p) {
     gvizEmbeddedGraphSetVPosition((gvizEmbeddedGraph *)s, u, p);
 }
 
-static void clearBoundaryBits(gvizTutteState *s) {
+static double *vel(gvizSpringTutteState *s, size_t u) {
+    return s->velocity + u * dim(s);
+}
+
+static void clearBoundaryBits(gvizSpringTutteState *s) {
     size_t N = numVertices(s);
     memset(s->isBoundary, 0, sizeof(GVIZ_BIT_UNIT) * GVIZ_ARRAY_UNITS(N));
 }
 
-static void tutteActionStep(gvizEmbeddedGraph *embedding, void *userData,
-                            const gvizActionPayload *payload) {
+static void springTutteActionStep(gvizEmbeddedGraph *embedding, void *userData,
+                                  const gvizActionPayload *payload) {
     (void)userData;
-    gvizTutteState *s = (gvizTutteState *)embedding;
+    gvizSpringTutteState *s = (gvizSpringTutteState *)embedding;
     if (!s->begun || !s->boundary)
         return;
     double dt = payload && payload->deltaTime > 0.0 ? payload->deltaTime : 1.0 / 60.0;
-    gvizTutteEmbedderStep(s, dt);
+    gvizSpringTutteEmbedderStep(s, dt);
 }
 
-static void tutteActionFixOuterFace(gvizEmbeddedGraph *embedding, void *userData,
-                                    const gvizActionPayload *payload) {
+static void springTutteActionFixOuterFace(gvizEmbeddedGraph *embedding,
+                                          void *userData,
+                                          const gvizActionPayload *payload) {
     (void)userData;
     (void)payload;
-    gvizTutteState *s = (gvizTutteState *)embedding;
-    gvizTutteEmbedderFixOuterFace(s);
+    gvizSpringTutteState *s = (gvizSpringTutteState *)embedding;
+    gvizSpringTutteEmbedderFixOuterFace(s);
 }
 
-int gvizTutteEmbedderInit(gvizTutteState *s, gvizSubgraph subgraph,
-                           size_t dimension, double epsilon) {
+int gvizSpringTutteEmbedderInit(gvizSpringTutteState *s, gvizSubgraph subgraph,
+                                size_t dimension, double epsilon) {
     memset(s, 0, sizeof(*s));
 
     int res = gvizEmbeddedGraphInit((gvizEmbeddedGraph *)s, subgraph, dimension);
@@ -65,41 +70,56 @@ int gvizTutteEmbedderInit(gvizTutteState *s, gvizSubgraph subgraph,
         return -1;
     memset(s->isBoundary, 0, sizeof(GVIZ_BIT_UNIT) * GVIZ_ARRAY_UNITS(N));
 
-    s->scratch = GVIZ_ALLOC(sizeof(double) * N * dimension);
-    if (!s->scratch)
+    s->scratchPos = GVIZ_ALLOC(sizeof(double) * N * dimension);
+    if (!s->scratchPos)
         return -1;
-    memset(s->scratch, 0, sizeof(double) * N * dimension);
+    memset(s->scratchPos, 0, sizeof(double) * N * dimension);
+
+    s->velocity = GVIZ_ALLOC(sizeof(double) * N * dimension);
+    if (!s->velocity)
+        return -1;
+    memset(s->velocity, 0, sizeof(double) * N * dimension);
 
     s->iteration = 0;
     s->lastMaxDelta = 0.0;
     s->converged = 0;
-    s->useGaussSeidel = 0;
-    s->epsilon = (epsilon > 0.0) ? epsilon : GVIZ_TUTTE_DEFAULT_EPSILON;
-    s->relaxationRate = 5.0;
+    s->epsilon = (epsilon > 0.0) ? epsilon : GVIZ_SPRING_TUTTE_DEFAULT_EPSILON;
+    s->stiffness = GVIZ_SPRING_TUTTE_DEFAULT_STIFFNESS;
+    s->damping = GVIZ_SPRING_TUTTE_DEFAULT_DAMPING;
 
     gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)s;
-    if (gvizEmbeddedGraphAddAction(embedding, "tutte.step", tutteActionStep,
-                                   NULL) < 0)
+    if (gvizEmbeddedGraphAddAction(embedding, "springTutte.step",
+                                   springTutteActionStep, NULL) < 0)
         return -1;
-    if (gvizEmbeddedGraphAddAction(embedding, "tutte.fixOuterFace",
-                                   tutteActionFixOuterFace, NULL) < 0)
+    if (gvizEmbeddedGraphAddAction(embedding, "springTutte.fixOuterFace",
+                                   springTutteActionFixOuterFace, NULL) < 0)
         return -1;
 
-    if (!gvizEmbeddedGraphAddStatSeries(embedding, "tutte.maxDelta",
+    if (!gvizEmbeddedGraphAddStatSeries(embedding, "springTutte.maxDelta",
                                         GVIZ_STAT_CHART_LINE_LOG))
         return -1;
 
     return 0;
 }
 
-void gvizTutteEmbedderRelease(gvizTutteState *s) {
+void gvizSpringTutteEmbedderRelease(gvizSpringTutteState *s) {
     if (s->boundary)
         GVIZ_DEALLOC(s->boundary);
     if (s->isBoundary)
         GVIZ_DEALLOC(s->isBoundary);
-    if (s->scratch)
-        GVIZ_DEALLOC(s->scratch);
+    if (s->scratchPos)
+        GVIZ_DEALLOC(s->scratchPos);
+    if (s->velocity)
+        GVIZ_DEALLOC(s->velocity);
     gvizEmbeddedGraphRelease((gvizEmbeddedGraph *)s);
+}
+
+void gvizSpringTutteEmbedderConfigure(gvizSpringTutteState *s,
+                                      double stiffness, double damping) {
+    if (stiffness > 0.0)
+        s->stiffness = stiffness;
+    if (damping > 0.0)
+        s->damping = damping;
 }
 
 static int boundaryCycleFromSubgraph(const gvizSubgraph *sg, size_t *out,
@@ -142,7 +162,7 @@ static int boundaryCycleFromSubgraph(const gvizSubgraph *sg, size_t *out,
     return (step == 0 && *count >= 3) ? 0 : -1;
 }
 
-int gvizTutteEmbedderBegin(gvizTutteState *s) {
+int gvizSpringTutteEmbedderBegin(gvizSpringTutteState *s) {
     if (!s || dim(s) != 2)
         return -1;
 
@@ -165,15 +185,16 @@ int gvizTutteEmbedderBegin(gvizTutteState *s) {
         return -1;
     }
 
-    gvizTutteFixConvexPolygon(s, boundary, boundaryCount, 200.0);
+    gvizSpringTutteFixConvexPolygon(s, boundary, boundaryCount, 200.0);
     GVIZ_DEALLOC(boundary);
-    gvizTutteEmbedderSeedInterior(s);
+    gvizSpringTutteEmbedderSeedInterior(s);
     s->begun = 1;
     return 0;
 }
 
-int gvizTutteEmbedderSetBoundary(gvizTutteState *s, const size_t *boundary,
-                                  size_t count, const double *positions) {
+int gvizSpringTutteEmbedderSetBoundary(gvizSpringTutteState *s,
+                                       const size_t *boundary, size_t count,
+                                       const double *positions) {
     if (count < 3)
         return -1;
 
@@ -197,12 +218,13 @@ int gvizTutteEmbedderSetBoundary(gvizTutteState *s, const size_t *boundary,
     for (size_t i = 0; i < count; i++) {
         gvizSetBit(s->isBoundary, boundary[i]);
         setPos(s, boundary[i], (double *)(positions + i * d));
+        memset(vel(s, boundary[i]), 0, sizeof(double) * d);
     }
 
     return 0;
 }
 
-void gvizTutteEmbedderSeedInterior(gvizTutteState *s) {
+void gvizSpringTutteEmbedderSeedInterior(gvizSpringTutteState *s) {
     size_t N = numVertices(s);
     size_t d = dim(s);
 
@@ -222,13 +244,16 @@ void gvizTutteEmbedderSeedInterior(gvizTutteState *s) {
         if (!gvizTestBit(s->isBoundary, u))
             setPos(s, u, centroid);
 
+    memset(s->velocity, 0, sizeof(double) * N * d);
+
     s->iteration = 0;
     s->lastMaxDelta = 0.0;
     s->converged = 0;
 }
 
-void gvizTutteFixConvexPolygon(gvizTutteState *s, const size_t *boundary,
-                               size_t count, double radius) {
+void gvizSpringTutteFixConvexPolygon(gvizSpringTutteState *s,
+                                     const size_t *boundary, size_t count,
+                                     double radius) {
     size_t d = dim(s);
     double positions[count * d];
     memset(positions, 0, sizeof(double) * count * d);
@@ -240,25 +265,25 @@ void gvizTutteFixConvexPolygon(gvizTutteState *s, const size_t *boundary,
             positions[k * d + 1] = radius * sin(angle);
     }
 
-    gvizTutteEmbedderSetBoundary(s, boundary, count, positions);
+    gvizSpringTutteEmbedderSetBoundary(s, boundary, count, positions);
 }
 
-static void snapshotInterior(gvizTutteState *s) {
+static void snapshotInterior(gvizSpringTutteState *s) {
     size_t N = numVertices(s);
     size_t d = dim(s);
     for (size_t u = 0; u < N; u++) {
         if (!gvizTestBit(s->isBoundary, u))
-            memcpy(s->scratch + u * d, livePos(s, u), sizeof(double) * d);
+            memcpy(s->scratchPos + u * d, livePos(s, u), sizeof(double) * d);
     }
 }
 
-static double *neighborReadPos(gvizTutteState *s, size_t v) {
-    if (!s->useGaussSeidel && !gvizTestBit(s->isBoundary, v))
-        return s->scratch + v * dim(s);
+static double *neighborReadPos(gvizSpringTutteState *s, size_t v) {
+    if (!gvizTestBit(s->isBoundary, v))
+        return s->scratchPos + v * dim(s);
     return livePos(s, v);
 }
 
-static void computeBarycenter(gvizTutteState *s, size_t u, double *out) {
+static void computeBarycenter(gvizSpringTutteState *s, size_t u, double *out) {
     const gvizSubgraph *sg = &((gvizEmbeddedGraph *)s)->subgraph;
     size_t d = dim(s);
     size_t count = 0;
@@ -278,7 +303,7 @@ static void computeBarycenter(gvizTutteState *s, size_t u, double *out) {
         out[k] /= (double)count;
 }
 
-static double relaxVertex(gvizTutteState *s, size_t u, double alpha) {
+static double springVertex(gvizSpringTutteState *s, size_t u, double dt) {
     if (gvizSubgraphDegree(&((gvizEmbeddedGraph *)s)->subgraph, u) == 0)
         return 0.0;
 
@@ -287,10 +312,13 @@ static double relaxVertex(gvizTutteState *s, size_t u, double alpha) {
     computeBarycenter(s, u, bary);
 
     double *old = livePos(s, u);
+    double *v = vel(s, u);
     double newp[d];
     double delta = 0.0;
     for (size_t k = 0; k < d; k++) {
-        newp[k] = old[k] + alpha * (bary[k] - old[k]);
+        double accel = s->stiffness * (bary[k] - old[k]) - s->damping * v[k];
+        v[k] += accel * dt;
+        newp[k] = old[k] + v[k] * dt;
         double diff = newp[k] - old[k];
         delta += diff * diff;
     }
@@ -299,23 +327,18 @@ static double relaxVertex(gvizTutteState *s, size_t u, double alpha) {
     return sqrt(delta);
 }
 
-double gvizTutteEmbedderStep(gvizTutteState *s, double dt) {
+double gvizSpringTutteEmbedderStep(gvizSpringTutteState *s, double dt) {
     size_t N = numVertices(s);
-
-    double alpha = s->relaxationRate * dt;
-    if (alpha <= 0.0)
+    if (dt <= 0.0)
         return 0.0;
-    if (alpha > 1.0)
-        alpha = 1.0;
 
-    if (!s->useGaussSeidel)
-        snapshotInterior(s);
+    snapshotInterior(s);
 
     double maxDelta = 0.0;
     for (size_t u = 0; u < N; u++) {
         if (gvizTestBit(s->isBoundary, u))
             continue;
-        double d = relaxVertex(s, u, alpha);
+        double d = springVertex(s, u, dt);
         if (d > maxDelta)
             maxDelta = d;
     }
@@ -325,23 +348,24 @@ double gvizTutteEmbedderStep(gvizTutteState *s, double dt) {
     if (maxDelta < s->epsilon)
         s->converged = 1;
 
-    gvizEmbeddedGraphStatAppend((gvizEmbeddedGraph *)s, "tutte.maxDelta",
+    gvizEmbeddedGraphStatAppend((gvizEmbeddedGraph *)s, "springTutte.maxDelta",
                                 maxDelta);
 
     return maxDelta;
 }
 
-int gvizTutteEmbedderRun(gvizTutteState *s, size_t maxIters) {
+int gvizSpringTutteEmbedderRun(gvizSpringTutteState *s, size_t maxIters,
+                               double dt) {
     if (!s || !s->boundary)
         return -1;
 
     while (!s->converged && s->iteration < maxIters)
-        gvizTutteEmbedderStep(s, 1.0);
+        gvizSpringTutteEmbedderStep(s, dt);
 
     return (int)s->iteration;
 }
 
-int gvizTutteEmbedderFixOuterFace(gvizTutteState *s) {
+int gvizSpringTutteEmbedderFixOuterFace(gvizSpringTutteState *s) {
     gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)s;
     if (!s || !gvizEmbeddedGraphIsPlanarEmbedded(embedding))
         return -1;
@@ -361,9 +385,9 @@ int gvizTutteEmbedderFixOuterFace(gvizTutteState *s) {
         return -1;
     }
 
-    gvizTutteFixConvexPolygon(s, boundary, boundaryCount, 200.0);
+    gvizSpringTutteFixConvexPolygon(s, boundary, boundaryCount, 200.0);
     GVIZ_DEALLOC(boundary);
-    gvizTutteEmbedderSeedInterior(s);
+    gvizSpringTutteEmbedderSeedInterior(s);
     s->begun = 1;
     return 0;
 }

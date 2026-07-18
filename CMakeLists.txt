@@ -43,9 +43,11 @@ add_library(graphvis STATIC
     src/embedders/gvizEmbeddedTree.c
     src/embedders/gvizGRIPEmbedder.c
     src/embedders/gvizForceDirected.c
+    src/embedders/gvizFRPairwiseEmbedder.c
     src/embedders/gvizPlanarEmbedder.c
     src/embedders/gvizSchnyderWood.c
     src/embedders/gvizTutteEmbedder.c
+    src/embedders/gvizSpringTutteEmbedder.c
 
     src/utils/graphs.c
     src/utils/graphLoader.c
@@ -90,6 +92,8 @@ add_executable(gvizGRIPPlaceBench tests/embedders/gvizGRIPPlaceBench.c)
 add_executable(gvizPlanarTests third-party/unity/unity.c tests/embedders/gvizPlanarTests.c)
 add_executable(gvizTutteTests third-party/unity/unity.c tests/embedders/gvizTutteTests.c)
 add_executable(gvizTuttePickTests tests/embedders/gvizTuttePickTests.c)
+add_executable(gvizSpringTutteTests third-party/unity/unity.c tests/embedders/gvizSpringTutteTests.c)
+add_executable(gvizFRPairwiseTests third-party/unity/unity.c tests/embedders/gvizFRPairwiseTests.c)
 
 target_compile_definitions(gvizThreadPoolTests PRIVATE UNITY_INCLUDE_DOUBLE)
 target_compile_definitions(gvizVecTests PRIVATE UNITY_INCLUDE_DOUBLE)
@@ -104,6 +108,8 @@ target_compile_definitions(gvizEmbeddedGraphTests PRIVATE UNITY_INCLUDE_DOUBLE)
 target_compile_definitions(gvizGRIPTests PRIVATE UNITY_INCLUDE_DOUBLE)
 target_compile_definitions(gvizPlanarTests PRIVATE UNITY_INCLUDE_DOUBLE)
 target_compile_definitions(gvizTutteTests PRIVATE UNITY_INCLUDE_DOUBLE)
+target_compile_definitions(gvizSpringTutteTests PRIVATE UNITY_INCLUDE_DOUBLE)
+target_compile_definitions(gvizFRPairwiseTests PRIVATE UNITY_INCLUDE_DOUBLE)
 
 set_target_properties(gvizThreadPoolTests PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/core)
@@ -143,6 +149,10 @@ set_target_properties(gvizTutteTests PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/embedders)
 set_target_properties(gvizTuttePickTests PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/embedders)
+set_target_properties(gvizSpringTutteTests PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/embedders)
+set_target_properties(gvizFRPairwiseTests PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/embedders)
 
 target_link_libraries(gvizThreadPoolTests PRIVATE graphvis)
 target_link_libraries(gvizVecTests PRIVATE graphvis)
@@ -167,6 +177,8 @@ target_link_libraries(gvizGRIPTests PRIVATE graphvis)
 target_link_libraries(gvizPlanarTests PRIVATE graphvis)
 target_link_libraries(gvizTutteTests PRIVATE graphvis)
 target_link_libraries(gvizTuttePickTests PRIVATE graphvis)
+target_link_libraries(gvizSpringTutteTests PRIVATE graphvis)
+target_link_libraries(gvizFRPairwiseTests PRIVATE graphvis)
 
 enable_testing()
 add_test(NAME gvizThreadPoolTests COMMAND gvizThreadPoolTests)
@@ -182,3 +194,5 @@ add_test(NAME gvizGRIPTests COMMAND gvizGRIPTests)
 add_test(NAME gvizPlanarTests COMMAND gvizPlanarTests)
 add_test(NAME gvizTutteTests COMMAND gvizTutteTests)
 add_test(NAME gvizTuttePickTests COMMAND gvizTuttePickTests)
+add_test(NAME gvizSpringTutteTests COMMAND gvizSpringTutteTests)
+add_test(NAME gvizFRPairwiseTests COMMAND gvizFRPairwiseTests)

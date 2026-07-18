@@ -121,6 +121,10 @@ typedef struct gvizFaceSearchState {
   const gvizEmbeddedGraph *embedding;
   gvizArray faces;
   size_t nextFace;
+  /** CCW vertex cycle written by the last gvizEmbeddedGraphNextFace call that
+   *  returned 0; NULL once enumeration is exhausted. Owned by @p faces. */
+  size_t *face;
+  size_t faceCount;
 } gvizFaceSearchState;
 
 /**
@@ -317,6 +321,18 @@ int gvizEmbeddedGraphNextFace(gvizEmbeddedGraph *embedding,
                               gvizFaceSearchState *state);
 
 /**
+ * Builds a full subgraph (the face's vertices, plus the boundary edges
+ * connecting consecutive vertices in the cycle) for the face most recently
+ * written into @p state->face by gvizEmbeddedGraphNextFace. Caller must
+ * release @p out.
+ *
+ * @return 0 on success, -1 when no face is available or on allocation
+ * failure.
+ */
+int gvizEmbeddedGraphFaceSearchSubgraph(const gvizFaceSearchState *state,
+                                        gvizSubgraph *out);
+
+/**
  * Tests planarity of @p embedding's subgraph and, when planar, installs a CCW
  * rotation system on the parent graph.
  *
@@ -361,6 +377,17 @@ void gvizEmbeddedGraphSetVPosition(gvizEmbeddedGraph *embedding, size_t idx,
 /** Adds @p position to the @p idx-th vertex position. */
 void gvizEmbeddedGraphAddVPosition(gvizEmbeddedGraph *embedding, size_t idx,
                                    double *position);
+
+/**
+ * Places every vertex in @p embedding's subgraph uniformly at random inside
+ * the [-boxExtent, boxExtent]^dim box, so a layout can start compact rather
+ * than scattering vertices arbitrarily far apart. @p seed seeds the
+ * generator; pass 0 for a time-based seed. Shared starting-layout logic for
+ * embedders (see gvizFRPairwiseEmbedderBegin) and front-ends that want a
+ * scattered placement before running an embedder.
+ */
+void gvizEmbeddedGraphRandomizePositions(gvizEmbeddedGraph *embedding,
+                                         double boxExtent, unsigned int seed);
 
 /**
  * Writes vertex positions to @p filename in text format.

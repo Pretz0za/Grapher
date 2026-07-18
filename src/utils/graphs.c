@@ -610,6 +610,54 @@ gvizGraph build_klein_bottle(size_t rows, size_t cols) {
   return g;
 }
 
+gvizGraph build_random_connected_graph(size_t numVertices, double edgeDensity,
+                                       unsigned int seed) {
+  if (edgeDensity < 0.0)
+    edgeDensity = 0.0;
+  if (edgeDensity > 1.0)
+    edgeDensity = 1.0;
+
+  gvizGraph g;
+  gvizGraphInitAtCapacity(&g, 0, numVertices);
+  for (size_t i = 0; i < numVertices; i++)
+    gvizGraphAddVertex(&g, NULL, NULL, NULL);
+
+  if (numVertices < 2) {
+    printf("created random connected graph with %zu vertices, 0 edges.\n",
+           numVertices);
+    return g;
+  }
+
+  for (size_t i = 1; i < numVertices; i++) {
+    size_t j = (size_t)(rand_r(&seed) % i);
+    gvizGraphAddEdge(&g, i, j);
+  }
+
+  size_t treeEdges = numVertices - 1;
+  size_t maxEdges = numVertices * (numVertices - 1) / 2;
+  size_t maxExtra = maxEdges - treeEdges;
+  size_t targetExtra = (size_t)(edgeDensity * (double)maxExtra + 0.5);
+
+  size_t added = 0;
+  size_t attempts = 0;
+  size_t maxAttempts = targetExtra * 20 + 100;
+  while (added < targetExtra && attempts < maxAttempts) {
+    attempts++;
+    size_t a = (size_t)(rand_r(&seed) % numVertices);
+    size_t b = (size_t)(rand_r(&seed) % numVertices);
+    if (a == b || gvizGraphEdgeExists(&g, a, b))
+      continue;
+    if (gvizGraphAddEdge(&g, a, b) == 0)
+      added++;
+  }
+
+  printf("created random connected graph with %zu vertices, %zu edges "
+         "(density %.2f).\n",
+         numVertices, treeEdges + added, edgeDensity);
+
+  return g;
+}
+
 static int parse_obj_vertex_ref(const char *s, size_t vertex_count,
                                 size_t *out) {
   char *end = NULL;

@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 static void drawMaskDefaults(gvizDrawMask *mask) {
   mask->visibleVertices = NULL;
@@ -341,6 +342,28 @@ void gvizEmbeddedGraphAddVPosition(gvizEmbeddedGraph *embedding, size_t idx,
               gvizEmbeddedGraphGetVPosition(embedding, idx));
 }
 
+void gvizEmbeddedGraphRandomizePositions(gvizEmbeddedGraph *embedding,
+                                         double boxExtent, unsigned int seed) {
+  if (!embedding)
+    return;
+
+  if (seed == 0)
+    seed = (unsigned int)time(NULL);
+
+  size_t dim = embedding->embedding.dim;
+  double pos[dim];
+  gvizSubgraphVertexIterator vit =
+      gvizSubgraphVertexIteratorCreate(&embedding->subgraph);
+  size_t u;
+  while (gvizSubgraphVertexIterate(&vit, &u)) {
+    for (size_t d = 0; d < dim; d++) {
+      double unit = (double)rand_r(&seed) / ((double)RAND_MAX + 1.0);
+      pos[d] = boxExtent * (2.0 * unit - 1.0);
+    }
+    gvizEmbeddedGraphSetVPosition(embedding, u, pos);
+  }
+}
+
 int gvizEmbeddedGraphSaveEmbedding(gvizEmbeddedGraph *embedding,
                                    const char *name, const char *filename) {
   FILE *f = fopen(filename, "w");
@@ -492,11 +515,30 @@ int gvizEmbeddedGraphNextFace(gvizEmbeddedGraph *embedding,
   if (!embedding || !state)
     return -1;
 
-  if (state->nextFace >= state->faces.count)
+  if (state->nextFace >= state->faces.count) {
+    state->face = NULL;
+    state->faceCount = 0;
     return 1;
+  }
 
+  gvizArray *face = (gvizArray *)gvizArrayAtIndex(&state->faces, state->nextFace);
+  state->face = (size_t *)face->arr;
+  state->faceCount = face->count;
   state->nextFace++;
   return 0;
+}
+
+int gvizEmbeddedGraphFaceSearchSubgraph(const gvizFaceSearchState *state,
+                                        gvizSubgraph *out) {
+  if (!state || !state->embedding || !state->face || state->faceCount < 3 ||
+      !out)
+    return -1;
+
+  gvizArray face = {.arr = state->face,
+                    .elementSize = sizeof(size_t),
+                    .count = state->faceCount,
+                    .capacity = state->faceCount};
+  return faceToSubgraph(state->embedding->subgraph.g, &face, out);
 }
 
 int gvizEmbeddedGraphApplyPlanarEmbedding(gvizEmbeddedGraph *embedding) {

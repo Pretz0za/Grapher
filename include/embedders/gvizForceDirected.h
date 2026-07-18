@@ -13,17 +13,38 @@ void gvizPairwiseKKForce(int n, double *vPos, double *uPos, size_t gDist,
                          double edgeLength, double *acc);
 
 /**
- * Accumulates the Fruchterman-Reingold attractive force between @p vPos and @p uPos
- * into @p acc.
+ * Accumulates GRIP's variant of the Fruchterman-Reingold "attractive" force
+ * between @p vPos and @p uPos into @p acc. Not the attractive force from the
+ * original FR paper: this one decays with distance (see gvizPairwiseFRAttForce
+ * for the paper-accurate version). GRIP applies this to k-nearest non-edge
+ * vertices.
  */
-void gvizPairwiseFRAttForce(int n, double *vPos, double *uPos,
-                            double edgeLength, double *acc);
+void gvizPairwiseGRIPFRAttForce(int n, double *vPos, double *uPos,
+                                double edgeLength, double *acc);
 
 /**
- * Accumulates the Fruchterman-Reingold repulsive force between @p vPos and @p uPos
- * into @p acc.
+ * Accumulates GRIP's variant of the Fruchterman-Reingold "repulsive" force
+ * between @p vPos and @p uPos into @p acc. Not the repulsive force from the
+ * original FR paper: this one grows with distance (see gvizPairwiseFRRepForce
+ * for the paper-accurate version). GRIP applies this along graph edges.
  */
-void gvizPairwiseFRRepForce(int n, double *vPos, double *uPos,
-                            double edgeLength, double *acc);
+void gvizPairwiseGRIPFRRepForce(int n, double *vPos, double *uPos,
+                                double edgeLength, double *acc);
+
+/**
+ * Accumulates the Fruchterman-Reingold attractive force between @p vPos and
+ * @p uPos into @p acc, as described in the original FR paper: f_a(d) = d^2/k.
+ * Used by gvizFRPairwiseEmbedder.
+ */
+void gvizPairwiseFRAttForce(int n, double *vPos, double *uPos, double k,
+                            double *acc);
+
+/**
+ * Accumulates the Fruchterman-Reingold repulsive force between @p vPos and
+ * @p uPos into @p acc, as described in the original FR paper: f_r(d) = k^2/d.
+ * Used by gvizFRPairwiseEmbedder.
+ */
+void gvizPairwiseFRRepForce(int n, double *vPos, double *uPos, double k,
+                            double *acc);
 
 #endif

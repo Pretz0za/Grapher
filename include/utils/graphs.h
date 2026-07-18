@@ -71,6 +71,26 @@ gvizGraph build_mobius_strip(size_t rows, size_t cols);
 /** Builds a Klein bottle mesh with @p rows by @p cols vertices. */
 gvizGraph build_klein_bottle(size_t rows, size_t cols);
 
+/**
+ * Builds a random connected undirected graph via a random spanning tree plus
+ * extra random edges.
+ *
+ * A spanning tree is grown first: for i = 1..numVertices-1, vertex i is wired
+ * to a uniformly random earlier vertex in [0, i), which guarantees the whole
+ * graph ends up connected. Extra edges are then added between random distinct
+ * vertex pairs until roughly @p edgeDensity of the non-tree edges (out of the
+ * n*(n-1)/2 - (n-1) possible) are present.
+ *
+ * @param numVertices Number of vertices to create.
+ * @param edgeDensity Fraction in [0, 1] of the non-tree edges to add on top
+ *                    of the spanning tree. 0 = tree only, 1 = complete graph.
+ *                    Clamped into [0, 1].
+ * @param seed        Seed for the random number generator (reproducibility).
+ * @return An initialized undirected gvizGraph.
+ */
+gvizGraph build_random_connected_graph(size_t numVertices, double edgeDensity,
+                                       unsigned int seed);
+
 int isConnected(gvizGraph *g);
 
 /**

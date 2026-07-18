@@ -84,7 +84,9 @@ typedef struct gvizGRIPState {
  * coordinate-plane rotations each refinement round.
  * @p diameter may be 0 if unknown; it sizes internal MIS-filtration buffers.
  *
- * @return 0 on success, -1 on allocation failure.
+ * @return 0 on success, -1 on allocation failure or if @p subgraph has fewer
+ * than @p dimension + 1 active vertices (too few to place the coarsest
+ * simplex).
  */
 int gvizGRIPEmbedderInit(gvizGRIPState *state, gvizSubgraph subgraph,
                          size_t diameter, size_t dimension);

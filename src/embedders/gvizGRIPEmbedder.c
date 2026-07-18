@@ -184,7 +184,9 @@ int gvizGRIPEmbedderInit(gvizGRIPState *state, gvizSubgraph subgraph,
   const gvizGraph *graph = subgraph.g;
   size_t N = gvizGraphSize(graph);
   size_t activeCount = gvizSubgraphVertexCount(&subgraph);
-  if (activeCount == 0)
+  // The coarsest layer places a full (dimension+1)-vertex simplex, so GRIP
+  // needs at least that many vertices to make progress at all.
+  if (activeCount < dimension + 1)
     return -1;
 
   state->currLayer = 0;
@@ -560,21 +562,36 @@ static size_t gripPickFarCandidate(gvizGRIPState *state, const gvizSubgraph *sg,
   return bestIdx;
 }
 
-void migrateOneToFinalLayer(gvizGRIPState *state, GVIZ_BIT_ARRAY finalLayer,
-                            size_t count) {
+// The pool immediately behind the final layer (layer count-2) can be
+// exhausted (fully absorbed) before the final layer reaches dim+1 members,
+// e.g. when MIS coarsening collapses a small subgraph to a single vertex two
+// rounds running. When that happens, finalEnd has caught up to that layer's
+// border, so its vertices are contiguous with the next-shallower layer's
+// drop set; walk outward through count-3, count-4, ... down to layer 0 (the
+// full active set) until a non-empty pool is found. Returns -1 only when
+// layer 0 itself is exhausted, which means the subgraph has fewer than
+// dim+1 vertices in total.
+int migrateOneToFinalLayer(gvizGRIPState *state, GVIZ_BIT_ARRAY finalLayer,
+                           size_t count) {
   (void)finalLayer;
   const gvizSubgraph *sg = &((gvizEmbeddedGraph *)state)->subgraph;
   size_t finalEnd = gripMisBorderAt(state, count - 1);
-  size_t candBegin = finalEnd;
-  size_t candEnd = gripMisBorderAt(state, count - 2);
-  if (candBegin >= candEnd)
-    return;
 
-  size_t pick = gripPickFarCandidate(state, sg, finalEnd, candBegin, candEnd,
+  size_t srcLayer = count - 1;
+  size_t candEnd;
+  do {
+    if (srcLayer == 0)
+      return -1;
+    srcLayer--;
+    candEnd = gripMisBorderAt(state, srcLayer);
+  } while (candEnd <= finalEnd);
+
+  size_t pick = gripPickFarCandidate(state, sg, finalEnd, finalEnd, candEnd,
                                      GRIP_MIGRATE_BFS_DEPTH);
 
   xorSwap(&state->misFiltration[pick], &state->misFiltration[finalEnd]);
   (*gripMisBorderMut(state, count - 1))++;
+  return 0;
 }
 
 static void verticesWithinRadius(gvizGRIPState *state, const gvizSubgraph *sg,
@@ -749,8 +766,13 @@ size_t createMISFiltration(gvizGRIPState *state) {
       state->misFiltration[k++] = vtx;
   }
 
+  // gvizGRIPEmbedderInit already rejects subgraphs with fewer than dim+1
+  // active vertices, so migrateOneToFinalLayer should never run out of
+  // layers to pull from; the break is a safety net against a future caller
+  // reaching this path without going through that guard.
   while (gripMisBorderAt(state, i) < dim + 1)
-    migrateOneToFinalLayer(state, curr, i + 1);
+    if (migrateOneToFinalLayer(state, curr, i + 1) < 0)
+      break;
 
   gvizVertexSubsetRelease(curr);
 
@@ -898,7 +920,7 @@ void calculateSpringForces(gvizGRIPState *state, size_t v, size_t layer) {
         gvizSubgraphNeighborIteratorCreate(&embedding->subgraph, v);
     size_t other;
     while (gvizSubgraphNeighborIterate(&nit, &other)) {
-      gvizPairwiseFRRepForce(
+      gvizPairwiseGRIPFRRepForce(
           embedding->embedding.dim, gvizEmbeddedGraphGetVPosition(embedding, v),
           gvizEmbeddedGraphGetVPosition(embedding, other), GVIZ_EDGE_LENGTH, f);
     }
@@ -906,7 +928,7 @@ void calculateSpringForces(gvizGRIPState *state, size_t v, size_t layer) {
     for (size_t i = 0; i < knnCount; i++) {
       gvizFoundVertex other = *(gvizFoundVertex *)gvizArrayAtIndex(knn, i);
 
-      gvizPairwiseFRAttForce(embedding->embedding.dim,
+      gvizPairwiseGRIPFRAttForce(embedding->embedding.dim,
                              gvizEmbeddedGraphGetVPosition(embedding, v),
                              gvizEmbeddedGraphGetVPosition(embedding, other.v),
                              GVIZ_EDGE_LENGTH, f);

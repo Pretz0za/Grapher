@@ -199,9 +199,13 @@ static inline void gvizVecAccKKForce(size_t n, const double *vPos,
   }
 }
 
-static inline void gvizVecAccFRRepForce(size_t n, const double *vPos,
-                                        const double *uPos, double edgeLength,
-                                        double *acc) {
+// GRIP's variant of the FR "repulsive" op: NOT the repulsive force from the
+// original FR paper (that grows as d^2, i.e. it pulls together like an
+// attraction). GRIP applies this along graph edges; see gvizVecAccFRRepForce
+// below for the paper-accurate repulsive force (k^2/d, pairwise embedder only).
+static inline void gvizVecAccGRIPFRRepForce(size_t n, const double *vPos,
+                                            const double *uPos,
+                                            double edgeLength, double *acc) {
   double edgeLenSq = edgeLength * edgeLength;
 
   switch (n) {
@@ -259,9 +263,15 @@ static inline void gvizVecAccFRRepForce(size_t n, const double *vPos,
   }
 }
 
-static inline void gvizVecAccFRAttForce(size_t n, const double *vPos,
-                                        const double *uPos, double edgeLength,
-                                        double frScale, double *acc) {
+// GRIP's variant of the FR "attractive" op: NOT the attractive force from the
+// original FR paper (that grows as d^2 and pulls together; this one decays as
+// 1/d^2, i.e. it pushes apart like a repulsion). GRIP applies this to k-nearest
+// non-edge vertices; see gvizVecAccFRAttForce below for the paper-accurate
+// attractive force (d/k, pairwise embedder only).
+static inline void gvizVecAccGRIPFRAttForce(size_t n, const double *vPos,
+                                            const double *uPos,
+                                            double edgeLength, double frScale,
+                                            double *acc) {
   double edgeLenSq = edgeLength * edgeLength;
 
   switch (n) {
@@ -315,6 +325,129 @@ static inline void gvizVecAccFRAttForce(size_t n, const double *vPos,
     double s = frScale * edgeLenSq / dist_sq;
     for (size_t i = 0; i < n; i++)
       acc[i] += s * (vPos[i] - uPos[i]);
+  }
+  }
+}
+
+// Attractive force from the original Fruchterman-Reingold paper:
+// f_a(d) = d^2 / k, applied along graph edges, pulling v toward u.
+static inline void gvizVecAccFRAttForce(size_t n, const double *vPos,
+                                        const double *uPos, double k,
+                                        double *acc) {
+  switch (n) {
+  case 2: {
+    double dx = uPos[0] - vPos[0];
+    double dy = uPos[1] - vPos[1];
+    double dist = sqrt(dx * dx + dy * dy);
+    if (dist < 1e-9)
+      return;
+    double s = dist / k;
+    acc[0] += s * dx;
+    acc[1] += s * dy;
+    return;
+  }
+  case 3: {
+    double dx = uPos[0] - vPos[0];
+    double dy = uPos[1] - vPos[1];
+    double dz = uPos[2] - vPos[2];
+    double dist = sqrt(dx * dx + dy * dy + dz * dz);
+    if (dist < 1e-9)
+      return;
+    double s = dist / k;
+    acc[0] += s * dx;
+    acc[1] += s * dy;
+    acc[2] += s * dz;
+    return;
+  }
+  case 4: {
+    double dx = uPos[0] - vPos[0];
+    double dy = uPos[1] - vPos[1];
+    double dz = uPos[2] - vPos[2];
+    double dw = uPos[3] - vPos[3];
+    double dist = sqrt(dx * dx + dy * dy + dz * dz + dw * dw);
+    if (dist < 1e-9)
+      return;
+    double s = dist / k;
+    acc[0] += s * dx;
+    acc[1] += s * dy;
+    acc[2] += s * dz;
+    acc[3] += s * dw;
+    return;
+  }
+  default: {
+    double dist_sq = 0.0;
+    for (size_t i = 0; i < n; i++) {
+      double d = uPos[i] - vPos[i];
+      dist_sq += d * d;
+    }
+    double dist = sqrt(dist_sq);
+    if (dist < 1e-9)
+      return;
+    double s = dist / k;
+    for (size_t i = 0; i < n; i++)
+      acc[i] += s * (uPos[i] - vPos[i]);
+  }
+  }
+}
+
+// Repulsive force from the original Fruchterman-Reingold paper:
+// f_r(d) = k^2 / d, applied between every vertex pair, pushing v away from u.
+static inline void gvizVecAccFRRepForce(size_t n, const double *vPos,
+                                        const double *uPos, double k,
+                                        double *acc) {
+  double kSq = k * k;
+
+  switch (n) {
+  case 2: {
+    double dx = uPos[0] - vPos[0];
+    double dy = uPos[1] - vPos[1];
+    double dist_sq = dx * dx + dy * dy;
+    if (dist_sq < 1e-18)
+      return;
+    double s = kSq / dist_sq;
+    acc[0] -= s * dx;
+    acc[1] -= s * dy;
+    return;
+  }
+  case 3: {
+    double dx = uPos[0] - vPos[0];
+    double dy = uPos[1] - vPos[1];
+    double dz = uPos[2] - vPos[2];
+    double dist_sq = dx * dx + dy * dy + dz * dz;
+    if (dist_sq < 1e-18)
+      return;
+    double s = kSq / dist_sq;
+    acc[0] -= s * dx;
+    acc[1] -= s * dy;
+    acc[2] -= s * dz;
+    return;
+  }
+  case 4: {
+    double dx = uPos[0] - vPos[0];
+    double dy = uPos[1] - vPos[1];
+    double dz = uPos[2] - vPos[2];
+    double dw = uPos[3] - vPos[3];
+    double dist_sq = dx * dx + dy * dy + dz * dz + dw * dw;
+    if (dist_sq < 1e-18)
+      return;
+    double s = kSq / dist_sq;
+    acc[0] -= s * dx;
+    acc[1] -= s * dy;
+    acc[2] -= s * dz;
+    acc[3] -= s * dw;
+    return;
+  }
+  default: {
+    double dist_sq = 0.0;
+    for (size_t i = 0; i < n; i++) {
+      double d = uPos[i] - vPos[i];
+      dist_sq += d * d;
+    }
+    if (dist_sq < 1e-18)
+      return;
+    double s = kSq / dist_sq;
+    for (size_t i = 0; i < n; i++)
+      acc[i] -= s * (uPos[i] - vPos[i]);
   }
   }
 }

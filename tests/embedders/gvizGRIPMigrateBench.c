@@ -38,19 +38,21 @@ typedef struct {
   size_t nvertices;
 } FiltrationCheckpoint;
 
-static void migrateOneToFinalLayer_legacy(gvizGRIPState *state,
-                                          GVIZ_BIT_ARRAY finalLayer,
-                                          size_t count) {
+static int migrateOneToFinalLayer_legacy(gvizGRIPState *state,
+                                         GVIZ_BIT_ARRAY finalLayer,
+                                         size_t count) {
   (void)finalLayer;
   const gvizSubgraph *sg = &((gvizEmbeddedGraph *)state)->subgraph;
   size_t nvertices = gvizGraphSize(sg->g);
   size_t spanLen = gripMisBorderAt(state, count - 2);
+  if (spanLen <= gripMisBorderAt(state, count - 1))
+    return -1;
   size_t *distances = GVIZ_ALLOC(nvertices * sizeof(size_t));
   size_t *borderSpan = GVIZ_ALLOC(spanLen * sizeof(size_t));
   if (!distances || !borderSpan) {
     GVIZ_DEALLOC(distances);
     GVIZ_DEALLOC(borderSpan);
-    return;
+    return -1;
   }
   for (size_t j = 0; j < spanLen; j++)
     borderSpan[j] = SIZE_MAX;
@@ -85,9 +87,10 @@ static void migrateOneToFinalLayer_legacy(gvizGRIPState *state,
 
   GVIZ_DEALLOC(distances);
   GVIZ_DEALLOC(borderSpan);
+  return 0;
 }
 
-typedef void (*MigrateFn)(gvizGRIPState *, GVIZ_BIT_ARRAY, size_t);
+typedef int (*MigrateFn)(gvizGRIPState *, GVIZ_BIT_ARRAY, size_t);
 
 static size_t currentRssKb(void) {
 #if defined(__APPLE__)
@@ -200,7 +203,8 @@ static BenchRow runMigratePhase(gvizGRIPState *state, gvizVertexSubset curr,
   double t0 = monotonicSeconds();
 
   while (gripMisBorderAt(state, layerIndex) < dim + 1) {
-    migrate(state, curr, layerIndex + 1);
+    if (migrate(state, curr, layerIndex + 1) < 0)
+      break;
     row.migrateCalls++;
   }
 
