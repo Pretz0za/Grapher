@@ -24,7 +24,7 @@ static const gvizForceModel gvizForceModelFR = {
     .repulsive = frRepulsive,
 };
 
-static double linLogVertexMass(size_t degree) { return (double)degree; }
+static double linLogVertexMass(size_t degree) { return 1.0 + (double)degree; }
 
 static void linLogAttractive(int n, double *vPos, double *uPos,
                              double edgeLength, double *acc) {

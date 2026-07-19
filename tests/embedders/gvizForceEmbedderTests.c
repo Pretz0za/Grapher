@@ -76,7 +76,7 @@ void test_forceEmbedder_configure_keepsOrOverrides(void) {
   gvizGraphRelease(&g);
 }
 
-void test_forceEmbedder_configureHeat_keepsOrOverrides(void) {
+void test_forceEmbedder_configureSpeed_keepsOrOverrides(void) {
   gvizGraph g;
   gvizGraphInit(&g, 0);
   gvizGraphAddVertex(&g, NULL, NULL, NULL);
@@ -86,16 +86,13 @@ void test_forceEmbedder_configureHeat_keepsOrOverrides(void) {
   gvizForceEmbedderState s;
   TEST_ASSERT_EQUAL(0, gvizForceEmbedderInit(&s, makeFullSubgraph(&g), 2, GVIZ_FORCE_MODEL_FRUCHTERMAN_REINGOLD));
 
-  double defaultR = s.heatR;
-  double defaultS = s.heatS;
+  double defaultTolerance = s.jitterTolerance;
 
-  gvizForceEmbedderConfigureHeat(&s, 0, 0);
-  TEST_ASSERT_EQUAL_DOUBLE(defaultR, s.heatR);
-  TEST_ASSERT_EQUAL_DOUBLE(defaultS, s.heatS);
+  gvizForceEmbedderConfigureSpeed(&s, 0);
+  TEST_ASSERT_EQUAL_DOUBLE(defaultTolerance, s.jitterTolerance);
 
-  gvizForceEmbedderConfigureHeat(&s, 0.3, 2.0);
-  TEST_ASSERT_EQUAL_DOUBLE(0.3, s.heatR);
-  TEST_ASSERT_EQUAL_DOUBLE(2.0, s.heatS);
+  gvizForceEmbedderConfigureSpeed(&s, 2.5);
+  TEST_ASSERT_EQUAL_DOUBLE(2.5, s.jitterTolerance);
 
   gvizForceEmbedderRelease(&s);
   gvizGraphRelease(&g);
@@ -528,7 +525,7 @@ int main(void) {
   RUN_TEST(test_forceEmbedder_init_release_lifecycle);
   RUN_TEST(test_forceEmbedder_init_rejectsNonDimension2);
   RUN_TEST(test_forceEmbedder_configure_keepsOrOverrides);
-  RUN_TEST(test_forceEmbedder_configureHeat_keepsOrOverrides);
+  RUN_TEST(test_forceEmbedder_configureSpeed_keepsOrOverrides);
   RUN_TEST(test_forceEmbedder_configureBarnesHut_keepsOrOverrides);
   RUN_TEST(test_forceEmbedder_begin_positionsWithinBoxAndTreeBuilt);
   RUN_TEST(test_forceEmbedder_edgeAttracts);

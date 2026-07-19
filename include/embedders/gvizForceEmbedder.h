@@ -10,17 +10,15 @@
 #define GVIZ_FORCE_EMBEDDER_EDGE_LENGTH_DEFAULT 10.0
 #define GVIZ_FORCE_EMBEDDER_THETA_DEFAULT 1.0
 
-/* Per-vertex adaptive heat (step length), mirroring gvizGRIPEmbedder's model:
- * heat grows while a vertex keeps displacing in a consistent direction across
- * rounds, and shrinks when it reverses (oscillating around a resting point).
- * Unlike a global cooling schedule, this lets vertices still migrating toward
- * their equilibrium (e.g. a subtree still settling on a side of the root)
- * keep accelerating instead of being throttled by a round-count-based cap. */
-#define GVIZ_FORCE_EMBEDDER_HEAT_INITIAL_FACTOR (1.0 / 6.0)
-#define GVIZ_FORCE_EMBEDDER_HEAT_MIN_FACTOR 1e-4
-#define GVIZ_FORCE_EMBEDDER_HEAT_MAX_FACTOR 10.0
-#define GVIZ_FORCE_EMBEDDER_HEAT_R_DEFAULT 0.15
-#define GVIZ_FORCE_EMBEDDER_HEAT_S_DEFAULT 3.0
+/* Step length is set by a single adaptive global speed (ForceAtlas2's speed
+ * model, Jacomy et al. 2014), scaled per vertex by how much that vertex's
+ * own force is currently swinging. See gvizForceEmbedderStep's doc comment
+ * for the exact formulas. */
+#define GVIZ_FORCE_EMBEDDER_JITTER_TOLERANCE_DEFAULT 1.0
+#define GVIZ_FORCE_EMBEDDER_SPEED_INITIAL 1.0
+#define GVIZ_FORCE_EMBEDDER_SPEED_EFFICIENCY_INITIAL 1.0
+#define GVIZ_FORCE_EMBEDDER_SPEED_EFFICIENCY_MIN 0.05
+#define GVIZ_FORCE_EMBEDDER_SPEED_MAX_RISE 0.5
 
 /**
  * State for a Barnes-Hut force-directed embedder: repulsion applies between
@@ -30,10 +28,11 @@
  * repulsion, exactly along real graph edges (O(E) per round). The actual
  * force math (attraction, repulsion, and the mass a vertex contributes to
  * quadtree aggregation) is pluggable via a gvizForceModel selected at Init;
- * everything else (heat, Barnes-Hut traversal, actions, stat series) is
- * shared across models. gvizForceEmbedderSetBarnesHutEnabled can disable the
- * quadtree approximation in favor of exact O(V^2) all-pairs repulsion when a
- * brute-force reference is wanted instead of the scalable default.
+ * everything else (speed regulation, Barnes-Hut traversal, actions, stat
+ * series) is shared across models. gvizForceEmbedderSetBarnesHutEnabled can
+ * disable the quadtree approximation in favor of exact O(V^2) all-pairs
+ * repulsion when a brute-force reference is wanted instead of the scalable
+ * default.
  *
  * The first field MUST remain gvizEmbeddedGraph so that a pointer to this
  * struct may be safely cast to gvizEmbeddedGraph *.
@@ -52,7 +51,9 @@ typedef struct gvizForceEmbedderState {
                             * once at Init since degree is fixed for the
                             * embedder's lifetime; avoids an O(vertexCount)
                             * reduction every Step just for the gravity stat */
-  double *disp;             /* owned; vertexCount * dim scratch accumulator */
+  double *disp;             /* owned; vertexCount * dim, this round's raw net
+                             * force per vertex (attraction + repulsion +
+                             * gravity), before any speed scaling */
   double *positionsScratch; /* owned; vertexCount * 2 doubles, gathered from
                              * vPos each round in state->vertices[] order; fed
                              * to the quadtree */
@@ -60,17 +61,20 @@ typedef struct gvizForceEmbedderState {
                         * force magnitude for this round's stats */
   double *repForceMag; /* owned; vertexCount scratch, per-vertex repulsive
                         * force magnitude for this round's stats */
-  double *heat;    /* owned; vertexCount, per-vertex adaptive step length that
-                    * the raw force for that vertex is rescaled to each round */
-  double *oldDisp; /* owned; vertexCount * 2, previous round's applied
-                    * (heat-scaled) displacement, for the direction-consistency
-                    * check in the next round's heat update */
-  double *oldCos;  /* owned; vertexCount, previous round's direction-
-                    * consistency cosine, so two consecutive agreeing rounds
-                    * accelerate harder than one */
-  double heatR; /* base heat growth/decay rate */
-  double heatS; /* extra multiplier applied to heatR on a second consecutive
-                * agreeing round */
+  double *oldForce;    /* owned; vertexCount * 2, previous round's raw net
+                        * force, for this round's per-vertex swinging/traction
+                        * measurement */
+  double *appliedDisp; /* owned; vertexCount * 2, this round's raw force after
+                        * the global/per-vertex speed factor; what actually
+                        * gets added to vertex positions */
+  double *swinging; /* owned; vertexCount scratch, this round's per-vertex
+                     * mass-weighted swinging */
+  double *traction; /* owned; vertexCount scratch, this round's per-vertex
+                     * mass-weighted effective traction */
+  double jitterTolerance; /* user-facing tolerance for how much global
+                          * swinging is allowed relative to global traction */
+  double globalSpeed;     /* persists across rounds */
+  double speedEfficiency; /* persists across rounds */
   double edgeLength;
   double boxExtent;
   double gravityK; /* constant-magnitude-per-(deg+1) pull toward the origin;
@@ -99,12 +103,13 @@ typedef struct gvizForceEmbedderState {
  * @p model for attraction, repulsion, and vertex mass (see gvizForceModel).
  * Only dimension 2 is supported, since repulsion is approximated with a 2D
  * quadtree. Registers action "forceEmbedder.step" and stat series
- * "forceEmbedder.maxDisp", "forceEmbedder.heat",
+ * "forceEmbedder.maxDisp", "forceEmbedder.speed",
  * "forceEmbedder.attractiveForce", "forceEmbedder.repulsiveForce", and
- * "forceEmbedder.gravityForce" (the last four are means over active vertices
- * of each vertex's heat/attractive/repulsive/gravity force magnitude). Edge
- * length and box extent are set to sensible defaults; override with
- * gvizForceEmbedderConfigure, gvizForceEmbedderConfigureHeat,
+ * "forceEmbedder.gravityForce" ("forceEmbedder.speed" is the current global
+ * speed; the other three are means over active vertices of each vertex's
+ * attractive/repulsive/gravity force magnitude). Edge length and box extent
+ * are set to sensible defaults; override with gvizForceEmbedderConfigure,
+ * gvizForceEmbedderConfigureSpeed,
  * gvizForceEmbedderConfigureBarnesHut, gvizForceEmbedderSetBarnesHutEnabled,
  * and gvizForceEmbedderConfigureGravity before calling Begin. @p model is
  * structural, like @p dimension: fixed for the embedder's lifetime. The
@@ -130,14 +135,15 @@ void gvizForceEmbedderConfigure(gvizForceEmbedderState *state,
                                 double edgeLength, double boxExtent);
 
 /**
- * Overrides the per-vertex heat model's growth/decay rate @p r and the extra
- * multiplier @p s applied to it on a second consecutive round in which a
- * vertex's displacement direction agrees with the previous round's. Pass 0
- * for either to keep its current/default value. Call before
- * gvizForceEmbedderBegin.
+ * Overrides the jitter tolerance @p tolerance used by the global speed
+ * update in gvizForceEmbedderStep: how much global swinging is tolerated
+ * relative to global traction before the global speed backs off. Higher
+ * values tolerate more oscillation in exchange for faster convergence; lower
+ * values are more conservative. Pass 0 to keep the current/default value.
+ * Call before gvizForceEmbedderBegin.
  */
-void gvizForceEmbedderConfigureHeat(gvizForceEmbedderState *state, double r,
-                                    double s);
+void gvizForceEmbedderConfigureSpeed(gvizForceEmbedderState *state,
+                                     double tolerance);
 
 /**
  * Overrides the Barnes-Hut opening-angle threshold @p theta and the
@@ -179,10 +185,10 @@ void gvizForceEmbedderConfigureGravity(gvizForceEmbedderState *state,
  * Places every active vertex uniformly at random inside the
  * [-boxExtent, boxExtent]^2 box, so the layout starts compact rather than
  * scattering vertices arbitrarily far apart. @p seed seeds the generator;
- * pass 0 for a time-based seed. Resets every vertex's heat to
- * edgeLength * GVIZ_FORCE_EMBEDDER_HEAT_INITIAL_FACTOR and clears the
- * direction-consistency history, and (re)builds the quadtree over the
- * freshly randomized positions. Safe to call again to restart the layout.
+ * pass 0 for a time-based seed. Resets the global speed and speed efficiency
+ * to their initial values and clears the previous-round force history, and
+ * (re)builds the quadtree over the freshly randomized positions. Safe to
+ * call again to restart the layout.
  *
  * @return 0 on success, -1 on allocation failure while building the
  * quadtree.
@@ -196,21 +202,30 @@ int gvizForceEmbedderBegin(gvizForceEmbedderState *state, unsigned int seed);
  * otherwise, unconditionally between every active vertex and every other
  * active vertex, plus the model's exact attractive force along every real
  * edge of every active vertex, additionally on top of that vertex's
- * repulsion, plus (if
- * gvizForceEmbedderConfigureGravity set a nonzero k) a constant-magnitude
- * force pulling the vertex toward the origin. Each vertex's raw force is
- * then rescaled to that vertex's current heat (a per-vertex adaptive step
- * length, not a single global temperature): heat grows when this round's
- * displacement direction agrees with last round's (accelerating a vertex
- * that is still consistently migrating toward its equilibrium), and shrinks
- * when it reverses (damping a vertex that is oscillating around a resting
- * point). Heat is clamped to
- * [edgeLength * GVIZ_FORCE_EMBEDDER_HEAT_MIN_FACTOR,
- *  edgeLength * GVIZ_FORCE_EMBEDDER_HEAT_MAX_FACTOR]. The mean of all
- * heat-scaled displacements is then subtracted from every vertex before
- * applying them, since nothing else pins the layout's center of mass and the
- * heat model rewards coherent motion, which would otherwise let any residual
- * net force drift or spin the whole embedding indefinitely.
+ * repulsion, plus (if gvizForceEmbedderConfigureGravity set a nonzero k) a
+ * constant-magnitude force pulling the vertex toward the origin.
+ *
+ * The resulting per-vertex raw force is then scaled down to a displacement
+ * using ForceAtlas2's speed regulation (Jacomy et al., "ForceAtlas2, a
+ * Continuous Graph Layout Algorithm for Handy Network Visualization", PLOS
+ * ONE 2014): for each vertex, swinging is how much its force has changed
+ * direction/magnitude since last round (mass * |F(t) - F(t-1)|) and
+ * effective traction is how much of its force is consistent with last round
+ * (mass * |F(t) + F(t-1)| / 2). Summing both (mass-weighted) over all active
+ * vertices gives the global swinging and global traction for this round,
+ * from which a single global speed is derived so that global swinging stays
+ * within a jitterTolerance-controlled ratio of global traction, rising by at
+ * most 50% per round to avoid overshooting. Each vertex's displacement is
+ * then globalSpeed / (1 + sqrt(globalSpeed * swinging)) times its raw force:
+ * vertices whose force is swinging get damped relative to the global speed,
+ * while steady vertices move at close to the full global speed. A graph that
+ * is still genuinely converging keeps a high effective speed indefinitely,
+ * rather than being throttled by a round-count-based cooling schedule.
+ *
+ * The mean of all resulting displacements is then subtracted from every
+ * vertex before applying them, since nothing else pins the layout's center
+ * of mass and any residual net force (e.g. from Barnes-Hut approximation
+ * error) would otherwise let the whole embedding drift or spin indefinitely.
  *
  * @return the maximum per-vertex displacement actually applied this round.
  */

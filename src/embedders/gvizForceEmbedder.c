@@ -111,50 +111,87 @@ static void computeForceRange(void *ctx, size_t begin, size_t end) {
 }
 
 // Rigid translation is a zero mode of the force model (every pairwise force
-// is radial, so the total sums to zero under a uniform shift), but the heat
-// model rewards a vertex whose displacement direction stays consistent round
-// to round -- so any residual net force (e.g. from Barnes-Hut approximation
-// error) gets amplified by heat instead of averaging out, and the whole
-// layout drifts indefinitely. Subtracting the mean displacement pins the
-// centroid without altering any vertex's motion relative to the others.
+// is radial, so the total sums to zero under a uniform shift), but
+// Barnes-Hut approximation error can leave a small residual net force each
+// round, which would otherwise let the whole layout drift or spin
+// indefinitely. Subtracting the mean displacement pins the centroid without
+// altering any vertex's motion relative to the others.
 static void removeNetTranslation(gvizForceEmbedderState *state) {
   if (state->vertexCount == 0)
     return;
 
   double mean[2] = {0.0, 0.0};
   for (size_t i = 0; i < state->vertexCount; i++)
-    gvizVecAxpy(2, 1.0, state->disp + i * 2, mean);
+    gvizVecAxpy(2, 1.0, state->appliedDisp + i * 2, mean);
   gvizVecScale(2, 1.0 / (double)state->vertexCount, mean);
 
   for (size_t i = 0; i < state->vertexCount; i++)
-    gvizVecAxpy(2, -1.0, mean, state->disp + i * 2);
+    gvizVecAxpy(2, -1.0, mean, state->appliedDisp + i * 2);
 }
 
-static void updateHeatRange(void *ctx, size_t begin, size_t end) {
+static void computeSwingTractionRange(void *ctx, size_t begin, size_t end) {
   gvizForceEmbedderState *state = ctx;
-  double heatMin = state->edgeLength * GVIZ_FORCE_EMBEDDER_HEAT_MIN_FACTOR;
-  double heatMax = state->edgeLength * GVIZ_FORCE_EMBEDDER_HEAT_MAX_FACTOR;
-
   for (size_t i = begin; i < end; i++) {
     double *f = state->disp + i * 2;
-    double *old = state->oldDisp + i * 2;
-    double nrm = gvizVecNorm2(2, f);
-    double oldNrm = gvizVecNorm2(2, old);
+    double *old = state->oldForce + i * 2;
+    double diff[2] = {f[0] - old[0], f[1] - old[1]};
+    double sum[2] = {f[0] + old[0], f[1] + old[1]};
+    state->swinging[i] = state->mass[i] * gvizVecNorm2(2, diff);
+    state->traction[i] = state->mass[i] * 0.5 * gvizVecNorm2(2, sum);
+  }
+}
 
-    if (nrm > gvizNumericEpsilon && oldNrm > gvizNumericEpsilon) {
-      double cos = gvizVecDot(2, f, old) / (nrm * oldNrm);
-      if (cos > 0.0 && state->oldCos[i] > 0.0)
-        state->heat[i] *= (1.0 + cos * state->heatR * state->heatS);
-      else
-        state->heat[i] *= (1.0 + cos * state->heatR);
-      state->oldCos[i] = cos;
-    }
+static void updateGlobalSpeed(gvizForceEmbedderState *state) {
+  double totalSwinging = 0.0, totalEffectiveTraction = 0.0;
+  for (size_t i = 0; i < state->vertexCount; i++) {
+    totalSwinging += state->swinging[i];
+    totalEffectiveTraction += state->traction[i];
+  }
 
-    state->heat[i] = fmin(state->heat[i], heatMax);
-    state->heat[i] = fmax(state->heat[i], heatMin);
+  if (totalEffectiveTraction < gvizNumericEpsilon)
+    return;
 
-    if (nrm > gvizNumericEpsilon)
-      gvizVecScale(2, state->heat[i] / nrm, f);
+  double n = (double)state->vertexCount;
+  double estimatedOptimalJT = 0.05 * sqrt(n);
+  double minJT = sqrt(estimatedOptimalJT);
+  double maxJT = 10.0;
+  double jt = state->jitterTolerance *
+              fmax(minJT, fmin(maxJT, estimatedOptimalJT *
+                                          totalEffectiveTraction / (n * n)));
+
+  if (totalSwinging / totalEffectiveTraction > 2.0) {
+    if (state->speedEfficiency > GVIZ_FORCE_EMBEDDER_SPEED_EFFICIENCY_MIN)
+      state->speedEfficiency *= 0.5;
+    jt = fmax(jt, state->jitterTolerance);
+  }
+
+  double targetSpeed =
+      totalSwinging > gvizNumericEpsilon
+          ? jt * state->speedEfficiency * totalEffectiveTraction /
+                totalSwinging
+          : state->globalSpeed;
+
+  if (totalSwinging > jt * totalEffectiveTraction) {
+    if (state->speedEfficiency > GVIZ_FORCE_EMBEDDER_SPEED_EFFICIENCY_MIN)
+      state->speedEfficiency *= 0.7;
+  } else if (state->globalSpeed < 1000.0) {
+    state->speedEfficiency *= 1.3;
+  }
+
+  state->globalSpeed +=
+      fmin(targetSpeed - state->globalSpeed,
+          GVIZ_FORCE_EMBEDDER_SPEED_MAX_RISE * state->globalSpeed);
+}
+
+static void applySpeedRange(void *ctx, size_t begin, size_t end) {
+  gvizForceEmbedderState *state = ctx;
+  for (size_t i = begin; i < end; i++) {
+    double factor = state->globalSpeed /
+                    (1.0 + sqrt(state->globalSpeed * state->swinging[i]));
+    double *f = state->disp + i * 2;
+    double *out = state->appliedDisp + i * 2;
+    out[0] = f[0] * factor;
+    out[1] = f[1] * factor;
   }
 }
 
@@ -224,16 +261,17 @@ int gvizForceEmbedderInit(gvizForceEmbedderState *state, gvizSubgraph subgraph,
   if (!state->attForceMag || !state->repForceMag)
     return -1;
 
-  state->heat = GVIZ_ALLOC(sizeof(double) * state->vertexCount);
-  state->oldDisp = GVIZ_ALLOC(sizeof(double) * state->vertexCount * 2);
-  state->oldCos = GVIZ_ALLOC(sizeof(double) * state->vertexCount);
-  if (!state->heat || !state->oldDisp || !state->oldCos)
+  state->oldForce = GVIZ_ALLOC(sizeof(double) * state->vertexCount * 2);
+  state->appliedDisp = GVIZ_ALLOC(sizeof(double) * state->vertexCount * 2);
+  state->swinging = GVIZ_ALLOC(sizeof(double) * state->vertexCount);
+  state->traction = GVIZ_ALLOC(sizeof(double) * state->vertexCount);
+  if (!state->oldForce || !state->appliedDisp || !state->swinging ||
+      !state->traction)
     return -1;
 
   state->edgeLength = GVIZ_FORCE_EMBEDDER_EDGE_LENGTH_DEFAULT;
   state->boxExtent = defaultBoxExtent(state->vertexCount, state->edgeLength);
-  state->heatR = GVIZ_FORCE_EMBEDDER_HEAT_R_DEFAULT;
-  state->heatS = GVIZ_FORCE_EMBEDDER_HEAT_S_DEFAULT;
+  state->jitterTolerance = GVIZ_FORCE_EMBEDDER_JITTER_TOLERANCE_DEFAULT;
   state->theta = GVIZ_FORCE_EMBEDDER_THETA_DEFAULT;
   state->nodesPerCell = GVIZ_QUADTREE_NODES_PER_CELL_DEFAULT;
   state->gravityK = 0.0;
@@ -248,7 +286,7 @@ int gvizForceEmbedderInit(gvizForceEmbedderState *state, gvizSubgraph subgraph,
   if (!gvizEmbeddedGraphAddStatSeries(embedding, "forceEmbedder.maxDisp",
                                       GVIZ_STAT_CHART_LINE_LOG))
     return -1;
-  if (!gvizEmbeddedGraphAddStatSeries(embedding, "forceEmbedder.heat",
+  if (!gvizEmbeddedGraphAddStatSeries(embedding, "forceEmbedder.speed",
                                       GVIZ_STAT_CHART_LINE_LOG))
     return -1;
   if (!gvizEmbeddedGraphAddStatSeries(
@@ -280,12 +318,14 @@ void gvizForceEmbedderRelease(gvizForceEmbedderState *state) {
     GVIZ_DEALLOC(state->attForceMag);
   if (state->repForceMag)
     GVIZ_DEALLOC(state->repForceMag);
-  if (state->heat)
-    GVIZ_DEALLOC(state->heat);
-  if (state->oldDisp)
-    GVIZ_DEALLOC(state->oldDisp);
-  if (state->oldCos)
-    GVIZ_DEALLOC(state->oldCos);
+  if (state->oldForce)
+    GVIZ_DEALLOC(state->oldForce);
+  if (state->appliedDisp)
+    GVIZ_DEALLOC(state->appliedDisp);
+  if (state->swinging)
+    GVIZ_DEALLOC(state->swinging);
+  if (state->traction)
+    GVIZ_DEALLOC(state->traction);
   gvizQuadtreeRelease(&state->quadtree);
   gvizThreadPoolDestroy(state->pool);
 }
@@ -298,12 +338,10 @@ void gvizForceEmbedderConfigure(gvizForceEmbedderState *state,
     state->boxExtent = boxExtent;
 }
 
-void gvizForceEmbedderConfigureHeat(gvizForceEmbedderState *state, double r,
-                                    double s) {
-  if (r > 0.0)
-    state->heatR = r;
-  if (s > 0.0)
-    state->heatS = s;
+void gvizForceEmbedderConfigureSpeed(gvizForceEmbedderState *state,
+                                     double tolerance) {
+  if (tolerance > 0.0)
+    state->jitterTolerance = tolerance;
 }
 
 void gvizForceEmbedderConfigureBarnesHut(gvizForceEmbedderState *state,
@@ -328,13 +366,10 @@ int gvizForceEmbedderBegin(gvizForceEmbedderState *state, unsigned int seed) {
   gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
   gvizEmbeddedGraphRandomizePositions(embedding, state->boxExtent, seed);
 
-  double initialHeat =
-      state->edgeLength * GVIZ_FORCE_EMBEDDER_HEAT_INITIAL_FACTOR;
-  for (size_t i = 0; i < state->vertexCount; i++)
-    state->heat[i] = initialHeat;
+  state->globalSpeed = GVIZ_FORCE_EMBEDDER_SPEED_INITIAL;
+  state->speedEfficiency = GVIZ_FORCE_EMBEDDER_SPEED_EFFICIENCY_INITIAL;
   memset(state->disp, 0, sizeof(double) * state->vertexCount * 2);
-  memset(state->oldDisp, 0, sizeof(double) * state->vertexCount * 2);
-  memset(state->oldCos, 0, sizeof(double) * state->vertexCount);
+  memset(state->oldForce, 0, sizeof(double) * state->vertexCount * 2);
 
   state->iteration = 0;
   state->lastMaxDisplacement = 0.0;
@@ -363,7 +398,7 @@ double gvizForceEmbedderStep(gvizForceEmbedderState *state) {
   gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
 
   gatherPositions(state);
-  gvizVecCopy(state->vertexCount * 2, state->disp, state->oldDisp);
+  gvizVecCopy(state->vertexCount * 2, state->disp, state->oldForce);
   if (state->barnesHutEnabled)
     gvizQuadtreeRebuild(&state->quadtree, state->positionsScratch,
                         state->mass, state->vertexCount);
@@ -373,24 +408,26 @@ double gvizForceEmbedderStep(gvizForceEmbedderState *state) {
                          state);
 
   gvizThreadPoolForRange(state->pool, 0, state->vertexCount,
-                         FORCE_EMBEDDER_PARALLEL_GRAIN, updateHeatRange,
+                         FORCE_EMBEDDER_PARALLEL_GRAIN,
+                         computeSwingTractionRange, state);
+  updateGlobalSpeed(state);
+  gvizThreadPoolForRange(state->pool, 0, state->vertexCount,
+                         FORCE_EMBEDDER_PARALLEL_GRAIN, applySpeedRange,
                          state);
 
-  removeNetTranslation(state);
+  // removeNetTranslation(state);
 
   double maxDisp = 0.0;
-  double sumHeat = 0.0, sumAtt = 0.0, sumRep = 0.0;
+  double sumAtt = 0.0, sumRep = 0.0;
   for (size_t i = 0; i < state->vertexCount; i++) {
-    double *f = state->disp + i * 2;
+    double *f = state->appliedDisp + i * 2;
     double applied = gvizVecNorm2(2, f);
     if (applied > maxDisp)
       maxDisp = applied;
-    sumHeat += state->heat[i];
     sumAtt += state->attForceMag[i];
     sumRep += state->repForceMag[i];
     gvizEmbeddedGraphAddVPosition(embedding, state->vertices[i], f);
   }
-  double meanHeat = state->vertexCount ? sumHeat / state->vertexCount : 0.0;
   double meanAtt = state->vertexCount ? sumAtt / state->vertexCount : 0.0;
   double meanRep = state->vertexCount ? sumRep / state->vertexCount : 0.0;
   double meanGrav = state->gravityK * state->meanDegreePlusOne;
@@ -398,7 +435,8 @@ double gvizForceEmbedderStep(gvizForceEmbedderState *state) {
   state->iteration++;
   state->lastMaxDisplacement = maxDisp;
   gvizEmbeddedGraphStatAppend(embedding, "forceEmbedder.maxDisp", maxDisp);
-  gvizEmbeddedGraphStatAppend(embedding, "forceEmbedder.heat", meanHeat);
+  gvizEmbeddedGraphStatAppend(embedding, "forceEmbedder.speed",
+                              state->globalSpeed);
   gvizEmbeddedGraphStatAppend(embedding, "forceEmbedder.attractiveForce",
                               meanAtt);
   gvizEmbeddedGraphStatAppend(embedding, "forceEmbedder.repulsiveForce",
