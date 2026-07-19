@@ -4,6 +4,7 @@
 #include <string.h>
 
 #define GVIZ_QUADTREE_MIN_HALF_SIZE 1e-9
+#define GVIZ_QUADTREE_MIN_MASS 1e-9
 #define GVIZ_QUADTREE_ARENA_BLOCK_NODES 1024
 
 static double gvizQuadtreeMax(double a, double b) { return a > b ? a : b; }
@@ -50,7 +51,7 @@ static gvizQuadtreeNode *gvizQuadtreeArenaAlloc(gvizQuadtree *tree, double cx,
   node->halfSize = halfSize;
   node->comX = 0.0;
   node->comY = 0.0;
-  node->mass = 0;
+  node->mass = 0.0;
   node->pointIndices =
       tree->nodesPerCell > 0 ? &pointBlock[offset * tree->nodesPerCell] : NULL;
   node->pointCount = 0;
@@ -112,10 +113,13 @@ static int gvizQuadtreeInsertPoint(gvizQuadtreeNode *node, gvizQuadtree *tree,
                                    size_t idx) {
   double px = tree->points[2 * idx];
   double py = tree->points[2 * idx + 1];
+  double ptMass = tree->masses[idx];
 
-  size_t newMass = node->mass + 1;
-  node->comX = (node->comX * (double)node->mass + px) / (double)newMass;
-  node->comY = (node->comY * (double)node->mass + py) / (double)newMass;
+  double newMass = node->mass + ptMass;
+  if (newMass > GVIZ_QUADTREE_MIN_MASS || newMass < -GVIZ_QUADTREE_MIN_MASS) {
+    node->comX = (node->comX * node->mass + px * ptMass) / newMass;
+    node->comY = (node->comY * node->mass + py * ptMass) / newMass;
+  }
   node->mass = newMass;
 
   if (!gvizQuadtreeNodeIsLeaf(node))
@@ -193,12 +197,13 @@ static void gvizQuadtreeFreeOverflowBuffers(gvizQuadtree *tree) {
   tree->overflowBuffers.count = 0;
 }
 
-int gvizQuadtreeInit(gvizQuadtree *tree, const double *points, size_t count,
-                     size_t nodesPerCell) {
+int gvizQuadtreeInit(gvizQuadtree *tree, const double *points,
+                     const double *masses, size_t count, size_t nodesPerCell) {
   if (!tree)
     return -1;
 
   tree->points = points;
+  tree->masses = masses;
   tree->pointCount = count;
   tree->nodesPerCell = nodesPerCell;
   tree->root = NULL;
@@ -220,13 +225,14 @@ int gvizQuadtreeInit(gvizQuadtree *tree, const double *points, size_t count,
 }
 
 int gvizQuadtreeRebuild(gvizQuadtree *tree, const double *points,
-                        size_t count) {
+                        const double *masses, size_t count) {
   if (!tree)
     return -1;
 
   gvizQuadtreeFreeOverflowBuffers(tree);
   tree->nodesUsed = 0;
   tree->points = points;
+  tree->masses = masses;
   tree->pointCount = count;
 
   return gvizQuadtreeBuild(tree);

@@ -31,26 +31,7 @@ static inline void gvizVecZero(size_t n, double *v) {
 }
 
 static inline void gvizVecCopy(size_t n, const double *src, double *dst) {
-  switch (n) {
-  case 2:
-    dst[0] = src[0];
-    dst[1] = src[1];
-    return;
-  case 3:
-    dst[0] = src[0];
-    dst[1] = src[1];
-    dst[2] = src[2];
-    return;
-  case 4:
-    dst[0] = src[0];
-    dst[1] = src[1];
-    dst[2] = src[2];
-    dst[3] = src[3];
-    return;
-  default:
-    for (size_t i = 0; i < n; i++)
-      dst[i] = src[i];
-  }
+	memcpy(dst, src, sizeof(double) * n);
 }
 
 static inline double gvizVecDot(size_t n, const double *a, const double *b) {
@@ -448,6 +429,177 @@ static inline void gvizVecAccFRRepForce(size_t n, const double *vPos,
     double s = kSq / dist_sq;
     for (size_t i = 0; i < n; i++)
       acc[i] -= s * (uPos[i] - vPos[i]);
+  }
+  }
+}
+
+// LinLog attractive force: magnitude log(1 + dist), pulling v toward u.
+static inline void gvizVecAccLinLogAttForce(size_t n, const double *vPos,
+                                            const double *uPos, double *acc) {
+  switch (n) {
+  case 2: {
+    double dx = uPos[0] - vPos[0];
+    double dy = uPos[1] - vPos[1];
+    double dist = sqrt(dx * dx + dy * dy);
+    if (dist < 1e-9)
+      return;
+    double s = log(1.0 + dist) / dist;
+    acc[0] += s * dx;
+    acc[1] += s * dy;
+    return;
+  }
+  case 3: {
+    double dx = uPos[0] - vPos[0];
+    double dy = uPos[1] - vPos[1];
+    double dz = uPos[2] - vPos[2];
+    double dist = sqrt(dx * dx + dy * dy + dz * dz);
+    if (dist < 1e-9)
+      return;
+    double s = log(1.0 + dist) / dist;
+    acc[0] += s * dx;
+    acc[1] += s * dy;
+    acc[2] += s * dz;
+    return;
+  }
+  case 4: {
+    double dx = uPos[0] - vPos[0];
+    double dy = uPos[1] - vPos[1];
+    double dz = uPos[2] - vPos[2];
+    double dw = uPos[3] - vPos[3];
+    double dist = sqrt(dx * dx + dy * dy + dz * dz + dw * dw);
+    if (dist < 1e-9)
+      return;
+    double s = log(1.0 + dist) / dist;
+    acc[0] += s * dx;
+    acc[1] += s * dy;
+    acc[2] += s * dz;
+    acc[3] += s * dw;
+    return;
+  }
+  default: {
+    double dist_sq = 0.0;
+    for (size_t i = 0; i < n; i++) {
+      double d = uPos[i] - vPos[i];
+      dist_sq += d * d;
+    }
+    double dist = sqrt(dist_sq);
+    if (dist < 1e-9)
+      return;
+    double s = log(1.0 + dist) / dist;
+    for (size_t i = 0; i < n; i++)
+      acc[i] += s * (uPos[i] - vPos[i]);
+  }
+  }
+}
+
+// LinLog repulsive force: magnitude (vMass*otherMass)/dist, pushing v away
+// from u.
+static inline void gvizVecAccLinLogRepForce(size_t n, const double *vPos,
+                                            const double *uPos, double vMass,
+                                            double otherMass, double *acc) {
+  double massProduct = vMass * otherMass;
+
+  switch (n) {
+  case 2: {
+    double dx = uPos[0] - vPos[0];
+    double dy = uPos[1] - vPos[1];
+    double dist_sq = dx * dx + dy * dy;
+    if (dist_sq < 1e-18)
+      return;
+    double s = massProduct / dist_sq;
+    acc[0] -= s * dx;
+    acc[1] -= s * dy;
+    return;
+  }
+  case 3: {
+    double dx = uPos[0] - vPos[0];
+    double dy = uPos[1] - vPos[1];
+    double dz = uPos[2] - vPos[2];
+    double dist_sq = dx * dx + dy * dy + dz * dz;
+    if (dist_sq < 1e-18)
+      return;
+    double s = massProduct / dist_sq;
+    acc[0] -= s * dx;
+    acc[1] -= s * dy;
+    acc[2] -= s * dz;
+    return;
+  }
+  case 4: {
+    double dx = uPos[0] - vPos[0];
+    double dy = uPos[1] - vPos[1];
+    double dz = uPos[2] - vPos[2];
+    double dw = uPos[3] - vPos[3];
+    double dist_sq = dx * dx + dy * dy + dz * dz + dw * dw;
+    if (dist_sq < 1e-18)
+      return;
+    double s = massProduct / dist_sq;
+    acc[0] -= s * dx;
+    acc[1] -= s * dy;
+    acc[2] -= s * dz;
+    acc[3] -= s * dw;
+    return;
+  }
+  default: {
+    double dist_sq = 0.0;
+    for (size_t i = 0; i < n; i++) {
+      double d = uPos[i] - vPos[i];
+      dist_sq += d * d;
+    }
+    if (dist_sq < 1e-18)
+      return;
+    double s = massProduct / dist_sq;
+    for (size_t i = 0; i < n; i++)
+      acc[i] -= s * (uPos[i] - vPos[i]);
+  }
+  }
+}
+
+// Gravity force: constant magnitude pulling v toward the origin.
+static inline void gvizVecAccGravityForce(size_t n, const double *vPos,
+                                          double magnitude, double *acc) {
+  switch (n) {
+  case 2: {
+    double dist = sqrt(vPos[0] * vPos[0] + vPos[1] * vPos[1]);
+    if (dist < 1e-9)
+      return;
+    double s = magnitude / dist;
+    acc[0] -= s * vPos[0];
+    acc[1] -= s * vPos[1];
+    return;
+  }
+  case 3: {
+    double dist = sqrt(vPos[0] * vPos[0] + vPos[1] * vPos[1] +
+                       vPos[2] * vPos[2]);
+    if (dist < 1e-9)
+      return;
+    double s = magnitude / dist;
+    acc[0] -= s * vPos[0];
+    acc[1] -= s * vPos[1];
+    acc[2] -= s * vPos[2];
+    return;
+  }
+  case 4: {
+    double dist = sqrt(vPos[0] * vPos[0] + vPos[1] * vPos[1] +
+                       vPos[2] * vPos[2] + vPos[3] * vPos[3]);
+    if (dist < 1e-9)
+      return;
+    double s = magnitude / dist;
+    acc[0] -= s * vPos[0];
+    acc[1] -= s * vPos[1];
+    acc[2] -= s * vPos[2];
+    acc[3] -= s * vPos[3];
+    return;
+  }
+  default: {
+    double dist_sq = 0.0;
+    for (size_t i = 0; i < n; i++)
+      dist_sq += vPos[i] * vPos[i];
+    double dist = sqrt(dist_sq);
+    if (dist < 1e-9)
+      return;
+    double s = magnitude / dist;
+    for (size_t i = 0; i < n; i++)
+      acc[i] -= s * vPos[i];
   }
   }
 }

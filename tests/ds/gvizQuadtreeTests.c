@@ -17,17 +17,20 @@ void test_quadtreeInit_defaultNodesPerCell(void) {
 void test_quadtreeInit_empty(void) {
   gvizQuadtree tree;
   TEST_ASSERT_EQUAL_INT(
-      0, gvizQuadtreeInit(&tree, NULL, 0, GVIZ_QUADTREE_NODES_PER_CELL_DEFAULT));
+      0, gvizQuadtreeInit(&tree, NULL, NULL, 0,
+                         GVIZ_QUADTREE_NODES_PER_CELL_DEFAULT));
   TEST_ASSERT_NULL(gvizQuadtreeRoot(&tree));
   gvizQuadtreeRelease(&tree);
 }
 
 void test_quadtreeInit_singlePoint(void) {
   double points[] = {3.0, 4.0};
+  double masses[] = {1.0};
   gvizQuadtree tree;
 
   TEST_ASSERT_EQUAL_INT(
-      0, gvizQuadtreeInit(&tree, points, 1, GVIZ_QUADTREE_NODES_PER_CELL_DEFAULT));
+      0, gvizQuadtreeInit(&tree, points, masses, 1,
+                         GVIZ_QUADTREE_NODES_PER_CELL_DEFAULT));
 
   const gvizQuadtreeNode *root = gvizQuadtreeRoot(&tree);
   TEST_ASSERT_NOT_NULL(root);
@@ -54,10 +57,12 @@ void test_quadtreeInit_subdividesPastCapacity(void) {
       -5.0, -5.0, // SW
       5.0,  -5.0, // SE
   };
+  double masses[] = {1.0, 1.0, 1.0, 1.0};
   gvizQuadtree tree;
 
   TEST_ASSERT_EQUAL_INT(
-      0, gvizQuadtreeInit(&tree, points, 4, GVIZ_QUADTREE_NODES_PER_CELL_DEFAULT));
+      0, gvizQuadtreeInit(&tree, points, masses, 4,
+                         GVIZ_QUADTREE_NODES_PER_CELL_DEFAULT));
 
   const gvizQuadtreeNode *root = gvizQuadtreeRoot(&tree);
   TEST_ASSERT_NOT_NULL(root);
@@ -104,9 +109,10 @@ void test_quadtreeInit_respectsNodesPerCell(void) {
       2.0, 2.0,
       3.0, 3.0,
   };
+  double masses[] = {1.0, 1.0, 1.0};
   gvizQuadtree tree;
 
-  TEST_ASSERT_EQUAL_INT(0, gvizQuadtreeInit(&tree, points, 3, 3));
+  TEST_ASSERT_EQUAL_INT(0, gvizQuadtreeInit(&tree, points, masses, 3, 3));
 
   const gvizQuadtreeNode *root = gvizQuadtreeRoot(&tree);
   TEST_ASSERT_TRUE(gvizQuadtreeNodeIsLeaf(root));
@@ -122,10 +128,12 @@ void test_quadtreeInit_duplicatePointsDoNotInfiniteLoop(void) {
       2.0, 2.0,
       2.0, 2.0,
   };
+  double masses[] = {1.0, 1.0, 1.0};
   gvizQuadtree tree;
 
   TEST_ASSERT_EQUAL_INT(
-      0, gvizQuadtreeInit(&tree, points, 3, GVIZ_QUADTREE_NODES_PER_CELL_DEFAULT));
+      0, gvizQuadtreeInit(&tree, points, masses, 3,
+                         GVIZ_QUADTREE_NODES_PER_CELL_DEFAULT));
 
   const gvizQuadtreeNode *root = gvizQuadtreeRoot(&tree);
   TEST_ASSERT_NOT_NULL(root);
@@ -151,10 +159,12 @@ void test_quadtreeCenterOfMass_isMeanOfAllPoints(void) {
       10.0, 10.0,
       4.0, 4.0,
   };
+  double masses[] = {1.0, 1.0, 1.0, 1.0, 1.0};
   gvizQuadtree tree;
 
   TEST_ASSERT_EQUAL_INT(
-      0, gvizQuadtreeInit(&tree, points, 5, GVIZ_QUADTREE_NODES_PER_CELL_DEFAULT));
+      0, gvizQuadtreeInit(&tree, points, masses, 5,
+                         GVIZ_QUADTREE_NODES_PER_CELL_DEFAULT));
 
   const gvizQuadtreeNode *root = gvizQuadtreeRoot(&tree);
   double comX, comY;
@@ -184,13 +194,15 @@ void test_quadtreeRebuild_reflectsNewPositions(void) {
       100.0, 101.0,
       101.0, 101.0,
   };
+  double masses[] = {1.0, 1.0, 1.0, 1.0};
   gvizQuadtree tree;
 
   TEST_ASSERT_EQUAL_INT(
-      0, gvizQuadtreeInit(&tree, before, 4, GVIZ_QUADTREE_NODES_PER_CELL_DEFAULT));
+      0, gvizQuadtreeInit(&tree, before, masses, 4,
+                         GVIZ_QUADTREE_NODES_PER_CELL_DEFAULT));
   TEST_ASSERT_FALSE(gvizQuadtreeNodeIsLeaf(gvizQuadtreeRoot(&tree)));
 
-  TEST_ASSERT_EQUAL_INT(0, gvizQuadtreeRebuild(&tree, after, 4));
+  TEST_ASSERT_EQUAL_INT(0, gvizQuadtreeRebuild(&tree, after, masses, 4));
 
   const gvizQuadtreeNode *root = gvizQuadtreeRoot(&tree);
   TEST_ASSERT_NOT_NULL(root);
@@ -211,16 +223,18 @@ void test_quadtreeRebuild_reusesArenaBlocks(void) {
       -5.0, -5.0,
       5.0,  -5.0,
   };
+  double masses[] = {1.0, 1.0, 1.0, 1.0};
   gvizQuadtree tree;
 
   TEST_ASSERT_EQUAL_INT(
-      0, gvizQuadtreeInit(&tree, points, 4, GVIZ_QUADTREE_NODES_PER_CELL_DEFAULT));
+      0, gvizQuadtreeInit(&tree, points, masses, 4,
+                         GVIZ_QUADTREE_NODES_PER_CELL_DEFAULT));
 
   size_t blocksAfterInit = tree.nodeBlocks.count;
   TEST_ASSERT_GREATER_THAN(0, (int)blocksAfterInit);
 
   for (int i = 0; i < 5; i++) {
-    TEST_ASSERT_EQUAL_INT(0, gvizQuadtreeRebuild(&tree, points, 4));
+    TEST_ASSERT_EQUAL_INT(0, gvizQuadtreeRebuild(&tree, points, masses, 4));
     TEST_ASSERT_EQUAL_INT((int)blocksAfterInit, (int)tree.nodeBlocks.count);
     TEST_ASSERT_EQUAL_INT((int)blocksAfterInit, (int)tree.pointBlocks.count);
   }
@@ -235,16 +249,95 @@ void test_quadtreeRebuild_overflowBuffersDoNotAccumulate(void) {
       2.0, 2.0,
       2.0, 2.0,
   };
+  double masses[] = {1.0, 1.0, 1.0, 1.0};
   gvizQuadtree tree;
 
   TEST_ASSERT_EQUAL_INT(
-      0, gvizQuadtreeInit(&tree, duplicates, 4, GVIZ_QUADTREE_NODES_PER_CELL_DEFAULT));
+      0, gvizQuadtreeInit(&tree, duplicates, masses, 4,
+                         GVIZ_QUADTREE_NODES_PER_CELL_DEFAULT));
   size_t overflowAfterFirstBuild = tree.overflowBuffers.count;
   TEST_ASSERT_GREATER_THAN(0, (int)overflowAfterFirstBuild);
 
-  TEST_ASSERT_EQUAL_INT(0, gvizQuadtreeRebuild(&tree, duplicates, 4));
+  TEST_ASSERT_EQUAL_INT(0, gvizQuadtreeRebuild(&tree, duplicates, masses, 4));
   TEST_ASSERT_EQUAL_INT((int)overflowAfterFirstBuild,
                         (int)tree.overflowBuffers.count);
+
+  gvizQuadtreeRelease(&tree);
+}
+
+// ============================================================================
+// WEIGHTED MASS
+// ============================================================================
+
+void test_quadtreeMass_weightedCenterOfMassSkewsTowardHeavierPoint(void) {
+  double points[] = {
+      0.0, 0.0,
+      10.0, 0.0,
+  };
+  double masses[] = {1.0, 3.0};
+  gvizQuadtree tree;
+
+  TEST_ASSERT_EQUAL_INT(
+      0, gvizQuadtreeInit(&tree, points, masses, 2,
+                         GVIZ_QUADTREE_NODES_PER_CELL_DEFAULT));
+
+  const gvizQuadtreeNode *root = gvizQuadtreeRoot(&tree);
+  TEST_ASSERT_NOT_NULL(root);
+  TEST_ASSERT_EQUAL_DOUBLE(4.0, root->mass);
+
+  double comX, comY;
+  gvizQuadtreeNodeCenterOfMass(root, &comX, &comY);
+  TEST_ASSERT_EQUAL_DOUBLE(7.5, comX);
+  TEST_ASSERT_EQUAL_DOUBLE(0.0, comY);
+
+  gvizQuadtreeRelease(&tree);
+}
+
+void test_quadtreeMass_isSumOfWeightsNotPointCount(void) {
+  double points[] = {
+      2.0, 2.0,
+      2.0, 2.0,
+  };
+  double masses[] = {5.0, 10.0};
+  gvizQuadtree tree;
+
+  TEST_ASSERT_EQUAL_INT(
+      0, gvizQuadtreeInit(&tree, points, masses, 2,
+                         GVIZ_QUADTREE_NODES_PER_CELL_DEFAULT));
+
+  const gvizQuadtreeNode *root = gvizQuadtreeRoot(&tree);
+  TEST_ASSERT_NOT_NULL(root);
+  TEST_ASSERT_EQUAL_DOUBLE(15.0, root->mass);
+
+  double comX, comY;
+  gvizQuadtreeNodeCenterOfMass(root, &comX, &comY);
+  TEST_ASSERT_EQUAL_DOUBLE(2.0, comX);
+  TEST_ASSERT_EQUAL_DOUBLE(2.0, comY);
+
+  gvizQuadtreeRelease(&tree);
+}
+
+void test_quadtreeMass_zeroMassPointsDoNotDivideByZero(void) {
+  double points[] = {
+      0.0, 0.0,
+      5.0, 5.0,
+      10.0, 10.0,
+  };
+  double masses[] = {0.0, 0.0, 2.0};
+  gvizQuadtree tree;
+
+  TEST_ASSERT_EQUAL_INT(
+      0, gvizQuadtreeInit(&tree, points, masses, 3,
+                         GVIZ_QUADTREE_NODES_PER_CELL_DEFAULT));
+
+  const gvizQuadtreeNode *root = gvizQuadtreeRoot(&tree);
+  TEST_ASSERT_NOT_NULL(root);
+  TEST_ASSERT_EQUAL_DOUBLE(2.0, root->mass);
+
+  double comX, comY;
+  gvizQuadtreeNodeCenterOfMass(root, &comX, &comY);
+  TEST_ASSERT_EQUAL_DOUBLE(10.0, comX);
+  TEST_ASSERT_EQUAL_DOUBLE(10.0, comY);
 
   gvizQuadtreeRelease(&tree);
 }
@@ -265,6 +358,10 @@ int main(void) {
   RUN_TEST(test_quadtreeRebuild_reflectsNewPositions);
   RUN_TEST(test_quadtreeRebuild_reusesArenaBlocks);
   RUN_TEST(test_quadtreeRebuild_overflowBuffersDoNotAccumulate);
+
+  RUN_TEST(test_quadtreeMass_weightedCenterOfMassSkewsTowardHeavierPoint);
+  RUN_TEST(test_quadtreeMass_isSumOfWeightsNotPointCount);
+  RUN_TEST(test_quadtreeMass_zeroMassPointsDoNotDivideByZero);
 
   return UNITY_END();
 }

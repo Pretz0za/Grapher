@@ -21,7 +21,8 @@ typedef enum gvizQuadrant {
  * entry of @c children is NULL) holds up to @c pointCapacity point indices
  * directly in @c pointIndices; once a leaf would overflow it subdivides into
  * four equal quadrants and redistributes its points among them. Every node,
- * leaf or internal, tracks the running center of mass and point count of its
+ * leaf or internal, tracks the running center of mass and total mass (the
+ * sum of each point's caller-supplied mass, see gvizQuadtree::masses) of its
  * entire subtree, so future Barnes-Hut force traversal can approximate a
  * whole subtree by its centroid instead of visiting every point.
  *
@@ -32,7 +33,8 @@ typedef struct gvizQuadtreeNode {
   double cx, cy;     /**< Center of this node's square region. */
   double halfSize;   /**< Half the side length of the square region. */
   double comX, comY; /**< Center of mass of every point in this subtree. */
-  size_t mass;       /**< Number of points in this subtree. */
+  double mass;       /**< Sum of the caller-supplied masses of every point in
+                      *   this subtree (see gvizQuadtree::masses). */
   size_t *pointIndices; /**< Indices into the source point buffer. Only
                         *   populated, and only meaningful, on leaves. */
   size_t pointCount;    /**< Valid entries in pointIndices. */
@@ -60,6 +62,8 @@ typedef struct gvizQuadtree {
   gvizQuadtreeNode *root; /**< NULL when the tree indexes zero points. */
   size_t nodesPerCell;    /**< Max points a leaf holds before it subdivides. */
   const double *points;   /**< Borrowed; interleaved x0, y0, x1, y1, ... */
+  const double *masses;   /**< Borrowed; one entry per point (not
+                           *   interleaved), same indexing as point index. */
   size_t pointCount;
 
   gvizArray nodeBlocks;      /**< Owned; gvizQuadtreeNode* arena blocks. */
@@ -74,27 +78,32 @@ typedef struct gvizQuadtree {
  * Builds a quadtree over @p points, an interleaved x0, y0, x1, y1, ... buffer
  * describing @p count 2D points, and allocates its node arena. @p points is
  * borrowed and must outlive @p tree; @p tree takes no ownership of it.
+ * @p masses is a borrowed array of @p count doubles, one entry per point
+ * (not interleaved, same indexing as point index), giving each point's mass;
+ * it must also outlive @p tree. Every node's mass (see gvizQuadtreeNode) is
+ * the sum of the masses of the points in its subtree.
  * @p nodesPerCell is the maximum number of points a leaf holds before it
  * subdivides; pass GVIZ_QUADTREE_NODES_PER_CELL_DEFAULT for the default of 1.
  *
  * @return 0 on success, -1 on allocation failure. @p tree is left in a
  * releasable state either way.
  */
-int gvizQuadtreeInit(gvizQuadtree *tree, const double *points, size_t count,
-                     size_t nodesPerCell);
+int gvizQuadtreeInit(gvizQuadtree *tree, const double *points,
+                     const double *masses, size_t count, size_t nodesPerCell);
 
 /**
  * Rebuilds @p tree over @p points (a new buffer, or the same one with updated
- * coordinates) and @p count, reusing the arena allocated by gvizQuadtreeInit
- * instead of freeing and reallocating it. Cheap once the arena has grown to
- * cover the largest build seen so far: no allocation occurs unless this
- * build needs more nodes than any previous one. @p tree must already be
- * initialized with gvizQuadtreeInit.
+ * coordinates), @p masses (parallel to @p points, one entry per point), and
+ * @p count, reusing the arena allocated by gvizQuadtreeInit instead of
+ * freeing and reallocating it. Cheap once the arena has grown to cover the
+ * largest build seen so far: no allocation occurs unless this build needs
+ * more nodes than any previous one. @p tree must already be initialized with
+ * gvizQuadtreeInit.
  *
  * @return 0 on success, -1 on allocation failure.
  */
 int gvizQuadtreeRebuild(gvizQuadtree *tree, const double *points,
-                        size_t count);
+                        const double *masses, size_t count);
 
 /** Releases the arena and every buffer owned by @p tree. Does not free
  *  @p tree->points. */

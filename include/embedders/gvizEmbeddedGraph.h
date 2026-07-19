@@ -383,7 +383,7 @@ void gvizEmbeddedGraphAddVPosition(gvizEmbeddedGraph *embedding, size_t idx,
  * the [-boxExtent, boxExtent]^dim box, so a layout can start compact rather
  * than scattering vertices arbitrarily far apart. @p seed seeds the
  * generator; pass 0 for a time-based seed. Shared starting-layout logic for
- * embedders (see gvizFRPairwiseEmbedderBegin) and front-ends that want a
+ * embedders (see gvizForceEmbedderBegin) and front-ends that want a
  * scattered placement before running an embedder.
  */
 void gvizEmbeddedGraphRandomizePositions(gvizEmbeddedGraph *embedding,

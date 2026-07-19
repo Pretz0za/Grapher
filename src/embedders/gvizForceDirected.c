@@ -36,3 +36,18 @@ void gvizPairwiseFRRepForceWeighted(int n, double *vPos, double *comPos,
   gvizPairwiseFRRepForce(n, vPos, comPos, k, scratch);
   gvizVecAxpy((size_t)n, (double)mass, scratch, acc);
 }
+
+void gvizPairwiseLinLogAttForce(int n, double *vPos, double *uPos,
+                                double *acc) {
+  gvizVecAccLinLogAttForce((size_t)n, vPos, uPos, acc);
+}
+
+void gvizPairwiseLinLogRepForce(int n, double *vPos, double *uPos,
+                                double vMass, double otherMass, double *acc) {
+  gvizVecAccLinLogRepForce((size_t)n, vPos, uPos, vMass, otherMass, acc);
+}
+
+void gvizPairwiseGravityForce(int n, double *vPos, double magnitude,
+                              double *acc) {
+  gvizVecAccGravityForce((size_t)n, vPos, magnitude, acc);
+}

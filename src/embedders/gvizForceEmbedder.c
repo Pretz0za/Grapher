@@ -38,7 +38,8 @@ static void bhAccumulateRepulsion(gvizForceEmbedderState *state,
       if (idx == selfIdx)
         continue;
       double *uPos = state->positionsScratch + idx * 2;
-      gvizPairwiseFRRepForce(2, vPos, uPos, state->edgeLength, acc);
+      state->model->repulsive(2, vPos, uPos, state->mass[selfIdx],
+                              state->mass[idx], state->edgeLength, acc);
     }
     return;
   }
@@ -52,8 +53,8 @@ static void bhAccumulateRepulsion(gvizForceEmbedderState *state,
 
   if (ratio < state->theta) {
     double com[2] = {comX, comY};
-    gvizPairwiseFRRepForceWeighted(2, vPos, com, node->mass, state->edgeLength,
-                                   acc);
+    state->model->repulsive(2, vPos, com, state->mass[selfIdx], node->mass,
+                            state->edgeLength, acc);
     return;
   }
 
@@ -66,7 +67,8 @@ static void computeForceRange(void *ctx, size_t begin, size_t end) {
   gvizForceEmbedderState *state = ctx;
   gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
   const gvizSubgraph *sg = &embedding->subgraph;
-  const gvizQuadtreeNode *root = gvizQuadtreeRoot(&state->quadtree);
+  const gvizQuadtreeNode *root =
+      state->barnesHutEnabled ? gvizQuadtreeRoot(&state->quadtree) : NULL;
 
   for (size_t i = begin; i < end; i++) {
     size_t v = state->vertices[i];
@@ -83,15 +85,28 @@ static void computeForceRange(void *ctx, size_t begin, size_t end) {
     size_t u;
     while (gvizSubgraphNeighborIterate(&nit, &u)) {
       double *uPos = gvizEmbeddedGraphGetVPosition(embedding, u);
-      gvizPairwiseFRAttForce(2, vPos, uPos, state->edgeLength, attF);
+      state->model->attractive(2, vPos, uPos, state->edgeLength, attF);
     }
 
-    bhAccumulateRepulsion(state, root, i, vPos, repF);
+    if (state->barnesHutEnabled) {
+      bhAccumulateRepulsion(state, root, i, vPos, repF);
+    } else {
+      for (size_t j = 0; j < state->vertexCount; j++) {
+        if (j == i)
+          continue;
+        double *otherPos = state->positionsScratch + j * 2;
+        state->model->repulsive(2, vPos, otherPos, state->mass[i],
+                                state->mass[j], state->edgeLength, repF);
+      }
+    }
 
     gvizVecAxpy(2, 1.0, attF, f);
     gvizVecAxpy(2, 1.0, repF, f);
     state->attForceMag[i] = gvizVecNorm2(2, attF);
     state->repForceMag[i] = gvizVecNorm2(2, repF);
+
+    double gravityMag = state->gravityK * (double)(state->degree[i] + 1);
+    gvizPairwiseGravityForce(2, vPos, gravityMag, f);
   }
 }
 
@@ -155,7 +170,7 @@ static void forceEmbedderActionStep(gvizEmbeddedGraph *embedding,
 }
 
 int gvizForceEmbedderInit(gvizForceEmbedderState *state, gvizSubgraph subgraph,
-                          size_t dimension) {
+                          size_t dimension, gvizForceModelKind model) {
   memset(state, 0, sizeof(*state));
 
   if (dimension != 2)
@@ -168,6 +183,7 @@ int gvizForceEmbedderInit(gvizForceEmbedderState *state, gvizSubgraph subgraph,
 
   gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
   state->vertexCount = gvizSubgraphVertexCount(&embedding->subgraph);
+  state->model = gvizForceModelGet(model);
 
   state->vertices = GVIZ_ALLOC(sizeof(size_t) * state->vertexCount);
   if (!state->vertices)
@@ -179,6 +195,21 @@ int gvizForceEmbedderInit(gvizForceEmbedderState *state, gvizSubgraph subgraph,
   size_t u;
   while (gvizSubgraphVertexIterate(&vit, &u))
     state->vertices[k++] = u;
+
+  state->degree = GVIZ_ALLOC(sizeof(size_t) * state->vertexCount);
+  state->mass = GVIZ_ALLOC(sizeof(double) * state->vertexCount);
+  if (!state->degree || !state->mass)
+    return -1;
+
+  double sumDegPlusOne = 0.0;
+  for (size_t i = 0; i < state->vertexCount; i++) {
+    state->degree[i] =
+        gvizSubgraphDegree(&embedding->subgraph, state->vertices[i]);
+    state->mass[i] = state->model->vertexMass(state->degree[i]);
+    sumDegPlusOne += (double)(state->degree[i] + 1);
+  }
+  state->meanDegreePlusOne =
+      state->vertexCount ? sumDegPlusOne / (double)state->vertexCount : 0.0;
 
   state->disp = GVIZ_ALLOC(sizeof(double) * state->vertexCount * 2);
   if (!state->disp)
@@ -205,6 +236,8 @@ int gvizForceEmbedderInit(gvizForceEmbedderState *state, gvizSubgraph subgraph,
   state->heatS = GVIZ_FORCE_EMBEDDER_HEAT_S_DEFAULT;
   state->theta = GVIZ_FORCE_EMBEDDER_THETA_DEFAULT;
   state->nodesPerCell = GVIZ_QUADTREE_NODES_PER_CELL_DEFAULT;
+  state->gravityK = 0.0;
+  state->barnesHutEnabled = 1;
   state->pool = NULL;
   state->quadtreeReady = 0;
 
@@ -224,6 +257,9 @@ int gvizForceEmbedderInit(gvizForceEmbedderState *state, gvizSubgraph subgraph,
   if (!gvizEmbeddedGraphAddStatSeries(embedding, "forceEmbedder.repulsiveForce",
                                       GVIZ_STAT_CHART_LINE_LOG))
     return -1;
+  if (!gvizEmbeddedGraphAddStatSeries(embedding, "forceEmbedder.gravityForce",
+                                      GVIZ_STAT_CHART_LINE_LOG))
+    return -1;
 
   return 0;
 }
@@ -232,6 +268,10 @@ void gvizForceEmbedderRelease(gvizForceEmbedderState *state) {
   gvizEmbeddedGraphRelease((gvizEmbeddedGraph *)state);
   if (state->vertices)
     GVIZ_DEALLOC(state->vertices);
+  if (state->mass)
+    GVIZ_DEALLOC(state->mass);
+  if (state->degree)
+    GVIZ_DEALLOC(state->degree);
   if (state->disp)
     GVIZ_DEALLOC(state->disp);
   if (state->positionsScratch)
@@ -274,6 +314,16 @@ void gvizForceEmbedderConfigureBarnesHut(gvizForceEmbedderState *state,
     state->nodesPerCell = nodesPerCell;
 }
 
+void gvizForceEmbedderSetBarnesHutEnabled(gvizForceEmbedderState *state,
+                                          int enabled) {
+  state->barnesHutEnabled = enabled;
+}
+
+void gvizForceEmbedderConfigureGravity(gvizForceEmbedderState *state,
+                                       double k) {
+  state->gravityK = k;
+}
+
 int gvizForceEmbedderBegin(gvizForceEmbedderState *state, unsigned int seed) {
   gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
   gvizEmbeddedGraphRandomizePositions(embedding, state->boxExtent, seed);
@@ -292,15 +342,18 @@ int gvizForceEmbedderBegin(gvizForceEmbedderState *state, unsigned int seed) {
 
   gatherPositions(state);
 
-  int res;
-  if (!state->quadtreeReady) {
-    res = gvizQuadtreeInit(&state->quadtree, state->positionsScratch,
-                           state->vertexCount, state->nodesPerCell);
-    if (res == 0)
-      state->quadtreeReady = 1;
-  } else {
-    res = gvizQuadtreeRebuild(&state->quadtree, state->positionsScratch,
-                              state->vertexCount);
+  int res = 0;
+  if (state->barnesHutEnabled) {
+    if (!state->quadtreeReady) {
+      res = gvizQuadtreeInit(&state->quadtree, state->positionsScratch,
+                             state->mass, state->vertexCount,
+                             state->nodesPerCell);
+      if (res == 0)
+        state->quadtreeReady = 1;
+    } else {
+      res = gvizQuadtreeRebuild(&state->quadtree, state->positionsScratch,
+                                state->mass, state->vertexCount);
+    }
   }
 
   return res;
@@ -311,8 +364,9 @@ double gvizForceEmbedderStep(gvizForceEmbedderState *state) {
 
   gatherPositions(state);
   gvizVecCopy(state->vertexCount * 2, state->disp, state->oldDisp);
-  gvizQuadtreeRebuild(&state->quadtree, state->positionsScratch,
-                      state->vertexCount);
+  if (state->barnesHutEnabled)
+    gvizQuadtreeRebuild(&state->quadtree, state->positionsScratch,
+                        state->mass, state->vertexCount);
 
   gvizThreadPoolForRange(state->pool, 0, state->vertexCount,
                          FORCE_EMBEDDER_PARALLEL_GRAIN, computeForceRange,
@@ -325,24 +379,21 @@ double gvizForceEmbedderStep(gvizForceEmbedderState *state) {
   removeNetTranslation(state);
 
   double maxDisp = 0.0;
-  double sumHeat = 0.0;
+  double sumHeat = 0.0, sumAtt = 0.0, sumRep = 0.0;
   for (size_t i = 0; i < state->vertexCount; i++) {
     double *f = state->disp + i * 2;
     double applied = gvizVecNorm2(2, f);
     if (applied > maxDisp)
       maxDisp = applied;
     sumHeat += state->heat[i];
+    sumAtt += state->attForceMag[i];
+    sumRep += state->repForceMag[i];
     gvizEmbeddedGraphAddVPosition(embedding, state->vertices[i], f);
   }
   double meanHeat = state->vertexCount ? sumHeat / state->vertexCount : 0.0;
-
-  double sumAtt = 0.0, sumRep = 0.0;
-  for (size_t i = 0; i < state->vertexCount; i++) {
-    sumAtt += state->attForceMag[i];
-    sumRep += state->repForceMag[i];
-  }
   double meanAtt = state->vertexCount ? sumAtt / state->vertexCount : 0.0;
   double meanRep = state->vertexCount ? sumRep / state->vertexCount : 0.0;
+  double meanGrav = state->gravityK * state->meanDegreePlusOne;
 
   state->iteration++;
   state->lastMaxDisplacement = maxDisp;
@@ -352,6 +403,8 @@ double gvizForceEmbedderStep(gvizForceEmbedderState *state) {
                               meanAtt);
   gvizEmbeddedGraphStatAppend(embedding, "forceEmbedder.repulsiveForce",
                               meanRep);
+  gvizEmbeddedGraphStatAppend(embedding, "forceEmbedder.gravityForce",
+                              meanGrav);
 
   return maxDisp;
 }

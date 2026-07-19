@@ -4,6 +4,7 @@
 #include "core/gvizThreadPool.h"
 #include "ds/gvizQuadtree.h"
 #include "embedders/gvizEmbeddedGraph.h"
+#include "embedders/gvizForceModel.h"
 #include <stddef.h>
 
 #define GVIZ_FORCE_EMBEDDER_EDGE_LENGTH_DEFAULT 10.0
@@ -22,12 +23,17 @@
 #define GVIZ_FORCE_EMBEDDER_HEAT_S_DEFAULT 3.0
 
 /**
- * State for a Barnes-Hut Fruchterman-Reingold embedder: repulsion applies
- * between every pair of vertices and is approximated by walking a quadtree
- * over the current positions and treating distant subtrees as a single
- * pseudo-body at their center of mass; attraction is computed additionally,
- * on top of that repulsion, exactly along real graph edges (O(E) per round).
- * The scalable successor to gvizFRPairwiseEmbedder, which is O(V^2) per round.
+ * State for a Barnes-Hut force-directed embedder: repulsion applies between
+ * every pair of vertices and is approximated by walking a quadtree over the
+ * current positions and treating distant subtrees as a single pseudo-body at
+ * their center of mass; attraction is computed additionally, on top of that
+ * repulsion, exactly along real graph edges (O(E) per round). The actual
+ * force math (attraction, repulsion, and the mass a vertex contributes to
+ * quadtree aggregation) is pluggable via a gvizForceModel selected at Init;
+ * everything else (heat, Barnes-Hut traversal, actions, stat series) is
+ * shared across models. gvizForceEmbedderSetBarnesHutEnabled can disable the
+ * quadtree approximation in favor of exact O(V^2) all-pairs repulsion when a
+ * brute-force reference is wanted instead of the scalable default.
  *
  * The first field MUST remain gvizEmbeddedGraph so that a pointer to this
  * struct may be safely cast to gvizEmbeddedGraph *.
@@ -37,6 +43,15 @@ typedef struct gvizForceEmbedderState {
   size_t *vertices;        /* owned; active subgraph vertex ids, compact index
                             * i -> real vertex id */
   size_t vertexCount;
+  const gvizForceModel *model; /* force computation strategy, fixed at Init */
+  double *mass;   /* owned; vertexCount, model->vertexMass(degree[i]) per
+                   * vertex, computed once at Init */
+  size_t *degree; /* owned; vertexCount, raw subgraph degree per vertex,
+                   * independent of model->vertexMass; used by gravity */
+  double meanDegreePlusOne; /* mean over vertices of (degree + 1), computed
+                            * once at Init since degree is fixed for the
+                            * embedder's lifetime; avoids an O(vertexCount)
+                            * reduction every Step just for the gravity stat */
   double *disp;             /* owned; vertexCount * dim scratch accumulator */
   double *positionsScratch; /* owned; vertexCount * 2 doubles, gathered from
                              * vPos each round in state->vertices[] order; fed
@@ -58,39 +73,49 @@ typedef struct gvizForceEmbedderState {
                 * agreeing round */
   double edgeLength;
   double boxExtent;
+  double gravityK; /* constant-magnitude-per-(deg+1) pull toward the origin;
+                    * 0.0 (the default) disables gravity */
   size_t iteration;
   double lastMaxDisplacement;
   int begun;
   double theta; /* Barnes-Hut opening-angle threshold; embedder-owned, not a
                 * field of gvizQuadtree */
   size_t nodesPerCell;
+  int barnesHutEnabled; /* whether Step approximates repulsion via a quadtree
+                        * walk (1, the default) or exact all-pairs (0) */
   gvizQuadtree quadtree;
   int quadtreeReady; /* whether gvizQuadtreeInit has run yet (vs needing
-                      * gvizQuadtreeRebuild) */
+                      * gvizQuadtreeRebuild); stays 0 when barnesHutEnabled
+                      * is 0, since the quadtree is never built in that mode */
   /**
    * Worker pool for future data-parallel force evaluation. Always NULL for
-   * now, mirroring gvizFRPairwiseState.
+   * now.
    */
   gvizThreadPool *pool;
 } gvizForceEmbedderState;
 
 /**
- * Initializes @p state for @p subgraph in @p dimension dimensions. Only
- * dimension 2 is supported, since repulsion is approximated with a 2D
+ * Initializes @p state for @p subgraph in @p dimension dimensions, using
+ * @p model for attraction, repulsion, and vertex mass (see gvizForceModel).
+ * Only dimension 2 is supported, since repulsion is approximated with a 2D
  * quadtree. Registers action "forceEmbedder.step" and stat series
  * "forceEmbedder.maxDisp", "forceEmbedder.heat",
- * "forceEmbedder.attractiveForce", and "forceEmbedder.repulsiveForce" (the
- * last three are means over active vertices of each vertex's
- * heat/attractive/repulsive force magnitude). Edge length and box extent are
- * set to sensible defaults; override with gvizForceEmbedderConfigure,
- * gvizForceEmbedderConfigureHeat, and gvizForceEmbedderConfigureBarnesHut
- * before calling Begin. The quadtree itself is not built until Begin, since
- * positions are all zero right after this call.
+ * "forceEmbedder.attractiveForce", "forceEmbedder.repulsiveForce", and
+ * "forceEmbedder.gravityForce" (the last four are means over active vertices
+ * of each vertex's heat/attractive/repulsive/gravity force magnitude). Edge
+ * length and box extent are set to sensible defaults; override with
+ * gvizForceEmbedderConfigure, gvizForceEmbedderConfigureHeat,
+ * gvizForceEmbedderConfigureBarnesHut, gvizForceEmbedderSetBarnesHutEnabled,
+ * and gvizForceEmbedderConfigureGravity before calling Begin. @p model is
+ * structural, like @p dimension: fixed for the embedder's lifetime. The
+ * quadtree itself is not built until Begin, since positions are all zero
+ * right after this call.
  *
  * @return 0 on success, -1 on allocation failure, -2 if @p dimension != 2.
  */
 int gvizForceEmbedderInit(gvizForceEmbedderState *state,
-                          gvizSubgraph subgraph, size_t dimension);
+                          gvizSubgraph subgraph, size_t dimension,
+                          gvizForceModelKind model);
 
 /** Releases all memory owned by @p state. Safe to call even if Init returned
  *  -2 or Begin was never called. */
@@ -127,6 +152,30 @@ void gvizForceEmbedderConfigureBarnesHut(gvizForceEmbedderState *state,
                                          double theta, size_t nodesPerCell);
 
 /**
+ * Enables or disables the Barnes-Hut quadtree approximation of repulsion.
+ * Enabled (the default) by gvizForceEmbedderInit. When disabled, Step
+ * computes repulsion by exact all-pairs evaluation instead of a quadtree
+ * walk; no allocation occurs either way, since the quadtree fields simply
+ * stay unused/uninitialized in that case (gvizQuadtreeRelease on a zeroed
+ * struct is already known-safe per that function's contract). Call before
+ * gvizForceEmbedderBegin.
+ */
+void gvizForceEmbedderSetBarnesHutEnabled(gvizForceEmbedderState *state,
+                                          int enabled);
+
+/**
+ * Sets the gravity constant @p k: every vertex feels a constant-magnitude
+ * force of k * (deg(v) + 1) pulling it toward the origin, using the
+ * vertex's raw subgraph degree regardless of which force model's mass
+ * abstraction is active. @p k = 0 (the default) disables gravity. Unlike
+ * the other Configure* functions, there is no "0 means keep current" special
+ * case: @p k is always assigned unconditionally, since 0 is gravity's
+ * legitimate default/off value.
+ */
+void gvizForceEmbedderConfigureGravity(gvizForceEmbedderState *state,
+                                       double k);
+
+/**
  * Places every active vertex uniformly at random inside the
  * [-boxExtent, boxExtent]^2 box, so the layout starts compact rather than
  * scattering vertices arbitrarily far apart. @p seed seeds the generator;
@@ -141,18 +190,21 @@ void gvizForceEmbedderConfigureBarnesHut(gvizForceEmbedderState *state,
 int gvizForceEmbedderBegin(gvizForceEmbedderState *state, unsigned int seed);
 
 /**
- * Runs one round: accumulates the Barnes-Hut approximated repulsive force
- * from a quadtree walk over the current positions, unconditionally between
- * every active vertex and every other active vertex (mirroring
- * gvizFRPairwiseEmbedder's model), plus the exact Fruchterman-Reingold
- * attractive force along every real edge of every active vertex, additionally
- * on top of that vertex's repulsion. Each vertex's raw force is then rescaled
- * to that vertex's current heat (a per-vertex adaptive step length, not a
- * single global temperature): heat grows when this round's displacement
- * direction agrees with last round's (accelerating a vertex that is still
- * consistently migrating toward its equilibrium), and shrinks when it
- * reverses (damping a vertex that is oscillating around a resting point).
- * Heat is clamped to
+ * Runs one round: accumulates the model's repulsive force, approximated by
+ * a Barnes-Hut quadtree walk over the current positions when
+ * barnesHutEnabled (the default), or by exact all-pairs evaluation
+ * otherwise, unconditionally between every active vertex and every other
+ * active vertex, plus the model's exact attractive force along every real
+ * edge of every active vertex, additionally on top of that vertex's
+ * repulsion, plus (if
+ * gvizForceEmbedderConfigureGravity set a nonzero k) a constant-magnitude
+ * force pulling the vertex toward the origin. Each vertex's raw force is
+ * then rescaled to that vertex's current heat (a per-vertex adaptive step
+ * length, not a single global temperature): heat grows when this round's
+ * displacement direction agrees with last round's (accelerating a vertex
+ * that is still consistently migrating toward its equilibrium), and shrinks
+ * when it reverses (damping a vertex that is oscillating around a resting
+ * point). Heat is clamped to
  * [edgeLength * GVIZ_FORCE_EMBEDDER_HEAT_MIN_FACTOR,
  *  edgeLength * GVIZ_FORCE_EMBEDDER_HEAT_MAX_FACTOR]. The mean of all
  * heat-scaled displacements is then subtracted from every vertex before

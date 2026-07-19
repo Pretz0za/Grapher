@@ -34,7 +34,7 @@ void gvizPairwiseGRIPFRRepForce(int n, double *vPos, double *uPos,
 /**
  * Accumulates the Fruchterman-Reingold attractive force between @p vPos and
  * @p uPos into @p acc, as described in the original FR paper: f_a(d) = d^2/k.
- * Used by gvizFRPairwiseEmbedder.
+ * Used by gvizForceEmbedder's Fruchterman-Reingold force model.
  */
 void gvizPairwiseFRAttForce(int n, double *vPos, double *uPos, double k,
                             double *acc);
@@ -42,7 +42,9 @@ void gvizPairwiseFRAttForce(int n, double *vPos, double *uPos, double k,
 /**
  * Accumulates the Fruchterman-Reingold repulsive force between @p vPos and
  * @p uPos into @p acc, as described in the original FR paper: f_r(d) = k^2/d.
- * Used by gvizFRPairwiseEmbedder.
+ * Used by gvizForceEmbedder's Fruchterman-Reingold force model (both
+ * directly and, via gvizPairwiseFRRepForceWeighted, for its Barnes-Hut
+ * pseudo-body case).
  */
 void gvizPairwiseFRRepForce(int n, double *vPos, double *uPos, double k,
                             double *acc);
@@ -57,5 +59,26 @@ void gvizPairwiseFRRepForce(int n, double *vPos, double *uPos, double k,
  */
 void gvizPairwiseFRRepForceWeighted(int n, double *vPos, double *comPos,
                                     size_t mass, double k, double *acc);
+
+/**
+ * Accumulates the LinLog attractive force between @p vPos and @p uPos into
+ * @p acc: magnitude log(1 + dist), pulling v toward u.
+ */
+void gvizPairwiseLinLogAttForce(int n, double *vPos, double *uPos,
+                                double *acc);
+
+/**
+ * Accumulates the LinLog repulsive force between @p vPos and @p uPos into
+ * @p acc: magnitude (vMass*otherMass)/dist, pushing v away from u.
+ */
+void gvizPairwiseLinLogRepForce(int n, double *vPos, double *uPos,
+                                double vMass, double otherMass, double *acc);
+
+/**
+ * Accumulates a constant-magnitude gravitational force into @p acc, pulling
+ * @p vPos toward the origin.
+ */
+void gvizPairwiseGravityForce(int n, double *vPos, double magnitude,
+                              double *acc);
 
 #endif
