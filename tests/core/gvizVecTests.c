@@ -75,8 +75,45 @@ void test_gvizVecAccFRRepForce(void) {
   double v[2] = {0.0, 0.0};
   double u[2] = {2.0, 0.0};
   double acc[2] = {0.0, 0.0};
-  gvizVecAccFRRepForce(2, v, u, 1.0, acc);
+  gvizVecAccFRRepForce(2, v, u, 1.0, 0.0, 100.0, acc);
   assertVecNear(2, acc, (double[]){-0.5, 0.0}, 1e-12);
+}
+
+/* radiusSum shifts the effective distance from 2.0 (center distance) to 1.0
+ * (center distance minus the two vertices' combined radii): gap = 2-1 = 1 > 0
+ * still takes the divide branch, so mag = k^2/gap = 1/1 = 1.0 along (1,0). */
+void test_gvizVecAccFRRepForce_radiusSumShrinksEffectiveDistance(void) {
+  double v[2] = {0.0, 0.0};
+  double u[2] = {2.0, 0.0};
+  double acc[2] = {0.0, 0.0};
+  gvizVecAccFRRepForce(2, v, u, 1.0, 1.0, 100.0, acc);
+  assertVecNear(2, acc, (double[]){-1.0, 0.0}, 1e-12);
+}
+
+/* Once radiusSum exceeds the center distance (gap = 1-2 = -1 <= 0), the
+ * circles overlap and the magnitude saturates at k^2 * overlapConstant
+ * instead of dividing by the vanishing gap: mag = 1*10 = 10 along (1,0). */
+void test_gvizVecAccFRRepForce_overlapUsesConstantForce(void) {
+  double v[2] = {0.0, 0.0};
+  double u[2] = {1.0, 0.0};
+  double acc[2] = {0.0, 0.0};
+  gvizVecAccFRRepForce(2, v, u, 1.0, 2.0, 10.0, acc);
+  assertVecNear(2, acc, (double[]){-10.0, 0.0}, 1e-12);
+}
+
+/* Two exactly coincident points give no direction to normalize; the force is
+ * still finite and its magnitude is the saturated overlap value k^2 *
+ * overlapConstant, in some deterministic pseudo-random direction. */
+void test_gvizVecAccFRRepForce_coincidentIsFiniteAndBounded(void) {
+  double v[2] = {0.0, 0.0};
+  double u[2] = {0.0, 0.0};
+  double acc[2] = {0.0, 0.0};
+  double k = 2.0, overlapConstant = 10.0;
+  gvizVecAccFRRepForce(2, v, u, k, 1.0, overlapConstant, acc);
+  TEST_ASSERT_TRUE(isfinite(acc[0]));
+  TEST_ASSERT_TRUE(isfinite(acc[1]));
+  double norm = sqrt(acc[0] * acc[0] + acc[1] * acc[1]);
+  TEST_ASSERT_DOUBLE_WITHIN(1e-9, k * k * overlapConstant, norm);
 }
 
 void test_gvizVecDim4(void) {
@@ -106,6 +143,9 @@ int main(void) {
   RUN_TEST(test_gvizVecAccGRIPFRAttForce);
   RUN_TEST(test_gvizVecAccFRAttForce);
   RUN_TEST(test_gvizVecAccFRRepForce);
+  RUN_TEST(test_gvizVecAccFRRepForce_radiusSumShrinksEffectiveDistance);
+  RUN_TEST(test_gvizVecAccFRRepForce_overlapUsesConstantForce);
+  RUN_TEST(test_gvizVecAccFRRepForce_coincidentIsFiniteAndBounded);
   RUN_TEST(test_gvizVecDim4);
   return UNITY_END();
 }

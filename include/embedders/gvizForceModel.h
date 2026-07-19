@@ -26,10 +26,17 @@ typedef struct gvizForceModel {
   /** Accumulates the repulsive force @p vPos feels from @p otherPos (either
    *  another vertex or a quadtree pseudo-body) into @p acc. @p vMass and
    *  @p otherMass are the respective masses per vertexMass (or, for a
-   *  pseudo-body, the aggregated quadtree node mass); @p edgeLength is the
-   *  model's target edge length, ignored by models that don't use it. */
+   *  pseudo-body, the aggregated quadtree node mass); @p vRadius and
+   *  @p otherRadius are the vertices' rendered radii (0 for a pseudo-body,
+   *  which has no single radius of its own, or whenever overlap prevention
+   *  is disabled); @p overlapConstant is Gephi ForceAtlas2's "Prevent
+   *  Overlap" constant -- the flat magnitude multiplier repulsion saturates
+   *  at once the two circles touch or overlap, instead of diverging;
+   *  @p edgeLength is the model's target edge length, ignored by models that
+   *  don't use it. */
   void (*repulsive)(int n, double *vPos, double *otherPos, double vMass,
-                    double otherMass, double edgeLength, double *acc);
+                    double otherMass, double vRadius, double otherRadius,
+                    double overlapConstant, double edgeLength, double *acc);
 } gvizForceModel;
 
 /** Returns the static force model for @p kind. Never NULL for a valid kind. */

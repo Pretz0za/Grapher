@@ -20,8 +20,10 @@ void gvizPairwiseGRIPFRAttForce(int n, double *vPos, double *uPos,
 }
 
 void gvizPairwiseFRRepForce(int n, double *vPos, double *uPos, double k,
+                            double radiusSum, double overlapConstant,
                             double *acc) {
-  gvizVecAccFRRepForce((size_t)n, vPos, uPos, k, acc);
+  gvizVecAccFRRepForce((size_t)n, vPos, uPos, k, radiusSum, overlapConstant,
+                       acc);
 }
 
 void gvizPairwiseFRAttForce(int n, double *vPos, double *uPos, double k,
@@ -30,10 +32,12 @@ void gvizPairwiseFRAttForce(int n, double *vPos, double *uPos, double k,
 }
 
 void gvizPairwiseFRRepForceWeighted(int n, double *vPos, double *comPos,
-                                    size_t mass, double k, double *acc) {
+                                    size_t mass, double k, double radiusSum,
+                                    double overlapConstant, double *acc) {
   double scratch[n];
   gvizVecZero((size_t)n, scratch);
-  gvizPairwiseFRRepForce(n, vPos, comPos, k, scratch);
+  gvizPairwiseFRRepForce(n, vPos, comPos, k, radiusSum, overlapConstant,
+                         scratch);
   gvizVecAxpy((size_t)n, (double)mass, scratch, acc);
 }
 
@@ -43,8 +47,11 @@ void gvizPairwiseLinLogAttForce(int n, double *vPos, double *uPos,
 }
 
 void gvizPairwiseLinLogRepForce(int n, double *vPos, double *uPos,
-                                double vMass, double otherMass, double *acc) {
-  gvizVecAccLinLogRepForce((size_t)n, vPos, uPos, vMass, otherMass, acc);
+                                double vMass, double otherMass,
+                                double radiusSum, double overlapConstant,
+                                double *acc) {
+  gvizVecAccLinLogRepForce((size_t)n, vPos, uPos, vMass, otherMass, radiusSum,
+                           overlapConstant, acc);
 }
 
 void gvizPairwiseGravityForce(int n, double *vPos, double magnitude,

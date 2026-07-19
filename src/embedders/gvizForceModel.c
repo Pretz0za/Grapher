@@ -1,5 +1,6 @@
 #include "embedders/gvizForceModel.h"
 #include "embedders/gvizForceDirected.h"
+#include <math.h>
 
 static double frVertexMass(size_t degree) {
   (void)degree;
@@ -12,10 +13,13 @@ static void frAttractive(int n, double *vPos, double *uPos, double edgeLength,
 }
 
 static void frRepulsive(int n, double *vPos, double *otherPos, double vMass,
-                        double otherMass, double edgeLength, double *acc) {
+                        double otherMass, double vRadius, double otherRadius,
+                        double overlapConstant, double edgeLength,
+                        double *acc) {
   (void)vMass;
   gvizPairwiseFRRepForceWeighted(n, vPos, otherPos, (size_t)otherMass,
-                                 edgeLength, acc);
+                                 edgeLength, vRadius + otherRadius,
+                                 overlapConstant, acc);
 }
 
 static const gvizForceModel gvizForceModelFR = {
@@ -33,10 +37,12 @@ static void linLogAttractive(int n, double *vPos, double *uPos,
 }
 
 static void linLogRepulsive(int n, double *vPos, double *otherPos,
-                            double vMass, double otherMass, double edgeLength,
-                            double *acc) {
+                            double vMass, double otherMass, double vRadius,
+                            double otherRadius, double overlapConstant,
+                            double edgeLength, double *acc) {
   (void)edgeLength;
-  gvizPairwiseLinLogRepForce(n, vPos, otherPos, vMass, otherMass, acc);
+  gvizPairwiseLinLogRepForce(n, vPos, otherPos, vMass, otherMass,
+                             vRadius + otherRadius, overlapConstant, acc);
 }
 
 static const gvizForceModel gvizForceModelLinLog = {

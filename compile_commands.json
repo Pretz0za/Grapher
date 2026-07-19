@@ -145,9 +145,15 @@
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -g -std=gnu11 -arch arm64 -o CMakeFiles/graphvis.dir/src/embedders/gvizFRPairwiseEmbedder.c.o -c /Users/abdulaziz.alahmadi/gviz/src/embedders/gvizFRPairwiseEmbedder.c",
-  "file": "/Users/abdulaziz.alahmadi/gviz/src/embedders/gvizFRPairwiseEmbedder.c",
-  "output": "CMakeFiles/graphvis.dir/src/embedders/gvizFRPairwiseEmbedder.c.o"
+  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -g -std=gnu11 -arch arm64 -o CMakeFiles/graphvis.dir/src/embedders/gvizForceModel.c.o -c /Users/abdulaziz.alahmadi/gviz/src/embedders/gvizForceModel.c",
+  "file": "/Users/abdulaziz.alahmadi/gviz/src/embedders/gvizForceModel.c",
+  "output": "CMakeFiles/graphvis.dir/src/embedders/gvizForceModel.c.o"
+},
+{
+  "directory": "/Users/abdulaziz.alahmadi/gviz/build",
+  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -g -std=gnu11 -arch arm64 -o CMakeFiles/graphvis.dir/src/embedders/gvizForceEmbedder.c.o -c /Users/abdulaziz.alahmadi/gviz/src/embedders/gvizForceEmbedder.c",
+  "file": "/Users/abdulaziz.alahmadi/gviz/src/embedders/gvizForceEmbedder.c",
+  "output": "CMakeFiles/graphvis.dir/src/embedders/gvizForceEmbedder.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
@@ -403,14 +409,14 @@
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -g -std=gnu11 -arch arm64 -o CMakeFiles/gvizFRPairwiseTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -g -std=gnu11 -arch arm64 -o CMakeFiles/gvizForceEmbedderTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
-  "output": "CMakeFiles/gvizFRPairwiseTests.dir/third-party/unity/unity.c.o"
+  "output": "CMakeFiles/gvizForceEmbedderTests.dir/third-party/unity/unity.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -g -std=gnu11 -arch arm64 -o CMakeFiles/gvizFRPairwiseTests.dir/tests/embedders/gvizFRPairwiseTests.c.o -c /Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizFRPairwiseTests.c",
-  "file": "/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizFRPairwiseTests.c",
-  "output": "CMakeFiles/gvizFRPairwiseTests.dir/tests/embedders/gvizFRPairwiseTests.c.o"
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -g -std=gnu11 -arch arm64 -o CMakeFiles/gvizForceEmbedderTests.dir/tests/embedders/gvizForceEmbedderTests.c.o -c /Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizForceEmbedderTests.c",
+  "file": "/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizForceEmbedderTests.c",
+  "output": "CMakeFiles/gvizForceEmbedderTests.dir/tests/embedders/gvizForceEmbedderTests.c.o"
 }
 ]

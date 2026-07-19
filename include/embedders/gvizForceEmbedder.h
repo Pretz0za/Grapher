@@ -9,6 +9,7 @@
 
 #define GVIZ_FORCE_EMBEDDER_EDGE_LENGTH_DEFAULT 10.0
 #define GVIZ_FORCE_EMBEDDER_THETA_DEFAULT 1.0
+#define GVIZ_FORCE_EMBEDDER_OVERLAP_CONSTANT_DEFAULT 100.0
 
 /* Step length is set by a single adaptive global speed (ForceAtlas2's speed
  * model, Jacomy et al. 2014), scaled per vertex by how much that vertex's
@@ -47,6 +48,32 @@ typedef struct gvizForceEmbedderState {
                    * vertex, computed once at Init */
   size_t *degree; /* owned; vertexCount, raw subgraph degree per vertex,
                    * independent of model->vertexMass; used by gravity */
+  double radiusBase;      /* r(v) = radiusBase * (1 + radiusPerDegree *
+                           * sqrt(degree(v))); a multiplicative overall scale
+                           * rather than a flat minimum, so adjusting it
+                           * preserves the relative radius differences
+                           * between vertices of different degree instead of
+                           * swamping them. 0 by default (no radius). Never
+                           * stored per vertex -- see
+                           * gvizForceEmbedderVertexRadius. */
+  double radiusPerDegree; /* fractional radius increase per sqrt(degree),
+                           * relative to radiusBase -- see the formula above.
+                           * 0 by default (no degree-based scaling, every
+                           * vertex's radius equals radiusBase). */
+  double overlapConstant; /* Gephi ForceAtlas2 "Prevent Overlap" C: once two
+                           * vertices' circles touch or overlap, repulsion
+                           * magnitude holds at this many times the model's
+                           * ordinary k^2 (FR) or mass-product (LinLog) term
+                           * instead of diverging. Only takes effect when
+                           * preventOverlap is on. Defaults to
+                           * GVIZ_FORCE_EMBEDDER_OVERLAP_CONSTANT_DEFAULT. */
+  int preventOverlap;     /* whether repulsion treats vertices as circles of
+                           * radius gvizForceEmbedderVertexRadius
+                           * (surface-to-surface distance, bounded magnitude on
+                           * overlap) rather than as dimensionless points using
+                           * center-to-center distance. 0 (off) by default --
+                           * see gvizForceEmbedderSetPreventOverlapEnabled for
+                           * why. */
   double meanDegreePlusOne; /* mean over vertices of (degree + 1), computed
                             * once at Init since degree is fixed for the
                             * embedder's lifetime; avoids an O(vertexCount)
@@ -102,7 +129,8 @@ typedef struct gvizForceEmbedderState {
  * Initializes @p state for @p subgraph in @p dimension dimensions, using
  * @p model for attraction, repulsion, and vertex mass (see gvizForceModel).
  * Only dimension 2 is supported, since repulsion is approximated with a 2D
- * quadtree. Registers action "forceEmbedder.step" and stat series
+ * quadtree. Registers actions "forceEmbedder.step" and
+ * "forceEmbedder.toggleOverlapPrevention", and stat series
  * "forceEmbedder.maxDisp", "forceEmbedder.speed",
  * "forceEmbedder.attractiveForce", "forceEmbedder.repulsiveForce", and
  * "forceEmbedder.gravityForce" ("forceEmbedder.speed" is the current global
@@ -111,7 +139,9 @@ typedef struct gvizForceEmbedderState {
  * are set to sensible defaults; override with gvizForceEmbedderConfigure,
  * gvizForceEmbedderConfigureSpeed,
  * gvizForceEmbedderConfigureBarnesHut, gvizForceEmbedderSetBarnesHutEnabled,
- * and gvizForceEmbedderConfigureGravity before calling Begin. @p model is
+ * gvizForceEmbedderConfigureGravity, gvizForceEmbedderConfigureRadius,
+ * gvizForceEmbedderConfigureOverlapPrevention, and
+ * gvizForceEmbedderSetPreventOverlapEnabled before calling Begin. @p model is
  * structural, like @p dimension: fixed for the embedder's lifetime. The
  * quadtree itself is not built until Begin, since positions are all zero
  * right after this call.
@@ -180,6 +210,75 @@ void gvizForceEmbedderSetBarnesHutEnabled(gvizForceEmbedderState *state,
  */
 void gvizForceEmbedderConfigureGravity(gvizForceEmbedderState *state,
                                        double k);
+
+/**
+ * Sets the radius formula r(v) = @p base * (1 + @p perDegree * sqrt(degree(v)))
+ * used by repulsion when overlap prevention is enabled (see
+ * gvizForceEmbedderSetPreventOverlapEnabled). @p base is a multiplicative
+ * overall scale rather than a flat additive minimum, so adjusting it alone
+ * (leaving @p perDegree fixed) scales every vertex's radius by the same
+ * factor and preserves the relative radius differences between vertices of
+ * different degree, rather than swamping them the way an additive minimum
+ * would as it grows large. Radius is never stored per vertex;
+ * gvizForceEmbedderVertexRadius (and the embedder's own repulsion pass)
+ * computes it from state->degree on demand, since degree is fixed for the
+ * embedder's lifetime. Unconditionally assigned, unlike most other
+ * Configure* functions here, since 0 for either argument is a legitimate
+ * "no radius" configuration. Call any time; only affects repulsion once
+ * overlap prevention is enabled.
+ */
+void gvizForceEmbedderConfigureRadius(gvizForceEmbedderState *state,
+                                      double base, double perDegree);
+
+/**
+ * Overrides the overlap constant @p constant: once two vertices' circles
+ * touch or overlap (their surface-to-surface gap drops to <= 0), repulsion
+ * magnitude stops growing with proximity and holds at @p constant times the
+ * model's ordinary k^2 (Fruchterman-Reingold) or mass-product (LinLog) term,
+ * instead of diverging as center-to-center repulsion would. This is Gephi's
+ * ForceAtlas2 "Prevent Overlap" constant (Gephi's own default is ~100).
+ * Pass 0 to keep the current/default value. Only takes effect once overlap
+ * prevention is enabled.
+ */
+void gvizForceEmbedderConfigureOverlapPrevention(gvizForceEmbedderState *state,
+                                                 double constant);
+
+/**
+ * Enables or disables treating vertices as circles of radius
+ * gvizForceEmbedderVertexRadius (rather than dimensionless points) for
+ * repulsion: enabled, repulsion is computed on the surface-to-surface gap
+ * between two vertices' circles instead of their center-to-center distance,
+ * saturating at a bounded constant (gvizForceEmbedderConfigureOverlapPrevention)
+ * once they touch or overlap rather than diverging. Disabled (the default),
+ * repulsion behaves exactly as if no radius had ever been configured --
+ * gvizForceEmbedderConfigureRadius's formula has no effect until this is on.
+ * Two exactly coincident vertices still get a bounded push apart in a
+ * deterministic pseudo-random direction regardless of this setting, since
+ * that direction is otherwise undefined either way. Safe to call at any
+ * time, including between Step calls during an active simulation: enabling
+ * this from round one tends to produce violent repulsion while vertices are
+ * still randomly scattered and often overlapping by construction, so the
+ * typical usage (mirroring Gephi's own UI, where this is a checkbox flipped
+ * on partway through a layout run) is to leave it off for the initial
+ * rounds and enable it once the layout has roughly settled -- e.g. once
+ * gvizForceEmbedderStep's returned maxDisp drops under some caller-chosen
+ * threshold. Also exposed as the "forceEmbedder.toggleOverlapPrevention"
+ * action, registered by Init, for live toggling from a bound key.
+ */
+void gvizForceEmbedderSetPreventOverlapEnabled(gvizForceEmbedderState *state,
+                                               int enabled);
+
+/**
+ * Returns vertex @p index's (compact local index into state->degree /
+ * state->vertices, not a raw graph vertex id) radius per the formula set by
+ * gvizForceEmbedderConfigureRadius, computed from state->degree[index] on
+ * demand rather than stored. Meaningful regardless of whether overlap
+ * prevention is currently enabled -- e.g. a renderer can use this to draw
+ * degree-scaled node sizes independent of whether the physics is currently
+ * enforcing them. @p index must be < state->vertexCount.
+ */
+double gvizForceEmbedderVertexRadius(const gvizForceEmbedderState *state,
+                                     size_t index);
 
 /**
  * Places every active vertex uniformly at random inside the

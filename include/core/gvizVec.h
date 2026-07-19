@@ -3,7 +3,12 @@
 
 #include <math.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <string.h>
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 
 /** Largest dimension with an explicit unrolled fast path in this header. */
 #define GVIZ_VEC_UNROLLED_MAX 4
@@ -371,10 +376,34 @@ static inline void gvizVecAccFRAttForce(size_t n, const double *vPos,
   }
 }
 
+/* Deterministic pseudo-random unit direction for two exactly-coincident
+ * points, where dx/dy give no direction to normalize. Hashes the two
+ * points' buffer addresses (not their -- identical -- values) so distinct
+ * coincident pairs still separate in distinct directions instead of all
+ * being pushed the same way, which would leave them coincident relative to
+ * each other. */
+static inline void gvizVecCoincidentFallbackDir2D(const double *a, const double *b,
+                                                   double *outX, double *outY) {
+  uint64_t bits = (uint64_t)(uintptr_t)a ^ ((uint64_t)(uintptr_t)b * 0x9E3779B97F4A7C15ULL);
+  bits ^= bits >> 33;
+  bits *= 0xff51afd7ed558ccdULL;
+  bits ^= bits >> 33;
+  double angle = (double)(bits % 1000000u) / 1000000.0 * 2.0 * M_PI;
+  *outX = cos(angle);
+  *outY = sin(angle);
+}
+
 // Repulsive force from the original Fruchterman-Reingold paper:
 // f_r(d) = k^2 / d, applied between every vertex pair, pushing v away from u.
+// radiusSum (0 to disable) shifts the effective distance from raw center
+// distance to the surface-to-surface gap between the two vertices' rendered
+// radii. Once that gap is <= 0 (the circles touch or overlap), the magnitude
+// stops growing and holds flat at kSq * overlapConstant (Gephi ForceAtlas2's
+// "Prevent Overlap" constant) instead of diverging -- bounded by
+// construction, since that branch never divides by the vanishing gap.
 static inline void gvizVecAccFRRepForce(size_t n, const double *vPos,
                                         const double *uPos, double k,
+                                        double radiusSum, double overlapConstant,
                                         double *acc) {
   double kSq = k * k;
 
@@ -383,21 +412,35 @@ static inline void gvizVecAccFRRepForce(size_t n, const double *vPos,
     double dx = uPos[0] - vPos[0];
     double dy = uPos[1] - vPos[1];
     double dist_sq = dx * dx + dy * dy;
-    if (dist_sq < 1e-18)
-      return;
-    double s = kSq / dist_sq;
-    acc[0] -= s * dx;
-    acc[1] -= s * dy;
+    double dist = sqrt(dist_sq);
+    double gap = dist - radiusSum;
+    double mag = gap > 0.0 ? kSq / gap : kSq * overlapConstant;
+    double ux, uy;
+    if (dist > 0.0) {
+      ux = dx / dist;
+      uy = dy / dist;
+    } else {
+      gvizVecCoincidentFallbackDir2D(vPos, uPos, &ux, &uy);
+    }
+    acc[0] -= mag * ux;
+    acc[1] -= mag * uy;
     return;
   }
+  /* n=3/4/default: only n=2 is exercised in practice (the pairwise embedder
+   * hard-locks to 2D); a coincidence fallback for higher dimensions can be
+   * added if a future caller needs it. For now these keep the old
+   * skip-guard: no force when the two points exactly coincide. */
   case 3: {
     double dx = uPos[0] - vPos[0];
     double dy = uPos[1] - vPos[1];
     double dz = uPos[2] - vPos[2];
     double dist_sq = dx * dx + dy * dy + dz * dz;
-    if (dist_sq < 1e-18)
+    double dist = sqrt(dist_sq);
+    if (dist <= 0.0)
       return;
-    double s = kSq / dist_sq;
+    double gap = dist - radiusSum;
+    double mag = gap > 0.0 ? kSq / gap : kSq * overlapConstant;
+    double s = mag / dist;
     acc[0] -= s * dx;
     acc[1] -= s * dy;
     acc[2] -= s * dz;
@@ -409,9 +452,12 @@ static inline void gvizVecAccFRRepForce(size_t n, const double *vPos,
     double dz = uPos[2] - vPos[2];
     double dw = uPos[3] - vPos[3];
     double dist_sq = dx * dx + dy * dy + dz * dz + dw * dw;
-    if (dist_sq < 1e-18)
+    double dist = sqrt(dist_sq);
+    if (dist <= 0.0)
       return;
-    double s = kSq / dist_sq;
+    double gap = dist - radiusSum;
+    double mag = gap > 0.0 ? kSq / gap : kSq * overlapConstant;
+    double s = mag / dist;
     acc[0] -= s * dx;
     acc[1] -= s * dy;
     acc[2] -= s * dz;
@@ -424,9 +470,12 @@ static inline void gvizVecAccFRRepForce(size_t n, const double *vPos,
       double d = uPos[i] - vPos[i];
       dist_sq += d * d;
     }
-    if (dist_sq < 1e-18)
+    double dist = sqrt(dist_sq);
+    if (dist <= 0.0)
       return;
-    double s = kSq / dist_sq;
+    double gap = dist - radiusSum;
+    double mag = gap > 0.0 ? kSq / gap : kSq * overlapConstant;
+    double s = mag / dist;
     for (size_t i = 0; i < n; i++)
       acc[i] -= s * (uPos[i] - vPos[i]);
   }
@@ -493,10 +542,19 @@ static inline void gvizVecAccLinLogAttForce(size_t n, const double *vPos,
 }
 
 // LinLog repulsive force: magnitude (vMass*otherMass)/dist, pushing v away
-// from u.
+// from u. radiusSum (0 to disable) shifts the effective distance from raw
+// center distance to the surface-to-surface gap between the two vertices'
+// rendered radii. Once that gap is <= 0 (the circles touch or overlap), the
+// magnitude stops growing and holds flat at massProduct * overlapConstant
+// (Gephi ForceAtlas2's "Prevent Overlap" constant) instead of diverging --
+// bounded by construction, since that branch never divides by the vanishing
+// gap.
 static inline void gvizVecAccLinLogRepForce(size_t n, const double *vPos,
                                             const double *uPos, double vMass,
-                                            double otherMass, double *acc) {
+                                            double otherMass,
+                                            double radiusSum,
+                                            double overlapConstant,
+                                            double *acc) {
   double massProduct = vMass * otherMass;
 
   switch (n) {
@@ -504,21 +562,35 @@ static inline void gvizVecAccLinLogRepForce(size_t n, const double *vPos,
     double dx = uPos[0] - vPos[0];
     double dy = uPos[1] - vPos[1];
     double dist_sq = dx * dx + dy * dy;
-    if (dist_sq < 1e-18)
-      return;
-    double s = massProduct / dist_sq;
-    acc[0] -= s * dx;
-    acc[1] -= s * dy;
+    double dist = sqrt(dist_sq);
+    double gap = dist - radiusSum;
+    double mag = gap > 0.0 ? massProduct / gap : massProduct * overlapConstant;
+    double ux, uy;
+    if (dist > 0.0) {
+      ux = dx / dist;
+      uy = dy / dist;
+    } else {
+      gvizVecCoincidentFallbackDir2D(vPos, uPos, &ux, &uy);
+    }
+    acc[0] -= mag * ux;
+    acc[1] -= mag * uy;
     return;
   }
+  /* n=3/4/default: only n=2 is exercised in practice (the pairwise embedder
+   * hard-locks to 2D); a coincidence fallback for higher dimensions can be
+   * added if a future caller needs it. For now these keep the old
+   * skip-guard: no force when the two points exactly coincide. */
   case 3: {
     double dx = uPos[0] - vPos[0];
     double dy = uPos[1] - vPos[1];
     double dz = uPos[2] - vPos[2];
     double dist_sq = dx * dx + dy * dy + dz * dz;
-    if (dist_sq < 1e-18)
+    double dist = sqrt(dist_sq);
+    if (dist <= 0.0)
       return;
-    double s = massProduct / dist_sq;
+    double gap = dist - radiusSum;
+    double mag = gap > 0.0 ? massProduct / gap : massProduct * overlapConstant;
+    double s = mag / dist;
     acc[0] -= s * dx;
     acc[1] -= s * dy;
     acc[2] -= s * dz;
@@ -530,9 +602,12 @@ static inline void gvizVecAccLinLogRepForce(size_t n, const double *vPos,
     double dz = uPos[2] - vPos[2];
     double dw = uPos[3] - vPos[3];
     double dist_sq = dx * dx + dy * dy + dz * dz + dw * dw;
-    if (dist_sq < 1e-18)
+    double dist = sqrt(dist_sq);
+    if (dist <= 0.0)
       return;
-    double s = massProduct / dist_sq;
+    double gap = dist - radiusSum;
+    double mag = gap > 0.0 ? massProduct / gap : massProduct * overlapConstant;
+    double s = mag / dist;
     acc[0] -= s * dx;
     acc[1] -= s * dy;
     acc[2] -= s * dz;
@@ -545,9 +620,12 @@ static inline void gvizVecAccLinLogRepForce(size_t n, const double *vPos,
       double d = uPos[i] - vPos[i];
       dist_sq += d * d;
     }
-    if (dist_sq < 1e-18)
+    double dist = sqrt(dist_sq);
+    if (dist <= 0.0)
       return;
-    double s = massProduct / dist_sq;
+    double gap = dist - radiusSum;
+    double mag = gap > 0.0 ? massProduct / gap : massProduct * overlapConstant;
+    double s = mag / dist;
     for (size_t i = 0; i < n; i++)
       acc[i] -= s * (uPos[i] - vPos[i]);
   }

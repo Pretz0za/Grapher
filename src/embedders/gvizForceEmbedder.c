@@ -25,6 +25,13 @@ static void gatherPositions(gvizForceEmbedderState *state) {
   }
 }
 
+static double vertexRadiusIfEnabled(const gvizForceEmbedderState *state,
+                                    size_t idx) {
+  if (!state->preventOverlap)
+    return 0.0;
+  return gvizForceEmbedderVertexRadius(state, idx);
+}
+
 static void bhAccumulateRepulsion(gvizForceEmbedderState *state,
                                   const gvizQuadtreeNode *node, size_t selfIdx,
                                   double *vPos, double *acc) {
@@ -38,8 +45,11 @@ static void bhAccumulateRepulsion(gvizForceEmbedderState *state,
       if (idx == selfIdx)
         continue;
       double *uPos = state->positionsScratch + idx * 2;
+      double vRadius = vertexRadiusIfEnabled(state, selfIdx);
+      double otherRadius = vertexRadiusIfEnabled(state, idx);
       state->model->repulsive(2, vPos, uPos, state->mass[selfIdx],
-                              state->mass[idx], state->edgeLength, acc);
+                              state->mass[idx], vRadius, otherRadius,
+                              state->overlapConstant, state->edgeLength, acc);
     }
     return;
   }
@@ -53,7 +63,9 @@ static void bhAccumulateRepulsion(gvizForceEmbedderState *state,
 
   if (ratio < state->theta) {
     double com[2] = {comX, comY};
+    double vRadius = vertexRadiusIfEnabled(state, selfIdx);
     state->model->repulsive(2, vPos, com, state->mass[selfIdx], node->mass,
+                            vRadius, 0.0, state->overlapConstant,
                             state->edgeLength, acc);
     return;
   }
@@ -95,8 +107,12 @@ static void computeForceRange(void *ctx, size_t begin, size_t end) {
         if (j == i)
           continue;
         double *otherPos = state->positionsScratch + j * 2;
+        double vRadius = vertexRadiusIfEnabled(state, i);
+        double otherRadius = vertexRadiusIfEnabled(state, j);
         state->model->repulsive(2, vPos, otherPos, state->mass[i],
-                                state->mass[j], state->edgeLength, repF);
+                                state->mass[j], vRadius, otherRadius,
+                                state->overlapConstant, state->edgeLength,
+                                repF);
       }
     }
 
@@ -206,6 +222,15 @@ static void forceEmbedderActionStep(gvizEmbeddedGraph *embedding,
   gvizForceEmbedderStep(state);
 }
 
+static void forceEmbedderActionToggleOverlapPrevention(
+    gvizEmbeddedGraph *embedding, void *userData,
+    const gvizActionPayload *payload) {
+  (void)userData;
+  (void)payload;
+  gvizForceEmbedderState *state = (gvizForceEmbedderState *)embedding;
+  state->preventOverlap = !state->preventOverlap;
+}
+
 int gvizForceEmbedderInit(gvizForceEmbedderState *state, gvizSubgraph subgraph,
                           size_t dimension, gvizForceModelKind model) {
   memset(state, 0, sizeof(*state));
@@ -275,12 +300,22 @@ int gvizForceEmbedderInit(gvizForceEmbedderState *state, gvizSubgraph subgraph,
   state->theta = GVIZ_FORCE_EMBEDDER_THETA_DEFAULT;
   state->nodesPerCell = GVIZ_QUADTREE_NODES_PER_CELL_DEFAULT;
   state->gravityK = 0.0;
+  state->radiusBase = 0.0;
+  state->radiusPerDegree = 0.0;
+  state->overlapConstant = GVIZ_FORCE_EMBEDDER_OVERLAP_CONSTANT_DEFAULT;
+  state->preventOverlap = 0;
   state->barnesHutEnabled = 1;
   state->pool = NULL;
   state->quadtreeReady = 0;
 
   if (gvizEmbeddedGraphAddAction(embedding, "forceEmbedder.step",
                                  forceEmbedderActionStep, NULL) < 0)
+    return -1;
+
+  if (gvizEmbeddedGraphAddAction(embedding,
+                                 "forceEmbedder.toggleOverlapPrevention",
+                                 forceEmbedderActionToggleOverlapPrevention,
+                                 NULL) < 0)
     return -1;
 
   if (!gvizEmbeddedGraphAddStatSeries(embedding, "forceEmbedder.maxDisp",
@@ -360,6 +395,29 @@ void gvizForceEmbedderSetBarnesHutEnabled(gvizForceEmbedderState *state,
 void gvizForceEmbedderConfigureGravity(gvizForceEmbedderState *state,
                                        double k) {
   state->gravityK = k;
+}
+
+double gvizForceEmbedderVertexRadius(const gvizForceEmbedderState *state,
+                                     size_t index) {
+  return state->radiusBase *
+         (1.0 + state->radiusPerDegree * sqrt((double)state->degree[index]));
+}
+
+void gvizForceEmbedderConfigureRadius(gvizForceEmbedderState *state,
+                                      double base, double perDegree) {
+  state->radiusBase = base;
+  state->radiusPerDegree = perDegree;
+}
+
+void gvizForceEmbedderConfigureOverlapPrevention(gvizForceEmbedderState *state,
+                                                 double constant) {
+  if (constant > 0.0)
+    state->overlapConstant = constant;
+}
+
+void gvizForceEmbedderSetPreventOverlapEnabled(gvizForceEmbedderState *state,
+                                               int enabled) {
+  state->preventOverlap = enabled;
 }
 
 int gvizForceEmbedderBegin(gvizForceEmbedderState *state, unsigned int seed) {

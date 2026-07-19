@@ -447,6 +447,199 @@ void test_forceEmbedder_linLog_nonEdgeRepelsWithNonzeroDegree(void) {
   gvizGraphRelease(&g);
 }
 
+/* Two non-adjacent vertices placed close together push apart harder once
+ * ConfigureRadius plus enabled overlap prevention treat them as circles than
+ * they do with the default zero radius, since repulsion now acts on the
+ * surface-to-surface gap (here negative, so the force saturates at the
+ * bounded overlap constant) rather than the larger center distance. Isolates
+ * ConfigureRadius/preventOverlap's effect from ordinary FR repulsion (already
+ * covered by test_forceEmbedder_nonEdgeRepels). */
+void test_forceEmbedder_configureRadius_increasesRepulsionAtShortRange(void) {
+  gvizGraph g;
+  gvizGraphInit(&g, 0);
+  gvizGraphAddVertex(&g, NULL, NULL, NULL);
+  gvizGraphAddVertex(&g, NULL, NULL, NULL);
+
+  gvizForceEmbedderState plain;
+  TEST_ASSERT_EQUAL(0, gvizForceEmbedderInit(&plain, makeFullSubgraph(&g), 2,
+                                             GVIZ_FORCE_MODEL_FRUCHTERMAN_REINGOLD));
+  gvizForceEmbedderSetBarnesHutEnabled(&plain, 0);
+  TEST_ASSERT_EQUAL(0, gvizForceEmbedderBegin(&plain, 1));
+
+  gvizForceEmbedderState radial;
+  TEST_ASSERT_EQUAL(0, gvizForceEmbedderInit(&radial, makeFullSubgraph(&g), 2,
+                                             GVIZ_FORCE_MODEL_FRUCHTERMAN_REINGOLD));
+  gvizForceEmbedderSetBarnesHutEnabled(&radial, 0);
+  gvizForceEmbedderConfigureRadius(&radial, 2.0, 0.0);
+  gvizForceEmbedderSetPreventOverlapEnabled(&radial, 1);
+  TEST_ASSERT_EQUAL(0, gvizForceEmbedderBegin(&radial, 1));
+
+  gvizEmbeddedGraph *plainEg = (gvizEmbeddedGraph *)&plain;
+  gvizEmbeddedGraph *radialEg = (gvizEmbeddedGraph *)&radial;
+  double p0[2] = {-0.5, 0.0};
+  double p1[2] = {0.5, 0.0};
+  gvizEmbeddedGraphSetVPosition(plainEg, 0, p0);
+  gvizEmbeddedGraphSetVPosition(plainEg, 1, p1);
+  gvizEmbeddedGraphSetVPosition(radialEg, 0, p0);
+  gvizEmbeddedGraphSetVPosition(radialEg, 1, p1);
+
+  gvizForceEmbedderStep(&plain);
+  gvizForceEmbedderStep(&radial);
+
+  double plainAfter = dist2(gvizEmbeddedGraphGetVPosition(plainEg, 0),
+                            gvizEmbeddedGraphGetVPosition(plainEg, 1));
+  double radialAfter = dist2(gvizEmbeddedGraphGetVPosition(radialEg, 0),
+                             gvizEmbeddedGraphGetVPosition(radialEg, 1));
+
+  TEST_ASSERT_TRUE(radialAfter > plainAfter);
+
+  gvizForceEmbedderRelease(&plain);
+  gvizForceEmbedderRelease(&radial);
+  gvizGraphRelease(&g);
+}
+
+/* gvizForceEmbedderVertexRadius computes r(v) from degree on demand per the
+ * formula ConfigureRadius sets; before ConfigureRadius, the default zero
+ * base/perDegree give radius 0. Degree is fixed at Init. */
+void test_forceEmbedder_configureRadius_scalesWithDegree(void) {
+  gvizGraph g;
+  gvizGraphInit(&g, 0);
+  for (int i = 0; i < 3; i++)
+    gvizGraphAddVertex(&g, NULL, NULL, NULL);
+  gvizGraphAddEdge(&g, 0, 1);
+  gvizGraphAddEdge(&g, 0, 2);
+
+  gvizForceEmbedderState s;
+  TEST_ASSERT_EQUAL(0, gvizForceEmbedderInit(&s, makeFullSubgraph(&g), 2,
+                                             GVIZ_FORCE_MODEL_FRUCHTERMAN_REINGOLD));
+  TEST_ASSERT_EQUAL_DOUBLE(0.0, gvizForceEmbedderVertexRadius(&s, 0));
+
+  gvizForceEmbedderConfigureRadius(&s, 1.0, 2.0);
+  for (size_t i = 0; i < s.vertexCount; i++)
+    TEST_ASSERT_EQUAL_DOUBLE(1.0 * (1.0 + 2.0 * sqrt((double)s.degree[i])),
+                             gvizForceEmbedderVertexRadius(&s, i));
+
+  gvizForceEmbedderRelease(&s);
+  gvizGraphRelease(&g);
+}
+
+/* radiusBase is a multiplicative overall scale, not a flat additive minimum:
+ * scaling it alone must scale every vertex's radius by the same factor,
+ * leaving the RATIO between two vertices' radii unchanged. An additive
+ * formula (base + perDegree*sqrt(degree)) would instead let a large base
+ * swamp the degree term and collapse all radii toward the same absolute
+ * value. */
+void test_forceEmbedder_configureRadius_baseScalesRatioPreserving(void) {
+  gvizGraph g;
+  gvizGraphInit(&g, 0);
+  for (int i = 0; i < 3; i++)
+    gvizGraphAddVertex(&g, NULL, NULL, NULL);
+  gvizGraphAddEdge(&g, 0, 1);
+  gvizGraphAddEdge(&g, 0, 2);
+
+  gvizForceEmbedderState s;
+  TEST_ASSERT_EQUAL(0, gvizForceEmbedderInit(&s, makeFullSubgraph(&g), 2,
+                                             GVIZ_FORCE_MODEL_FRUCHTERMAN_REINGOLD));
+
+  size_t lo = 0, hi = 0;
+  for (size_t i = 1; i < s.vertexCount; i++) {
+    if (s.degree[i] < s.degree[lo]) lo = i;
+    if (s.degree[i] > s.degree[hi]) hi = i;
+  }
+  TEST_ASSERT_TRUE(s.degree[lo] != s.degree[hi]);
+
+  gvizForceEmbedderConfigureRadius(&s, 1.0, 0.5);
+  double ratioBefore =
+      gvizForceEmbedderVertexRadius(&s, hi) / gvizForceEmbedderVertexRadius(&s, lo);
+
+  gvizForceEmbedderConfigureRadius(&s, 20.0, 0.5);
+  double ratioAfter =
+      gvizForceEmbedderVertexRadius(&s, hi) / gvizForceEmbedderVertexRadius(&s, lo);
+
+  TEST_ASSERT_DOUBLE_WITHIN(1e-9, ratioBefore, ratioAfter);
+  TEST_ASSERT_TRUE(ratioBefore > 1.0 + 1e-9);
+
+  gvizForceEmbedderRelease(&s);
+  gvizGraphRelease(&g);
+}
+
+/* Regression test for a real explosion: with a meaningful radius (comparable
+ * to the inter-vertex spacing random initial placement produces, as in
+ * grender's forceEmbedderDemo), many vertex pairs start out overlapping.
+ * An earlier version of the radius-aware repulsion floor clamped the
+ * post-radius gap to a near-zero absolute epsilon, so an overlapping pair's
+ * force could spike many orders of magnitude past what the embedder's
+ * ForceAtlas2 speed regulation is tuned for, blowing the whole layout up in
+ * a handful of rounds. Runs long enough, and with enough vertices, that a
+ * regression would send positions far outside the initial box; a working
+ * repulsion floor keeps the layout within a generous bound of it instead. */
+void test_forceEmbedder_configureRadius_manyStepsStayBounded(void) {
+  gvizForceModelKind models[] = {GVIZ_FORCE_MODEL_FRUCHTERMAN_REINGOLD,
+                                 GVIZ_FORCE_MODEL_LINLOG};
+  for (size_t m = 0; m < 2; m++) {
+    gvizGraph g = build_random_connected_graph(60, 0.05, 7);
+    gvizGraphBuildLayout(&g);
+    gvizSubgraph sg = gvizSubgraphCreateFull(&g);
+
+    gvizForceEmbedderState s;
+    TEST_ASSERT_EQUAL(0, gvizForceEmbedderInit(&s, sg, 2, models[m]));
+    gvizForceEmbedderConfigureRadius(&s, 0.5, 0.3);
+    gvizForceEmbedderSetPreventOverlapEnabled(&s, 1);
+    TEST_ASSERT_EQUAL(0, gvizForceEmbedderBegin(&s, 7));
+
+    double bound = 50.0 * s.boxExtent;
+    gvizEmbeddedGraph *eg = (gvizEmbeddedGraph *)&s;
+    for (int round = 0; round < 100; round++) {
+      double maxDisp = gvizForceEmbedderStep(&s);
+      TEST_ASSERT_TRUE(isfinite(maxDisp));
+      for (size_t i = 0; i < s.vertexCount; i++) {
+        double *p = gvizEmbeddedGraphGetVPosition(eg, s.vertices[i]);
+        TEST_ASSERT_TRUE(isfinite(p[0]) && isfinite(p[1]));
+        TEST_ASSERT_TRUE(fabs(p[0]) < bound && fabs(p[1]) < bound);
+      }
+    }
+
+    gvizForceEmbedderRelease(&s);
+    gvizGraphRelease(&g);
+  }
+}
+
+/* Configuring a radius formula without enabling overlap prevention must
+ * produce identical repulsion to never having configured one at all --
+ * preventOverlap is the sole gate; ConfigureRadius alone must be inert. */
+void test_forceEmbedder_configureRadius_withoutPreventOverlap_isNoOp(void) {
+  gvizGraph g = build_random_connected_graph(30, 0.1, 5);
+  gvizGraphBuildLayout(&g);
+
+  gvizForceEmbedderState plain;
+  TEST_ASSERT_EQUAL(0, gvizForceEmbedderInit(&plain, gvizSubgraphCreateFull(&g), 2,
+                                             GVIZ_FORCE_MODEL_LINLOG));
+  TEST_ASSERT_EQUAL(0, gvizForceEmbedderBegin(&plain, 11));
+
+  gvizForceEmbedderState configured;
+  TEST_ASSERT_EQUAL(0, gvizForceEmbedderInit(&configured, gvizSubgraphCreateFull(&g), 2,
+                                             GVIZ_FORCE_MODEL_LINLOG));
+  gvizForceEmbedderConfigureRadius(&configured, 5.0, 3.0);  /* large radii, prevention left off */
+  TEST_ASSERT_EQUAL(0, gvizForceEmbedderBegin(&configured, 11));
+
+  gvizEmbeddedGraph *plainEg = (gvizEmbeddedGraph *)&plain;
+  gvizEmbeddedGraph *configuredEg = (gvizEmbeddedGraph *)&configured;
+  for (int round = 0; round < 20; round++) {
+    gvizForceEmbedderStep(&plain);
+    gvizForceEmbedderStep(&configured);
+  }
+  for (size_t i = 0; i < plain.vertexCount; i++) {
+    double *pp = gvizEmbeddedGraphGetVPosition(plainEg, plain.vertices[i]);
+    double *cp = gvizEmbeddedGraphGetVPosition(configuredEg, configured.vertices[i]);
+    TEST_ASSERT_DOUBLE_WITHIN(1e-9, pp[0], cp[0]);
+    TEST_ASSERT_DOUBLE_WITHIN(1e-9, pp[1], cp[1]);
+  }
+
+  gvizForceEmbedderRelease(&plain);
+  gvizForceEmbedderRelease(&configured);
+  gvizGraphRelease(&g);
+}
+
 /* With Barnes-Hut disabled, repulsion is computed exactly instead of via a
  * quadtree walk: no quadtree is ever built, and the FR edge-attracts
  * behavior should still hold. */
@@ -531,6 +724,11 @@ int main(void) {
   RUN_TEST(test_forceEmbedder_edgeAttracts);
   RUN_TEST(test_forceEmbedder_nonEdgeRepels);
   RUN_TEST(test_forceEmbedder_edgeRepelsWhenVeryClose);
+  RUN_TEST(test_forceEmbedder_configureRadius_increasesRepulsionAtShortRange);
+  RUN_TEST(test_forceEmbedder_configureRadius_scalesWithDegree);
+  RUN_TEST(test_forceEmbedder_configureRadius_baseScalesRatioPreserving);
+  RUN_TEST(test_forceEmbedder_configureRadius_manyStepsStayBounded);
+  RUN_TEST(test_forceEmbedder_configureRadius_withoutPreventOverlap_isNoOp);
   RUN_TEST(test_forceEmbedder_run_convergesOrStopsAtMaxIters);
   RUN_TEST(test_forceEmbedder_begin_restartRebuildsQuadtree);
   RUN_TEST(test_forceEmbedder_barnesHutApproximatesExactForTinyTheta);

@@ -4,7 +4,6 @@
 #include "ds/gvizArray.h"
 #include "ds/gvizGraph.h"
 #include "ds/gvizTree.h"
-#include "raymath.h"
 #include "embedders/gvizEmbeddedGraph.h"
 #include <assert.h>
 #include <math.h>
@@ -28,8 +27,6 @@ typedef struct SubtreePairExtremes {
   size_t rl;
   size_t rr;
 } SubtreePairExtremes;
-
-Vector2 Vector2Swap(const Vector2 vec) { return (Vector2){vec.y, vec.x}; }
 
 static const gvizGraph *rtGraph(const gvizEmbeddedTree *state) {
   return ((const gvizEmbeddedGraph *)state)->subgraph.g;
