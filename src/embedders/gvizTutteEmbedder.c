@@ -147,7 +147,7 @@ int gvizTutteEmbedderBegin(gvizTutteState *s) {
         return -1;
 
     gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)s;
-    int planar = gvizEmbeddedGraphApplyPlanarEmbedding(embedding);
+    int planar = gvizPlanarApplyRotationToEmbedding(embedding);
     if (planar == -2)
         return -2;
     if (planar < 0)
@@ -230,7 +230,9 @@ void gvizTutteEmbedderSeedInterior(gvizTutteState *s) {
 void gvizTutteFixConvexPolygon(gvizTutteState *s, const size_t *boundary,
                                size_t count, double radius) {
     size_t d = dim(s);
-    double positions[count * d];
+    double *positions = GVIZ_ALLOC(sizeof(double) * count * d);
+    if (!positions)
+        return;
     memset(positions, 0, sizeof(double) * count * d);
 
     for (size_t k = 0; k < count; k++) {
@@ -241,6 +243,7 @@ void gvizTutteFixConvexPolygon(gvizTutteState *s, const size_t *boundary,
     }
 
     gvizTutteEmbedderSetBoundary(s, boundary, count, positions);
+    GVIZ_DEALLOC(positions);
 }
 
 static void snapshotInterior(gvizTutteState *s) {

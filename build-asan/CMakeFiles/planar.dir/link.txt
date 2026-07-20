@@ -1,0 +1,2 @@
+/usr/bin/ar qc libplanar.a "CMakeFiles/planar.dir/third-party/boyerMyrvold/graphEmbed.c.o" "CMakeFiles/planar.dir/third-party/boyerMyrvold/graphIO.c.o" "CMakeFiles/planar.dir/third-party/boyerMyrvold/graphIsolator.c.o" "CMakeFiles/planar.dir/third-party/boyerMyrvold/graphNonplanar.c.o" "CMakeFiles/planar.dir/third-party/boyerMyrvold/graphPreprocess.c.o" "CMakeFiles/planar.dir/third-party/boyerMyrvold/graphStructure.c.o" "CMakeFiles/planar.dir/third-party/boyerMyrvold/listcoll.c.o" "CMakeFiles/planar.dir/third-party/boyerMyrvold/stack.c.o"
+/usr/bin/ranlib libplanar.a

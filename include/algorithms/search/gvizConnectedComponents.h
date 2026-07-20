@@ -1,5 +1,5 @@
-#ifndef __GVIZ_CONNECTED_COMPONENTS_H__
-#define __GVIZ_CONNECTED_COMPONENTS_H__
+#ifndef GVIZ_CONNECTED_COMPONENTS_H
+#define GVIZ_CONNECTED_COMPONENTS_H
 
 #include "ds/gvizSubgraph.h"
 #include <stddef.h>

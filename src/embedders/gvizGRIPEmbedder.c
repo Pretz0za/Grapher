@@ -1,5 +1,5 @@
 #include "embedders/gvizGRIPEmbedder.h"
-#include "algorithms/search/gvizBreadthFirst.h"
+#include "gvizGRIPInternal.h"
 #include "algorithms/search/gvizKNearest.h"
 #include "core/alloc.h"
 #include "core/gvizThreadPool.h"
@@ -11,13 +11,20 @@
 #include "ds/gvizSubgraph.h"
 #include "embedders/gvizEmbeddedGraph.h"
 #include "embedders/gvizForceDirected.h"
-#include "utils/helpers.h"
 #include <assert.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+
+static void gripBarycenter(size_t dim, const double *positions,
+                           const size_t *offsets, size_t count, double *out) {
+  gvizVecZero(dim, out);
+  for (size_t i = 0; i < count; i++)
+    gvizVecAxpy(dim, 1.0, positions + offsets[i], out);
+  gvizVecScale(dim, 1.0 / (double)count, out);
+}
 
 #define GRIP_FILTRATION_DEBUG() (getenv("GVIZ_GRIP_DEBUG_FILTRATION") != NULL)
 
@@ -117,10 +124,16 @@ void gvizGRIPEmbedderConfigureStats(gvizGRIPState *state, bool enable) {
   state->statsRegisterMode = enable ? 0 : 1;
 }
 
+void gvizGRIPEmbedderConfigureKnnCapacity(gvizGRIPState *state,
+                                          size_t knnCapacity) {
+  if (!state)
+    return;
+  state->knnCapacity = knnCapacity;
+}
+
 void gvizGRIPEmbedderConfigureK(gvizGRIPState *state, size_t placementKMax,
-                                size_t refinementKMax, size_t knnCapacity,
+                                size_t refinementKMax,
                                 gvizGRIPKPolicy policy) {
-  (void)knnCapacity;
   if (!state)
     return;
   state->kPolicy = policy;
@@ -149,7 +162,7 @@ static void gripActionRefineRound(gvizEmbeddedGraph *embedding, void *userData,
   gvizGRIPState *state = (gvizGRIPState *)embedding;
   if (state->layerCount == 0)
     return; // gvizGRIPEmbedderBegin has not run yet
-  runRefinementRound(state);
+  gvizGRIPEmbedderRefineRound(state);
 }
 
 static void gripActionNextStage(gvizEmbeddedGraph *embedding, void *userData,
@@ -159,7 +172,7 @@ static void gripActionNextStage(gvizEmbeddedGraph *embedding, void *userData,
   gvizGRIPState *state = (gvizGRIPState *)embedding;
   if (state->layerCount == 0)
     return;
-  beginNewStage(state);
+  gvizGRIPEmbedderNextStage(state);
 }
 
 static gvizVertexSubset gripVisibleVertices(const gvizGRIPState *state) {
@@ -189,12 +202,18 @@ int gvizGRIPEmbedderInit(gvizGRIPState *state, gvizSubgraph subgraph,
   if (activeCount < dimension + 1)
     return -1;
 
-  state->currLayer = 0;
-  state->layerCount = 0;
-  state->currRound = 0;
+  // Zero everything so gvizGRIPEmbedderRelease is safe after a failed init.
+  // statsRegisterMode and a pre-init knnCapacity request are pre-init
+  // configuration and must survive the wipe.
+  uint8_t statsRegisterMode = state->statsRegisterMode;
+  size_t knnCapacityRequested = state->knnCapacity;
+  memset(state, 0, sizeof(*state));
+  state->statsRegisterMode = statsRegisterMode;
+
   state->placementKMax = GRIP_K_MAX_DEFAULT;
   state->refinementKMax = GRIP_K_MAX_DEFAULT;
-  state->knnCapacity = GRIP_KNN_CAPACITY_DEFAULT;
+  state->knnCapacity =
+      knnCapacityRequested > 0 ? knnCapacityRequested : GRIP_KNN_CAPACITY_DEFAULT;
   state->kPolicy = GVIZ_GRIP_K_CONSTANT;
   state->lastRoundStats = (gvizGRIPRoundStats){0, 0, 0};
   state->statsEnabled = state->statsRegisterMode != 1;
@@ -313,7 +332,7 @@ int gvizGRIPEmbedderInit(gvizGRIPState *state, gvizSubgraph subgraph,
 // generates n+1 vertices of a regular n-simplex centered at the origin
 // out must be able to hold (n+1) * n doubles (n+1 vertices, each n-dimensional)
 // side_length scales the result
-void makeRegularSimplex(size_t n, double side_length, double *out) {
+static void makeRegularSimplex(size_t n, double side_length, double *out) {
   // construct via gram matrix method:
   // place vertices one at a time, each new vertex is constrained by
   // needing equal distance to all previous vertices.
@@ -378,7 +397,6 @@ void makeRegularSimplex(size_t n, double side_length, double *out) {
     double norm_sq = 0.0;
     for (size_t m = 0; m < k; m++)
       norm_sq += vk[m] * vk[m];
-    double rem = 1.0 - norm_sq;
     if (k < n) {
       double rem = 1.0 - norm_sq;
       vk[k] = rem > 0.0 ? sqrt(rem) : 0.0;
@@ -399,22 +417,6 @@ void makeRegularSimplex(size_t n, double side_length, double *out) {
   double scale = side_length / unit_edge;
   for (size_t i = 0; i < (n + 1) * n; i++)
     out[i] *= scale;
-}
-
-void makeEquilateralTriangle2(double *out, double sideLength) {
-  double R = sideLength / sqrt(3.0);
-
-  // v1
-  *out++ = 0;
-  *out++ = R;
-
-  // v2
-  *out++ = -sideLength / 2;
-  *out++ = -R / 2;
-
-  // v3
-  *out++ = sideLength / 2;
-  *out = -R / 2;
 }
 
 void gvizGRIPEmbedderRelease(gvizGRIPState *state) {
@@ -589,7 +591,7 @@ int migrateOneToFinalLayer(gvizGRIPState *state, GVIZ_BIT_ARRAY finalLayer,
   size_t pick = gripPickFarCandidate(state, sg, finalEnd, finalEnd, candEnd,
                                      GRIP_MIGRATE_BFS_DEPTH);
 
-  xorSwap(&state->misFiltration[pick], &state->misFiltration[finalEnd]);
+  gvizGRIPSwap(&state->misFiltration[pick], &state->misFiltration[finalEnd]);
   (*gripMisBorderMut(state, count - 1))++;
   return 0;
 }
@@ -748,13 +750,8 @@ size_t createMISFiltration(gvizGRIPState *state) {
 
   makeFirstMISPartition(state, curr);
 
-  printf("created first MIS layer with %zu vertices\n",
-         gvizVertexSubsetCount(curr, gvizGraphSize(embedding->subgraph.g)));
-
   size_t i = 2;
   while (iterMISFiltration(state, i, curr)) {
-    printf("created %zuth MIS layer with %zu vertices\n", i,
-           gvizVertexSubsetCount(curr, gvizGraphSize(embedding->subgraph.g)));
     i++;
   }
 
@@ -807,17 +804,16 @@ static void placeVertexRange(void *ctx, size_t begin, size_t end) {
       indices[j] = found[j].v * embedding->embedding.dim;
     }
 
-    gvizArray tmp = {indices, sizeof(size_t), (size_t)count, (size_t)count};
-
     double pos[embedding->embedding.dim];
-    barrycenter(embedding->embedding.dim, embedding->embedding.vertexPositions,
-                &tmp, pos);
+    gripBarycenter(embedding->embedding.dim,
+                   embedding->embedding.vertexPositions, indices,
+                   (size_t)count, pos);
     gvizEmbeddedGraphSetVPosition(embedding, state->misFiltration[i], pos);
   }
 }
 
 // DO NOT CALL FOR FIRST LAYER
-void placeLayerVertices(gvizGRIPState *state) {
+static void placeLayerVertices(gvizGRIPState *state) {
   gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
   size_t layer = state->currLayer;
   size_t begin = gripMisBorderAt(state, layer + 1);
@@ -850,11 +846,10 @@ void placeLayerVertices(gvizGRIPState *state) {
           size_t indices[targets[i].count];
           for (size_t j = 0; j < targets[i].count; j++)
             indices[j] = targets[i].out[j].v * embedding->embedding.dim;
-          gvizArray tmp = {indices, sizeof(size_t), targets[i].count,
-                           targets[i].count};
           double pos[embedding->embedding.dim];
-          barrycenter(embedding->embedding.dim,
-                      embedding->embedding.vertexPositions, &tmp, pos);
+          gripBarycenter(embedding->embedding.dim,
+                         embedding->embedding.vertexPositions, indices,
+                         targets[i].count, pos);
           gvizEmbeddedGraphSetVPosition(embedding, targets[i].vertex, pos);
         }
       }
@@ -872,7 +867,7 @@ void placeLayerVertices(gvizGRIPState *state) {
     gvizEmbeddedGraphDrawMaskShowVertex(embedding, state->misFiltration[i]);
 }
 
-void updateLocalTemp(gvizGRIPState *state, size_t v) {
+static void updateLocalTemp(gvizGRIPState *state, size_t v) {
   gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
 
   size_t dim = embedding->embedding.dim;
@@ -885,8 +880,6 @@ void updateLocalTemp(gvizGRIPState *state, size_t v) {
   double cos = gvizVecDot(dim, state->dec[v].disp, state->dec[v].oldDisp) /
                (nrm * oldNrm);
 
-  double heat;
-
   if (cos > 0 && state->dec[v].oldCos > 0)
     state->dec[v].heat *= (1 + cos * gvizGRIPr * gvizGRIPs);
   else
@@ -896,7 +889,8 @@ void updateLocalTemp(gvizGRIPState *state, size_t v) {
 }
 
 // DO NOT TOUCH THIS FUNCTION VERY FRAGILE
-void calculateSpringForces(gvizGRIPState *state, size_t v, size_t layer) {
+static void calculateSpringForces(gvizGRIPState *state, size_t v,
+                                  size_t layer) {
   gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
   double f[embedding->embedding.dim];
   memset(f, 0, sizeof(f));
@@ -939,7 +933,7 @@ void calculateSpringForces(gvizGRIPState *state, size_t v, size_t layer) {
   return;
 }
 
-void clearDecorators(gvizGRIPState *state) {
+static void clearDecorators(gvizGRIPState *state) {
   gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
 
   gvizBitArrayClearAll(state->dispCalculated,
@@ -974,7 +968,7 @@ static void updateKNNRange(void *ctx, size_t begin, size_t end) {
   }
 }
 
-void updateKNNs(gvizGRIPState *state) {
+static void updateKNNs(gvizGRIPState *state) {
   gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
   size_t end = gripMisBorderAt(state, state->currLayer);
   size_t refinementK = gripRefinementK(state);
@@ -1037,7 +1031,7 @@ void gvizGRIPEmbedderBegin(gvizGRIPState *state) {
 
 // draw mask and state->currLayer assumed to be updated here:
 
-void beginNewStage(gvizGRIPState *state) {
+void gvizGRIPEmbedderNextStage(gvizGRIPState *state) {
 
   // TODO: call updateKNN
 
@@ -1100,8 +1094,6 @@ static void refinementPass1Range(void *ctx, size_t begin, size_t end) {
     dec->lastForceMag = nrm;
     if (nrm > gvizNumericEpsilon) {
       gvizVecScale(embedding->embedding.dim, dec->heat / nrm, dec->disp);
-    } else {
-      printf("AVOIDED DIVISION BY 0. @ runRefinementRound.\n");
     }
   }
 }
@@ -1268,12 +1260,35 @@ static void removeNetRotation(gvizGRIPState *state) {
   }
 }
 
-void runRefinementRound(gvizGRIPState *state) {
+#define GRIP_EMBED_MAX_ROUNDS_PER_LAYER 30
+#define GRIP_EMBED_CONVERGENCE_FACTOR 1e-3
+
+int gvizGRIPEmbedderEmbed(gvizGRIPState *state) {
+  if (!state)
+    return -1;
+
+  gvizGRIPEmbedderBegin(state);
+  if (state->layerCount == 0)
+    return -1;
+
+  double epsilon = GVIZ_EDGE_LENGTH * GRIP_EMBED_CONVERGENCE_FACTOR;
+  for (;;) {
+    for (size_t round = 0; round < GRIP_EMBED_MAX_ROUNDS_PER_LAYER; round++) {
+      gvizGRIPEmbedderRefineRound(state);
+      if (state->lastRoundStats.maxDisplacement < epsilon)
+        break;
+    }
+    if (state->currLayer == 0)
+      break;
+    gvizGRIPEmbedderNextStage(state);
+  }
+
+  return 0;
+}
+
+void gvizGRIPEmbedderRefineRound(gvizGRIPState *state) {
   gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
   size_t layer = state->currLayer;
-
-  printf("Refining layer %zu... round %zu\n", state->currLayer,
-         state->currRound);
 
   gvizThreadPoolForRange(state->pool, 0, gripMisBorderAt(state, layer),
                          PARALLEL_GRAIN, refinementPass1Range, state);
@@ -1288,12 +1303,18 @@ void runRefinementRound(gvizGRIPState *state) {
   size_t active = gripMisBorderAt(state, layer);
   for (size_t i = 0; i < active; i++) {
     size_t curr = state->misFiltration[i];
-    double nrm = gvizVecNorm2(embedding->embedding.dim, state->dec[curr].disp);
+    gvizGRIPDecorators *dec = state->dec + curr;
+    double nrm = gvizVecNorm2(embedding->embedding.dim, dec->disp);
     if (nrm > maxDisp)
       maxDisp = nrm;
     sumDisp += nrm;
-    sumHeat += state->dec[curr].heat;
-    sumForce += state->dec[curr].lastForceMag;
+    sumHeat += dec->heat;
+    sumForce += dec->lastForceMag;
+
+    gvizEmbeddedGraphAddVPosition(embedding, curr, dec->disp);
+
+    assert(!isnan(gvizEmbeddedGraphGetVPosition(embedding, curr)[0]) &&
+           !isnan((gvizEmbeddedGraphGetVPosition(embedding, curr)[1])));
   }
   state->lastRoundStats.maxDisplacement = maxDisp;
   state->lastRoundStats.meanDisplacement = active ? sumDisp / active : 0.0;
@@ -1307,16 +1328,6 @@ void runRefinementRound(gvizGRIPState *state) {
     gvizEmbeddedGraphStatAppend(embedding, "grip.maxDisp", maxDisp);
     gvizEmbeddedGraphStatAppend(embedding, "grip.meanForce",
                                 state->lastRoundStats.meanForce);
-  }
-
-  // update positions, pos = pos + disp
-  for (size_t i = 0; i < active; i++) {
-    size_t curr = state->misFiltration[i];
-    gvizGRIPDecorators *dec = state->dec + curr;
-    gvizEmbeddedGraphAddVPosition(embedding, curr, dec->disp);
-
-    assert(!isnan(gvizEmbeddedGraphGetVPosition(embedding, curr)[0]) &&
-           !isnan((gvizEmbeddedGraphGetVPosition(embedding, curr)[1])));
   }
 
   state->currRound++;

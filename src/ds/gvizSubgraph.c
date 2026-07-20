@@ -302,16 +302,40 @@ int gvizSubgraphRebuild(gvizSubgraph *sg) {
   if (full)
     sg->es.bitset = NULL;
 
+  // gvizGraphBuildLayout rewrites the shared layout in place, but the old
+  // edge bits are positioned by the old offsets. Snapshot them so the
+  // migration below decodes old bit positions with the layout they were
+  // written under.
+  gvizGraphLayout old_layout_snapshot = {0};
+  if (full && old_es.layout) {
+    size_t n = old_es.layout->nvertices;
+    old_layout_snapshot.nvertices = n;
+    old_layout_snapshot.edgeCount = old_es.layout->edgeCount;
+    old_layout_snapshot.vertexOffsets = GVIZ_ALLOC((n + 1) * sizeof(size_t));
+    if (!old_layout_snapshot.vertexOffsets) {
+      sg->es = old_es;
+      return -1;
+    }
+    memcpy(old_layout_snapshot.vertexOffsets, old_es.layout->vertexOffsets,
+           (n + 1) * sizeof(size_t));
+    old_es.layout = &old_layout_snapshot;
+  }
+
   gvizGraphBuildLayout((gvizGraph *)sg->g);
-  if (!sg->g->layout)
+  if (!sg->g->layout) {
+    GVIZ_DEALLOC(old_layout_snapshot.vertexOffsets);
     return -1;
+  }
 
   size_t new_nverts = sg->g->layout->nvertices;
 
   GVIZ_BIT_ARRAY neu = gvizBitArrayResize(old_vs, old_nverts, new_nverts);
   if (!neu) {
-    if (old_es.bitset && !sg->es.bitset)
+    if (old_es.bitset && !sg->es.bitset) {
+      old_es.layout = sg->g->layout; // never leave a dangling snapshot ref
       sg->es = old_es;
+    }
+    GVIZ_DEALLOC(old_layout_snapshot.vertexOffsets);
     return -1;
   }
   if (old_vs && old_vs != neu)
@@ -320,14 +344,15 @@ int gvizSubgraphRebuild(gvizSubgraph *sg) {
 
   if (full) {
     gvizEdgeSubset migrated = (gvizEdgeSubset){0};
-    if (edge_subset_migrate(&migrated, sg->g, old_es) < 0) {
-      if (old_es.bitset)
-        gvizEdgeSubsetRelease(old_es);
-      return -1;
-    }
+    int err = edge_subset_migrate(&migrated, sg->g, old_es);
     if (old_es.bitset)
       gvizEdgeSubsetRelease(old_es);
+    GVIZ_DEALLOC(old_layout_snapshot.vertexOffsets);
+    if (err < 0)
+      return -1;
     sg->es = migrated;
+  } else {
+    GVIZ_DEALLOC(old_layout_snapshot.vertexOffsets);
   }
 
   return 0;
@@ -421,8 +446,13 @@ bool gvizSubgraphVertexIterate(gvizSubgraphVertexIterator *it, size_t *out_u) {
 
 gvizSubgraphNeighborIterator gvizSubgraphNeighborIteratorCreate(
     const gvizSubgraph *sg, size_t u) {
-  gvizSubgraphNeighborIterator it = {sg, u, 0, {0}, 0};
+  gvizSubgraphNeighborIterator it = {
+      sg, u, 0, {0}, 0, NULL, GVIZ_SUBGRAPH_NEIGHBOR_ITER_NONE};
   if (!subgraph_has_vertices(sg) || !gvizVertexSubsetTest(sg->vs, u))
+    return it;
+
+  it.nb = gvizGraphGetVertexNeighbors(sg->g, u);
+  if (!it.nb)
     return it;
 
   if (subgraph_is_full(sg)) {
@@ -430,41 +460,40 @@ gvizSubgraphNeighborIterator gvizSubgraphNeighborIteratorCreate(
     it.base = layout->vertexOffsets[u];
     it.it = gvizEdgeSubsetIteratorCreateVertexRange(sg->es, u);
     it.adj_idx = SIZE_MAX;
+    it.mode = GVIZ_SUBGRAPH_NEIGHBOR_ITER_FULL;
     return it;
   }
 
   it.adj_idx = 0;
+  it.mode = GVIZ_SUBGRAPH_NEIGHBOR_ITER_INDUCED;
   return it;
 }
 
 bool gvizSubgraphNeighborIterate(gvizSubgraphNeighborIterator *it,
                                  size_t *out_v) {
-  if (!it || !subgraph_has_vertices(it->sg))
+  if (!it)
     return false;
 
-  if (subgraph_is_full(it->sg)) {
+  if (it->mode == GVIZ_SUBGRAPH_NEIGHBOR_ITER_FULL) {
     size_t pos;
     if (!gvizBitArrayIterate(&it->it, &pos))
       return false;
 
     size_t idx = pos - it->base;
-    gvizArray *nb = gvizGraphGetVertexNeighbors(it->sg->g, it->u);
-    if (!nb || idx >= nb->count)
+    if (idx >= it->nb->count)
       return false;
 
-    *out_v = *(size_t *)gvizArrayAtIndex(nb, idx);
+    *out_v = *(size_t *)gvizArrayAtIndex(it->nb, idx);
     return true;
   }
 
-  gvizArray *nb = gvizGraphGetVertexNeighbors(it->sg->g, it->u);
-  if (!nb)
-    return false;
-
-  while (it->adj_idx < nb->count) {
-    size_t v = *(size_t *)gvizArrayAtIndex(nb, it->adj_idx++);
-    if (gvizVertexSubsetTest(it->sg->vs, v)) {
-      *out_v = v;
-      return true;
+  if (it->mode == GVIZ_SUBGRAPH_NEIGHBOR_ITER_INDUCED) {
+    while (it->adj_idx < it->nb->count) {
+      size_t v = *(size_t *)gvizArrayAtIndex(it->nb, it->adj_idx++);
+      if (gvizVertexSubsetTest(it->sg->vs, v)) {
+        *out_v = v;
+        return true;
+      }
     }
   }
   return false;

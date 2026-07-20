@@ -568,6 +568,119 @@ void test_deque_wraparound_right_pops(void) {
 }
 
 // ============================================================================
+// SHIFTED-HEAD / WRAPAROUND ACCESSOR REGRESSIONS
+// ============================================================================
+
+// AtIndex must honor the ring-buffer head: after pops shift begin past arr[0],
+// logical index i lives at (head + i) % capacity, not at raw slot i.
+void test_dequeAtIndex_after_popLeft_shifted_head(void) {
+  gvizDeque d;
+  gvizDequeInitAtCapacity(&d, sizeof(int), 4);
+  for (int i = 0; i < 4; i++)
+    gvizDequePush(&d, &i);
+
+  int popped;
+  gvizDequePopLeft(&d, &popped); // head now at slot 1; contents {1,2,3}
+  TEST_ASSERT_EQUAL_INT(0, popped);
+
+  TEST_ASSERT_EQUAL_INT(1, *(int *)gvizDequeAtIndex(&d, 0));
+  TEST_ASSERT_EQUAL_INT(2, *(int *)gvizDequeAtIndex(&d, 1));
+  TEST_ASSERT_EQUAL_INT(3, *(int *)gvizDequeAtIndex(&d, 2));
+  TEST_ASSERT_NULL(gvizDequeAtIndex(&d, 3));
+  gvizDequeRelease(&d);
+}
+
+void test_dequeAtIndex_wrapped_tail(void) {
+  gvizDeque d;
+  gvizDequeInitAtCapacity(&d, sizeof(int), 4);
+  for (int i = 0; i < 4; i++)
+    gvizDequePush(&d, &i);
+
+  int popped;
+  gvizDequePopLeft(&d, &popped);
+  gvizDequePopLeft(&d, &popped);
+  int five = 5;
+  gvizDequePush(&d, &five); // tail wraps into slot 0; contents {2,3,5}
+
+  TEST_ASSERT_EQUAL_INT(2, *(int *)gvizDequeAtIndex(&d, 0));
+  TEST_ASSERT_EQUAL_INT(3, *(int *)gvizDequeAtIndex(&d, 1));
+  TEST_ASSERT_EQUAL_INT(5, *(int *)gvizDequeAtIndex(&d, 2));
+  gvizDequeRelease(&d);
+}
+
+void test_dequePeekRight_after_popLeft_shifted_head(void) {
+  gvizDeque d;
+  gvizDequeInitAtCapacity(&d, sizeof(int), 4);
+  for (int i = 0; i < 4; i++)
+    gvizDequePush(&d, &i);
+
+  int popped;
+  gvizDequePopLeft(&d, &popped);
+  gvizDequePopLeft(&d, &popped); // contents {2,3}, head at slot 2
+
+  TEST_ASSERT_EQUAL_INT(3, *(int *)gvizDequePeekRight(&d));
+  TEST_ASSERT_EQUAL_INT(2, *(int *)gvizDequePeekLeft(&d));
+  gvizDequeRelease(&d);
+}
+
+void test_dequePeekRight_wrapped_tail(void) {
+  gvizDeque d;
+  gvizDequeInitAtCapacity(&d, sizeof(int), 4);
+  for (int i = 0; i < 4; i++)
+    gvizDequePush(&d, &i);
+
+  int popped;
+  gvizDequePopLeft(&d, &popped);
+  int seven = 7;
+  gvizDequePush(&d, &seven); // tail wrapped to slot 0
+
+  TEST_ASSERT_EQUAL_INT(7, *(int *)gvizDequePeekRight(&d));
+  gvizDequeRelease(&d);
+}
+
+void test_dequePopRight_wrapped_tail(void) {
+  gvizDeque d;
+  gvizDequeInitAtCapacity(&d, sizeof(int), 4);
+  for (int i = 0; i < 4; i++)
+    gvizDequePush(&d, &i);
+
+  int popped;
+  gvizDequePopLeft(&d, &popped);
+  gvizDequePopLeft(&d, &popped);
+  int nine = 9;
+  gvizDequePush(&d, &nine); // contents {2,3,9}, 9 in wrapped slot 0
+
+  gvizDequePopRight(&d, &popped);
+  TEST_ASSERT_EQUAL_INT(9, popped);
+  gvizDequePopRight(&d, &popped);
+  TEST_ASSERT_EQUAL_INT(3, popped);
+  gvizDequePopRight(&d, &popped);
+  TEST_ASSERT_EQUAL_INT(2, popped);
+  TEST_ASSERT_TRUE(gvizDequeIsEmpty(&d));
+  gvizDequeRelease(&d);
+}
+
+// Growth must linearize a wrapped deque without losing order.
+void test_deque_growth_from_wrapped_state(void) {
+  gvizDeque d;
+  gvizDequeInitAtCapacity(&d, sizeof(int), 4);
+  for (int i = 0; i < 4; i++)
+    gvizDequePush(&d, &i);
+
+  int popped;
+  gvizDequePopLeft(&d, &popped);
+  gvizDequePopLeft(&d, &popped);
+  for (int i = 4; i < 9; i++) // forces growth while wrapped
+    gvizDequePush(&d, &i);
+
+  int expected[] = {2, 3, 4, 5, 6, 7, 8};
+  TEST_ASSERT_EQUAL_size_t(7, gvizDequeSize(&d));
+  for (size_t i = 0; i < 7; i++)
+    TEST_ASSERT_EQUAL_INT(expected[i], *(int *)gvizDequeAtIndex(&d, i));
+  gvizDequeRelease(&d);
+}
+
+// ============================================================================
 // TEST RUNNER
 // ============================================================================
 
@@ -614,6 +727,13 @@ int main(void) {
 
   RUN_TEST(test_deque_wraparound_left_pops);
   RUN_TEST(test_deque_wraparound_right_pops);
+
+  RUN_TEST(test_dequeAtIndex_after_popLeft_shifted_head);
+  RUN_TEST(test_dequeAtIndex_wrapped_tail);
+  RUN_TEST(test_dequePeekRight_after_popLeft_shifted_head);
+  RUN_TEST(test_dequePeekRight_wrapped_tail);
+  RUN_TEST(test_dequePopRight_wrapped_tail);
+  RUN_TEST(test_deque_growth_from_wrapped_state);
 
   return UNITY_END();
 }

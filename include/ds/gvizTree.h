@@ -1,5 +1,5 @@
-#ifndef _GVIZ_TREE_H_
-#define _GVIZ_TREE_H_
+#ifndef GVIZ_TREE_H
+#define GVIZ_TREE_H
 
 #include "gvizGraph.h"
 

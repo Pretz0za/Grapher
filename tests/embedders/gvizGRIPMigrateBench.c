@@ -1,4 +1,4 @@
-#include "gvizGRIPEmbedderInternal.h"
+#include "embedders/gvizGRIPInternal.h"
 
 #include "algorithms/search/gvizBreadthFirst.h"
 #include "core/alloc.h"
@@ -7,7 +7,6 @@
 #include "ds/gvizSubgraph.h"
 #include "embedders/gvizEmbeddedGraph.h"
 #include "utils/graphs.h"
-#include "utils/helpers.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -81,7 +80,7 @@ static int migrateOneToFinalLayer_legacy(gvizGRIPState *state,
     }
   }
 
-  xorSwap(maxDistVertex,
+  gvizGRIPSwap(maxDistVertex,
           &state->misFiltration[gripMisBorderAt(state, count - 1)]);
   (*gripMisBorderMut(state, count - 1))++;
 

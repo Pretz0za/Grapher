@@ -165,7 +165,7 @@ int main(int argc, char **argv) {
     fprintf(stderr, "init failed\n");
     return 1;
   }
-  gvizGRIPEmbedderConfigureK(&state, placementK, refinementK, 256, policy);
+  gvizGRIPEmbedderConfigureK(&state, placementK, refinementK, policy);
   gvizGRIPEmbedderBegin(&state);
 
   printf("layers=%zu policy=%s pK=%zu rK=%zu rounds=%zu minLayer=%zu\n",
@@ -181,7 +181,7 @@ int main(int argc, char **argv) {
     computeCOM(&state, com0);
 
     for (size_t r = 0; r < rounds; r++) {
-      runRefinementRound(&state);
+      gvizGRIPEmbedderRefineRound(&state);
       RoundMetrics m = measureRound(&state);
       if (r < 3 || (r + 1) % 10 == 0 || r == rounds - 1) {
         double dcom[3] = {m.com[0] - com0[0], m.com[1] - com0[1],
@@ -198,7 +198,7 @@ int main(int argc, char **argv) {
 
     if (layer <= minLayer || state.currLayer == 0)
       break;
-    beginNewStage(&state);
+    gvizGRIPEmbedderNextStage(&state);
   }
 
   gvizGRIPEmbedderRelease(&state);

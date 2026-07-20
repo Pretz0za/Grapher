@@ -138,6 +138,11 @@ void _CreateFwdArcLists(graphP theGraph) {
   for (I = 0; I < theGraph->N; I++) {
     Jfirst = theGraph->G[I].link[1];
 
+    /* Isolated vertices have no adjacency at all; without this guard the
+       EDGE_FORWARD test below reads G[NIL], one record before the array. */
+    if (Jfirst == NIL)
+      continue;
+
     /* If the vertex has any forward edges, then ... */
 
     if (theGraph->G[Jfirst].type == EDGE_FORWARD) {

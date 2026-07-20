@@ -1,5 +1,5 @@
-#ifndef _GVIZ_QUADTREE_H_
-#define _GVIZ_QUADTREE_H_
+#ifndef GVIZ_QUADTREE_H
+#define GVIZ_QUADTREE_H
 
 #include "ds/gvizArray.h"
 #include <stddef.h>

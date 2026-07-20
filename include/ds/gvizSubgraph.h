@@ -1,6 +1,7 @@
-#ifndef __GVIZ_SUBGRAPH_H__
-#define __GVIZ_SUBGRAPH_H__
+#ifndef GVIZ_SUBGRAPH_H
+#define GVIZ_SUBGRAPH_H
 
+#include "ds/gvizArray.h"
 #include "ds/gvizBitArray.h"
 #include <stdbool.h>
 
@@ -34,6 +35,13 @@ typedef struct {
 	gvizBitArrayIterator it;
 } gvizSubgraphVertexIterator;
 
+/** How a neighbor iterator walks its subgraph; set at Create time. */
+typedef enum {
+	GVIZ_SUBGRAPH_NEIGHBOR_ITER_NONE = 0, /**< Invalid input; yields nothing. */
+	GVIZ_SUBGRAPH_NEIGHBOR_ITER_FULL,     /**< Walks the edge bitset range. */
+	GVIZ_SUBGRAPH_NEIGHBOR_ITER_INDUCED,  /**< Filters parent adjacency. */
+} gvizSubgraphNeighborIterMode;
+
 typedef struct {
 	const gvizSubgraph *sg;
 	size_t u;
@@ -41,6 +49,9 @@ typedef struct {
 	gvizBitArrayIterator it;
 	/** Parent adjacency index when iterating a vertex-induced subgraph. */
 	size_t adj_idx;
+	/** Cached adjacency list of @c u; resolved once at Create. */
+	const gvizArray *nb;
+	gvizSubgraphNeighborIterMode mode;
 } gvizSubgraphNeighborIterator;
 
 /** Allocates an empty vertex subset sized for @p g. */

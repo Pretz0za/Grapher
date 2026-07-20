@@ -1,0 +1,1 @@
+/usr/bin/cc  -arch arm64 -Wl,-search_paths_first -Wl,-headerpad_max_install_names -fsanitize=address "CMakeFiles/gvizDequeTests.dir/third-party/unity/unity.c.o" CMakeFiles/gvizDequeTests.dir/tests/ds/gvizDequeTests.c.o -o tests/ds/gvizDequeTests  libgraphvis.a libplanar.a -lm

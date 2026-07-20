@@ -1,5 +1,5 @@
-#ifndef _GVIZ_FORCE_DIRECTED_H_
-#define _GVIZ_FORCE_DIRECTED_H_
+#ifndef GVIZ_FORCE_DIRECTED_H
+#define GVIZ_FORCE_DIRECTED_H
 
 #include <stddef.h>
 

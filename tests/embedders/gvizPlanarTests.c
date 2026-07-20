@@ -8,6 +8,7 @@
 #include "unity/unity_internals.h"
 #include "utils/serializers.h"
 #include <stdio.h>
+#include <stdlib.h>
 
 void setUp(void) {}
 void tearDown() {}
@@ -108,6 +109,79 @@ void test_nonPlanar() {
   gvizGraphRelease(&g);
 }
 
+// Non-planar init must hand back a Kuratowski subdivision witness when the
+// caller asks for one via gvizSubgraphApplyPlanarRotation.
+void test_nonPlanar_kuratowskiWitness() {
+  gvizGraph g;
+  gvizGraphInit(&g, 0);
+
+  for (int i = 0; i < 5; i++)
+    gvizGraphAddVertex(&g, NULL, NULL, NULL);
+
+  // K5
+  for (size_t u = 0; u < 5; u++)
+    for (size_t v = u + 1; v < 5; v++)
+      gvizGraphAddEdge(&g, u, v);
+
+  gvizGraphBuildLayout(&g);
+  gvizSubgraph sg = gvizSubgraphCreateFull(&g);
+
+  gvizGraph *kuratowski = NULL;
+  int res = gvizSubgraphApplyPlanarRotation(&sg, &kuratowski);
+  TEST_ASSERT_EQUAL(-2, res);
+  TEST_ASSERT_NOT_NULL(kuratowski);
+
+  // The witness must be a subgraph of K5 with some edges (a K5 subdivision).
+  TEST_ASSERT_EQUAL_UINT64(5, gvizGraphSize(kuratowski));
+  gvizGraphBuildLayout(kuratowski);
+  TEST_ASSERT_TRUE(gvizGraphEdgeCount(kuratowski) > 0);
+
+  gvizGraphRelease(kuratowski);
+  GVIZ_DEALLOC(kuratowski);
+  gvizSubgraphRelease(&sg);
+  gvizGraphRelease(&g);
+}
+
+void test_largestFaceBoundary_square() {
+  gvizGraph g;
+  gvizGraphInit(&g, 0);
+  for (int i = 0; i < 4; i++)
+    gvizGraphAddVertex(&g, NULL, NULL, NULL);
+  // 4-cycle: both faces are the square itself.
+  gvizGraphAddEdge(&g, 0, 1);
+  gvizGraphAddEdge(&g, 1, 2);
+  gvizGraphAddEdge(&g, 2, 3);
+  gvizGraphAddEdge(&g, 3, 0);
+
+  gvizGraphBuildLayout(&g);
+  gvizSubgraph sg = gvizSubgraphCreateFull(&g);
+  TEST_ASSERT_EQUAL(0, gvizSubgraphApplyPlanarRotation(&sg, NULL));
+
+  size_t boundary[8];
+  size_t count = 0;
+  TEST_ASSERT_EQUAL(
+      0, gvizPlanarLargestFaceBoundary(&g, &sg, boundary, 8, &count));
+  TEST_ASSERT_EQUAL_UINT64(4, count);
+  // All four vertices appear exactly once.
+  int seen[4] = {0, 0, 0, 0};
+  for (size_t i = 0; i < count; i++) {
+    TEST_ASSERT_TRUE(boundary[i] < 4);
+    seen[boundary[i]]++;
+  }
+  for (int i = 0; i < 4; i++)
+    TEST_ASSERT_EQUAL_INT(1, seen[i]);
+
+  gvizSubgraphRelease(&sg);
+  gvizGraphRelease(&g);
+}
+
+void test_halfEdge_twin() {
+  gvizPlanarHalfEdge e = {3, 7};
+  gvizPlanarHalfEdge t = gvizPlanarHalfEdgeTwin(e);
+  TEST_ASSERT_EQUAL_UINT64(7, t.u);
+  TEST_ASSERT_EQUAL_UINT64(3, t.v);
+}
+
 void test_triangulation() {
   gvizGraph g;
   gvizGraphInit(&g, 0);
@@ -133,11 +207,11 @@ void test_triangulation() {
   gvizArray *neighbors = gvizGraphGetVertexNeighbors(&g, 0);
 
   gvizFaceIteratorContext faces;
-  gvizFaceIteratorInit(&state, &faces);
+  gvizFaceIteratorInit(&state.embedding.subgraph, &faces);
 
-  gvizPlanarEmbedderFaces(&state, &faces);
+  gvizPlanarEmbedderFaces(&state.embedding.subgraph, &faces);
 
-  gvizPlanarEmbedderTriangulate(&state, &faces);
+  gvizPlanarEmbedderTriangulate(&state.embedding.subgraph, &faces);
 
   for (size_t i = 0; i < faces.faces.count; i++) {
     gvizArray *face = (gvizArray *)gvizArrayAtIndex(&faces.faces, i);
@@ -245,9 +319,9 @@ void test_schnyderWood_hexagon(void) {
   TEST_ASSERT_EQUAL(0, gvizPlanarEmbedderInit(&state, makeFullSubgraph(&g)));
 
   gvizFaceIteratorContext faces;
-  gvizFaceIteratorInit(&state, &faces);
-  gvizPlanarEmbedderFaces(&state, &faces);
-  gvizPlanarEmbedderTriangulate(&state, &faces);
+  gvizFaceIteratorInit(&state.embedding.subgraph, &faces);
+  gvizPlanarEmbedderFaces(&state.embedding.subgraph, &faces);
+  gvizPlanarEmbedderTriangulate(&state.embedding.subgraph, &faces);
   gvizFaceIteratorRelease(&faces);
 
   gvizSchnyderWood sw;
@@ -391,8 +465,8 @@ void test_vertex_induced_subgraph_planar(void) {
   TEST_ASSERT_EQUAL(8, gvizSubgraphEdgeCount(&state.embedding.subgraph));
 
   gvizFaceIteratorContext faces;
-  TEST_ASSERT_EQUAL(0, gvizFaceIteratorInit(&state, &faces));
-  TEST_ASSERT_EQUAL(0, gvizPlanarEmbedderFaces(&state, &faces));
+  TEST_ASSERT_EQUAL(0, gvizFaceIteratorInit(&state.embedding.subgraph, &faces));
+  TEST_ASSERT_EQUAL(0, gvizPlanarEmbedderFaces(&state.embedding.subgraph, &faces));
   TEST_ASSERT_TRUE(faces.faces.count >= 1);
 
   gvizFaceIteratorRelease(&faces);
@@ -405,6 +479,9 @@ int main() {
 
   RUN_TEST(test_planar);
   RUN_TEST(test_nonPlanar);
+  RUN_TEST(test_nonPlanar_kuratowskiWitness);
+  RUN_TEST(test_largestFaceBoundary_square);
+  RUN_TEST(test_halfEdge_twin);
   RUN_TEST(test_triangulation);
   RUN_TEST(test_subgraph_neighbor_ccw_order);
   RUN_TEST(test_face_walk_triangle);

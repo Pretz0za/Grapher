@@ -1,5 +1,5 @@
-#ifndef _GVIZ_QUEUE_H_
-#define _GVIZ_QUEUE_H_
+#ifndef GVIZ_DEQUE_H
+#define GVIZ_DEQUE_H
 
 #include <stddef.h>
 typedef struct gvizDeque {

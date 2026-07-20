@@ -124,7 +124,7 @@ static int runGripStages(const char *label, gvizSubgraph sg, size_t dim,
     fprintf(stderr, "%s: init failed\n", label);
     return -1;
   }
-  gvizGRIPEmbedderConfigureK(&state, 64, 64, 64, GVIZ_GRIP_K_BUDGET);
+  gvizGRIPEmbedderConfigureK(&state, 64, 64, GVIZ_GRIP_K_BUDGET);
 
   double t0 = monotonicSeconds();
   gvizGRIPEmbedderBegin(&state);
@@ -146,7 +146,7 @@ static int runGripStages(const char *label, gvizSubgraph sg, size_t dim,
     t0 = monotonicSeconds();
     if (getenv("GVIZ_KNN_PROFILE"))
       gvizKNNProfileReset();
-    beginNewStage(&state);
+    gvizGRIPEmbedderNextStage(&state);
     double stageSec = monotonicSeconds() - t0;
 
     unsigned long long knnQueries = 0, knnVisited = 0, knnMaxVisited = 0;

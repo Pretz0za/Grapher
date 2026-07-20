@@ -1,5 +1,5 @@
-#ifndef __GVIZ_SERIALIZERS__
-#define __GVIZ_SERIALIZERS__
+#ifndef GVIZ_SERIALIZERS_H
+#define GVIZ_SERIALIZERS_H
 
 #include <stddef.h>
 

@@ -45,11 +45,12 @@ int gvizArrayPush(gvizArray *v, void *item) {
 }
 
 int gvizArrayInsert(gvizArray *v, void *item, size_t idx) {
-  char *arr = (char *)v->arr;
+  if (idx > v->count)
+    return -1;
 
   if (v->count >= v->capacity) {
     size_t newCapacity = v->capacity ? v->capacity * 2 : 8;
-    size_t *newArr = GVIZ_REALLOC(v->arr, v->elementSize * newCapacity);
+    void *newArr = GVIZ_REALLOC(v->arr, v->elementSize * newCapacity);
     if (!newArr) {
       return -1;
     }
@@ -57,6 +58,7 @@ int gvizArrayInsert(gvizArray *v, void *item, size_t idx) {
     v->arr = newArr;
   }
 
+  char *arr = (char *)v->arr;
   memmove(arr + (idx + 1) * v->elementSize, arr + idx * v->elementSize,
           v->elementSize * (v->count - idx));
   memcpy(arr + idx * v->elementSize, item, v->elementSize);
@@ -71,18 +73,9 @@ void gvizArraySwapDelete(gvizArray *v, size_t idx) {
   size_t last = v->count - 1;
 
   if (idx != last) {
-    // compute byte pointers
     char *base = (char *)v->arr;
-    void *dst = base + idx * v->elementSize;
-    void *src = base + last * v->elementSize;
-
-    // swap element contents
-    unsigned char
-        tmp[v->elementSize]; // or allocate on heap if elementSize > 256
-
-    memcpy(tmp, src, v->elementSize);
-    memcpy(src, dst, v->elementSize);
-    memcpy(dst, tmp, v->elementSize);
+    memcpy(base + idx * v->elementSize, base + last * v->elementSize,
+           v->elementSize);
   }
 
   v->count--;
@@ -98,12 +91,12 @@ int gvizArrayPop(gvizArray *v, void *res) {
 
 int gvizArrayFindOneAndDelete(gvizArray *v, void *item) {
   char *arr = v->arr;
-  for (int i = 0; i < v->count; i++) {
+  for (size_t i = 0; i < v->count; i++) {
     if (!memcmp(arr + i * v->elementSize, item, v->elementSize)) {
       memmove(arr + i * v->elementSize, arr + (i + 1) * v->elementSize,
               v->elementSize * (v->count - i - 1));
       v->count--;
-      return i;
+      return (int)i;
     }
   }
   return -1;
@@ -117,8 +110,12 @@ void gvizArrayDeleteAtIndex(gvizArray *v, size_t i) {
 }
 
 void gvizArrayRelease(gvizArray *v) {
-  if (v->arr)
+  if (v->arr) {
     GVIZ_DEALLOC(v->arr);
+    v->arr = NULL;
+  }
+  v->count = 0;
+  v->capacity = 0;
 }
 
 int gvizArrayIsEmpty(const gvizArray *v) {
@@ -127,22 +124,24 @@ int gvizArrayIsEmpty(const gvizArray *v) {
 
 int gvizArrayFindOne(const gvizArray *v, void *item) {
   char *arr = v->arr;
-  for (int i = 0; i < v->count; i++) {
+  for (size_t i = 0; i < v->count; i++) {
     if (!memcmp(arr + i * v->elementSize, item, v->elementSize))
-      return i;
+      return (int)i;
   }
   return -1;
 }
 
 int gvizArrayCopy(gvizArray *dest, const gvizArray *src) {
   if (dest->capacity * dest->elementSize < src->count * src->elementSize) {
-    size_t *newArr = GVIZ_REALLOC(dest->arr, src->elementSize * src->count);
+    void *newArr = GVIZ_REALLOC(dest->arr, src->elementSize * src->count);
     if (newArr == NULL)
       return -1;
     dest->arr = newArr;
-    dest->capacity = src->capacity;
-    dest->elementSize = src->elementSize;
+    dest->capacity = src->count;
+  } else if (dest->elementSize != src->elementSize) {
+    dest->capacity = (dest->capacity * dest->elementSize) / src->elementSize;
   }
+  dest->elementSize = src->elementSize;
 
   memcpy(dest->arr, src->arr, src->elementSize * src->count);
 
@@ -179,11 +178,11 @@ void gvizArrayMove(gvizArray *dest, gvizArray *src) {
 }
 
 void gvizArrayPrint(const gvizArray *v, FILE *stream,
-                    gvizSerializeDatum *serialize, size_t bufsize) {
+                    gvizArrayElementWriter *serialize, size_t bufsize) {
   char *arr = v->arr;
   char buf[bufsize];
   fprintf(stream, "[ ");
-  for (int i = 0; i < v->count; i++) {
+  for (size_t i = 0; i < v->count; i++) {
     serialize(arr + i * v->elementSize, buf, bufsize);
     fprintf(stream, "%s, ", buf);
   }

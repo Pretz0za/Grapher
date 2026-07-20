@@ -535,6 +535,47 @@ void test_graphCopyReversed_DirectedGraph(void) {
   gvizGraphRelease(&dest);
 }
 
+// Regression: gvizGraphCloneReversed used to loop forever on any vertex with
+// at least one outgoing edge (loop condition never consulted the index).
+void test_graphCloneReversed_DirectedGraph(void) {
+  gvizGraph src, dest;
+  gvizGraphInit(&src, 1); // directed
+
+  for (int i = 0; i < 4; i++) {
+    gvizGraphAddVertex(&src, NULL, NULL, NULL);
+  }
+  gvizGraphAddEdge(&src, 0, 1);
+  gvizGraphAddEdge(&src, 1, 2);
+  gvizGraphAddEdge(&src, 1, 3);
+
+  TEST_ASSERT_EQUAL_INT(0, gvizGraphCloneReversed(&dest, &src));
+  TEST_ASSERT_EQUAL_UINT64(4, gvizGraphSize(&dest));
+  TEST_ASSERT_EQUAL_INT(1, gvizGraphEdgeExists(&dest, 1, 0));
+  TEST_ASSERT_EQUAL_INT(1, gvizGraphEdgeExists(&dest, 2, 1));
+  TEST_ASSERT_EQUAL_INT(1, gvizGraphEdgeExists(&dest, 3, 1));
+  TEST_ASSERT_EQUAL_INT(0, gvizGraphEdgeExists(&dest, 0, 1));
+  TEST_ASSERT_EQUAL_INT(0, gvizGraphEdgeExists(&dest, 1, 2));
+
+  gvizGraphRelease(&src);
+  gvizGraphRelease(&dest);
+}
+
+void test_graphCloneReversed_UndirectedFallsBackToCopy(void) {
+  gvizGraph src, dest;
+  gvizGraphInit(&src, 0);
+  for (int i = 0; i < 3; i++)
+    gvizGraphAddVertex(&src, NULL, NULL, NULL);
+  gvizGraphAddEdge(&src, 0, 1);
+
+  // Clone semantics: dest is uninitialized on entry.
+  TEST_ASSERT_EQUAL_INT(0, gvizGraphCloneReversed(&dest, &src));
+  TEST_ASSERT_EQUAL_INT(1, gvizGraphEdgeExists(&dest, 0, 1));
+  TEST_ASSERT_EQUAL_INT(1, gvizGraphEdgeExists(&dest, 1, 0));
+
+  gvizGraphRelease(&src);
+  gvizGraphRelease(&dest);
+}
+
 // ============================================================================
 // GRAPH CLEAR TESTS
 // ============================================================================
@@ -806,7 +847,6 @@ void test_graphLoadFromEdgesFile_Directed(void) {
   gvizEdgesFileOptions opts;
   gvizEdgesFileOptionsInit(&opts);
   opts.directed = 1;
-  opts.zero_based = 1;
 
   int result = gvizGraphLoadFromEdgesFile(path, &opts, &g);
   TEST_ASSERT_EQUAL_INT(0, result);
@@ -862,6 +902,8 @@ int main(void) {
   RUN_TEST(test_graphCopy_Basic);
   RUN_TEST(test_graphClone_Independent);
   RUN_TEST(test_graphCopyReversed_DirectedGraph);
+  RUN_TEST(test_graphCloneReversed_DirectedGraph);
+  RUN_TEST(test_graphCloneReversed_UndirectedFallsBackToCopy);
   RUN_TEST(test_graphClear_RemovesAllVertices);
   RUN_TEST(test_graphAddVertex_LargeNumberOfVertices);
   RUN_TEST(test_graph_CompleteGraph);

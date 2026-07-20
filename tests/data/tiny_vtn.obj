@@ -1,0 +1,5 @@
+# triangle using v/t/n style face tokens
+v 0.0 0.0 0.0
+v 1.0 0.0 0.0
+v 0.0 1.0 0.0
+f 1/1/1 2/2/2 3/3/3

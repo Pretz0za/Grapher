@@ -1,5 +1,5 @@
-#ifndef _GVIZ_PLANAR_H_
-#define _GVIZ_PLANAR_H_
+#ifndef GVIZ_PLANAR_EMBEDDER_H
+#define GVIZ_PLANAR_EMBEDDER_H
 
 #include "ds/gvizArray.h"
 #include "ds/gvizGraph.h"
@@ -94,31 +94,101 @@ typedef struct gvizFaceIteratorContext {
 } gvizFaceIteratorContext;
 
 /**
- * Initializes @p context for face enumeration on the embedded planar graph in @p state.
+ * Initializes @p context for face enumeration on @p sg, whose parent graph
+ * must already carry a CCW rotation system (see
+ * gvizSubgraphApplyPlanarRotation).
  *
  * @return 0 on success, -1 on allocation failure.
  */
-int gvizFaceIteratorInit(const gvizPlanarEmbedderState *state,
+int gvizFaceIteratorInit(const gvizSubgraph *sg,
                          gvizFaceIteratorContext *context);
 
 /** Releases memory owned by @p context. */
 void gvizFaceIteratorRelease(gvizFaceIteratorContext *context);
 
 /**
- * Enumerates all faces into @p context->faces.
+ * Enumerates all faces of @p sg into @p context->faces.
  * Each face is stored as a gvizArray of vertex indices in CCW order.
  *
  * @return 0 on success, -1 on failure.
  */
-int gvizPlanarEmbedderFaces(const gvizPlanarEmbedderState *state,
-                             gvizFaceIteratorContext *context);
+int gvizPlanarEmbedderFaces(const gvizSubgraph *sg,
+                            gvizFaceIteratorContext *context);
 
 /**
- * Triangulates the planar graph in @p state by adding edges across non-triangular faces.
- * Updates @p context if faces were previously enumerated.
+ * Triangulates the planar graph under @p sg by adding edges across
+ * non-triangular faces. Updates @p context if faces were previously
+ * enumerated. @p sg must be a full subgraph; the parent layout is rebuilt
+ * and @p sg is re-derived as the full subgraph of the augmented graph.
  */
-void gvizPlanarEmbedderTriangulate(const gvizPlanarEmbedderState *state,
-                                    gvizFaceIteratorContext *context);
+void gvizPlanarEmbedderTriangulate(gvizSubgraph *sg,
+                                   gvizFaceIteratorContext *context);
+
+// PLANAR QUERIES ON AN EMBEDDED GRAPH: ----------------------------------------
+//
+// These operate on any gvizEmbeddedGraph (whichever embedder produced it) and
+// are the planar module's knowledge, not the embedded graph's: the base type
+// only stores the planarEmbedded flag these functions maintain and check.
+
+/**
+ * Tests planarity of @p embedding's subgraph and, when planar, installs a CCW
+ * rotation system on the parent graph and marks the embedding planar-embedded
+ * (see gvizEmbeddedGraphIsPlanarEmbedded).
+ *
+ * @return 0 if planar, -2 if non-planar, -1 on error.
+ */
+int gvizPlanarApplyRotationToEmbedding(gvizEmbeddedGraph *embedding);
+
+typedef struct gvizFaceSearchState {
+  const gvizEmbeddedGraph *embedding;
+  gvizArray faces;
+  size_t nextFace;
+  /** CCW vertex cycle written by the last gvizPlanarNextFace call that
+   *  returned 0; NULL once enumeration is exhausted. Owned by @p faces. */
+  size_t *face;
+  size_t faceCount;
+} gvizFaceSearchState;
+
+/**
+ * Initializes @p state for incremental face enumeration on a planar-embedded
+ * graph. Call gvizPlanarNextFace until it returns 1 (done).
+ *
+ * @return 0 on success, -1 on failure.
+ */
+int gvizPlanarFaceSearchInit(gvizEmbeddedGraph *embedding,
+                             gvizFaceSearchState *state);
+
+/**
+ * Finds the next unvisited face and stores its CCW vertex cycle in
+ * @p state->face. Returns 0 when a face was written, 1 when enumeration is
+ * complete, -1 on error.
+ */
+int gvizPlanarNextFace(gvizFaceSearchState *state);
+
+/**
+ * Builds a full subgraph (the face's vertices, plus the boundary edges
+ * connecting consecutive vertices in the cycle) for the face most recently
+ * written into @p state->face by gvizPlanarNextFace. Caller must release
+ * @p out.
+ *
+ * @return 0 on success, -1 when no face is available or on allocation
+ * failure.
+ */
+int gvizPlanarFaceSearchSubgraph(const gvizFaceSearchState *state,
+                                 gvizSubgraph *out);
+
+/** Releases memory owned by @p state. */
+void gvizPlanarFaceSearchRelease(gvizFaceSearchState *state);
+
+/**
+ * Finds the combinatorial face whose interior contains (@p worldX, @p worldY)
+ * in the current straight-line drawing and writes a full subgraph describing
+ * that face into @p out. Caller must release @p out.
+ *
+ * @return 0 on success, -1 when no face contains the point or on error.
+ */
+int gvizPlanarFaceSubgraphAt(gvizEmbeddedGraph *embedding,
+                             double worldX, double worldY, gvizSubgraph *out);
 
 /**
  * Traces one face starting at dart @p u with subgraph-neighbor index @p adjIdx.

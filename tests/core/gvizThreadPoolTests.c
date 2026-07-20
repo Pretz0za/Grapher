@@ -162,6 +162,38 @@ void test_forRange_reusable_across_calls(void) {
   gvizThreadPoolDestroy(pool);
 }
 
+typedef struct {
+  const gvizThreadPool *pool;
+  _Atomic int sawInvalidSlot;
+  size_t threadCount;
+} slotCtx;
+
+static void checkSlotRange(void *ctx, size_t begin, size_t end) {
+  (void)begin;
+  (void)end;
+  slotCtx *sc = ctx;
+  size_t slot = gvizThreadPoolWorkerSlot(sc->pool);
+  // Workers get 0..threadCount-1; the calling thread gets threadCount.
+  if (slot > sc->threadCount)
+    atomic_store(&sc->sawInvalidSlot, 1);
+}
+
+void test_workerSlot_boundsAndNullSafety(void) {
+  TEST_ASSERT_EQUAL_size_t(SIZE_MAX, gvizThreadPoolWorkerSlot(NULL));
+
+  gvizThreadPool *pool = gvizThreadPoolCreate(3);
+  TEST_ASSERT_NOT_NULL(pool);
+
+  // Calling thread (not a worker) gets slot == threadCount.
+  TEST_ASSERT_EQUAL_size_t(3, gvizThreadPoolWorkerSlot(pool));
+
+  slotCtx sc = {pool, 0, gvizThreadPoolThreadCount(pool)};
+  gvizThreadPoolForRange(pool, 0, 1000, 1, checkSlotRange, &sc);
+  TEST_ASSERT_EQUAL_INT(0, atomic_load(&sc.sawInvalidSlot));
+
+  gvizThreadPoolDestroy(pool);
+}
+
 int main() {
   UNITY_BEGIN();
   RUN_TEST(test_create_and_destroy);
@@ -174,5 +206,6 @@ int main() {
   RUN_TEST(test_forRange_null_pool_runs_serially);
   RUN_TEST(test_forRange_subrange_and_empty);
   RUN_TEST(test_forRange_reusable_across_calls);
+  RUN_TEST(test_workerSlot_boundsAndNullSafety);
   return UNITY_END();
 }

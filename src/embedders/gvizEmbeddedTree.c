@@ -121,7 +121,15 @@ void initializeRTSubtreeRoot(gvizEmbeddedTree *state, size_t root,
   if (gvizArrayIsEmpty(children)) { // Base case
     initializeRTLeaf(state, root, level);
     return;
-  } else if (children->count == 1) // Special case
+  }
+
+  // offsets array distribution. Must happen before the single-child contour
+  // walk below: setAncestorAlongRightContour reads dec[root].offsets, and the
+  // zeroed slab gives the correct 0 displacement for an unmerged child.
+  state->dec[root].offsets = state->offsetsOrigin + state->offsetsOffset;
+  state->offsetsOffset += children->count;
+
+  if (children->count == 1) // Special case
     setAncestorAlongRightContour(state, root);
 
   // Conquering initialization
@@ -130,10 +138,6 @@ void initializeRTSubtreeRoot(gvizEmbeddedTree *state, size_t root,
   state->dec[root].lMost = state->dec[lMostSubtree].lMost;
   state->dec[root].rMost = state->dec[lMostSubtree].rMost;
   state->dec[root].depth = level;
-
-  // offsets array distribution
-  state->dec[root].offsets = state->offsetsOrigin + state->offsetsOffset;
-  state->offsetsOffset += children->count;
 }
 
 void createThreads(gvizEmbeddedTree *state, size_t root, size_t i,
@@ -325,7 +329,7 @@ int gvizEmbeddedTreeRTInit(gvizEmbeddedTree *state, gvizSubgraph subgraph,
   state->parents = GVIZ_ALLOC(sizeof(int) * gvizGraphSize(graph));
   if (!state->parents)
     return -1;
-  if (gvizGraphIsTree(graph, state->parents) < 0) {
+  if (gvizGraphIsTree(graph, state->parents) != 1) {
     return -1;
   }
 

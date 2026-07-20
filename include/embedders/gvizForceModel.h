@@ -1,5 +1,5 @@
-#ifndef _GVIZ_FORCE_MODEL_H_
-#define _GVIZ_FORCE_MODEL_H_
+#ifndef GVIZ_FORCE_MODEL_H
+#define GVIZ_FORCE_MODEL_H
 
 #include <stddef.h>
 

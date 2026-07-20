@@ -1,0 +1,4 @@
+% malformed edges file: second data line is non-numeric
+1 2
+foo bar
+2 3

@@ -1,5 +1,5 @@
-#ifndef __GVIZ_GRAPH_LOADER__
-#define __GVIZ_GRAPH_LOADER__
+#ifndef GVIZ_GRAPH_LOADER_H
+#define GVIZ_GRAPH_LOADER_H
 
 #include "ds/gvizGraph.h"
 
@@ -12,11 +12,14 @@
  */
 typedef struct gvizEdgesFileOptions {
   int directed;    /**< Non-zero for directed edges; 0 for undirected. */
-  int zero_based;  /**< Non-zero if vertex IDs in the file are 0-based. */
   int skip_header; /**< Non-zero to skip the first non-comment line (n m header). */
 } gvizEdgesFileOptions;
 
-/** Fills @p opts with network-repository defaults (undirected, 1-based). */
+/**
+ * Fills @p opts with network-repository defaults (undirected, no header).
+ * External vertex ids of any base are compacted to dense 0-based internal
+ * ids, so no 0-based/1-based option is needed.
+ */
 void gvizEdgesFileOptionsInit(gvizEdgesFileOptions *opts);
 
 /**
@@ -43,5 +46,20 @@ int gvizGraphLoadFromEdgesFile(const char *path,
  * @return 0 on success, -1 on I/O, parse, or allocation failure.
  */
 int gvizGraphLoadFromGexfFile(const char *path, gvizGraph *out);
+
+/**
+ * Loads an undirected graph from a Wavefront OBJ file.
+ *
+ * Each OBJ vertex (`v`) becomes one graph vertex; edges are inferred from face
+ * (`f`) loops (consecutive corners and the closing edge). Texture/normal indices
+ * on face tokens are ignored. Supports 1-based and negative relative vertex
+ * indices per the OBJ spec.
+ *
+ * @p out must be uninitialized on entry. On failure, any partial state is
+ * released and @p out is zeroed.
+ *
+ * @return 0 on success, -1 on I/O, parse, or allocation failure.
+ */
+int gvizGraphLoadFromObjFile(const char *path, gvizGraph *out);
 
 #endif

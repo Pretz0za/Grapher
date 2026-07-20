@@ -1,0 +1,1 @@
+/usr/bin/cc  -arch arm64 -Wl,-search_paths_first -Wl,-headerpad_max_install_names -fsanitize=address CMakeFiles/gvizGRIPKBench.dir/tests/embedders/gvizGRIPKBench.c.o -o tests/embedders/gvizGRIPKBench  libgraphvis.a libplanar.a -lm

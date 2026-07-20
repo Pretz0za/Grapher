@@ -1,5 +1,5 @@
-#ifndef _GVIZ_EMBEDDED_TREE_H_
-#define _GVIZ_EMBEDDED_TREE_H_
+#ifndef GVIZ_EMBEDDED_TREE_H
+#define GVIZ_EMBEDDED_TREE_H
 
 #include "core/alloc.h"
 #include "embedders/gvizEmbeddedGraph.h"

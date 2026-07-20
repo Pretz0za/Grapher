@@ -1,8 +1,10 @@
 #include "algorithms/search/gvizBreadthFirst.h"
+#include "core/alloc.h"
 #include "ds/gvizBitArray.h"
 #include "ds/gvizDeque.h"
 #include "ds/gvizGraph.h"
 #include "ds/gvizSubgraph.h"
+#include <stdlib.h>
 #include <string.h>
 
 static bool search_input_valid(const gvizSubgraph *sg) {
@@ -36,14 +38,18 @@ int gvizSearchBreadthFirst(const gvizSubgraph *sg, gvizSubgraph *out, size_t sou
   if (gvizDequeInit(&queue, sizeof(NodeDepth)) < 0)
     return -1;
 
-  GVIZ_BIT_UNIT seen[GVIZ_ARRAY_UNITS(n)];
-  memset(seen, 0, sizeof(seen));
+  GVIZ_BIT_ARRAY seen = gvizBitArrayAlloc(n);
+  if (!seen) {
+    gvizDequeRelease(&queue);
+    return -1;
+  }
   gvizSetBit(seen, source);
 
   gvizSubgraphShowVertex(out, source);
 
   NodeDepth start = {source, 0};
   if (gvizDequePush(&queue, &start) < 0) {
+    gvizBitArrayFree(seen);
     gvizDequeRelease(&queue);
     return -1;
   }
@@ -75,12 +81,14 @@ int gvizSearchBreadthFirst(const gvizSubgraph *sg, gvizSubgraph *out, size_t sou
 
       NodeDepth next = {neighbor, nextDepth};
       if (gvizDequePush(&queue, &next) < 0) {
+        gvizBitArrayFree(seen);
         gvizDequeRelease(&queue);
         return -1;
       }
     }
   }
 
+  gvizBitArrayFree(seen);
   gvizDequeRelease(&queue);
   return 0;
 }

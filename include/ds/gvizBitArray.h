@@ -1,5 +1,5 @@
-#ifndef _GVIZ_BIT_ARRAY_
-#define _GVIZ_BIT_ARRAY_
+#ifndef GVIZ_BIT_ARRAY_H
+#define GVIZ_BIT_ARRAY_H
 
 // LSB is the zero-th element of the array.
 #include <stdbool.h>

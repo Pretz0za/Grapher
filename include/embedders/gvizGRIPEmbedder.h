@@ -1,5 +1,5 @@
-#ifndef _GVIZ_GRIP_H_
-#define _GVIZ_GRIP_H_
+#ifndef GVIZ_GRIP_EMBEDDER_H
+#define GVIZ_GRIP_EMBEDDER_H
 
 #include "algorithms/search/gvizKNearest.h"
 #include "core/gvizThreadPool.h"
@@ -54,7 +54,6 @@ typedef struct gvizGRIPState {
   size_t currRound;
   size_t *misFiltration;
   gvizArray misBorder;
-  size_t *rounds;
   gvizGRIPDecorators *dec;
   GVIZ_BIT_ARRAY dispCalculated;
   size_t *radiusBfsStamp;
@@ -92,12 +91,22 @@ int gvizGRIPEmbedderInit(gvizGRIPState *state, gvizSubgraph subgraph,
                          size_t diameter, size_t dimension);
 
 /**
- * Configures neighbor counts for placement and refinement. @p knnCapacity sizes
- * per-vertex KNN storage and must be >= both max values. Defaults after init:
- * placement/refinement max 128, capacity 256, @ref GVIZ_GRIP_K_CONSTANT.
+ * Sets the per-vertex KNN storage capacity used by gvizGRIPEmbedderInit
+ * (default 256). Storage is allocated once at init, so this must be called
+ * on a zero-initialized @p state before gvizGRIPEmbedderInit; it has no
+ * effect afterward.
+ */
+void gvizGRIPEmbedderConfigureKnnCapacity(gvizGRIPState *state,
+                                          size_t knnCapacity);
+
+/**
+ * Configures neighbor counts for placement and refinement; both are clamped
+ * to the KNN capacity set at init (see gvizGRIPEmbedderConfigureKnnCapacity).
+ * A value of 0 leaves that max unchanged. Defaults after init: placement/
+ * refinement max 128, @ref GVIZ_GRIP_K_CONSTANT.
  */
 void gvizGRIPEmbedderConfigureK(gvizGRIPState *state, size_t placementKMax,
-                                size_t refinementKMax, size_t knnCapacity,
+                                size_t refinementKMax,
                                 gvizGRIPKPolicy policy);
 
 /**
@@ -108,17 +117,21 @@ void gvizGRIPEmbedderConfigureK(gvizGRIPState *state, size_t placementKMax,
  */
 void gvizGRIPEmbedderConfigureStats(gvizGRIPState *state, bool enable);
 
-/** Returns stats collected by the last call to runRefinementRound. */
+/** Returns stats collected by the last call to gvizGRIPEmbedderRefineRound. */
 gvizGRIPRoundStats gvizGRIPEmbedderLastRoundStats(const gvizGRIPState *state);
 
-/** Runs the full GRIP embedding pipeline on @p state. */
+/**
+ * Runs the full GRIP embedding pipeline on @p state: Begin, then per layer a
+ * bounded number of refinement rounds (stopping early once the max
+ * displacement settles), advancing until the finest layer is refined.
+ * One-shot equivalent of driving Begin / RefineRound / NextStage manually.
+ *
+ * @return 0 on success, -1 if @p state is NULL or Begin produced no layers.
+ */
 int gvizGRIPEmbedderEmbed(gvizGRIPState *state);
 
-/** Releases all memory owned by @p state. */
+/** Releases all memory owned by @p state. Safe after a failed Init. */
 void gvizGRIPEmbedderRelease(gvizGRIPState *state);
-
-/** Builds the MIS filtration and returns the number of layers created. */
-size_t createMISFiltration(gvizGRIPState *state);
 
 /**
  * Starts GRIP embedding: builds MIS filtration, places the final simplex,
@@ -126,10 +139,16 @@ size_t createMISFiltration(gvizGRIPState *state);
  */
 void gvizGRIPEmbedderBegin(gvizGRIPState *state);
 
-/** Advances to the next coarser layer and places its vertices. No-op at layer 0. */
-void beginNewStage(gvizGRIPState *state);
+/**
+ * Advances to the next finer layer and places its vertices. No-op at layer 0.
+ * Also exposed as the "grip.nextStage" action.
+ */
+void gvizGRIPEmbedderNextStage(gvizGRIPState *state);
 
-/** Runs one force-directed refinement round on the current layer. */
-void runRefinementRound(gvizGRIPState *state);
+/**
+ * Runs one force-directed refinement round on the current layer.
+ * Also exposed as the "grip.refineRound" action.
+ */
+void gvizGRIPEmbedderRefineRound(gvizGRIPState *state);
 
 #endif

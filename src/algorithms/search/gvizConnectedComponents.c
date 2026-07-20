@@ -1,7 +1,6 @@
 #include "algorithms/search/gvizConnectedComponents.h"
-#include "algorithms/search/gvizBreadthFirst.h"
 #include "core/alloc.h"
-#include "ds/gvizBitArray.h"
+#include "ds/gvizDeque.h"
 #include "ds/gvizGraph.h"
 #include "ds/gvizSubgraph.h"
 #include <stdlib.h>
@@ -16,36 +15,44 @@ int gvizConnectedComponents(const gvizSubgraph *sg, size_t *labels,
   for (size_t i = 0; i < n; i++)
     labels[i] = SIZE_MAX;
 
-  size_t *distances = GVIZ_ALLOC(n * sizeof(size_t));
-  if (!distances)
+  gvizDeque queue;
+  if (gvizDequeInit(&queue, sizeof(size_t)) < 0)
     return -1;
 
-  gvizSubgraph bfs = gvizSubgraphCreateEmpty(sg->g);
   size_t comp = 0;
-
   for (size_t i = 0; i < n; i++) {
     if (!gvizSubgraphHasVertex(sg, i))
       continue;
     if (labels[i] != SIZE_MAX)
       continue;
 
-    gvizSubgraphRelease(&bfs);
-    bfs = gvizSubgraphCreateEmpty(sg->g);
-    if (gvizSearchBreadthFirst(sg, &bfs, i, 0, distances) < 0) {
-      gvizSubgraphRelease(&bfs);
-      GVIZ_DEALLOC(distances);
+    labels[i] = comp;
+    if (gvizDequePush(&queue, &i) < 0) {
+      gvizDequeRelease(&queue);
       return -1;
     }
 
-    gvizBitArrayIterator it = gvizVertexSubsetIteratorCreate(bfs.vs, n);
-    size_t v;
-    while (gvizBitArrayIterate(&it, &v))
-      labels[v] = comp;
+    while (!gvizDequeIsEmpty(&queue)) {
+      size_t curr;
+      gvizDequePopLeft(&queue, &curr);
+
+      gvizSubgraphNeighborIterator nit =
+          gvizSubgraphNeighborIteratorCreate(sg, curr);
+      size_t neighbor;
+      while (gvizSubgraphNeighborIterate(&nit, &neighbor)) {
+        if (labels[neighbor] != SIZE_MAX)
+          continue;
+        labels[neighbor] = comp;
+        if (gvizDequePush(&queue, &neighbor) < 0) {
+          gvizDequeRelease(&queue);
+          return -1;
+        }
+      }
+    }
     comp++;
   }
 
-  gvizSubgraphRelease(&bfs);
-  GVIZ_DEALLOC(distances);
+  gvizDequeRelease(&queue);
 
   if (out_count)
     *out_count = comp;

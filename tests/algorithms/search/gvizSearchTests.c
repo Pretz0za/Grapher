@@ -206,6 +206,161 @@ void test_searchKNearest_scratch_matches_stateless(void) {
   gvizGraphRelease(&g);
 }
 
+void test_searchBreadthFirst_invalidInputs(void) {
+  gvizGraph g;
+  add_path4(&g);
+  gvizGraphBuildLayout(&g);
+
+  gvizSubgraph sg = gvizSubgraphCreateFull(&g);
+  gvizSubgraph tree = gvizSubgraphCreateEmpty(&g);
+
+  // source outside the subgraph
+  gvizSubgraphHideVertex(&sg, 2);
+  TEST_ASSERT_EQUAL_INT(-1, gvizSearchBreadthFirst(&sg, &tree, 2, 0, NULL));
+  // NULL subgraph / output
+  TEST_ASSERT_EQUAL_INT(-1, gvizSearchBreadthFirst(NULL, &tree, 0, 0, NULL));
+  TEST_ASSERT_EQUAL_INT(-1, gvizSearchBreadthFirst(&sg, NULL, 0, 0, NULL));
+
+  gvizSubgraphRelease(&tree);
+  gvizSubgraphRelease(&sg);
+  gvizGraphRelease(&g);
+}
+
+// BFS in a subgraph must not walk through hidden vertices.
+void test_searchBreadthFirst_respectsHiddenVertices(void) {
+  gvizGraph g;
+  add_path4(&g); // 0-1-2-3
+  gvizGraphBuildLayout(&g);
+
+  gvizSubgraph sg = gvizSubgraphCreateFull(&g);
+  gvizSubgraphHideVertex(&sg, 1); // cuts the path
+
+  gvizSubgraph tree = gvizSubgraphCreateEmpty(&g);
+  size_t distances[4];
+  TEST_ASSERT_EQUAL_INT(0, gvizSearchBreadthFirst(&sg, &tree, 0, 0, distances));
+  TEST_ASSERT_EQUAL_UINT64(1, gvizSubgraphVertexCount(&tree));
+  TEST_ASSERT_EQUAL_UINT64(SIZE_MAX, distances[2]);
+  TEST_ASSERT_EQUAL_UINT64(SIZE_MAX, distances[3]);
+
+  gvizSubgraphRelease(&tree);
+  gvizSubgraphRelease(&sg);
+  gvizGraphRelease(&g);
+}
+
+void test_searchDepthFirst_invalidSource(void) {
+  gvizGraph g;
+  add_path4(&g);
+  gvizGraphBuildLayout(&g);
+
+  gvizSubgraph sg = gvizSubgraphCreateFull(&g);
+  gvizSubgraph tree = gvizSubgraphCreateEmpty(&g);
+  gvizSubgraphHideVertex(&sg, 3);
+
+  TEST_ASSERT_EQUAL_INT(-1, gvizSearchDepthFirst(&sg, &tree, 3));
+  TEST_ASSERT_EQUAL_INT(-1, gvizSearchDepthFirst(NULL, &tree, 0));
+
+  gvizSubgraphRelease(&tree);
+  gvizSubgraphRelease(&sg);
+  gvizGraphRelease(&g);
+}
+
+void test_connectedComponents_emptySubgraph(void) {
+  gvizGraph g;
+  add_triangle(&g);
+  gvizGraphBuildLayout(&g);
+
+  // vertex-induced subgraph with no vertices shown
+  gvizVertexSubset vs = gvizVertexSubsetCreateEmpty(&g);
+  gvizSubgraph sg = gvizSubgraphCreateVertexInduced(&g, vs);
+
+  size_t labels[3];
+  size_t count = 42;
+  TEST_ASSERT_EQUAL_INT(0, gvizConnectedComponents(&sg, labels, &count));
+  TEST_ASSERT_EQUAL_UINT64(0, count);
+  for (int i = 0; i < 3; i++)
+    TEST_ASSERT_EQUAL_UINT64(SIZE_MAX, labels[i]);
+
+  gvizSubgraphRelease(&sg);
+  gvizGraphRelease(&g);
+}
+
+void test_searchKNearest_kLargerThanGraph(void) {
+  gvizGraph g;
+  add_triangle(&g);
+  gvizGraphBuildLayout(&g);
+
+  gvizSubgraph sg = gvizSubgraphCreateFull(&g);
+  gvizFoundVertex found[10];
+  int count = gvizSearchKNearest(&sg, found, 10, 0, NULL);
+  TEST_ASSERT_EQUAL_INT(2, count); // only 2 other vertices exist
+
+  gvizSubgraphRelease(&sg);
+  gvizGraphRelease(&g);
+}
+
+void test_searchKNearest_zeroK(void) {
+  gvizGraph g;
+  add_triangle(&g);
+  gvizGraphBuildLayout(&g);
+
+  gvizSubgraph sg = gvizSubgraphCreateFull(&g);
+  TEST_ASSERT_EQUAL_INT(0, gvizSearchKNearest(&sg, NULL, 0, 0, NULL));
+
+  gvizSubgraphRelease(&sg);
+  gvizGraphRelease(&g);
+}
+
+// The batched multi-source path must agree with per-vertex BFS results.
+void test_searchKNearest_batchMatchesPerVertex(void) {
+  enum { N = 30 };
+  gvizGraph g;
+  gvizGraphInitAtCapacity(&g, 0, N);
+  for (int i = 0; i < N; i++)
+    gvizGraphAddVertex(&g, NULL, NULL, NULL);
+  for (int i = 0; i + 1 < N; i++)
+    gvizGraphAddEdge(&g, i, i + 1); // path graph
+  gvizGraphBuildLayout(&g);
+
+  gvizSubgraph sg = gvizSubgraphCreateFull(&g);
+
+  // 2 visible seeds, everyone else is a target.
+  gvizVertexSubset visible = gvizVertexSubsetCreateEmpty(&g);
+  gvizVertexSubsetShowVertex(visible, 0);
+  gvizVertexSubsetShowVertex(visible, N - 1);
+
+  enum { K = 2 };
+  gvizKNNBatchTarget targets[N - 2];
+  gvizFoundVertex batchOut[(N - 2) * K];
+  size_t t = 0;
+  for (size_t v = 1; v + 1 < N; v++, t++) {
+    targets[t].vertex = v;
+    targets[t].out = batchOut + t * K;
+    targets[t].count = 0;
+  }
+
+  gvizKNearestScratch scratch;
+  TEST_ASSERT_EQUAL_INT(0, gvizKNearestScratchInit(&scratch, N));
+  TEST_ASSERT_EQUAL_INT(0,
+                        gvizSearchKNearestFromVisibleBatch(
+                            &sg, visible, K, targets, N - 2, &scratch));
+
+  for (t = 0; t < N - 2; t++) {
+    gvizFoundVertex direct[K];
+    int directCount = gvizSearchKNearestScratch(&sg, direct, K,
+                                                targets[t].vertex, visible,
+                                                &scratch);
+    TEST_ASSERT_EQUAL_INT(directCount, (int)targets[t].count);
+    // Compare distances (vertex order may differ on ties).
+    for (int i = 0; i < directCount; i++)
+      TEST_ASSERT_EQUAL_UINT64(direct[i].dist, targets[t].out[i].dist);
+  }
+
+  gvizKNearestScratchRelease(&scratch);
+  gvizVertexSubsetRelease(visible);
+  gvizSubgraphRelease(&sg);
+  gvizGraphRelease(&g);
+}
+
 int main(void) {
   UNITY_BEGIN();
   RUN_TEST(test_searchBreadthFirst_path);

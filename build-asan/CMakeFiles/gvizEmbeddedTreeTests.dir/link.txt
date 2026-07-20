@@ -1,0 +1,1 @@
+/usr/bin/cc  -arch arm64 -Wl,-search_paths_first -Wl,-headerpad_max_install_names -fsanitize=address "CMakeFiles/gvizEmbeddedTreeTests.dir/third-party/unity/unity.c.o" CMakeFiles/gvizEmbeddedTreeTests.dir/tests/embedders/gvizEmbeddedTreeTests.c.o -o tests/embedders/gvizEmbeddedTreeTests  libgraphvis.a libplanar.a -lm

@@ -1,21 +1,8 @@
-#ifndef __GRAPH_H__
-#define __GRAPH_H__
+#ifndef GVIZ_GRAPH_H
+#define GVIZ_GRAPH_H
 
-#include "core/alloc.h"
-#include "ds/gvizBitArray.h"
 #include "gvizArray.h"
 #include "gvizSubgraph.h"
-
-#define MAX_LINE_SIZE 4096
-
-/**
- * @brief A position on the terminal screen to print to, using ANSI escape
- * codes.
- */
-typedef struct Position {
-  int x,
-      y; /**< The x and y positions to be passed into the ANSI escape code. */
-} Position;
 
 /**
  * @brief A Vertex's data for an adjacency list graph data structure.

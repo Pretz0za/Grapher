@@ -1,11 +1,17 @@
 #include "ds/gvizGraph.h"
 #include "ds/gvizArray.h"
-#include "ds/gvizBitArray.h"
-#include "utils/helpers.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+static int inBoundsVertex(const gvizGraph *g, size_t idx) {
+  return idx < g->vertices.count;
+}
+
+static int inBoundsVertices(const gvizGraph *g, size_t idx1, size_t idx2) {
+  return idx1 < g->vertices.count && idx2 < g->vertices.count;
+}
 
 int gvizVertexInit(gvizVertex *v, void *data) {
   if (v == NULL)
@@ -101,14 +107,16 @@ void gvizGraphBuildLayout(gvizGraph *g) {
       return;
     }
   } else if (g->layout->nvertices != n) {
-    g->layout->nvertices = n;
-    g->layout->vertexOffsets =
+    size_t *grown =
         GVIZ_REALLOC(g->layout->vertexOffsets, (n + 1) * sizeof(size_t));
-    if (!g->layout->vertexOffsets) {
+    if (!grown) {
+      GVIZ_DEALLOC(g->layout->vertexOffsets);
       GVIZ_DEALLOC(g->layout);
       g->layout = NULL;
       return;
     }
+    g->layout->nvertices = n;
+    g->layout->vertexOffsets = grown;
   }
 
   size_t off = 0;
@@ -207,7 +215,7 @@ void gvizVertexRelease(gvizVertex *v) { gvizArrayRelease(&v->neighbors); }
 
 void gvizGraphRelease(gvizGraph *g) {
   if (!gvizArrayIsEmpty(&g->vertices)) {
-    for (int i = 0; i < g->vertices.count; i++) {
+    for (size_t i = 0; i < g->vertices.count; i++) {
       gvizVertexRelease(gvizArrayAtIndex(&g->vertices, i));
     }
   }
@@ -226,7 +234,7 @@ void gvizGraphRelease(gvizGraph *g) {
 void gvizGraphClear(gvizGraph *g) {
   if (g->vertices.count == 0)
     return;
-  for (int i = 0; i < g->vertices.count; i++) {
+  for (size_t i = 0; i < g->vertices.count; i++) {
     gvizVertexRelease(gvizArrayAtIndex(&g->vertices, i));
   }
   g->vertices.count = 0;
@@ -284,6 +292,35 @@ int gvizGraphClone(gvizGraph *dest, const gvizGraph *src) {
   return 0;
 }
 
+static int graphFillReversed(gvizGraph *dest, const gvizGraph *src) {
+  size_t n = src->vertices.count;
+  gvizArray *reversedLists = GVIZ_ALLOC(sizeof(gvizArray) * n);
+  if (!reversedLists)
+    return -1;
+  for (size_t i = 0; i < n; i++) {
+    gvizArrayInit(&reversedLists[i], sizeof(size_t));
+  }
+
+  for (size_t i = 0; i < n; i++) {
+    gvizArray *curr = gvizGraphGetVertexNeighbors(src, i);
+    for (size_t j = 0; j < curr->count; j++) {
+      gvizArrayPush(reversedLists + *(size_t *)gvizArrayAtIndex(curr, j), &i);
+    }
+  }
+
+  for (size_t i = 0; i < n; i++) {
+    gvizVertex *target = gvizArrayAtIndex(&dest->vertices, i);
+    gvizVertex *source = gvizArrayAtIndex(&src->vertices, i);
+    target->data = source->data;
+    gvizArrayMove(&target->neighbors, &reversedLists[i]);
+  }
+  GVIZ_DEALLOC(reversedLists);
+
+  dest->vertices.count = n;
+  dest->directed = src->directed;
+  return 0;
+}
+
 int gvizGraphCopyReversed(gvizGraph *dest, const gvizGraph *src) {
   if (!src->directed)
     return gvizGraphCopy(dest, src);
@@ -296,101 +333,15 @@ int gvizGraphCopyReversed(gvizGraph *dest, const gvizGraph *src) {
                             src->vertices.count);
   }
 
-  gvizArray *curr;
-  gvizArray reversedLists[src->vertices.count];
-  for (size_t i = 0; i < src->vertices.count; i++) {
-    gvizArrayInit(&reversedLists[i], sizeof(size_t));
-  }
-
-  for (size_t i = 0; i < src->vertices.count; i++) {
-    curr = gvizGraphGetVertexNeighbors(src, i);
-    for (int j = 0; j < curr->count; j++) {
-      gvizArrayPush(reversedLists + *(size_t *)gvizArrayAtIndex(curr, j), &i);
-    }
-  }
-
-  gvizVertex *source;
-  gvizVertex *target;
-  for (size_t i = 0; i < src->vertices.count; i++) {
-    target = gvizArrayAtIndex(&dest->vertices, i);
-    source = gvizArrayAtIndex(&src->vertices, i);
-    target->data = source->data;
-    gvizArrayMove(&target->neighbors, &reversedLists[i]);
-  }
-
-  dest->vertices.count = src->vertices.count;
-  dest->directed = src->directed;
-
-  return 0;
+  return graphFillReversed(dest, src);
 }
 
 int gvizGraphCloneReversed(gvizGraph *dest, const gvizGraph *src) {
   if (!src->directed)
-    return gvizGraphCopy(dest, src);
+    return gvizGraphClone(dest, src);
 
   gvizGraphInitAtCapacity(dest, src->directed, src->vertices.count);
 
-  gvizArray *curr;
-  gvizArray reversedLists[src->vertices.count];
-  for (size_t i = 0; i < src->vertices.count; i++) {
-    gvizArrayInit(&reversedLists[i], sizeof(size_t));
-  }
-
-  for (size_t i = 0; i < src->vertices.count; i++) {
-    curr = gvizGraphGetVertexNeighbors(src, i);
-    for (int j = 0; curr->count; j++) {
-      gvizArrayPush(reversedLists + *(size_t *)gvizArrayAtIndex(curr, j), &i);
-    }
-  }
-
-  gvizVertex *source;
-  gvizVertex *target;
-  for (size_t i = 0; i < src->vertices.count; i++) {
-    target = gvizArrayAtIndex(&dest->vertices, i);
-    source = gvizArrayAtIndex(&src->vertices, i);
-    target->data = source->data;
-    gvizArrayMove(&target->neighbors, &reversedLists[i]);
-  }
-
-  dest->vertices.count = src->vertices.count;
-  dest->directed = src->directed;
-
-  return 0;
+  return graphFillReversed(dest, src);
 }
 
-int printSubtree(gvizGraph *tree, size_t root, Position rootPos,
-                 char *strings[], FILE *stream) {
-  Position newPos;
-  gvizArray *currNeighbors = gvizGraphGetVertexNeighbors(tree, root);
-  char str[32];
-  if (!strings)
-    snprintf(str, sizeof(str), "%zu", root);
-  else
-    strcpy(str, strings[root]);
-
-  printAt(rootPos.x, rootPos.y, str, stream);
-  int dy = 0;
-  for (int i = 0; i < currNeighbors->count; i++) {
-    printAt(rootPos.x, rootPos.y + 1, "│", stream);
-    printAt(rootPos.x, rootPos.y + 2, "└", stream);
-    printAt(rootPos.x + 1, rootPos.y + 2, "──", stream);
-    newPos.x = rootPos.x + 3;
-    newPos.y = rootPos.y + 2;
-    rootPos.y += 2;
-    dy += 2;
-
-    int res = printSubtree(tree, *(size_t *)gvizArrayAtIndex(currNeighbors, i),
-                           newPos, strings, stream);
-
-    if (i + 1 < currNeighbors->count) {
-      for (int j = 1; j < res; j += 2) {
-        printAt(rootPos.x, rootPos.y + j, "│", stream);
-        printAt(rootPos.x, rootPos.y + j + 1, "│", stream);
-      }
-    }
-
-    rootPos.y += res;
-    dy += res;
-  }
-  return dy;
-}

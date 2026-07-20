@@ -36,8 +36,9 @@ int gvizDequeIsEmpty(const gvizDeque *d) { return !d->count; }
 void *gvizDequeAtIndex(const gvizDeque *d, size_t idx) {
   if (idx >= d->count)
     return NULL;
-  size_t offset = (idx + (d->begin - d->arr)) % d->capacity;
-  return (d->arr + (d->elementSize * offset));
+  size_t headIndex = ((char *)d->begin - (char *)d->arr) / d->elementSize;
+  size_t offset = (idx + headIndex) % d->capacity;
+  return ((char *)d->arr) + (d->elementSize * offset);
 }
 
 void gvizDequePopLeft(gvizDeque *d, void *res) {
@@ -64,7 +65,11 @@ void gvizDequePopRight(gvizDeque *d, void *res) {
 
 void *gvizDequePeekLeft(const gvizDeque *d) { return d->begin; }
 void *gvizDequePeekRight(const gvizDeque *d) {
-  return d->count ? ((char *)d->arr) + (d->count - 1) * d->elementSize : NULL;
+  if (!d->count)
+    return NULL;
+  size_t headIndex = ((char *)d->begin - (char *)d->arr) / d->elementSize;
+  size_t tailIndex = (headIndex + d->count - 1) % d->capacity;
+  return ((char *)d->arr) + tailIndex * d->elementSize;
 }
 
 int gvizDequePush(gvizDeque *d, void *item) {

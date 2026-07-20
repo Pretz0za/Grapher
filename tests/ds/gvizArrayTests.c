@@ -583,6 +583,146 @@ void test_gvizArray_PrintUINT64(void) {
   gvizArrayRelease(&arr);
 }
 
+void test_gvizArrayInsert_AtFront(void) {
+  gvizArray arr;
+  gvizArrayInit(&arr, sizeof(int));
+  int vals[] = {2, 3, 4};
+  for (int i = 0; i < 3; i++)
+    gvizArrayPush(&arr, &vals[i]);
+
+  int one = 1;
+  TEST_ASSERT_EQUAL_INT(0, gvizArrayInsert(&arr, &one, 0));
+  TEST_ASSERT_EQUAL_size_t(4, arr.count);
+  int expected[] = {1, 2, 3, 4};
+  for (size_t i = 0; i < 4; i++)
+    TEST_ASSERT_EQUAL_INT(expected[i], *(int *)gvizArrayAtIndex(&arr, i));
+  gvizArrayRelease(&arr);
+}
+
+void test_gvizArrayInsert_Middle_PreservesOrder(void) {
+  gvizArray arr;
+  gvizArrayInit(&arr, sizeof(int));
+  int vals[] = {1, 2, 4, 5};
+  for (int i = 0; i < 4; i++)
+    gvizArrayPush(&arr, &vals[i]);
+
+  int three = 3;
+  TEST_ASSERT_EQUAL_INT(0, gvizArrayInsert(&arr, &three, 2));
+  int expected[] = {1, 2, 3, 4, 5};
+  for (size_t i = 0; i < 5; i++)
+    TEST_ASSERT_EQUAL_INT(expected[i], *(int *)gvizArrayAtIndex(&arr, i));
+  gvizArrayRelease(&arr);
+}
+
+void test_gvizArrayInsert_AtEnd_ActsLikePush(void) {
+  gvizArray arr;
+  gvizArrayInit(&arr, sizeof(int));
+  int one = 1;
+  gvizArrayPush(&arr, &one);
+  int two = 2;
+  TEST_ASSERT_EQUAL_INT(0, gvizArrayInsert(&arr, &two, 1));
+  TEST_ASSERT_EQUAL_INT(2, *(int *)gvizArrayTail(&arr));
+  gvizArrayRelease(&arr);
+}
+
+void test_gvizArrayInsert_GrowsWhenFull(void) {
+  gvizArray arr;
+  gvizArrayInitAtCapacity(&arr, sizeof(int), 2);
+  int a = 1, b = 3;
+  gvizArrayPush(&arr, &a);
+  gvizArrayPush(&arr, &b);
+  int two = 2;
+  TEST_ASSERT_EQUAL_INT(0, gvizArrayInsert(&arr, &two, 1));
+  TEST_ASSERT_EQUAL_size_t(3, arr.count);
+  TEST_ASSERT_EQUAL_INT(1, *(int *)gvizArrayAtIndex(&arr, 0));
+  TEST_ASSERT_EQUAL_INT(2, *(int *)gvizArrayAtIndex(&arr, 1));
+  TEST_ASSERT_EQUAL_INT(3, *(int *)gvizArrayAtIndex(&arr, 2));
+  gvizArrayRelease(&arr);
+}
+
+void test_gvizArraySwapDelete_MiddleTakesLastElement(void) {
+  gvizArray arr;
+  gvizArrayInit(&arr, sizeof(int));
+  int vals[] = {10, 20, 30, 40};
+  for (int i = 0; i < 4; i++)
+    gvizArrayPush(&arr, &vals[i]);
+
+  gvizArraySwapDelete(&arr, 1); // 20 removed; 40 takes its slot
+  TEST_ASSERT_EQUAL_size_t(3, arr.count);
+  TEST_ASSERT_EQUAL_INT(10, *(int *)gvizArrayAtIndex(&arr, 0));
+  TEST_ASSERT_EQUAL_INT(40, *(int *)gvizArrayAtIndex(&arr, 1));
+  TEST_ASSERT_EQUAL_INT(30, *(int *)gvizArrayAtIndex(&arr, 2));
+  gvizArrayRelease(&arr);
+}
+
+void test_gvizArraySwapDelete_LastAndEmpty(void) {
+  gvizArray arr;
+  gvizArrayInit(&arr, sizeof(int));
+  int one = 1;
+  gvizArrayPush(&arr, &one);
+  gvizArraySwapDelete(&arr, 0);
+  TEST_ASSERT_EQUAL_size_t(0, arr.count);
+  gvizArraySwapDelete(&arr, 0); // empty: must be a no-op, not a crash
+  TEST_ASSERT_EQUAL_size_t(0, arr.count);
+  gvizArrayRelease(&arr);
+}
+
+void test_gvizArrayDeleteAtIndex_PreservesOrder(void) {
+  gvizArray arr;
+  gvizArrayInit(&arr, sizeof(int));
+  int vals[] = {1, 2, 3, 4};
+  for (int i = 0; i < 4; i++)
+    gvizArrayPush(&arr, &vals[i]);
+
+  gvizArrayDeleteAtIndex(&arr, 1);
+  TEST_ASSERT_EQUAL_size_t(3, arr.count);
+  TEST_ASSERT_EQUAL_INT(1, *(int *)gvizArrayAtIndex(&arr, 0));
+  TEST_ASSERT_EQUAL_INT(3, *(int *)gvizArrayAtIndex(&arr, 1));
+  TEST_ASSERT_EQUAL_INT(4, *(int *)gvizArrayAtIndex(&arr, 2));
+  gvizArrayRelease(&arr);
+}
+
+void test_gvizArrayTail_ReturnsLast(void) {
+  gvizArray arr;
+  gvizArrayInit(&arr, sizeof(int));
+  for (int i = 1; i <= 5; i++)
+    gvizArrayPush(&arr, &i);
+  TEST_ASSERT_EQUAL_INT(5, *(int *)gvizArrayTail(&arr));
+  gvizArrayRelease(&arr);
+}
+
+// Regression: Copy into a smaller dest must leave dest with an honest
+// capacity — pushes after the copy must not overflow the reallocated block.
+void test_gvizArrayCopy_IntoSmallerDest_ThenPush(void) {
+  gvizArray src, dest;
+  gvizArrayInitAtCapacity(&src, sizeof(int), 64);
+  gvizArrayInitAtCapacity(&dest, sizeof(int), 2);
+  for (int i = 0; i < 40; i++)
+    gvizArrayPush(&src, &i);
+
+  TEST_ASSERT_EQUAL_INT(0, gvizArrayCopy(&dest, &src));
+  TEST_ASSERT_EQUAL_size_t(40, dest.count);
+  TEST_ASSERT_TRUE(dest.capacity >= dest.count);
+
+  for (int i = 40; i < 200; i++)
+    gvizArrayPush(&dest, &i);
+  for (int i = 0; i < 200; i++)
+    TEST_ASSERT_EQUAL_INT(i, *(int *)gvizArrayAtIndex(&dest, (size_t)i));
+
+  gvizArrayRelease(&src);
+  gvizArrayRelease(&dest);
+}
+
+void test_gvizArrayClone_EmptySource(void) {
+  gvizArray src, dest;
+  gvizArrayInit(&src, sizeof(double));
+  TEST_ASSERT_EQUAL_INT(0, gvizArrayClone(&dest, &src));
+  TEST_ASSERT_EQUAL_size_t(0, dest.count);
+  TEST_ASSERT_EQUAL_size_t(sizeof(double), dest.elementSize);
+  gvizArrayRelease(&src);
+  gvizArrayRelease(&dest);
+}
+
 int main(void) {
 
   UNITY_BEGIN();
@@ -615,6 +755,17 @@ int main(void) {
   RUN_TEST(test_gvizArray_WithPointers);
   RUN_TEST(test_gvizArray_WithStructs);
   RUN_TEST(test_gvizArray_PrintUINT64);
+
+  RUN_TEST(test_gvizArrayInsert_AtFront);
+  RUN_TEST(test_gvizArrayInsert_Middle_PreservesOrder);
+  RUN_TEST(test_gvizArrayInsert_AtEnd_ActsLikePush);
+  RUN_TEST(test_gvizArrayInsert_GrowsWhenFull);
+  RUN_TEST(test_gvizArraySwapDelete_MiddleTakesLastElement);
+  RUN_TEST(test_gvizArraySwapDelete_LastAndEmpty);
+  RUN_TEST(test_gvizArrayDeleteAtIndex_PreservesOrder);
+  RUN_TEST(test_gvizArrayTail_ReturnsLast);
+  RUN_TEST(test_gvizArrayCopy_IntoSmallerDest_ThenPush);
+  RUN_TEST(test_gvizArrayClone_EmptySource);
 
   int result = UNITY_END();
 

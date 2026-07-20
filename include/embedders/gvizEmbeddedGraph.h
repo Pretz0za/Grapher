@@ -1,5 +1,5 @@
-#ifndef _GVIZ_EMBEDDED_GRAPH_H_
-#define _GVIZ_EMBEDDED_GRAPH_H_
+#ifndef GVIZ_EMBEDDED_GRAPH_H
+#define GVIZ_EMBEDDED_GRAPH_H
 
 #include "ds/gvizArray.h"
 #include "ds/gvizBitArray.h"
@@ -116,16 +116,6 @@ typedef struct gvizEmbeddedGraph {
   int planarEmbedded;
   gvizSubgraph highlight;
 } gvizEmbeddedGraph;
-
-typedef struct gvizFaceSearchState {
-  const gvizEmbeddedGraph *embedding;
-  gvizArray faces;
-  size_t nextFace;
-  /** CCW vertex cycle written by the last gvizEmbeddedGraphNextFace call that
-   *  returned 0; NULL once enumeration is exhausted. Owned by @p faces. */
-  size_t *face;
-  size_t faceCount;
-} gvizFaceSearchState;
 
 /**
  * Initializes @p embedding to hold @p dimension-dimensional positions for every
@@ -300,58 +290,12 @@ const gvizStatSeries *
 gvizEmbeddedGraphFindStatSeries(const gvizEmbeddedGraph *embedding,
                                 const char *name);
 
-/** Releases memory owned by @p state. */
-void gvizEmbeddedGraphFaceSearchRelease(gvizFaceSearchState *state);
-
 /**
- * Initializes @p state for incremental face enumeration on a planar embedded
- * graph. Call gvizEmbeddedGraphNextFace until it returns 1 (done).
- *
- * @return 0 on success, -1 on failure.
+ * Returns non-zero when a planar rotation system has been installed (see
+ * gvizPlanarApplyRotationToEmbedding in embedders/gvizPlanarEmbedder.h;
+ * face queries on an embedded graph also live there).
  */
-int gvizEmbeddedGraphFaceSearchInit(gvizEmbeddedGraph *embedding,
-                                    gvizFaceSearchState *state);
-
-/**
- * Finds the next unvisited face and stores its CCW vertex cycle in
- * @p state->face. Returns 0 when a face was written, 1 when enumeration is
- * complete, -1 on error.
- */
-int gvizEmbeddedGraphNextFace(gvizEmbeddedGraph *embedding,
-                              gvizFaceSearchState *state);
-
-/**
- * Builds a full subgraph (the face's vertices, plus the boundary edges
- * connecting consecutive vertices in the cycle) for the face most recently
- * written into @p state->face by gvizEmbeddedGraphNextFace. Caller must
- * release @p out.
- *
- * @return 0 on success, -1 when no face is available or on allocation
- * failure.
- */
-int gvizEmbeddedGraphFaceSearchSubgraph(const gvizFaceSearchState *state,
-                                        gvizSubgraph *out);
-
-/**
- * Tests planarity of @p embedding's subgraph and, when planar, installs a CCW
- * rotation system on the parent graph.
- *
- * @return 0 if planar, -2 if non-planar, -1 on error.
- */
-int gvizEmbeddedGraphApplyPlanarEmbedding(gvizEmbeddedGraph *embedding);
-
-/** Returns non-zero when a planar rotation system has been installed. */
 int gvizEmbeddedGraphIsPlanarEmbedded(const gvizEmbeddedGraph *embedding);
-
-/**
- * Finds the combinatorial face whose interior contains (@p worldX, @p worldY)
- * in the current straight-line drawing and writes a full subgraph describing
- * that face into @p out. Caller must release @p out.
- *
- * @return 0 on success, -1 when no face contains the point or on error.
- */
-int gvizEmbeddedGraphFaceSubgraphAt(gvizEmbeddedGraph *embedding, double worldX,
-                                    double worldY, gvizSubgraph *out);
 
 /** Replaces the highlight subgraph; takes ownership of @p highlight's subsets. */
 void gvizEmbeddedGraphSetHighlight(gvizEmbeddedGraph *embedding,

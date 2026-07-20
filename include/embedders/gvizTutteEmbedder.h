@@ -1,5 +1,5 @@
-#ifndef _GVIZ_TUTTE_EMBEDDING_H_
-#define _GVIZ_TUTTE_EMBEDDING_H_
+#ifndef GVIZ_TUTTE_EMBEDDER_H
+#define GVIZ_TUTTE_EMBEDDER_H
 
 #include "ds/gvizArray.h"
 #include "ds/gvizBitArray.h"

@@ -1,0 +1,3 @@
+% Vertex IDs with gaps, to test id compaction
+10 20
+20 30

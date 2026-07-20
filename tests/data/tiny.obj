@@ -1,0 +1,7 @@
+# tiny quad, one face repeated to test edge de-duplication
+v 0.0 0.0 0.0
+v 1.0 0.0 0.0
+v 1.0 1.0 0.0
+v 0.0 1.0 0.0
+f 1 2 3 4
+f 1 2 3 4

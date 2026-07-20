@@ -1,5 +1,5 @@
-#ifndef _GVIZ_SPRING_TUTTE_EMBEDDER_H_
-#define _GVIZ_SPRING_TUTTE_EMBEDDER_H_
+#ifndef GVIZ_SPRING_TUTTE_EMBEDDER_H
+#define GVIZ_SPRING_TUTTE_EMBEDDER_H
 
 #include "ds/gvizArray.h"
 #include "ds/gvizBitArray.h"

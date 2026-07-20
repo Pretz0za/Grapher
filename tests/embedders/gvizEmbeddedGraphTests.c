@@ -277,6 +277,169 @@ void test_drawMask_edgesIfBothVisible(void) {
   gvizGraphRelease(&g);
 }
 
+// POSITIONS: -------------------------------------------------------------------
+
+void test_positions_setAddGet(void) {
+  gvizGraph g;
+  gvizEmbeddedGraph eg = makeEmbedding(&g, 3, 2);
+
+  double p[2] = {1.0, 2.0};
+  gvizEmbeddedGraphSetVPosition(&eg, 1, p);
+  double delta[2] = {0.5, -1.0};
+  gvizEmbeddedGraphAddVPosition(&eg, 1, delta);
+
+  double *got = gvizEmbeddedGraphGetVPosition(&eg, 1);
+  TEST_ASSERT_EQUAL_DOUBLE(1.5, got[0]);
+  TEST_ASSERT_EQUAL_DOUBLE(1.0, got[1]);
+
+  // untouched vertices stay at the zero init
+  double *other = gvizEmbeddedGraphGetVPosition(&eg, 0);
+  TEST_ASSERT_EQUAL_DOUBLE(0.0, other[0]);
+  TEST_ASSERT_EQUAL_DOUBLE(0.0, other[1]);
+
+  gvizEmbeddedGraphRelease(&eg);
+  gvizGraphRelease(&g);
+}
+
+void test_positions_randomizeStaysInBox(void) {
+  gvizGraph g;
+  gvizEmbeddedGraph eg = makeEmbedding(&g, 20, 2);
+
+  gvizEmbeddedGraphRandomizePositions(&eg, 50.0, 1234);
+
+  int anyNonZero = 0;
+  for (size_t v = 0; v < 20; v++) {
+    double *p = gvizEmbeddedGraphGetVPosition(&eg, v);
+    TEST_ASSERT_TRUE(p[0] >= -50.0 && p[0] <= 50.0);
+    TEST_ASSERT_TRUE(p[1] >= -50.0 && p[1] <= 50.0);
+    if (p[0] != 0.0 || p[1] != 0.0)
+      anyNonZero = 1;
+  }
+  TEST_ASSERT_TRUE(anyNonZero);
+
+  // Same seed must reproduce the same placement.
+  double first[2];
+  double *p0 = gvizEmbeddedGraphGetVPosition(&eg, 0);
+  first[0] = p0[0];
+  first[1] = p0[1];
+  gvizEmbeddedGraphRandomizePositions(&eg, 50.0, 1234);
+  TEST_ASSERT_EQUAL_DOUBLE(first[0], p0[0]);
+  TEST_ASSERT_EQUAL_DOUBLE(first[1], p0[1]);
+
+  gvizEmbeddedGraphRelease(&eg);
+  gvizGraphRelease(&g);
+}
+
+void test_positions_saveLoadRoundtrip(void) {
+  gvizGraph g;
+  gvizEmbeddedGraph eg = makeEmbedding(&g, 4, 2);
+  gvizEmbeddedGraphRandomizePositions(&eg, 10.0, 77);
+
+  double saved[4][2];
+  for (size_t v = 0; v < 4; v++) {
+    double *p = gvizEmbeddedGraphGetVPosition(&eg, v);
+    saved[v][0] = p[0];
+    saved[v][1] = p[1];
+  }
+
+  const char *path = "gviz_test_embedding.tmp";
+  TEST_ASSERT_EQUAL_INT(0, gvizEmbeddedGraphSaveEmbedding(&eg, "test", path));
+
+  gvizEmbeddedGraphRandomizePositions(&eg, 10.0, 999); // scramble
+  TEST_ASSERT_EQUAL_INT(0, gvizEmbeddedGraphLoadEmbedding(&eg, path));
+
+  for (size_t v = 0; v < 4; v++) {
+    double *p = gvizEmbeddedGraphGetVPosition(&eg, v);
+    // text format stores %f (6 decimals)
+    TEST_ASSERT_DOUBLE_WITHIN(1e-5, saved[v][0], p[0]);
+    TEST_ASSERT_DOUBLE_WITHIN(1e-5, saved[v][1], p[1]);
+  }
+
+  remove(path);
+  gvizEmbeddedGraphRelease(&eg);
+  gvizGraphRelease(&g);
+}
+
+void test_positions_loadRejectsMismatch(void) {
+  gvizGraph g;
+  gvizEmbeddedGraph eg = makeEmbedding(&g, 4, 2);
+  const char *path = "gviz_test_embedding_mismatch.tmp";
+  TEST_ASSERT_EQUAL_INT(0, gvizEmbeddedGraphSaveEmbedding(&eg, "test", path));
+
+  gvizGraph g2;
+  gvizEmbeddedGraph eg2 = makeEmbedding(&g2, 5, 2); // different vertex count
+  TEST_ASSERT_EQUAL_INT(-1, gvizEmbeddedGraphLoadEmbedding(&eg2, path));
+  TEST_ASSERT_EQUAL_INT(-1, gvizEmbeddedGraphLoadEmbedding(&eg, "no/such/file"));
+
+  remove(path);
+  gvizEmbeddedGraphRelease(&eg);
+  gvizEmbeddedGraphRelease(&eg2);
+  gvizGraphRelease(&g);
+  gvizGraphRelease(&g2);
+}
+
+// HIGHLIGHT: -------------------------------------------------------------------
+
+void test_highlight_setClearOwnership(void) {
+  gvizGraph g;
+  gvizEmbeddedGraph eg = makeEmbedding(&g, 4, 2);
+
+  TEST_ASSERT_FALSE(gvizEmbeddedGraphHasHighlight(&eg));
+  TEST_ASSERT_NULL(gvizEmbeddedGraphGetHighlight(&eg));
+
+  gvizSubgraph hl = gvizSubgraphCreateEmpty(&g);
+  gvizSubgraphShowVertex(&hl, 1);
+  gvizSubgraphShowVertex(&hl, 2);
+  gvizEmbeddedGraphSetHighlight(&eg, hl); // takes ownership
+
+  TEST_ASSERT_TRUE(gvizEmbeddedGraphHasHighlight(&eg));
+  const gvizSubgraph *got = gvizEmbeddedGraphGetHighlight(&eg);
+  TEST_ASSERT_NOT_NULL(got);
+  TEST_ASSERT_TRUE(gvizSubgraphHasVertex(got, 1));
+  TEST_ASSERT_FALSE(gvizSubgraphHasVertex(got, 0));
+
+  // Replacing releases the old highlight (checked by ASAN builds).
+  gvizSubgraph hl2 = gvizSubgraphCreateEmpty(&g);
+  gvizSubgraphShowVertex(&hl2, 3);
+  gvizEmbeddedGraphSetHighlight(&eg, hl2);
+  TEST_ASSERT_TRUE(gvizSubgraphHasVertex(gvizEmbeddedGraphGetHighlight(&eg), 3));
+
+  gvizEmbeddedGraphClearHighlight(&eg);
+  TEST_ASSERT_FALSE(gvizEmbeddedGraphHasHighlight(&eg));
+  gvizEmbeddedGraphClearHighlight(&eg); // double clear is a no-op
+
+  gvizEmbeddedGraphRelease(&eg);
+  gvizGraphRelease(&g);
+}
+
+// DRAW MASK BATCHING: ----------------------------------------------------------
+
+void test_drawMask_clearAndNotify(void) {
+  gvizGraph g;
+  gvizEmbeddedGraph eg = makeEmbedding(&g, 4, 2);
+
+  uint64_t rev = gvizEmbeddedGraphDrawMaskRevision(&eg);
+  gvizEmbeddedGraphDrawMaskClearVertices(&eg);
+  // Show/Hide/Clear do not bump the revision on their own...
+  TEST_ASSERT_EQUAL_UINT64(rev, gvizEmbeddedGraphDrawMaskRevision(&eg));
+  for (size_t v = 0; v < 4; v++)
+    TEST_ASSERT_FALSE(gvizEmbeddedGraphIsVertexVisible(&eg, v));
+
+  gvizEmbeddedGraphDrawMaskShowVertex(&eg, 2);
+  TEST_ASSERT_TRUE(gvizEmbeddedGraphIsVertexVisible(&eg, 2));
+
+  // ...NotifyChanged is the batch commit.
+  gvizEmbeddedGraphDrawMaskNotifyChanged(&eg);
+  TEST_ASSERT_EQUAL_UINT64(rev + 1, gvizEmbeddedGraphDrawMaskRevision(&eg));
+
+  const gvizDrawMask *mask = gvizEmbeddedGraphGetDrawMask(&eg);
+  TEST_ASSERT_NOT_NULL(mask);
+  TEST_ASSERT_EQUAL_INT(GVIZ_DRAW_EDGES_ALL, mask->edgePolicy);
+
+  gvizEmbeddedGraphRelease(&eg);
+  gvizGraphRelease(&g);
+}
+
 int main(void) {
   UNITY_BEGIN();
   RUN_TEST(test_accessors_matchStruct);

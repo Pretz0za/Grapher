@@ -36,8 +36,18 @@ static bool search_input_valid(const gvizSubgraph *sg) {
   return sg && sg->g && sg->g->layout && sg->vs;
 }
 
+static int knn_profile_enabled(void) {
+  static _Atomic int enabled = -1;
+  int e = atomic_load_explicit(&enabled, memory_order_relaxed);
+  if (e < 0) {
+    e = getenv("GVIZ_KNN_PROFILE") != NULL;
+    atomic_store_explicit(&enabled, e, memory_order_relaxed);
+  }
+  return e;
+}
+
 static void knn_profile_record(size_t visited) {
-  if (!getenv("GVIZ_KNN_PROFILE"))
+  if (!knn_profile_enabled())
     return;
   atomic_fetch_add_explicit(&gvizKnnProfile.queries, 1, memory_order_relaxed);
   atomic_fetch_add_explicit(&gvizKnnProfile.visited, visited,

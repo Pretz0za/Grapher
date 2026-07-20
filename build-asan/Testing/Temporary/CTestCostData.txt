@@ -1,0 +1,21 @@
+gvizThreadPoolTests 6 0.0153026
+gvizVecTests 6 0.00857258
+gvizArrayTests 6 0.00852056
+gvizGraphTests 6 0.00928296
+gvizBitArrayTests 6 0.00994497
+gvizDequeTests 6 0.00916969
+gvizSubgraphTests 6 0.0100338
+gvizQuadtreeTests 6 0.00773778
+gvizSearchTests 6 0.00940783
+gvizTreeTests 6 0.00869258
+gvizEmbeddedTreeTests 6 0.0105463
+gvizGraphLoaderTests 6 0.00973451
+gvizGraphsTests 6 0.0108971
+gvizEmbeddedGraphTests 6 0.0101642
+gvizGRIPTests 6 0.0603973
+gvizPlanarTests 3 0.0172532
+gvizTutteTests 6 0.00854137
+gvizTuttePickTests 6 0.00892024
+gvizSpringTutteTests 6 0.00863399
+gvizForceEmbedderTests 6 0.0202938
+---

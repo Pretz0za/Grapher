@@ -1,5 +1,5 @@
-#ifndef __GVIZ_SEARCH_DEPTHFIRST_H__
-#define __GVIZ_SEARCH_DEPTHFIRST_H__
+#ifndef GVIZ_SEARCH_DEPTHFIRST_H
+#define GVIZ_SEARCH_DEPTHFIRST_H
 
 #include "ds/gvizSubgraph.h"
 #include <stddef.h>

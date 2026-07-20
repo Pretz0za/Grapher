@@ -1,6 +1,7 @@
 #include "ds/gvizGraph.h"
 #include "ds/gvizSubgraph.h"
 #include "embedders/gvizEmbeddedGraph.h"
+#include "embedders/gvizPlanarEmbedder.h"
 #include "embedders/gvizTutteEmbedder.h"
 #include "utils/graphs.h"
 
@@ -90,7 +91,7 @@ int main(void) {
       gvizSubgraphShowEdge(&expected, c[3], c[0]);
 
       gvizSubgraph picked = {0};
-      if (gvizEmbeddedGraphFaceSubgraphAt(eg, wx, wy, &picked) != 0) {
+      if (gvizPlanarFaceSubgraphAt(eg, wx, wy, &picked) != 0) {
         interiorMiss++;
         gvizSubgraphRelease(&expected);
         continue;
@@ -114,7 +115,7 @@ int main(void) {
   }
 
   gvizSubgraph outside = {0};
-  if (gvizEmbeddedGraphFaceSubgraphAt(eg, bminX - 10.0, bminY - 10.0,
+  if (gvizPlanarFaceSubgraphAt(eg, bminX - 10.0, bminY - 10.0,
                                      &outside) != 0)
     outsideMiss = 1;
   else

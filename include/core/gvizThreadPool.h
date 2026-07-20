@@ -1,5 +1,5 @@
-#ifndef _GVIZ_THREAD_POOL_H_
-#define _GVIZ_THREAD_POOL_H_
+#ifndef GVIZ_THREAD_POOL_H
+#define GVIZ_THREAD_POOL_H
 
 #include <stddef.h>
 

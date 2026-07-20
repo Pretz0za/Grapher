@@ -34,7 +34,7 @@ static double vertexRadiusIfEnabled(const gvizForceEmbedderState *state,
 
 static void bhAccumulateRepulsion(gvizForceEmbedderState *state,
                                   const gvizQuadtreeNode *node, size_t selfIdx,
-                                  double *vPos, double *acc) {
+                                  double vRadius, double *vPos, double *acc) {
   if (!node || node->mass == 0)
     return;
 
@@ -45,7 +45,6 @@ static void bhAccumulateRepulsion(gvizForceEmbedderState *state,
       if (idx == selfIdx)
         continue;
       double *uPos = state->positionsScratch + idx * 2;
-      double vRadius = vertexRadiusIfEnabled(state, selfIdx);
       double otherRadius = vertexRadiusIfEnabled(state, idx);
       state->model->repulsive(2, vPos, uPos, state->mass[selfIdx],
                               state->mass[idx], vRadius, otherRadius,
@@ -63,7 +62,6 @@ static void bhAccumulateRepulsion(gvizForceEmbedderState *state,
 
   if (ratio < state->theta) {
     double com[2] = {comX, comY};
-    double vRadius = vertexRadiusIfEnabled(state, selfIdx);
     state->model->repulsive(2, vPos, com, state->mass[selfIdx], node->mass,
                             vRadius, 0.0, state->overlapConstant,
                             state->edgeLength, acc);
@@ -72,7 +70,7 @@ static void bhAccumulateRepulsion(gvizForceEmbedderState *state,
 
   for (int q = 0; q < GVIZ_QUAD_COUNT; q++)
     bhAccumulateRepulsion(state, gvizQuadtreeNodeChild(node, (gvizQuadrant)q),
-                          selfIdx, vPos, acc);
+                          selfIdx, vRadius, vPos, acc);
 }
 
 static void computeForceRange(void *ctx, size_t begin, size_t end) {
@@ -100,14 +98,14 @@ static void computeForceRange(void *ctx, size_t begin, size_t end) {
       state->model->attractive(2, vPos, uPos, state->edgeLength, attF);
     }
 
+    double vRadius = vertexRadiusIfEnabled(state, i);
     if (state->barnesHutEnabled) {
-      bhAccumulateRepulsion(state, root, i, vPos, repF);
+      bhAccumulateRepulsion(state, root, i, vRadius, vPos, repF);
     } else {
       for (size_t j = 0; j < state->vertexCount; j++) {
         if (j == i)
           continue;
         double *otherPos = state->positionsScratch + j * 2;
-        double vRadius = vertexRadiusIfEnabled(state, i);
         double otherRadius = vertexRadiusIfEnabled(state, j);
         state->model->repulsive(2, vPos, otherPos, state->mass[i],
                                 state->mass[j], vRadius, otherRadius,
@@ -124,25 +122,6 @@ static void computeForceRange(void *ctx, size_t begin, size_t end) {
     double gravityMag = state->gravityK * (double)(state->degree[i] + 1);
     gvizPairwiseGravityForce(2, vPos, gravityMag, f);
   }
-}
-
-// Rigid translation is a zero mode of the force model (every pairwise force
-// is radial, so the total sums to zero under a uniform shift), but
-// Barnes-Hut approximation error can leave a small residual net force each
-// round, which would otherwise let the whole layout drift or spin
-// indefinitely. Subtracting the mean displacement pins the centroid without
-// altering any vertex's motion relative to the others.
-static void removeNetTranslation(gvizForceEmbedderState *state) {
-  if (state->vertexCount == 0)
-    return;
-
-  double mean[2] = {0.0, 0.0};
-  for (size_t i = 0; i < state->vertexCount; i++)
-    gvizVecAxpy(2, 1.0, state->appliedDisp + i * 2, mean);
-  gvizVecScale(2, 1.0 / (double)state->vertexCount, mean);
-
-  for (size_t i = 0; i < state->vertexCount; i++)
-    gvizVecAxpy(2, -1.0, mean, state->appliedDisp + i * 2);
 }
 
 static void computeSwingTractionRange(void *ctx, size_t begin, size_t end) {
@@ -305,7 +284,8 @@ int gvizForceEmbedderInit(gvizForceEmbedderState *state, gvizSubgraph subgraph,
   state->overlapConstant = GVIZ_FORCE_EMBEDDER_OVERLAP_CONSTANT_DEFAULT;
   state->preventOverlap = 0;
   state->barnesHutEnabled = 1;
-  state->pool = NULL;
+  // NULL pool is fine: parallel phases fall back to running serially
+  state->pool = gvizThreadPoolCreate(0);
   state->quadtreeReady = 0;
 
   if (gvizEmbeddedGraphAddAction(embedding, "forceEmbedder.step",
@@ -472,8 +452,6 @@ double gvizForceEmbedderStep(gvizForceEmbedderState *state) {
   gvizThreadPoolForRange(state->pool, 0, state->vertexCount,
                          FORCE_EMBEDDER_PARALLEL_GRAIN, applySpeedRange,
                          state);
-
-  // removeNetTranslation(state);
 
   double maxDisp = 0.0;
   double sumAtt = 0.0, sumRep = 0.0;

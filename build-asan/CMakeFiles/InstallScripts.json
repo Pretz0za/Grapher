@@ -1,0 +1,7 @@
+{
+	"InstallScripts" : 
+	[
+		"/Users/abdulaziz.alahmadi/gviz/build-asan/cmake_install.cmake"
+	],
+	"Parallel" : false
+}

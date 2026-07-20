@@ -1,5 +1,5 @@
-#ifndef __GVIZ_SEARCH_KNEAREST_H__
-#define __GVIZ_SEARCH_KNEAREST_H__
+#ifndef GVIZ_SEARCH_KNEAREST_H
+#define GVIZ_SEARCH_KNEAREST_H
 
 #include "ds/gvizDeque.h"
 #include "ds/gvizSubgraph.h"

@@ -1,6 +1,7 @@
 #include "ds/gvizGraph.h"
 #include "ds/gvizSubgraph.h"
 #include "embedders/gvizGRIPEmbedder.h"
+#include "embedders/gvizGRIPInternal.h"
 #include "utils/graphs.h"
 #include <math.h>
 #include <stdio.h>
@@ -54,7 +55,7 @@ static BenchScore runPolicy(const gvizGraph *graph, size_t dim,
   }
 
   gvizGRIPEmbedderConfigureK(&state, policy->placementK, policy->refinementK,
-                             256, policy->policy);
+                             policy->policy);
   gvizThreadPoolDestroy(state.pool);
   state.pool = NULL;
 
@@ -66,7 +67,7 @@ static BenchScore runPolicy(const gvizGraph *graph, size_t dim,
     double lastDisp = 0.0;
 
     for (size_t r = 0; r < ROUNDS_PER_LAYER; r++) {
-      runRefinementRound(&state);
+      gvizGRIPEmbedderRefineRound(&state);
       gvizGRIPRoundStats stats = gvizGRIPEmbedderLastRoundStats(&state);
       if (stats.maxDisplacement > prevDisp * 1.05)
         layerOsc++;
@@ -81,11 +82,11 @@ static BenchScore runPolicy(const gvizGraph *graph, size_t dim,
     if (lastDisp > EQUILIBRIUM_DISP)
       score.layersNotConverged++;
 
-    beginNewStage(&state);
+    gvizGRIPEmbedderNextStage(&state);
   }
 
   for (size_t r = 0; r < ROUNDS_PER_LAYER; r++)
-    runRefinementRound(&state);
+    gvizGRIPEmbedderRefineRound(&state);
   {
     gvizGRIPRoundStats stats = gvizGRIPEmbedderLastRoundStats(&state);
     if (stats.maxDisplacement > score.worstLayerFinalDisp)

@@ -1,0 +1,862 @@
+Start testing: Jul 20 09:05 +03
+----------------------------------------------------------
+1/20 Testing: gvizThreadPoolTests
+1/20 Test: gvizThreadPoolTests
+Command: "/Users/abdulaziz.alahmadi/gviz/build-asan/tests/core/gvizThreadPoolTests"
+Directory: /Users/abdulaziz.alahmadi/gviz/build-asan
+"gvizThreadPoolTests" start time: Jul 20 09:05 +03
+Output:
+----------------------------------------------------------
+/Users/abdulaziz.alahmadi/gviz/tests/core/gvizThreadPoolTests.c:199:test_create_and_destroy:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/core/gvizThreadPoolTests.c:200:test_create_default_thread_count:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/core/gvizThreadPoolTests.c:201:test_null_safety:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/core/gvizThreadPoolTests.c:202:test_submit_runs_all_tasks:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/core/gvizThreadPoolTests.c:203:test_submit_passes_argument:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/core/gvizThreadPoolTests.c:204:test_destroy_drains_pending_tasks:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/core/gvizThreadPoolTests.c:205:test_forRange_covers_range_exactly_once:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/core/gvizThreadPoolTests.c:206:test_forRange_null_pool_runs_serially:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/core/gvizThreadPoolTests.c:207:test_forRange_subrange_and_empty:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/core/gvizThreadPoolTests.c:208:test_forRange_reusable_across_calls:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/core/gvizThreadPoolTests.c:209:test_workerSlot_boundsAndNullSafety:PASS
+
+-----------------------
+11 Tests 0 Failures 0 Ignored 
+OK
+<end of output>
+Test time =   0.09 sec
+----------------------------------------------------------
+Test Passed.
+"gvizThreadPoolTests" end time: Jul 20 09:05 +03
+"gvizThreadPoolTests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+2/20 Testing: gvizVecTests
+2/20 Test: gvizVecTests
+Command: "/Users/abdulaziz.alahmadi/gviz/build-asan/tests/core/gvizVecTests"
+Directory: /Users/abdulaziz.alahmadi/gviz/build-asan
+"gvizVecTests" start time: Jul 20 09:05 +03
+Output:
+----------------------------------------------------------
+/Users/abdulaziz.alahmadi/gviz/tests/core/gvizVecTests.c:138:test_gvizVecCopyAndDot:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/core/gvizVecTests.c:139:test_gvizVecNormAndScale:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/core/gvizVecTests.c:140:test_gvizVecAxpy:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/core/gvizVecTests.c:141:test_gvizVecAccKKForce:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/core/gvizVecTests.c:142:test_gvizVecAccGRIPFRRepForce:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/core/gvizVecTests.c:143:test_gvizVecAccGRIPFRAttForce:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/core/gvizVecTests.c:144:test_gvizVecAccFRAttForce:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/core/gvizVecTests.c:145:test_gvizVecAccFRRepForce:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/core/gvizVecTests.c:146:test_gvizVecAccFRRepForce_radiusSumShrinksEffectiveDistance:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/core/gvizVecTests.c:147:test_gvizVecAccFRRepForce_overlapUsesConstantForce:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/core/gvizVecTests.c:148:test_gvizVecAccFRRepForce_coincidentIsFiniteAndBounded:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/core/gvizVecTests.c:149:test_gvizVecDim4:PASS
+
+-----------------------
+12 Tests 0 Failures 0 Ignored 
+OK
+<end of output>
+Test time =   0.05 sec
+----------------------------------------------------------
+Test Passed.
+"gvizVecTests" end time: Jul 20 09:05 +03
+"gvizVecTests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+3/20 Testing: gvizArrayTests
+3/20 Test: gvizArrayTests
+Command: "/Users/abdulaziz.alahmadi/gviz/build-asan/tests/ds/gvizArrayTests"
+Directory: /Users/abdulaziz.alahmadi/gviz/build-asan
+"gvizArrayTests" start time: Jul 20 09:05 +03
+Output:
+----------------------------------------------------------
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizArrayTests.c:730:test_gvizArrayInit_WithValidPointer:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizArrayTests.c:731:test_gvizArrayInit_WithNullPointer:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizArrayTests.c:732:test_gvizArrayInitAtCapacity_WithSpecificCapacity:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizArrayTests.c:733:test_gvizArrayIsEmpty_OnNewArray:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizArrayTests.c:734:test_gvizArrayPush_SingleInteger:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizArrayTests.c:735:test_gvizArrayPush_MultipleIntegers:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizArrayTests.c:736:test_gvizArrayPop_SingleElement:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizArrayTests.c:737:test_gvizArrayPop_EmptyArray:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizArrayTests.c:738:test_gvizArrayPop_MultipleElements:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizArrayTests.c:739:test_gvizArrayFindOne_ElementExists:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizArrayTests.c:740:test_gvizArrayFindOne_ElementNotFound:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizArrayTests.c:741:test_gvizArrayFindOne_FirstOfDuplicates:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizArrayTests.c:742:test_gvizArrayFindOneAndDelete_ElementExists:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizArrayTests.c:743:test_gvizArrayFindOneAndDelete_ElementNotFound:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizArrayTests.c:744:test_gvizArrayFindOneAndDelete_DeleteFirst:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizArrayTests.c:745:test_gvizArrayFindOneAndDelete_DeleteLast:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizArrayTests.c:746:test_gvizArrayCopy_Basic:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizArrayTests.c:747:test_gvizArrayClone_Basic:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizArrayTests.c:748:test_gvizArrayMove_SrcInvalidAfterMove:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizArrayTests.c:749:test_gvizArray_AutomaticReallocation:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizArrayTests.c:750:test_gvizArray_LargeNumberOfElements:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizArrayTests.c:751:test_gvizArray_LargeElementSize:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizArrayTests.c:752:test_gvizArray_RepeatedPushPopCycles:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizArrayTests.c:753:test_gvizArray_DeleteFromLargeArray:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizArrayTests.c:754:test_gvizArray_WithDoubles:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizArrayTests.c:755:test_gvizArray_WithPointers:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizArrayTests.c:756:test_gvizArray_WithStructs:PASS
+[ 1, 1, 1, 1, 1,  ]
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizArrayTests.c:757:test_gvizArray_PrintUINT64:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizArrayTests.c:759:test_gvizArrayInsert_AtFront:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizArrayTests.c:760:test_gvizArrayInsert_Middle_PreservesOrder:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizArrayTests.c:761:test_gvizArrayInsert_AtEnd_ActsLikePush:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizArrayTests.c:762:test_gvizArrayInsert_GrowsWhenFull:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizArrayTests.c:763:test_gvizArraySwapDelete_MiddleTakesLastElement:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizArrayTests.c:764:test_gvizArraySwapDelete_LastAndEmpty:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizArrayTests.c:765:test_gvizArrayDeleteAtIndex_PreservesOrder:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizArrayTests.c:766:test_gvizArrayTail_ReturnsLast:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizArrayTests.c:767:test_gvizArrayCopy_IntoSmallerDest_ThenPush:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizArrayTests.c:768:test_gvizArrayClone_EmptySource:PASS
+
+-----------------------
+38 Tests 0 Failures 0 Ignored 
+OK
+
+<end of output>
+Test time =   0.05 sec
+----------------------------------------------------------
+Test Passed.
+"gvizArrayTests" end time: Jul 20 09:05 +03
+"gvizArrayTests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+4/20 Testing: gvizGraphTests
+4/20 Test: gvizGraphTests
+Command: "/Users/abdulaziz.alahmadi/gviz/build-asan/tests/ds/gvizGraphTests"
+Directory: /Users/abdulaziz.alahmadi/gviz/build-asan
+"gvizGraphTests" start time: Jul 20 09:05 +03
+Output:
+----------------------------------------------------------
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizGraphTests.c:876:test_vertexInit_WithValidData:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizGraphTests.c:877:test_vertexInit_WithNullPointer:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizGraphTests.c:878:test_vertexInit_WithNullData:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizGraphTests.c:879:test_vertexInitAtCapacity_WithSpecificCapacity:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizGraphTests.c:880:test_vertexCopy_Basic:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizGraphTests.c:881:test_vertexClone_CreatesIndependentCopy:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizGraphTests.c:882:test_graphInit_DirectedGraph:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizGraphTests.c:883:test_graphInit_UndirectedGraph:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizGraphTests.c:884:test_graphInitAtCapacity_WithSpecificCapacity:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizGraphTests.c:885:test_graphInit_WithNullPointer:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizGraphTests.c:886:test_graphAddVertex_SingleVertex:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizGraphTests.c:887:test_graphAddVertex_MultipleVertices:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizGraphTests.c:888:test_graphAddVertex_RetrieveVertexData:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizGraphTests.c:889:test_graphAddVertex_OutOfBounds:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizGraphTests.c:890:test_graphAddEdge_SimpleEdge:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizGraphTests.c:891:test_graphAddEdge_UndirectedGraphBiDirectional:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizGraphTests.c:892:test_graphAddEdge_InvalidIndices:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizGraphTests.c:893:test_graphAddEdge_SelfLoop:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizGraphTests.c:894:test_graphAddEdge_MultipleEdges:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizGraphTests.c:895:test_graphRemoveEdge_Basic:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizGraphTests.c:896:test_graphRemoveEdge_NonExistentEdge:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizGraphTests.c:897:test_graphRemoveEdge_InvalidIndices:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizGraphTests.c:898:test_graphRemoveEdge_UndirectedRemovesBoth:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizGraphTests.c:899:test_graphGetVertexNeighbors_WithEdges:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizGraphTests.c:900:test_graphGetVertexNeighbors_NoNeighbors:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizGraphTests.c:901:test_graphGetVertexNeighbors_InvalidIndex:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizGraphTests.c:902:test_graphCopy_Basic:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizGraphTests.c:903:test_graphClone_Independent:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizGraphTests.c:904:test_graphCopyReversed_DirectedGraph:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizGraphTests.c:905:test_graphCloneReversed_DirectedGraph:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizGraphTests.c:906:test_graphCloneReversed_UndirectedFallsBackToCopy:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizGraphTests.c:907:test_graphClear_RemovesAllVertices:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizGraphTests.c:908:test_graphAddVertex_LargeNumberOfVertices:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizGraphTests.c:909:test_graph_CompleteGraph:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizGraphTests.c:910:test_graph_LinearChain:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizGraphTests.c:911:test_graph_StarTopology:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizGraphTests.c:912:test_graph_LargeEdgeSet:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizGraphTests.c:913:test_graph_DirectedAsymmetry:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizGraphTests.c:914:test_graph_UndirectedSymmetry:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizGraphTests.c:915:test_graph_BuildAndModify:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizGraphTests.c:916:test_graph_EdgeExistsInvalidIndices:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizGraphTests.c:917:test_graphLoadFromEdgesFile_SampleUndirected:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizGraphTests.c:918:test_graphLoadFromEdgesFile_Directed:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizGraphTests.c:919:test_graphLoadFromEdgesFile_MissingFile:PASS
+
+-----------------------
+44 Tests 0 Failures 0 Ignored 
+OK
+
+<end of output>
+Test time =   0.06 sec
+----------------------------------------------------------
+Test Passed.
+"gvizGraphTests" end time: Jul 20 09:05 +03
+"gvizGraphTests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+5/20 Testing: gvizBitArrayTests
+5/20 Test: gvizBitArrayTests
+Command: "/Users/abdulaziz.alahmadi/gviz/build-asan/tests/ds/gvizBitArrayTests"
+Directory: /Users/abdulaziz.alahmadi/gviz/build-asan
+"gvizBitArrayTests" start time: Jul 20 09:05 +03
+Output:
+----------------------------------------------------------
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizBitArrayTests.c:880:test_setBit_single:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizBitArrayTests.c:881:test_setBit_multiple_same_unit:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizBitArrayTests.c:882:test_setBit_crosses_units:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizBitArrayTests.c:883:test_testBit_unset:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizBitArrayTests.c:884:test_testBit_returns_nonzero:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizBitArrayTests.c:886:test_clearBit_single:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizBitArrayTests.c:887:test_clearBit_preserves_others:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizBitArrayTests.c:888:test_clearBit_unset_bit:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizBitArrayTests.c:889:test_clearBit_crosses_units:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizBitArrayTests.c:891:test_all_bits_in_unit:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizBitArrayTests.c:892:test_alternating_bits:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizBitArrayTests.c:893:test_set_then_clear_all:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizBitArrayTests.c:894:test_toggle_pattern:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizBitArrayTests.c:896:test_single_bit_array:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizBitArrayTests.c:897:test_boundary_between_units:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizBitArrayTests.c:898:test_large_bit_index:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizBitArrayTests.c:899:test_multiple_units_boundary:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizBitArrayTests.c:901:test_array_units_exact_fit:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizBitArrayTests.c:902:test_array_units_partial:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizBitArrayTests.c:903:test_array_units_zero:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizBitArrayTests.c:905:test_no_overflow_single_unit:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizBitArrayTests.c:906:test_isolation_between_units:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizBitArrayTests.c:907:test_clear_isolation:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizBitArrayTests.c:908:test_independent_units:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizBitArrayTests.c:910:test_lsb_is_zero:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizBitArrayTests.c:911:test_msb_is_last:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizBitArrayTests.c:912:test_bit_order:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizBitArrayTests.c:914:test_sparse_large_array:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizBitArrayTests.c:915:test_dense_large_array:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizBitArrayTests.c:916:test_random_access_pattern:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizBitArrayTests.c:918:test_or_disjoint_bits:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizBitArrayTests.c:919:test_or_overlapping_bits:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizBitArrayTests.c:920:test_or_preserves_dest_only_bits:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizBitArrayTests.c:921:test_and_disjoint_clears_all:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizBitArrayTests.c:922:test_and_keeps_common_bits:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizBitArrayTests.c:923:test_or_and_cross_word_boundary:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizBitArrayTests.c:924:test_or_and_partial_last_word:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizBitArrayTests.c:926:test_iterate_empty_array:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizBitArrayTests.c:927:test_iterate_zero_nbits:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizBitArrayTests.c:928:test_iterate_single_bit:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizBitArrayTests.c:929:test_iterate_multiple_bits_same_byte:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizBitArrayTests.c:930:test_iterate_cross_byte_boundary:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizBitArrayTests.c:931:test_iterate_cross_word_boundary:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizBitArrayTests.c:932:test_iterate_exhausted_returns_false:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizBitArrayTests.c:933:test_iterate_ascending_order:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizBitArrayTests.c:934:test_iterate_matches_test_bit_stride:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizBitArrayTests.c:935:test_iterate_matches_test_bit_dense:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizBitArrayTests.c:936:test_iterate_padding_bits_excluded:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizBitArrayTests.c:937:test_iterate_sparse_large:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizBitArrayTests.c:938:test_popcount_empty:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizBitArrayTests.c:939:test_popcount_all_set:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizBitArrayTests.c:940:test_popcount_sparse:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizBitArrayTests.c:941:test_popcount_range_middle:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizBitArrayTests.c:942:test_popcount_range_cross_word:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizBitArrayTests.c:943:test_iterator_range_matches_popcount:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizBitArrayTests.c:944:test_bitarray_api_wrappers:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizBitArrayTests.c:945:test_copy_bits_preserves_tail:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizBitArrayTests.c:946:test_clear_range_small_buffer:PASS
+
+-----------------------
+58 Tests 0 Failures 0 Ignored 
+OK
+<end of output>
+Test time =   0.06 sec
+----------------------------------------------------------
+Test Passed.
+"gvizBitArrayTests" end time: Jul 20 09:05 +03
+"gvizBitArrayTests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+6/20 Testing: gvizDequeTests
+6/20 Test: gvizDequeTests
+Command: "/Users/abdulaziz.alahmadi/gviz/build-asan/tests/ds/gvizDequeTests"
+Directory: /Users/abdulaziz.alahmadi/gviz/build-asan
+"gvizDequeTests" start time: Jul 20 09:05 +03
+Output:
+----------------------------------------------------------
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizDequeTests.c:690:test_dequeInit_int:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizDequeTests.c:691:test_dequeInit_double:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizDequeTests.c:692:test_dequeInit_struct:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizDequeTests.c:693:test_dequeInitAtCapacity:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizDequeTests.c:694:test_dequeSize_empty:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizDequeTests.c:696:test_dequePush_single_int:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizDequeTests.c:697:test_dequePush_multiple:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizDequeTests.c:698:test_dequePush_capacity_growth:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizDequeTests.c:700:test_dequePeekLeft_single:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizDequeTests.c:701:test_dequePeekRight_single:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizDequeTests.c:702:test_dequePeekLeft_multiple:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizDequeTests.c:703:test_dequePeekRight_multiple:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizDequeTests.c:704:test_dequePeekLeft_empty:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizDequeTests.c:705:test_dequePeekRight_empty:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizDequeTests.c:707:test_dequePopLeft_single:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizDequeTests.c:708:test_dequePopRight_single:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizDequeTests.c:709:test_dequePopLeft_multiple:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizDequeTests.c:710:test_dequePopRight_multiple:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizDequeTests.c:711:test_dequePopLeft_and_PopRight_mixed:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizDequeTests.c:713:test_dequeAtIndex_valid:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizDequeTests.c:714:test_dequeAtIndex_out_of_bounds:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizDequeTests.c:715:test_dequeAtIndex_empty:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizDequeTests.c:717:test_deque_double:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizDequeTests.c:718:test_deque_struct:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizDequeTests.c:719:test_deque_char:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizDequeTests.c:720:test_deque_pointer:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizDequeTests.c:722:test_deque_as_queue:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizDequeTests.c:723:test_deque_as_stack:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizDequeTests.c:725:test_deque_alternating_push_pop:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizDequeTests.c:726:test_deque_empty_after_all_pops:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizDequeTests.c:728:test_deque_wraparound_left_pops:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizDequeTests.c:729:test_deque_wraparound_right_pops:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizDequeTests.c:731:test_dequeAtIndex_after_popLeft_shifted_head:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizDequeTests.c:732:test_dequeAtIndex_wrapped_tail:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizDequeTests.c:733:test_dequePeekRight_after_popLeft_shifted_head:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizDequeTests.c:734:test_dequePeekRight_wrapped_tail:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizDequeTests.c:735:test_dequePopRight_wrapped_tail:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizDequeTests.c:736:test_deque_growth_from_wrapped_state:PASS
+
+-----------------------
+38 Tests 0 Failures 0 Ignored 
+OK
+<end of output>
+Test time =   0.06 sec
+----------------------------------------------------------
+Test Passed.
+"gvizDequeTests" end time: Jul 20 09:05 +03
+"gvizDequeTests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+7/20 Testing: gvizSubgraphTests
+7/20 Test: gvizSubgraphTests
+Command: "/Users/abdulaziz.alahmadi/gviz/build-asan/tests/ds/gvizSubgraphTests"
+Directory: /Users/abdulaziz.alahmadi/gviz/build-asan
+"gvizSubgraphTests" start time: Jul 20 09:05 +03
+Output:
+----------------------------------------------------------
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizSubgraphTests.c:553:test_graphLayout_null_on_init:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizSubgraphTests.c:554:test_graphBuildLayout_prefix_sums:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizSubgraphTests.c:555:test_graphBuildLayout_rebuild_after_edge_add:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizSubgraphTests.c:556:test_graphRelease_frees_layout:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizSubgraphTests.c:557:test_graphClear_frees_layout:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizSubgraphTests.c:558:test_graphEdgeCount_requires_layout:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizSubgraphTests.c:559:test_graphEdgeCount_undirected_adj_entries:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizSubgraphTests.c:560:test_graphEdgeCount_rebuild_after_remove:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizSubgraphTests.c:561:test_edgeSubset_shares_graph_layout:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizSubgraphTests.c:562:test_edgeSubset_two_instances_share_layout:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizSubgraphTests.c:563:test_edgeSubset_show_hide_edge:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizSubgraphTests.c:564:test_edgeSubset_independent_of_subgraph:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizSubgraphTests.c:565:test_subgraphCreateEmpty:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizSubgraphTests.c:566:test_subgraphCreateVertexInduced:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizSubgraphTests.c:567:test_vertexSubset_show_hide:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizSubgraphTests.c:568:test_makeEdgeSubset_vertex_induced:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizSubgraphTests.c:569:test_makeEdgeSubset_partial_vertices:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizSubgraphTests.c:570:test_vertex_induced_query_without_edge_subset:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizSubgraphTests.c:571:test_subgraph_view_hide_vertex_and_edge:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizSubgraphTests.c:572:test_subgraph_query_counts:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizSubgraphTests.c:573:test_subgraph_vertex_iteration:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizSubgraphTests.c:574:test_subgraph_neighbor_iteration:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizSubgraphTests.c:575:test_subgraph_query_vertex_induced_partial:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizSubgraphTests.c:576:test_subgraph_rebuild_full_preserves_bits:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizSubgraphTests.c:577:test_subgraph_rebuild_vertex_induced_no_edge_subset:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizSubgraphTests.c:578:test_subgraph_rebuild_drops_removed_edge:PASS
+
+-----------------------
+26 Tests 0 Failures 0 Ignored 
+OK
+
+<end of output>
+Test time =   0.06 sec
+----------------------------------------------------------
+Test Passed.
+"gvizSubgraphTests" end time: Jul 20 09:05 +03
+"gvizSubgraphTests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+8/20 Testing: gvizQuadtreeTests
+8/20 Test: gvizQuadtreeTests
+Command: "/Users/abdulaziz.alahmadi/gviz/build-asan/tests/ds/gvizQuadtreeTests"
+Directory: /Users/abdulaziz.alahmadi/gviz/build-asan
+"gvizQuadtreeTests" start time: Jul 20 09:05 +03
+Output:
+----------------------------------------------------------
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizQuadtreeTests.c:348:test_quadtreeInit_defaultNodesPerCell:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizQuadtreeTests.c:349:test_quadtreeInit_empty:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizQuadtreeTests.c:350:test_quadtreeInit_singlePoint:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizQuadtreeTests.c:352:test_quadtreeInit_subdividesPastCapacity:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizQuadtreeTests.c:353:test_quadtreeInit_respectsNodesPerCell:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizQuadtreeTests.c:354:test_quadtreeInit_duplicatePointsDoNotInfiniteLoop:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizQuadtreeTests.c:356:test_quadtreeCenterOfMass_isMeanOfAllPoints:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizQuadtreeTests.c:358:test_quadtreeRebuild_reflectsNewPositions:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizQuadtreeTests.c:359:test_quadtreeRebuild_reusesArenaBlocks:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizQuadtreeTests.c:360:test_quadtreeRebuild_overflowBuffersDoNotAccumulate:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizQuadtreeTests.c:362:test_quadtreeMass_weightedCenterOfMassSkewsTowardHeavierPoint:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizQuadtreeTests.c:363:test_quadtreeMass_isSumOfWeightsNotPointCount:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizQuadtreeTests.c:364:test_quadtreeMass_zeroMassPointsDoNotDivideByZero:PASS
+
+-----------------------
+13 Tests 0 Failures 0 Ignored 
+OK
+<end of output>
+Test time =   0.05 sec
+----------------------------------------------------------
+Test Passed.
+"gvizQuadtreeTests" end time: Jul 20 09:05 +03
+"gvizQuadtreeTests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+9/20 Testing: gvizSearchTests
+9/20 Test: gvizSearchTests
+Command: "/Users/abdulaziz.alahmadi/gviz/build-asan/tests/algorithms/search/gvizSearchTests"
+Directory: /Users/abdulaziz.alahmadi/gviz/build-asan
+"gvizSearchTests" start time: Jul 20 09:05 +03
+Output:
+----------------------------------------------------------
+/Users/abdulaziz.alahmadi/gviz/tests/algorithms/search/gvizSearchTests.c:366:test_searchBreadthFirst_path:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/algorithms/search/gvizSearchTests.c:367:test_searchBreadthFirst_maxDepth:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/algorithms/search/gvizSearchTests.c:368:test_searchDepthFirst_path:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/algorithms/search/gvizSearchTests.c:369:test_connectedComponents_singleComponent:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/algorithms/search/gvizSearchTests.c:370:test_connectedComponents_disconnected:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/algorithms/search/gvizSearchTests.c:371:test_searchKNearest_triangle:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/algorithms/search/gvizSearchTests.c:372:test_searchKNearest_withFilter:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/algorithms/search/gvizSearchTests.c:373:test_searchKNearest_scratch_matches_stateless:PASS
+
+-----------------------
+8 Tests 0 Failures 0 Ignored 
+OK
+<end of output>
+Test time =   0.06 sec
+----------------------------------------------------------
+Test Passed.
+"gvizSearchTests" end time: Jul 20 09:05 +03
+"gvizSearchTests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+10/20 Testing: gvizTreeTests
+10/20 Test: gvizTreeTests
+Command: "/Users/abdulaziz.alahmadi/gviz/build-asan/tests/ds/gvizTreeTests"
+Directory: /Users/abdulaziz.alahmadi/gviz/build-asan
+"gvizTreeTests" start time: Jul 20 09:05 +03
+Output:
+----------------------------------------------------------
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizTreeTests.c:167:test_isTree_undirected_returns_negative_two:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizTreeTests.c:168:test_isTree_singleVertex:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizTreeTests.c:169:test_isTree_path:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizTreeTests.c:170:test_isTree_star:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizTreeTests.c:171:test_isTree_twoRoots:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizTreeTests.c:172:test_isTree_inDegreeTwo:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizTreeTests.c:173:test_isTree_isolatedRootPlusCycle:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizTreeTests.c:174:test_isTree_parentsNull_noCrash:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizTreeTests.c:175:test_isLeaf:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizTreeTests.c:176:test_countLeaves_smallTree:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizTreeTests.c:177:test_countLeaves_singleLeaf:PASS
+
+-----------------------
+11 Tests 0 Failures 0 Ignored 
+OK
+<end of output>
+Test time =   0.05 sec
+----------------------------------------------------------
+Test Passed.
+"gvizTreeTests" end time: Jul 20 09:05 +03
+"gvizTreeTests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+11/20 Testing: gvizEmbeddedTreeTests
+11/20 Test: gvizEmbeddedTreeTests
+Command: "/Users/abdulaziz.alahmadi/gviz/build-asan/tests/embedders/gvizEmbeddedTreeTests"
+Directory: /Users/abdulaziz.alahmadi/gviz/build-asan
+"gvizEmbeddedTreeTests" start time: Jul 20 09:05 +03
+Output:
+----------------------------------------------------------
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizEmbeddedTreeTests.c:284:test_RTInit_validBinaryTree_succeeds:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizEmbeddedTreeTests.c:285:test_RTInit_directedCycle_fails:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizEmbeddedTreeTests.c:286:test_RTInit_undirectedGraph_fails:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizEmbeddedTreeTests.c:287:test_embed_rootWithTwoLeaves_symmetric:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizEmbeddedTreeTests.c:288:test_embed_binaryTreeDepth2_allFiniteAndLevels:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizEmbeddedTreeTests.c:289:test_embed_path_constantX:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizEmbeddedTreeTests.c:290:test_embed_widerTree_noOverlap:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizEmbeddedTreeTests.c:291:test_countLeaves_matchesPositionScan:PASS
+
+-----------------------
+8 Tests 0 Failures 0 Ignored 
+OK
+<end of output>
+Test time =   0.06 sec
+----------------------------------------------------------
+Test Passed.
+"gvizEmbeddedTreeTests" end time: Jul 20 09:05 +03
+"gvizEmbeddedTreeTests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+12/20 Testing: gvizGraphLoaderTests
+12/20 Test: gvizGraphLoaderTests
+Command: "/Users/abdulaziz.alahmadi/gviz/build-asan/tests/utils/gvizGraphLoaderTests"
+Directory: /Users/abdulaziz.alahmadi/gviz/build-asan
+"gvizGraphLoaderTests" start time: Jul 20 09:05 +03
+Output:
+----------------------------------------------------------
+/Users/abdulaziz.alahmadi/gviz/tests/utils/gvizGraphLoaderTests.c:166:test_loadFromEdgesFile_sample:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/utils/gvizGraphLoaderTests.c:167:test_loadFromEdgesFile_missingFile:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/utils/gvizGraphLoaderTests.c:168:test_loadFromEdgesFile_malformedLine:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/utils/gvizGraphLoaderTests.c:169:test_loadFromEdgesFile_directed:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/utils/gvizGraphLoaderTests.c:170:test_loadFromEdgesFile_idsWithGaps:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/utils/gvizGraphLoaderTests.c:171:test_loadFromGexfFile_tiny:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/utils/gvizGraphLoaderTests.c:172:test_loadFromGexfFile_zeroNodes:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/utils/gvizGraphLoaderTests.c:173:test_loadFromGexfFile_missingFile:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/utils/gvizGraphLoaderTests.c:174:test_loadFromObjFile_quad:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/utils/gvizGraphLoaderTests.c:175:test_loadFromObjFile_vtnStyleTokens:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/utils/gvizGraphLoaderTests.c:176:test_loadFromObjFile_outOfRangeIndex:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/utils/gvizGraphLoaderTests.c:177:test_loadFromObjFile_missingFile:PASS
+
+-----------------------
+12 Tests 0 Failures 0 Ignored 
+OK
+<end of output>
+Test time =   0.06 sec
+----------------------------------------------------------
+Test Passed.
+"gvizGraphLoaderTests" end time: Jul 20 09:05 +03
+"gvizGraphLoaderTests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+13/20 Testing: gvizGraphsTests
+13/20 Test: gvizGraphsTests
+Command: "/Users/abdulaziz.alahmadi/gviz/build-asan/tests/utils/gvizGraphsTests"
+Directory: /Users/abdulaziz.alahmadi/gviz/build-asan
+"gvizGraphsTests" start time: Jul 20 09:05 +03
+Output:
+----------------------------------------------------------
+/Users/abdulaziz.alahmadi/gviz/tests/utils/gvizGraphsTests.c:190:test_buildRectMesh_3x4:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/utils/gvizGraphsTests.c:191:test_buildRectMesh_1x1:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/utils/gvizGraphsTests.c:192:test_buildEquilateralTriMesh_depth3:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/utils/gvizGraphsTests.c:193:test_buildTetrahedralMesh_depth2:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/utils/gvizGraphsTests.c:194:test_buildMobiusStrip_4x5:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/utils/gvizGraphsTests.c:195:test_buildKleinBottle_4x5:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/utils/gvizGraphsTests.c:196:test_buildSierpinskiCarpet_depth1:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/utils/gvizGraphsTests.c:197:test_createSierpinski_depth0:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/utils/gvizGraphsTests.c:198:test_createSierpinski_depth2:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/utils/gvizGraphsTests.c:199:test_createSierpinskiTetrahedron_depth1:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/utils/gvizGraphsTests.c:200:test_buildRandomConnectedGraph_basic:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/utils/gvizGraphsTests.c:201:test_buildRandomConnectedGraph_deterministic:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/utils/gvizGraphsTests.c:202:test_buildRandomConnectedGraph_singleVertex:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/utils/gvizGraphsTests.c:203:test_buildKnottedRectMesh_3x4:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/utils/gvizGraphsTests.c:204:test_isConnected_triangle:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/utils/gvizGraphsTests.c:205:test_isConnected_disconnected:PASS
+
+-----------------------
+16 Tests 0 Failures 0 Ignored 
+OK
+<end of output>
+Test time =   0.07 sec
+----------------------------------------------------------
+Test Passed.
+"gvizGraphsTests" end time: Jul 20 09:05 +03
+"gvizGraphsTests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+14/20 Testing: gvizEmbeddedGraphTests
+14/20 Test: gvizEmbeddedGraphTests
+Command: "/Users/abdulaziz.alahmadi/gviz/build-asan/tests/embedders/gvizEmbeddedGraphTests"
+Directory: /Users/abdulaziz.alahmadi/gviz/build-asan
+"gvizEmbeddedGraphTests" start time: Jul 20 09:05 +03
+Output:
+----------------------------------------------------------
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizEmbeddedGraphTests.c:445:test_accessors_matchStruct:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizEmbeddedGraphTests.c:446:test_actions_registerFindInvoke:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizEmbeddedGraphTests.c:447:test_actions_replaceAndRemove:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizEmbeddedGraphTests.c:448:test_actions_growPastInitialCapacity:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizEmbeddedGraphTests.c:449:test_stats_registerAndAppend:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizEmbeddedGraphTests.c:450:test_stats_appendAutoCreatesSeries:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizEmbeddedGraphTests.c:451:test_stats_clearKeepsSeriesRegistered:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizEmbeddedGraphTests.c:452:test_stats_growPastInitialCapacities:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizEmbeddedGraphTests.c:453:test_drawMask_defaultsShowAll:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizEmbeddedGraphTests.c:454:test_drawMask_vertexFilterAndNoEdges:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizEmbeddedGraphTests.c:455:test_drawMask_edgesIfBothVisible:PASS
+
+-----------------------
+11 Tests 0 Failures 0 Ignored 
+OK
+<end of output>
+Test time =   0.06 sec
+----------------------------------------------------------
+Test Passed.
+"gvizEmbeddedGraphTests" end time: Jul 20 09:05 +03
+"gvizEmbeddedGraphTests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+15/20 Testing: gvizGRIPTests
+15/20 Test: gvizGRIPTests
+Command: "/Users/abdulaziz.alahmadi/gviz/build-asan/tests/embedders/gvizGRIPTests"
+Directory: /Users/abdulaziz.alahmadi/gviz/build-asan
+"gvizGRIPTests" start time: Jul 20 09:05 +03
+Output:
+----------------------------------------------------------
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizGRIPTests.c:348:test_filtration_nestedLayers:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizGRIPTests.c:349:test_filtration_eachVertexAppearsOnce:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizGRIPTests.c:350:test_filtration_layer2_is_nonempty_and_builds_depth:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizGRIPTests.c:351:test_filtration_final_layer_has_simplex_count:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizGRIPTests.c:352:test_filtration_finest_border_matches_subgraph:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizGRIPTests.c:353:test_filtration_perLayerVertexSpacingAndMaximality:PASS
+
+-----------------------
+6 Tests 0 Failures 0 Ignored 
+OK
+<end of output>
+Test time =   0.36 sec
+----------------------------------------------------------
+Test Passed.
+"gvizGRIPTests" end time: Jul 20 09:05 +03
+"gvizGRIPTests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+16/20 Testing: gvizPlanarTests
+16/20 Test: gvizPlanarTests
+Command: "/Users/abdulaziz.alahmadi/gviz/build-asan/tests/embedders/gvizPlanarTests"
+Directory: /Users/abdulaziz.alahmadi/gviz/build-asan
+"gvizPlanarTests" start time: Jul 20 09:05 +03
+Output:
+----------------------------------------------------------
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizPlanarTests.c:480:test_planar:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizPlanarTests.c:481:test_nonPlanar:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizPlanarTests.c:482:test_nonPlanar_kuratowskiWitness:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizPlanarTests.c:483:test_largestFaceBoundary_square:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizPlanarTests.c:484:test_halfEdge_twin:PASS
+[ 4, 5, 1,  ]
+[ 3, 4, 0, 5, 2,  ]
+[ 1, 5, 3,  ]
+[ 1, 2, 5, 4,  ]
+[ 0, 1, 3, 5,  ]
+[ 4, 3, 2, 1, 0,  ]
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizPlanarTests.c:485:test_triangulation:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizPlanarTests.c:486:test_subgraph_neighbor_ccw_order:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizPlanarTests.c:487:test_face_walk_triangle:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizPlanarTests.c:488:test_vertex_induced_subgraph_planar:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizPlanarTests.c:489:test_schnyderWood_K4:PASS
+Schnyder Wood Created: 
+	 root[0]: 0
+	 root[1]: 4
+	 root[2]: 5
+Parents: 
+Tree 0 parents arr:
+	1's parent is 0. 1 <--- 0
+	2's parent is 1. 2 <--- 1
+	3's parent is 1. 3 <--- 1
+Tree 1 parents arr:
+	1's parent is 4. 1 <--- 4
+	2's parent is 3. 2 <--- 3
+	3's parent is 4. 3 <--- 4
+Tree 2 parents arr:
+	1's parent is 5. 1 <--- 5
+	2's parent is 5. 2 <--- 5
+	3's parent is 5. 3 <--- 5
+finding next vertex in 4 adjacency list after 0.
+u index: 0, adjacency list length: 4.
+next vertex index: 1, next vertex: 1
+finding next vertex in 0 adjacency list after 1.
+u index: 2, adjacency list length: 3.
+next vertex index: 0, next vertex: 4
+finding next vertex in 1 adjacency list after 4.
+u index: 1, adjacency list length: 5.
+next vertex index: 2, next vertex: 0
+finding next vertex in 5 adjacency list after 4.
+u index: 0, adjacency list length: 5.
+next vertex index: 1, next vertex: 3
+finding next vertex in 0 adjacency list after 5.
+u index: 1, adjacency list length: 3.
+next vertex index: 2, next vertex: 1
+finding next vertex in 5 adjacency list after 1.
+u index: 3, adjacency list length: 5.
+next vertex index: 4, next vertex: 0
+finding next vertex in 1 adjacency list after 0.
+u index: 2, adjacency list length: 5.
+next vertex index: 3, next vertex: 5
+counts for vertex 1: (1.000000, 3.000000, 1.000000)
+finding next vertex in 3 adjacency list after 4.
+u index: 3, adjacency list length: 4.
+next vertex index: 0, next vertex: 1
+finding next vertex in 4 adjacency list after 0.
+u index: 0, adjacency list length: 4.
+next vertex index: 1, next vertex: 1
+finding next vertex in 0 adjacency list after 1.
+u index: 2, adjacency list length: 3.
+next vertex index: 0, next vertex: 4
+finding next vertex in 1 adjacency list after 2.
+u index: 4, adjacency list length: 5.
+next vertex index: 0, next vertex: 3
+finding next vertex in 2 adjacency list after 3.
+u index: 2, adjacency list length: 3.
+next vertex index: 0, next vertex: 1
+finding next vertex in 5 adjacency list after 4.
+u index: 0, adjacency list length: 5.
+next vertex index: 1, next vertex: 3
+finding next vertex in 4 adjacency list after 3.
+u index: 2, adjacency list length: 4.
+next vertex index: 3, next vertex: 5
+finding next vertex in 3 adjacency list after 2.
+u index: 1, adjacency list length: 4.
+next vertex index: 2, next vertex: 5
+finding next vertex in 2 adjacency list after 5.
+u index: 1, adjacency list length: 3.
+next vertex index: 2, next vertex: 3
+finding next vertex in 1 adjacency list after 0.
+u index: 2, adjacency list length: 5.
+next vertex index: 3, next vertex: 5
+finding next vertex in 0 adjacency list after 5.
+u index: 1, adjacency list length: 3.
+next vertex index: 2, next vertex: 1
+finding next vertex in 5 adjacency list after 2.
+u index: 2, adjacency list length: 5.
+next vertex index: 3, next vertex: 1
+finding next vertex in 2 adjacency list after 1.
+u index: 0, adjacency list length: 3.
+next vertex index: 1, next vertex: 5
+counts for vertex 2: (2.000000, 2.000000, 1.000000)
+finding next vertex in 4 adjacency list after 0.
+u index: 0, adjacency list length: 4.
+next vertex index: 1, next vertex: 1
+finding next vertex in 0 adjacency list after 1.
+u index: 2, adjacency list length: 3.
+next vertex index: 0, next vertex: 4
+finding next vertex in 1 adjacency list after 3.
+u index: 0, adjacency list length: 5.
+next vertex index: 1, next vertex: 4
+finding next vertex in 3 adjacency list after 4.
+u index: 3, adjacency list length: 4.
+next vertex index: 0, next vertex: 1
+finding next vertex in 5 adjacency list after 4.
+u index: 0, adjacency list length: 5.
+next vertex index: 1, next vertex: 3
+finding next vertex in 4 adjacency list after 3.
+u index: 2, adjacency list length: 4.
+next vertex index: 3, next vertex: 5
+finding next vertex in 3 adjacency list after 5.
+u index: 2, adjacency list length: 4.
+next vertex index: 3, next vertex: 4
+finding next vertex in 1 adjacency list after 0.
+u index: 2, adjacency list length: 5.
+next vertex index: 3, next vertex: 5
+finding next vertex in 0 adjacency list after 5.
+u index: 1, adjacency list length: 3.
+next vertex index: 2, next vertex: 1
+finding next vertex in 5 adjacency list after 3.
+u index: 1, adjacency list length: 5.
+next vertex index: 2, next vertex: 2
+counts for vertex 3: (2.000000, 1.000000, 2.000000)
+Schnyder Wood Drawn: 
+	 vertex 0: (0.000000, 0.000000)
+	 vertex 1: (1.000000, 3.000000)
+	 vertex 2: (2.000000, 2.000000)
+	 vertex 3: (2.000000, 1.000000)
+	 vertex 4: (0.000000, 0.000000)
+	 vertex 5: (0.000000, 0.000000)
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizPlanarTests.c:490:test_schnyderWood_hexagon:PASS
+
+-----------------------
+11 Tests 0 Failures 0 Ignored 
+OK
+<end of output>
+Test time =   0.05 sec
+----------------------------------------------------------
+Test Passed.
+"gvizPlanarTests" end time: Jul 20 09:05 +03
+"gvizPlanarTests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+17/20 Testing: gvizTutteTests
+17/20 Test: gvizTutteTests
+Command: "/Users/abdulaziz.alahmadi/gviz/build-asan/tests/embedders/gvizTutteTests"
+Directory: /Users/abdulaziz.alahmadi/gviz/build-asan
+"gvizTutteTests" start time: Jul 20 09:05 +03
+Output:
+----------------------------------------------------------
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizTutteTests.c:199:test_tutte_k4_centroid:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizTutteTests.c:200:test_tutte_boundary_pinned:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizTutteTests.c:201:test_tutte_convergence:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizTutteTests.c:202:test_tutte_jacobi_vs_gs:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizTutteTests.c:203:test_tutte_init_validation:PASS
+
+-----------------------
+5 Tests 0 Failures 0 Ignored 
+OK
+<end of output>
+Test time =   0.05 sec
+----------------------------------------------------------
+Test Passed.
+"gvizTutteTests" end time: Jul 20 09:05 +03
+"gvizTutteTests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+18/20 Testing: gvizTuttePickTests
+18/20 Test: gvizTuttePickTests
+Command: "/Users/abdulaziz.alahmadi/gviz/build-asan/tests/embedders/gvizTuttePickTests"
+Directory: /Users/abdulaziz.alahmadi/gviz/build-asan
+"gvizTuttePickTests" start time: Jul 20 09:05 +03
+Output:
+----------------------------------------------------------
+planar=1 converged=1
+Summary: interiorMiss=0 interiorWrong=0 outsideMiss=0
+<end of output>
+Test time =   0.05 sec
+----------------------------------------------------------
+Test Passed.
+"gvizTuttePickTests" end time: Jul 20 09:05 +03
+"gvizTuttePickTests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+19/20 Testing: gvizSpringTutteTests
+19/20 Test: gvizSpringTutteTests
+Command: "/Users/abdulaziz.alahmadi/gviz/build-asan/tests/embedders/gvizSpringTutteTests"
+Directory: /Users/abdulaziz.alahmadi/gviz/build-asan
+"gvizSpringTutteTests" start time: Jul 20 09:05 +03
+Output:
+----------------------------------------------------------
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizSpringTutteTests.c:198:test_spring_tutte_k4_centroid:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizSpringTutteTests.c:199:test_spring_tutte_boundary_pinned:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizSpringTutteTests.c:200:test_spring_tutte_overshoots:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizSpringTutteTests.c:201:test_spring_tutte_convergence:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizSpringTutteTests.c:202:test_spring_tutte_init_validation:PASS
+
+-----------------------
+5 Tests 0 Failures 0 Ignored 
+OK
+<end of output>
+Test time =   0.05 sec
+----------------------------------------------------------
+Test Passed.
+"gvizSpringTutteTests" end time: Jul 20 09:05 +03
+"gvizSpringTutteTests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+20/20 Testing: gvizForceEmbedderTests
+20/20 Test: gvizForceEmbedderTests
+Command: "/Users/abdulaziz.alahmadi/gviz/build-asan/tests/embedders/gvizForceEmbedderTests"
+Directory: /Users/abdulaziz.alahmadi/gviz/build-asan
+"gvizForceEmbedderTests" start time: Jul 20 09:05 +03
+Output:
+----------------------------------------------------------
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizForceEmbedderTests.c:718:test_forceEmbedder_init_release_lifecycle:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizForceEmbedderTests.c:719:test_forceEmbedder_init_rejectsNonDimension2:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizForceEmbedderTests.c:720:test_forceEmbedder_configure_keepsOrOverrides:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizForceEmbedderTests.c:721:test_forceEmbedder_configureSpeed_keepsOrOverrides:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizForceEmbedderTests.c:722:test_forceEmbedder_configureBarnesHut_keepsOrOverrides:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizForceEmbedderTests.c:723:test_forceEmbedder_begin_positionsWithinBoxAndTreeBuilt:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizForceEmbedderTests.c:724:test_forceEmbedder_edgeAttracts:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizForceEmbedderTests.c:725:test_forceEmbedder_nonEdgeRepels:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizForceEmbedderTests.c:726:test_forceEmbedder_edgeRepelsWhenVeryClose:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizForceEmbedderTests.c:727:test_forceEmbedder_configureRadius_increasesRepulsionAtShortRange:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizForceEmbedderTests.c:728:test_forceEmbedder_configureRadius_scalesWithDegree:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizForceEmbedderTests.c:729:test_forceEmbedder_configureRadius_baseScalesRatioPreserving:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizForceEmbedderTests.c:730:test_forceEmbedder_configureRadius_manyStepsStayBounded:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizForceEmbedderTests.c:731:test_forceEmbedder_configureRadius_withoutPreventOverlap_isNoOp:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizForceEmbedderTests.c:732:test_forceEmbedder_run_convergesOrStopsAtMaxIters:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizForceEmbedderTests.c:733:test_forceEmbedder_begin_restartRebuildsQuadtree:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizForceEmbedderTests.c:734:test_forceEmbedder_barnesHutApproximatesExactForTinyTheta:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizForceEmbedderTests.c:735:test_forceEmbedder_step_handlesCoincidentPositions:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizForceEmbedderTests.c:736:test_forceEmbedder_linLog_nonEdgeRepelsWithNonzeroDegree:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizForceEmbedderTests.c:737:test_forceEmbedder_barnesHutDisabled_stillProducesSensibleResults:PASS
+/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizForceEmbedderTests.c:738:test_forceEmbedder_gravity_pullsVertexTowardOrigin:PASS
+
+-----------------------
+21 Tests 0 Failures 0 Ignored 
+OK
+<end of output>
+Test time =   0.12 sec
+----------------------------------------------------------
+Test Passed.
+"gvizForceEmbedderTests" end time: Jul 20 09:05 +03
+"gvizForceEmbedderTests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+End testing: Jul 20 09:05 +03

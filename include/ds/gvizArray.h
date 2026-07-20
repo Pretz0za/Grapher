@@ -1,10 +1,16 @@
-#ifndef gvizArray_H
-#define gvizArray_H
+#ifndef GVIZ_ARRAY_H
+#define GVIZ_ARRAY_H
 
 #include "core/alloc.h"
-#include "utils/serializers.h"
 #include <stddef.h>
 #include <stdio.h>
+
+/**
+ * Writes one element into @p buf; returns bytes written, or -1 on failure.
+ * The serializers in utils/serializers.h conform to this signature; callers
+ * of gvizArrayPrint may also supply their own.
+ */
+typedef int gvizArrayElementWriter(void *elem, char buf[], size_t bufsize);
 
 /**
  * @brief A dynamically allocated array of void ptrs.
@@ -180,7 +186,7 @@ void gvizArrayMove(gvizArray *dest, gvizArray *src);
  * @param bufsize   The size with which to initialize the element serialize buf.
  */
 void gvizArrayPrint(const gvizArray *v, FILE *stream,
-                    gvizSerializeDatum *serialize, size_t bufsize);
+                    gvizArrayElementWriter *serialize, size_t bufsize);
 
 /**
  * Frees the memory for the underlying array.

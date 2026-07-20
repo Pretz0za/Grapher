@@ -1,5 +1,5 @@
-#ifndef _GVIZ_FORCE_EMBEDDER_H_
-#define _GVIZ_FORCE_EMBEDDER_H_
+#ifndef GVIZ_FORCE_EMBEDDER_H
+#define GVIZ_FORCE_EMBEDDER_H
 
 #include "core/gvizThreadPool.h"
 #include "ds/gvizQuadtree.h"
@@ -119,8 +119,11 @@ typedef struct gvizForceEmbedderState {
                       * gvizQuadtreeRebuild); stays 0 when barnesHutEnabled
                       * is 0, since the quadtree is never built in that mode */
   /**
-   * Worker pool for future data-parallel force evaluation. Always NULL for
-   * now.
+   * Worker pool driving Step's data-parallel force evaluation, repulsion
+   * force normalized/traction updates, and speed application. Created by
+   * Init with gvizThreadPoolCreate(0) (one worker per logical processor);
+   * NULL only if that allocation failed, in which case
+   * gvizThreadPoolForRange transparently runs each phase serially instead.
    */
   gvizThreadPool *pool;
 } gvizForceEmbedderState;
@@ -320,11 +323,6 @@ int gvizForceEmbedderBegin(gvizForceEmbedderState *state, unsigned int seed);
  * while steady vertices move at close to the full global speed. A graph that
  * is still genuinely converging keeps a high effective speed indefinitely,
  * rather than being throttled by a round-count-based cooling schedule.
- *
- * The mean of all resulting displacements is then subtracted from every
- * vertex before applying them, since nothing else pins the layout's center
- * of mass and any residual net force (e.g. from Barnes-Hut approximation
- * error) would otherwise let the whole embedding drift or spin indefinitely.
  *
  * @return the maximum per-vertex displacement actually applied this round.
  */

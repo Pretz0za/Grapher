@@ -1,54 +1,39 @@
+#ifndef GVIZ_UTILS_GRAPHS_H
+#define GVIZ_UTILS_GRAPHS_H
+
 #include "ds/gvizGraph.h"
 
+/*
+ * Synthetic test-graph builders. Each returns an initialized undirected
+ * gvizGraph by value; the caller owns it and must call gvizGraphRelease.
+ * On allocation failure a zeroed graph (vertices.arr == NULL) is returned.
+ */
+
+/** Indices of the three outer corners of a Sierpinski triangle. */
 typedef struct {
-  gvizGraph *g;
-  size_t t, l, r; // indices into g->vertices for the three corners
+  size_t t, l, r;
 } SierpinskiTriangle;
 
-/**
- * Recursively builds a Sierpinski triangle of a given depth into an existing
- * graph. Rather than allocating new corner vertices, the caller passes in the
- * indices of the three corners (already added to g), so adjacent sub-triangles
- * naturally share vertices.
- *
- * @param g     The graph being built into (must be initialized, undirected).
- * @param depth Recursion depth. 0 = a single triangle (3 edges, no new verts).
- * @param t     Index of the top corner vertex in g.
- * @param l     Index of the left corner vertex in g.
- * @param r     Index of the right corner vertex in g.
- * @return 0 on success, -1 on allocation failure.
- */
-static int sierpinskiRecurse(gvizGraph *g, int depth, size_t t, size_t l,
-                             size_t r);
-
-/**
- * Initializes @p out as an undirected graph and fills it with the Sierpinski
- * triangle of the given depth.
- *
- * Vertex count  = 3 * (3^depth - 1) / 2  + 3   (closed form)
- * Edge count    = 3 * 3^depth
- *
- * @param out   Pointer to an uninitialized gvizGraph.
- * @param depth 0 = single triangle, 1 = three triangles, etc.
- * @param st    Optional: filled with the indices of the three outer corners
- *              (t, l, r) if non-NULL.
- * @return 0 on success, -1 on allocation failure.
- */
-
+/** Indices of the four corners of a Sierpinski tetrahedron. */
 typedef struct {
-  gvizGraph *g;
-  size_t a, b, c, d; // indices of the four corners of the tetrahedron
+  size_t a, b, c, d;
 } SierpinskiTetrahedron;
 
-/** Like sierpinskiRecurse, but for a tetrahedron with corners @p a–@p d. */
-static int sierpinskiTetrahedronRecurse(gvizGraph *g, int depth, size_t a,
-                                        size_t b, size_t c, size_t d);
-
-/** Builds an undirected Sierpinski tetrahedron graph of the given @p depth. */
-gvizGraph createSierpinskiTetrahedron(int depth, SierpinskiTetrahedron *st);
-
-/** Builds an undirected Sierpinski triangle graph of the given @p depth. */
+/**
+ * Builds an undirected Sierpinski triangle graph of the given @p depth.
+ *
+ * Vertex count = 3 * (3^depth - 1) / 2 + 3, edge count = 3^(depth+1).
+ *
+ * @param st Optional: filled with the indices of the three outer corners.
+ */
 gvizGraph createSierpinski(int depth, SierpinskiTriangle *st);
+
+/**
+ * Builds an undirected Sierpinski tetrahedron graph of the given @p depth.
+ *
+ * @param st Optional: filled with the indices of the four outer corners.
+ */
+gvizGraph createSierpinskiTetrahedron(int depth, SierpinskiTetrahedron *st);
 
 /** Builds the grid graph of a Sierpinski carpet at @p depth. */
 gvizGraph build_sierpinski_carpet(size_t depth);
@@ -86,24 +71,12 @@ gvizGraph build_klein_bottle(size_t rows, size_t cols);
  *                    of the spanning tree. 0 = tree only, 1 = complete graph.
  *                    Clamped into [0, 1].
  * @param seed        Seed for the random number generator (reproducibility).
- * @return An initialized undirected gvizGraph.
  */
 gvizGraph build_random_connected_graph(size_t numVertices, double edgeDensity,
                                        unsigned int seed);
 
+/** Returns 1 if every vertex of @p g is reachable from vertex 0. Rebuilds
+ *  @p g->layout. */
 int isConnected(gvizGraph *g);
 
-/**
- * Loads an undirected graph from a Wavefront OBJ file.
- *
- * Each OBJ vertex (`v`) becomes one graph vertex; edges are inferred from face
- * (`f`) loops (consecutive corners and the closing edge). Texture/normal indices
- * on face tokens are ignored. Supports 1-based and negative relative vertex
- * indices per the OBJ spec.
- *
- * @p out must be uninitialized on entry. On failure, any partial state is
- * released and @p out is zeroed.
- *
- * @return 0 on success, -1 on I/O, parse, or allocation failure.
- */
-int gvizGraphLoadFromObjFile(const char *path, gvizGraph *out);
+#endif

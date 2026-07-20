@@ -2,7 +2,7 @@
 #include "ds/gvizGraph.h"
 #include "ds/gvizSubgraph.h"
 #include "embedders/gvizGRIPEmbedder.h"
-#include "gvizGRIPEmbedderInternal.h"
+#include "embedders/gvizGRIPInternal.h"
 #include "utils/graphLoader.h"
 
 #include <stdio.h>

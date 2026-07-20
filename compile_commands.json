@@ -199,12 +199,6 @@
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -g -std=gnu11 -arch arm64 -o CMakeFiles/graphvis.dir/src/utils/helpers.c.o -c /Users/abdulaziz.alahmadi/gviz/src/utils/helpers.c",
-  "file": "/Users/abdulaziz.alahmadi/gviz/src/utils/helpers.c",
-  "output": "CMakeFiles/graphvis.dir/src/utils/helpers.c.o"
-},
-{
-  "directory": "/Users/abdulaziz.alahmadi/gviz/build",
   "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -g -std=gnu11 -arch arm64 -o CMakeFiles/gvizThreadPoolTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "output": "CMakeFiles/gvizThreadPoolTests.dir/third-party/unity/unity.c.o"
@@ -301,6 +295,18 @@
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -g -std=gnu11 -arch arm64 -o CMakeFiles/gvizTreeTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
+  "file": "/Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
+  "output": "CMakeFiles/gvizTreeTests.dir/third-party/unity/unity.c.o"
+},
+{
+  "directory": "/Users/abdulaziz.alahmadi/gviz/build",
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -g -std=gnu11 -arch arm64 -o CMakeFiles/gvizTreeTests.dir/tests/ds/gvizTreeTests.c.o -c /Users/abdulaziz.alahmadi/gviz/tests/ds/gvizTreeTests.c",
+  "file": "/Users/abdulaziz.alahmadi/gviz/tests/ds/gvizTreeTests.c",
+  "output": "CMakeFiles/gvizTreeTests.dir/tests/ds/gvizTreeTests.c.o"
+},
+{
+  "directory": "/Users/abdulaziz.alahmadi/gviz/build",
   "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -g -std=gnu11 -arch arm64 -o CMakeFiles/gvizSearchTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "output": "CMakeFiles/gvizSearchTests.dir/third-party/unity/unity.c.o"
@@ -310,6 +316,30 @@
   "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -g -std=gnu11 -arch arm64 -o CMakeFiles/gvizSearchTests.dir/tests/algorithms/search/gvizSearchTests.c.o -c /Users/abdulaziz.alahmadi/gviz/tests/algorithms/search/gvizSearchTests.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/tests/algorithms/search/gvizSearchTests.c",
   "output": "CMakeFiles/gvizSearchTests.dir/tests/algorithms/search/gvizSearchTests.c.o"
+},
+{
+  "directory": "/Users/abdulaziz.alahmadi/gviz/build",
+  "command": "/usr/bin/cc -DGVIZ_TEST_DATA_DIR=\\\"/Users/abdulaziz.alahmadi/gviz/tests/data\\\" -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -g -std=gnu11 -arch arm64 -o CMakeFiles/gvizGraphLoaderTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
+  "file": "/Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
+  "output": "CMakeFiles/gvizGraphLoaderTests.dir/third-party/unity/unity.c.o"
+},
+{
+  "directory": "/Users/abdulaziz.alahmadi/gviz/build",
+  "command": "/usr/bin/cc -DGVIZ_TEST_DATA_DIR=\\\"/Users/abdulaziz.alahmadi/gviz/tests/data\\\" -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -g -std=gnu11 -arch arm64 -o CMakeFiles/gvizGraphLoaderTests.dir/tests/utils/gvizGraphLoaderTests.c.o -c /Users/abdulaziz.alahmadi/gviz/tests/utils/gvizGraphLoaderTests.c",
+  "file": "/Users/abdulaziz.alahmadi/gviz/tests/utils/gvizGraphLoaderTests.c",
+  "output": "CMakeFiles/gvizGraphLoaderTests.dir/tests/utils/gvizGraphLoaderTests.c.o"
+},
+{
+  "directory": "/Users/abdulaziz.alahmadi/gviz/build",
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -g -std=gnu11 -arch arm64 -o CMakeFiles/gvizGraphsTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
+  "file": "/Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
+  "output": "CMakeFiles/gvizGraphsTests.dir/third-party/unity/unity.c.o"
+},
+{
+  "directory": "/Users/abdulaziz.alahmadi/gviz/build",
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -g -std=gnu11 -arch arm64 -o CMakeFiles/gvizGraphsTests.dir/tests/utils/gvizGraphsTests.c.o -c /Users/abdulaziz.alahmadi/gviz/tests/utils/gvizGraphsTests.c",
+  "file": "/Users/abdulaziz.alahmadi/gviz/tests/utils/gvizGraphsTests.c",
+  "output": "CMakeFiles/gvizGraphsTests.dir/tests/utils/gvizGraphsTests.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
@@ -325,19 +355,31 @@
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -g -std=gnu11 -arch arm64 -o CMakeFiles/gvizGRIPTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -g -std=gnu11 -arch arm64 -o CMakeFiles/gvizEmbeddedTreeTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
+  "file": "/Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
+  "output": "CMakeFiles/gvizEmbeddedTreeTests.dir/third-party/unity/unity.c.o"
+},
+{
+  "directory": "/Users/abdulaziz.alahmadi/gviz/build",
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -g -std=gnu11 -arch arm64 -o CMakeFiles/gvizEmbeddedTreeTests.dir/tests/embedders/gvizEmbeddedTreeTests.c.o -c /Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizEmbeddedTreeTests.c",
+  "file": "/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizEmbeddedTreeTests.c",
+  "output": "CMakeFiles/gvizEmbeddedTreeTests.dir/tests/embedders/gvizEmbeddedTreeTests.c.o"
+},
+{
+  "directory": "/Users/abdulaziz.alahmadi/gviz/build",
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/src -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -g -std=gnu11 -arch arm64 -o CMakeFiles/gvizGRIPTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "output": "CMakeFiles/gvizGRIPTests.dir/third-party/unity/unity.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -g -std=gnu11 -arch arm64 -o CMakeFiles/gvizGRIPTests.dir/tests/embedders/gvizGRIPTests.c.o -c /Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizGRIPTests.c",
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/src -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -g -std=gnu11 -arch arm64 -o CMakeFiles/gvizGRIPTests.dir/tests/embedders/gvizGRIPTests.c.o -c /Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizGRIPTests.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizGRIPTests.c",
   "output": "CMakeFiles/gvizGRIPTests.dir/tests/embedders/gvizGRIPTests.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -g -std=gnu11 -arch arm64 -o CMakeFiles/gvizGRIPKBench.dir/tests/embedders/gvizGRIPKBench.c.o -c /Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizGRIPKBench.c",
+  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/src -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -g -std=gnu11 -arch arm64 -o CMakeFiles/gvizGRIPKBench.dir/tests/embedders/gvizGRIPKBench.c.o -c /Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizGRIPKBench.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizGRIPKBench.c",
   "output": "CMakeFiles/gvizGRIPKBench.dir/tests/embedders/gvizGRIPKBench.c.o"
 },
@@ -349,13 +391,13 @@
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/tests/embedders -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -g -std=gnu11 -arch arm64 -o CMakeFiles/gvizGRIPMigrateBench.dir/tests/embedders/gvizGRIPMigrateBench.c.o -c /Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizGRIPMigrateBench.c",
+  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/src -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -g -std=gnu11 -arch arm64 -o CMakeFiles/gvizGRIPMigrateBench.dir/tests/embedders/gvizGRIPMigrateBench.c.o -c /Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizGRIPMigrateBench.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizGRIPMigrateBench.c",
   "output": "CMakeFiles/gvizGRIPMigrateBench.dir/tests/embedders/gvizGRIPMigrateBench.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/tests/embedders -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -g -std=gnu11 -arch arm64 -o CMakeFiles/gvizGRIPFiltrationDebug.dir/tests/embedders/gvizGRIPFiltrationDebug.c.o -c /Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizGRIPFiltrationDebug.c",
+  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/src -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -g -std=gnu11 -arch arm64 -o CMakeFiles/gvizGRIPFiltrationDebug.dir/tests/embedders/gvizGRIPFiltrationDebug.c.o -c /Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizGRIPFiltrationDebug.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/tests/embedders/gvizGRIPFiltrationDebug.c",
   "output": "CMakeFiles/gvizGRIPFiltrationDebug.dir/tests/embedders/gvizGRIPFiltrationDebug.c.o"
 },

@@ -3,8 +3,11 @@
 #include "ds/gvizGraph.h"
 #include "ds/gvizSubgraph.h"
 #include "embedders/gvizGRIPEmbedder.h"
+#include "embedders/gvizGRIPInternal.h"
 #include "unity/unity.h"
 #include "unity/unity_internals.h"
+#include <math.h>
+#include <string.h>
 
 #define MESH_W 45
 #define MESH_H 25
@@ -20,7 +23,7 @@ static size_t gripMisBorderAt(const gvizGRIPState *state, size_t i) {
   return *(const size_t *)gvizArrayAtIndex(&state->misBorder, i);
 }
 
-gvizGraph build_rect_mesh(size_t L, size_t W) {
+static gvizGraph build_rect_mesh(size_t L, size_t W) {
   gvizGraph g;
   gvizGraphInitAtCapacity(&g, 0, L * W);
 
@@ -218,6 +221,123 @@ void test_filtration_perLayerVertexSpacingAndMaximality(void) {
   }
 
   gvizSubgraphRelease(&fullSg);
+
+  gvizGRIPEmbedderRelease(&state);
+  gvizGraphRelease(&graph);
+}
+
+// End-to-end: the full pipeline must produce finite, non-collapsed 2D
+// positions for every vertex of a small mesh.
+void test_embed_endToEnd_producesSpreadFinitePositions(void) {
+  gvizGRIPState state;
+  gvizGraph graph = build_rect_mesh(SMALL_MESH_H, SMALL_MESH_W);
+
+  gvizGraphBuildLayout(&graph);
+  gvizSubgraph sg = gvizSubgraphCreateFull(&graph);
+  TEST_ASSERT_EQUAL_INT(0, gvizGRIPEmbedderInit(&state, sg, 18, 2));
+  gvizGRIPEmbedderConfigureStats(&state, false);
+
+  TEST_ASSERT_EQUAL_INT(0, gvizGRIPEmbedderEmbed(&state));
+
+  gvizEmbeddedGraph *eg = (gvizEmbeddedGraph *)&state;
+  size_t n = SMALL_MESH_H * SMALL_MESH_W;
+  double minX = 1e300, maxX = -1e300, minY = 1e300, maxY = -1e300;
+  for (size_t v = 0; v < n; v++) {
+    double *p = gvizEmbeddedGraphGetVPosition(eg, v);
+    TEST_ASSERT_TRUE(isfinite(p[0]));
+    TEST_ASSERT_TRUE(isfinite(p[1]));
+    if (p[0] < minX)
+      minX = p[0];
+    if (p[0] > maxX)
+      maxX = p[0];
+    if (p[1] < minY)
+      minY = p[1];
+    if (p[1] > maxY)
+      maxY = p[1];
+  }
+  // The mesh must actually be spread out, not collapsed to a point.
+  TEST_ASSERT_TRUE(maxX - minX > 1.0);
+  TEST_ASSERT_TRUE(maxY - minY > 1.0);
+
+  gvizGRIPRoundStats stats = gvizGRIPEmbedderLastRoundStats(&state);
+  TEST_ASSERT_TRUE(isfinite(stats.maxDisplacement));
+  TEST_ASSERT_TRUE(isfinite(stats.meanDisplacement));
+
+  gvizGRIPEmbedderRelease(&state);
+  gvizGraphRelease(&graph);
+}
+
+// Neighboring mesh vertices should land nearer each other than far-apart
+// mesh vertices do on average (sanity that the layout reflects topology).
+void test_embed_endToEnd_neighborsCloserThanFarPairs(void) {
+  gvizGRIPState state;
+  gvizGraph graph = build_rect_mesh(SMALL_MESH_H, SMALL_MESH_W);
+
+  gvizGraphBuildLayout(&graph);
+  gvizSubgraph sg = gvizSubgraphCreateFull(&graph);
+  TEST_ASSERT_EQUAL_INT(0, gvizGRIPEmbedderInit(&state, sg, 18, 2));
+  gvizGRIPEmbedderConfigureStats(&state, false);
+  TEST_ASSERT_EQUAL_INT(0, gvizGRIPEmbedderEmbed(&state));
+
+  gvizEmbeddedGraph *eg = (gvizEmbeddedGraph *)&state;
+
+  double meanEdgeLen = 0.0;
+  size_t edgeSamples = 0;
+  for (size_t i = 0; i < SMALL_MESH_H; i++) {
+    for (size_t j = 0; j + 1 < SMALL_MESH_W; j++) {
+      double *a = gvizEmbeddedGraphGetVPosition(eg, i * SMALL_MESH_W + j);
+      double *b = gvizEmbeddedGraphGetVPosition(eg, i * SMALL_MESH_W + j + 1);
+      meanEdgeLen += hypot(a[0] - b[0], a[1] - b[1]);
+      edgeSamples++;
+    }
+  }
+  meanEdgeLen /= (double)edgeSamples;
+
+  // Opposite mesh corners.
+  double *c0 = gvizEmbeddedGraphGetVPosition(eg, 0);
+  double *c1 = gvizEmbeddedGraphGetVPosition(
+      eg, SMALL_MESH_H * SMALL_MESH_W - 1);
+  double cornerDist = hypot(c0[0] - c1[0], c0[1] - c1[1]);
+
+  TEST_ASSERT_TRUE(cornerDist > 3.0 * meanEdgeLen);
+
+  gvizGRIPEmbedderRelease(&state);
+  gvizGraphRelease(&graph);
+}
+
+// Init must reject subgraphs too small to place the coarsest simplex.
+void test_init_rejectsTooFewVertices(void) {
+  gvizGRIPState state;
+  memset(&state, 0, sizeof(state));
+  gvizGraph graph;
+  gvizGraphInitAtCapacity(&graph, 0, 2);
+  gvizGraphAddVertex(&graph, NULL, NULL, NULL);
+  gvizGraphAddVertex(&graph, NULL, NULL, NULL);
+  gvizGraphAddEdge(&graph, 0, 1);
+  gvizGraphBuildLayout(&graph);
+
+  gvizSubgraph sg = gvizSubgraphCreateFull(&graph);
+  TEST_ASSERT_EQUAL_INT(-1, gvizGRIPEmbedderInit(&state, sg, 1, 2));
+
+  gvizSubgraphRelease(&sg);
+  gvizGraphRelease(&graph);
+}
+
+void test_configureK_clampsToCapacity(void) {
+  gvizGRIPState state;
+  gvizGraph graph = build_rect_mesh(SMALL_MESH_H, SMALL_MESH_W);
+  gvizGraphBuildLayout(&graph);
+  gvizSubgraph sg = gvizSubgraphCreateFull(&graph);
+  TEST_ASSERT_EQUAL_INT(0, gvizGRIPEmbedderInit(&state, sg, 18, 2));
+
+  gvizGRIPEmbedderConfigureK(&state, 100000, 100000, GVIZ_GRIP_K_CONSTANT);
+  TEST_ASSERT_TRUE(state.placementKMax <= state.knnCapacity);
+  TEST_ASSERT_TRUE(state.refinementKMax <= state.knnCapacity);
+
+  // 0 keeps current values
+  size_t placement = state.placementKMax;
+  gvizGRIPEmbedderConfigureK(&state, 0, 0, GVIZ_GRIP_K_BUDGET);
+  TEST_ASSERT_EQUAL_size_t(placement, state.placementKMax);
 
   gvizGRIPEmbedderRelease(&state);
   gvizGraphRelease(&graph);
