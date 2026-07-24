@@ -547,6 +547,115 @@ void test_subgraph_rebuild_drops_removed_edge(void) {
   gvizGraphRelease(&g);
 }
 
+// ============================================================================
+// VERTEX-INDUCED INDEPENDENCE FROM GRAPH LAYOUT
+// ============================================================================
+
+void test_vertex_induced_works_without_layout(void) {
+  gvizGraph g;
+  add_triangle(&g);
+  // Deliberately never call gvizGraphBuildLayout: vertex-induced subgraphs
+  // must not depend on it.
+  TEST_ASSERT_NULL(g.layout);
+
+  gvizVertexSubset vs = gvizVertexSubsetCreateEmpty(&g);
+  gvizVertexSubsetShowVertex(vs, 0);
+  gvizVertexSubsetShowVertex(vs, 2);
+  gvizSubgraph sg = gvizSubgraphCreateVertexInduced(&g, vs);
+
+  TEST_ASSERT_FALSE(gvizSubgraphIsFull(&sg));
+  TEST_ASSERT_TRUE(gvizSubgraphHasVertex(&sg, 0));
+  TEST_ASSERT_EQUAL_UINT64(2, gvizSubgraphVertexCount(&sg));
+  TEST_ASSERT_TRUE(gvizSubgraphHasEdge(&sg, 0, 2));
+  TEST_ASSERT_NULL(g.layout);
+
+  gvizSubgraphRelease(&sg);
+  gvizGraphRelease(&g);
+}
+
+void test_vertex_induced_rebuild_grows_without_layout(void) {
+  gvizGraph g;
+  gvizGraphInit(&g, 0);
+  gvizGraphAddVertex(&g, NULL, NULL, NULL);
+  gvizGraphAddVertex(&g, NULL, NULL, NULL);
+
+  gvizVertexSubset vs = gvizVertexSubsetCreateEmpty(&g);
+  gvizVertexSubsetShowVertex(vs, 0);
+  gvizSubgraph sg = gvizSubgraphCreateVertexInduced(&g, vs);
+  TEST_ASSERT_EQUAL_UINT64(2, sg.vertexCapacity);
+
+  gvizGraphAddVertex(&g, NULL, NULL, NULL);
+  TEST_ASSERT_EQUAL_INT(0, gvizSubgraphRebuild(&sg));
+
+  TEST_ASSERT_NULL(g.layout);
+  // Only vertex 0 was ever shown; growth alone doesn't add vertices.
+  TEST_ASSERT_EQUAL_UINT64(1, gvizSubgraphVertexCount(&sg));
+  TEST_ASSERT_TRUE(gvizTestBit(sg.vs, 0));
+  TEST_ASSERT_FALSE(gvizTestBit(sg.vs, 2));
+  TEST_ASSERT_EQUAL_UINT64(4, sg.vertexCapacity);
+
+  gvizSubgraphRelease(&sg);
+  gvizGraphRelease(&g);
+}
+
+void test_vertex_induced_rebuild_capacity_doubles(void) {
+  gvizGraph g;
+  gvizGraphInit(&g, 0);
+  gvizGraphAddVertex(&g, NULL, NULL, NULL);
+
+  gvizVertexSubset vs = gvizVertexSubsetCreateEmpty(&g);
+  gvizSubgraph sg = gvizSubgraphCreateVertexInduced(&g, vs);
+  TEST_ASSERT_EQUAL_UINT64(1, sg.vertexCapacity);
+
+  for (int i = 0; i < 3; i++) {
+    gvizGraphAddVertex(&g, NULL, NULL, NULL);
+    TEST_ASSERT_EQUAL_INT(0, gvizSubgraphRebuild(&sg));
+  }
+  // Graph now has 4 vertices; capacity should have doubled (1 -> 2 -> 4)
+  // rather than exact-fitting on every single addition.
+  TEST_ASSERT_EQUAL_UINT64(4, sg.vertexCapacity);
+
+  gvizGraphAddVertex(&g, NULL, NULL, NULL);
+  TEST_ASSERT_EQUAL_INT(0, gvizSubgraphRebuild(&sg));
+  TEST_ASSERT_EQUAL_UINT64(8, sg.vertexCapacity);
+
+  gvizSubgraphRelease(&sg);
+  gvizGraphRelease(&g);
+}
+
+void test_subgraph_rebuild_full_updates_vertex_capacity(void) {
+  gvizGraph g;
+  add_path4(&g);
+  gvizGraphBuildLayout(&g);
+
+  gvizSubgraph sg = gvizSubgraphCreateFull(&g);
+  TEST_ASSERT_EQUAL_UINT64(4, sg.vertexCapacity);
+
+  gvizGraphAddVertex(&g, NULL, NULL, NULL);
+  TEST_ASSERT_EQUAL_INT(0, gvizSubgraphRebuild(&sg));
+  TEST_ASSERT_EQUAL_UINT64(5, sg.vertexCapacity);
+
+  gvizSubgraphRelease(&sg);
+  gvizGraphRelease(&g);
+}
+
+void test_subgraphIsFull_predicate(void) {
+  gvizGraph g;
+  add_triangle(&g);
+  gvizGraphBuildLayout(&g);
+
+  gvizSubgraph full = gvizSubgraphCreateEmpty(&g);
+  TEST_ASSERT_TRUE(gvizSubgraphIsFull(&full));
+
+  gvizVertexSubset vs = gvizVertexSubsetCreateEmpty(&g);
+  gvizSubgraph induced = gvizSubgraphCreateVertexInduced(&g, vs);
+  TEST_ASSERT_FALSE(gvizSubgraphIsFull(&induced));
+
+  gvizSubgraphRelease(&full);
+  gvizSubgraphRelease(&induced);
+  gvizGraphRelease(&g);
+}
+
 int main(void) {
   UNITY_BEGIN();
 
@@ -576,6 +685,11 @@ int main(void) {
   RUN_TEST(test_subgraph_rebuild_full_preserves_bits);
   RUN_TEST(test_subgraph_rebuild_vertex_induced_no_edge_subset);
   RUN_TEST(test_subgraph_rebuild_drops_removed_edge);
+  RUN_TEST(test_vertex_induced_works_without_layout);
+  RUN_TEST(test_vertex_induced_rebuild_grows_without_layout);
+  RUN_TEST(test_vertex_induced_rebuild_capacity_doubles);
+  RUN_TEST(test_subgraph_rebuild_full_updates_vertex_capacity);
+  RUN_TEST(test_subgraphIsFull_predicate);
 
   int result = UNITY_END();
   printf("\n");

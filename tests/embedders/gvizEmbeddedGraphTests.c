@@ -440,6 +440,85 @@ void test_drawMask_clearAndNotify(void) {
   gvizGraphRelease(&g);
 }
 
+// GROWTH (ADD VERTEX / ADD EDGE): -----------------------------------------------
+
+void test_addVertex_growsFullEmbedding(void) {
+  gvizGraph g;
+  gvizEmbeddedGraph eg = makeEmbedding(&g, 3, 2);
+
+  TEST_ASSERT_EQUAL_size_t(3, gvizEmbeddedGraphPositionCount(&eg));
+  TEST_ASSERT_TRUE(gvizSubgraphIsFull(gvizEmbeddedGraphStructure(&eg)));
+
+  TEST_ASSERT_EQUAL_INT(0, gvizEmbeddedGraphAddVertex(&eg, NULL));
+
+  TEST_ASSERT_EQUAL_size_t(4, gvizEmbeddedGraphPositionCount(&eg));
+  TEST_ASSERT_TRUE(gvizSubgraphHasVertex(gvizEmbeddedGraphStructure(&eg), 3));
+  TEST_ASSERT_TRUE(gvizEmbeddedGraphIsVertexVisible(&eg, 3));
+
+  double *p = gvizEmbeddedGraphGetVPosition(&eg, 3);
+  TEST_ASSERT_EQUAL_DOUBLE(0.0, p[0]);
+  TEST_ASSERT_EQUAL_DOUBLE(0.0, p[1]);
+
+  // Pre-existing vertex positions must survive the growth realloc.
+  double preset[2] = {5.0, 6.0};
+  gvizEmbeddedGraphSetVPosition(&eg, 1, preset);
+  TEST_ASSERT_EQUAL_INT(0, gvizEmbeddedGraphAddVertex(&eg, NULL));
+  double *p1 = gvizEmbeddedGraphGetVPosition(&eg, 1);
+  TEST_ASSERT_EQUAL_DOUBLE(5.0, p1[0]);
+  TEST_ASSERT_EQUAL_DOUBLE(6.0, p1[1]);
+
+  gvizEmbeddedGraphRelease(&eg);
+  gvizGraphRelease(&g);
+}
+
+void test_addEdge_visibleOnFullEmbedding(void) {
+  gvizGraph g;
+  gvizEmbeddedGraph eg = makeEmbedding(&g, 3, 2); // path 0-1-2, no edge 0-2
+  TEST_ASSERT_FALSE(gvizEmbeddedGraphIsEdgeVisible(&eg, 0, 2));
+
+  TEST_ASSERT_EQUAL_INT(0, gvizEmbeddedGraphAddEdge(&eg, 0, 2));
+  TEST_ASSERT_TRUE(gvizEmbeddedGraphIsEdgeVisible(&eg, 0, 2));
+  TEST_ASSERT_TRUE(gvizSubgraphHasEdge(gvizEmbeddedGraphStructure(&eg), 0, 2));
+
+  // Out-of-bounds endpoint fails, matching gvizGraphAddEdge.
+  TEST_ASSERT_EQUAL_INT(-1, gvizEmbeddedGraphAddEdge(&eg, 0, 99));
+
+  gvizEmbeddedGraphRelease(&eg);
+  gvizGraphRelease(&g);
+}
+
+void test_addVertexAndEdge_vertexInducedEmbeddingNeverBuildsLayout(void) {
+  gvizGraph g;
+  gvizGraphInitAtCapacity(&g, 0, 3);
+  for (int i = 0; i < 3; i++)
+    gvizGraphAddVertex(&g, NULL, NULL, NULL);
+  gvizGraphAddEdge(&g, 0, 1);
+
+  gvizVertexSubset vs = gvizVertexSubsetCreateEmpty(&g);
+  gvizVertexSubsetShowVertex(vs, 0);
+  gvizVertexSubsetShowVertex(vs, 1);
+  gvizVertexSubsetShowVertex(vs, 2);
+  gvizSubgraph sg = gvizSubgraphCreateVertexInduced(&g, vs);
+
+  gvizEmbeddedGraph eg;
+  gvizEmbeddedGraphInit(&eg, sg, 2);
+  TEST_ASSERT_NULL(g.layout);
+  TEST_ASSERT_EQUAL_size_t(3, gvizEmbeddedGraphPositionCount(&eg));
+
+  TEST_ASSERT_EQUAL_INT(0, gvizEmbeddedGraphAddVertex(&eg, NULL));
+  TEST_ASSERT_EQUAL_size_t(4, gvizEmbeddedGraphPositionCount(&eg));
+  TEST_ASSERT_TRUE(gvizSubgraphHasVertex(gvizEmbeddedGraphStructure(&eg), 3));
+  TEST_ASSERT_TRUE(gvizEmbeddedGraphIsVertexVisible(&eg, 3));
+  TEST_ASSERT_NULL(g.layout);
+
+  TEST_ASSERT_EQUAL_INT(0, gvizEmbeddedGraphAddEdge(&eg, 3, 0));
+  TEST_ASSERT_TRUE(gvizSubgraphHasEdge(gvizEmbeddedGraphStructure(&eg), 3, 0));
+  TEST_ASSERT_NULL(g.layout);
+
+  gvizEmbeddedGraphRelease(&eg);
+  gvizGraphRelease(&g);
+}
+
 int main(void) {
   UNITY_BEGIN();
   RUN_TEST(test_accessors_matchStruct);
@@ -453,5 +532,8 @@ int main(void) {
   RUN_TEST(test_drawMask_defaultsShowAll);
   RUN_TEST(test_drawMask_vertexFilterAndNoEdges);
   RUN_TEST(test_drawMask_edgesIfBothVisible);
+  RUN_TEST(test_addVertex_growsFullEmbedding);
+  RUN_TEST(test_addEdge_visibleOnFullEmbedding);
+  RUN_TEST(test_addVertexAndEdge_vertexInducedEmbeddingNeverBuildsLayout);
   return UNITY_END();
 }

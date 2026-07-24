@@ -28,6 +28,13 @@ typedef struct {
 	const struct gvizGraph *g;
 	gvizVertexSubset vs;
 	gvizEdgeSubset es;
+	/** Bits currently allocated for vs (>= the vertex count vs was last
+	 * synced to). For vertex-induced subgraphs this may exceed the live
+	 * vertex count -- gvizSubgraphRebuild doubles it on growth so repeated
+	 * single-vertex growth is amortized O(1) rather than O(n) per call. For
+	 * full subgraphs it is kept exactly in sync with g->layout->nvertices,
+	 * since the edge subset's bit addressing needs the layout regardless. */
+	size_t vertexCapacity;
 } gvizSubgraph;
 
 typedef struct {
@@ -121,6 +128,10 @@ gvizBitArrayIterator gvizEdgeSubsetIteratorCreateVertexRange(
  * Edges are defined implicitly: (u, v) is present when both endpoints are in @p vs
  * and the edge exists in the parent graph. Call gvizSubgraphMakeEdgeSubset to
  * materialize an explicit edge subset (full subgraph) when needed.
+ * Unlike full subgraphs, this never requires g->layout -- neighbor iteration
+ * proxies straight to the parent's live adjacency lists, and gvizSubgraphRebuild
+ * only ever touches vs for this mode. @p vs must be sized for gvizGraphSize(g)
+ * bits (e.g. via gvizVertexSubsetCreateEmpty).
  */
 gvizSubgraph gvizSubgraphCreateVertexInduced(const struct gvizGraph *g, gvizVertexSubset v);
 
@@ -153,12 +164,24 @@ void gvizSubgraphHideEdge(const gvizSubgraph *sg, size_t u, size_t v);
 
 /**
  * Rebuilds subsets after the parent graph structure changed.
- * Recomputes the layout, resizes the vertex subset, and remaps edge bits on full
- * subgraphs. Preserves vertex-induced mode (no edge subset).
+ *
+ * Vertex-induced subgraphs (no edge subset): grows vs to cover the current
+ * vertex count, doubling vertexCapacity as needed. Never touches g->layout --
+ * genuinely independent of it, and amortized O(1) for repeated single-vertex
+ * growth.
+ *
+ * Full subgraphs (materialized edge subset): unchanged from before --
+ * recomputes g->layout, resizes vs, and remaps every edge bit, since the
+ * edge subset's flat bit addressing depends on the layout's prefix sums.
+ * O(V+E) regardless of how much changed.
  *
  * @return 0 on success, -1 on failure.
  */
 int gvizSubgraphRebuild(gvizSubgraph *sg);
+
+/** Returns whether @p sg is a full subgraph (materialized edge subset), as
+ *  opposed to vertex-induced. */
+bool gvizSubgraphIsFull(const gvizSubgraph *sg);
 
 /** Returns whether @p u is in the subgraph vertex subset. */
 bool gvizSubgraphHasVertex(const gvizSubgraph *sg, size_t u);

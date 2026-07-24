@@ -11,6 +11,8 @@
 #define GVIZ_TINY_GEXF_PATH GVIZ_TEST_DATA_DIR "/tiny.gexf"
 #define GVIZ_EMPTY_NODES_GEXF_PATH GVIZ_TEST_DATA_DIR "/empty_nodes.gexf"
 #define GVIZ_MISSING_GEXF_PATH GVIZ_TEST_DATA_DIR "/missing.gexf"
+#define GVIZ_ATTRS_GEXF_PATH GVIZ_TEST_DATA_DIR "/attrs.gexf"
+#define GVIZ_ATTRS_LEGACY_GEXF_PATH GVIZ_TEST_DATA_DIR "/attrs_legacy.gexf"
 #define GVIZ_TINY_OBJ_PATH GVIZ_TEST_DATA_DIR "/tiny.obj"
 #define GVIZ_TINY_VTN_OBJ_PATH GVIZ_TEST_DATA_DIR "/tiny_vtn.obj"
 #define GVIZ_BAD_OBJ_PATH GVIZ_TEST_DATA_DIR "/bad.obj"
@@ -100,6 +102,58 @@ void test_loadFromGexfFile_tiny(void) {
   TEST_ASSERT_EQUAL_INT(1, gvizGraphEdgeExists(&g, 2, 1));
   TEST_ASSERT_EQUAL_INT(0, gvizGraphEdgeExists(&g, 0, 2));
 
+  TEST_ASSERT_EQUAL_STRING("{\n  \"label\": \"A\"\n}",
+                           (const char *)gvizGraphGetVertexData(&g, 0));
+  TEST_ASSERT_EQUAL_STRING("{\n  \"label\": \"B\"\n}",
+                           (const char *)gvizGraphGetVertexData(&g, 1));
+  TEST_ASSERT_EQUAL_STRING("{\n  \"label\": \"C\"\n}",
+                           (const char *)gvizGraphGetVertexData(&g, 2));
+
+  gvizGraphFreeVertexDataStrings(&g);
+  gvizGraphRelease(&g);
+}
+
+void test_loadFromGexfFile_attributes(void) {
+  gvizGraph g;
+
+  TEST_ASSERT_EQUAL_INT(0, gvizGraphLoadFromGexfFile(GVIZ_ATTRS_GEXF_PATH, &g));
+  TEST_ASSERT_EQUAL_UINT64(2, gvizGraphSize(&g));
+
+  gvizGraphBuildLayout(&g);
+  TEST_ASSERT_EQUAL_UINT64(1, gvizGraphEdgeCount(&g));
+  TEST_ASSERT_EQUAL_INT(1, gvizGraphEdgeExists(&g, 0, 1));
+
+  TEST_ASSERT_EQUAL_STRING(
+      "{\n"
+      "  \"label\": \"Alpha\",\n"
+      "  \"city\": \"Gotham\",\n"
+      "  \"population\": 42,\n"
+      "  \"rating\": 3.5,\n"
+      "  \"active\": true\n"
+      "}",
+      (const char *)gvizGraphGetVertexData(&g, 0));
+  TEST_ASSERT_EQUAL_STRING("{\n  \"label\": \"Beta\"\n}",
+                           (const char *)gvizGraphGetVertexData(&g, 1));
+
+  gvizGraphFreeVertexDataStrings(&g);
+  gvizGraphRelease(&g);
+}
+
+void test_loadFromGexfFile_legacyAttvalueId(void) {
+  gvizGraph g;
+
+  TEST_ASSERT_EQUAL_INT(
+      0, gvizGraphLoadFromGexfFile(GVIZ_ATTRS_LEGACY_GEXF_PATH, &g));
+  TEST_ASSERT_EQUAL_UINT64(2, gvizGraphSize(&g));
+
+  TEST_ASSERT_EQUAL_STRING("{\n"
+                           "  \"label\": \"Alpha\",\n"
+                           "  \"0\": \"Alpha\",\n"
+                           "  \"1\": 1.5\n"
+                           "}",
+                           (const char *)gvizGraphGetVertexData(&g, 0));
+
+  gvizGraphFreeVertexDataStrings(&g);
   gvizGraphRelease(&g);
 }
 
@@ -169,6 +223,8 @@ int main(void) {
   RUN_TEST(test_loadFromEdgesFile_directed);
   RUN_TEST(test_loadFromEdgesFile_idsWithGaps);
   RUN_TEST(test_loadFromGexfFile_tiny);
+  RUN_TEST(test_loadFromGexfFile_attributes);
+  RUN_TEST(test_loadFromGexfFile_legacyAttvalueId);
   RUN_TEST(test_loadFromGexfFile_zeroNodes);
   RUN_TEST(test_loadFromGexfFile_missingFile);
   RUN_TEST(test_loadFromObjFile_quad);

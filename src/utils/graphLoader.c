@@ -1,5 +1,6 @@
 #include "utils/graphLoader.h"
 #include "core/alloc.h"
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -252,6 +253,20 @@ static const char *gexf_bounded_strstr(const char *hay, const char *hay_end,
   return NULL;
 }
 
+static const char *gexf_next_tag_bounded(const char *from, const char *end,
+                                         const char *name, size_t name_len) {
+  const char *p = from;
+  while (p < end) {
+    const char *found = gexf_bounded_strstr(p, end, name);
+    if (!found)
+      return NULL;
+    if (found + name_len <= end && gexf_tag_char_valid(found[name_len]))
+      return found;
+    p = found + name_len;
+  }
+  return NULL;
+}
+
 static int gexf_extract_attr(const char *tag_start, const char *tag_end,
                              const char *attr_name, char *out,
                              size_t out_cap) {
@@ -357,12 +372,274 @@ static int gexf_id_table_lookup(const gvizGexfIdTable *t, const char *key,
   return -1;
 }
 
+typedef enum {
+  GVIZ_GEXF_ATTR_STRING = 0,
+  GVIZ_GEXF_ATTR_NUMBER = 1,
+  GVIZ_GEXF_ATTR_BOOL = 2,
+} gvizGexfAttrKind;
+
+static gvizGexfAttrKind gexf_attr_kind_from_type(const char *type) {
+  if (strcmp(type, "integer") == 0 || strcmp(type, "long") == 0 ||
+      strcmp(type, "float") == 0 || strcmp(type, "double") == 0)
+    return GVIZ_GEXF_ATTR_NUMBER;
+  if (strcmp(type, "boolean") == 0)
+    return GVIZ_GEXF_ATTR_BOOL;
+  return GVIZ_GEXF_ATTR_STRING;
+}
+
+static int gexf_load_attribute_types(const char *buf, gvizGexfIdTable *types) {
+  const char *p = buf;
+  const char *tag_start;
+  while ((tag_start = gexf_next_tag(p, "<attributes", 11)) != NULL) {
+    const char *tag_end = strchr(tag_start, '>');
+    if (!tag_end)
+      return -1;
+
+    char class_val[32];
+    int is_edge_class =
+        gexf_extract_attr(tag_start, tag_end, "class", class_val,
+                          sizeof(class_val)) == 0 &&
+        strcmp(class_val, "edge") == 0;
+
+    const char *body_start = tag_end + 1;
+    const char *body_end = strstr(body_start, "</attributes>");
+    if (!body_end)
+      return -1;
+
+    if (!is_edge_class) {
+      const char *ap = body_start;
+      const char *attr_tag;
+      while ((attr_tag = gexf_next_tag_bounded(ap, body_end, "<attribute",
+                                               10)) != NULL) {
+        const char *attr_tag_end =
+            memchr(attr_tag, '>', (size_t)(body_end - attr_tag));
+        if (!attr_tag_end)
+          return -1;
+
+        char id[256];
+        char type[32];
+        if (gexf_extract_attr(attr_tag, attr_tag_end, "id", id, sizeof(id)) <
+            0)
+          return -1;
+        if (gexf_extract_attr(attr_tag, attr_tag_end, "type", type,
+                              sizeof(type)) < 0)
+          strcpy(type, "string");
+
+        if (gexf_id_table_insert(types, id,
+                                 (size_t)gexf_attr_kind_from_type(type)) < 0)
+          return -1;
+
+        ap = attr_tag_end + 1;
+      }
+    }
+
+    p = body_end + strlen("</attributes>");
+  }
+  return 0;
+}
+
+typedef struct {
+  char *data;
+  size_t len;
+  size_t cap;
+} gvizStrBuf;
+
+static int strbuf_init(gvizStrBuf *sb) {
+  sb->cap = 128;
+  sb->len = 0;
+  sb->data = GVIZ_ALLOC(sb->cap);
+  if (!sb->data)
+    return -1;
+  sb->data[0] = '\0';
+  return 0;
+}
+
+static void strbuf_release(gvizStrBuf *sb) {
+  GVIZ_DEALLOC(sb->data);
+  sb->data = NULL;
+  sb->len = 0;
+  sb->cap = 0;
+}
+
+static int strbuf_append(gvizStrBuf *sb, const char *s, size_t n) {
+  if (sb->len + n + 1 > sb->cap) {
+    size_t new_cap = sb->cap;
+    while (new_cap < sb->len + n + 1)
+      new_cap *= 2;
+    char *next = GVIZ_REALLOC(sb->data, new_cap);
+    if (!next)
+      return -1;
+    sb->data = next;
+    sb->cap = new_cap;
+  }
+  memcpy(sb->data + sb->len, s, n);
+  sb->len += n;
+  sb->data[sb->len] = '\0';
+  return 0;
+}
+
+static int strbuf_append_str(gvizStrBuf *sb, const char *s) {
+  return strbuf_append(sb, s, strlen(s));
+}
+
+static int gexf_json_append_escaped(gvizStrBuf *sb, const char *s) {
+  if (strbuf_append(sb, "\"", 1) < 0)
+    return -1;
+  for (const unsigned char *c = (const unsigned char *)s; *c; c++) {
+    char esc[8];
+    int esc_len;
+    switch (*c) {
+    case '"':
+      esc_len = snprintf(esc, sizeof(esc), "\\\"");
+      break;
+    case '\\':
+      esc_len = snprintf(esc, sizeof(esc), "\\\\");
+      break;
+    case '\n':
+      esc_len = snprintf(esc, sizeof(esc), "\\n");
+      break;
+    case '\r':
+      esc_len = snprintf(esc, sizeof(esc), "\\r");
+      break;
+    case '\t':
+      esc_len = snprintf(esc, sizeof(esc), "\\t");
+      break;
+    default:
+      if (*c < 0x20) {
+        esc_len = snprintf(esc, sizeof(esc), "\\u%04x", *c);
+      } else {
+        if (strbuf_append(sb, (const char *)c, 1) < 0)
+          return -1;
+        continue;
+      }
+      break;
+    }
+    if (strbuf_append(sb, esc, (size_t)esc_len) < 0)
+      return -1;
+  }
+  return strbuf_append(sb, "\"", 1);
+}
+
+static int gexf_looks_like_number(const char *s) {
+  if (*s == '-' || *s == '+')
+    s++;
+  int digits = 0;
+  while (isdigit((unsigned char)*s)) {
+    s++;
+    digits++;
+  }
+  if (*s == '.') {
+    s++;
+    while (isdigit((unsigned char)*s)) {
+      s++;
+      digits++;
+    }
+  }
+  if (digits == 0)
+    return 0;
+  if (*s == 'e' || *s == 'E') {
+    s++;
+    if (*s == '+' || *s == '-')
+      s++;
+    if (!isdigit((unsigned char)*s))
+      return 0;
+    while (isdigit((unsigned char)*s))
+      s++;
+  }
+  return *s == '\0';
+}
+
+static int gexf_looks_like_bool(const char *s) {
+  return strcmp(s, "true") == 0 || strcmp(s, "false") == 0;
+}
+
+static int gexf_json_append_value(gvizStrBuf *sb, gvizGexfAttrKind kind,
+                                  const char *value) {
+  if (kind == GVIZ_GEXF_ATTR_NUMBER && gexf_looks_like_number(value))
+    return strbuf_append_str(sb, value);
+  if (kind == GVIZ_GEXF_ATTR_BOOL && gexf_looks_like_bool(value))
+    return strbuf_append_str(sb, value);
+  return gexf_json_append_escaped(sb, value);
+}
+
+#define GEXF_JSON_INDENT "  "
+
+static int gexf_json_append_field(gvizStrBuf *sb, int *has_fields,
+                                  const char *key, gvizGexfAttrKind kind,
+                                  const char *value) {
+  const char *sep = *has_fields ? ",\n" GEXF_JSON_INDENT : "\n" GEXF_JSON_INDENT;
+  if (strbuf_append_str(sb, sep) < 0)
+    return -1;
+  if (gexf_json_append_escaped(sb, key) < 0)
+    return -1;
+  if (strbuf_append_str(sb, ": ") < 0)
+    return -1;
+  if (gexf_json_append_value(sb, kind, value) < 0)
+    return -1;
+  *has_fields = 1;
+  return 0;
+}
+
+static char *gexf_build_node_json(const char *label, const char *body_start,
+                                  const char *body_end,
+                                  const gvizGexfIdTable *attr_types) {
+  gvizStrBuf sb;
+  if (strbuf_init(&sb) < 0)
+    return NULL;
+  if (strbuf_append_str(&sb, "{") < 0)
+    goto fail;
+
+  int has_fields = 0;
+  if (label && gexf_json_append_field(&sb, &has_fields, "label",
+                                      GVIZ_GEXF_ATTR_STRING, label) < 0)
+    goto fail;
+
+  const char *ap = body_start;
+  const char *attr_tag;
+  while ((attr_tag = gexf_next_tag_bounded(ap, body_end, "<attvalue", 9)) !=
+        NULL) {
+    const char *attr_tag_end =
+        memchr(attr_tag, '>', (size_t)(body_end - attr_tag));
+    if (!attr_tag_end)
+      goto fail;
+
+    char for_id[256];
+    char value[512];
+    if ((gexf_extract_attr(attr_tag, attr_tag_end, "for", for_id,
+                           sizeof(for_id)) < 0 &&
+        gexf_extract_attr(attr_tag, attr_tag_end, "id", for_id,
+                          sizeof(for_id)) < 0) ||
+        gexf_extract_attr(attr_tag, attr_tag_end, "value", value,
+                          sizeof(value)) < 0)
+      goto fail;
+
+    size_t kind_val = GVIZ_GEXF_ATTR_STRING;
+    gexf_id_table_lookup(attr_types, for_id, &kind_val);
+
+    if (gexf_json_append_field(&sb, &has_fields, for_id,
+                               (gvizGexfAttrKind)kind_val, value) < 0)
+      goto fail;
+
+    ap = attr_tag_end + 1;
+  }
+
+  if (strbuf_append_str(&sb, has_fields ? "\n}" : "}") < 0)
+    goto fail;
+
+  char *result = GVIZ_REALLOC(sb.data, sb.len + 1);
+  return result ? result : sb.data;
+
+fail:
+  strbuf_release(&sb);
+  return NULL;
+}
+
 static int gexf_load_nodes(const char *buf, gvizGraph *out,
-                           gvizGexfIdTable *ids) {
+                           gvizGexfIdTable *ids,
+                           const gvizGexfIdTable *attr_types) {
   const char *p = buf;
   const char *tag_start;
   while ((tag_start = gexf_next_tag(p, "<node", 5)) != NULL) {
-    p = tag_start + 5;
     const char *tag_end = strchr(tag_start, '>');
     if (!tag_end)
       return -1;
@@ -371,13 +648,38 @@ static int gexf_load_nodes(const char *buf, gvizGraph *out,
     if (gexf_extract_attr(tag_start, tag_end, "id", id, sizeof(id)) < 0)
       return -1;
 
-    if (gvizGraphAddVertex(out, NULL, NULL, NULL) < 0)
+    char label[512];
+    int has_label = gexf_extract_attr(tag_start, tag_end, "label", label,
+                                      sizeof(label)) == 0;
+
+    int self_closing = tag_end > tag_start && *(tag_end - 1) == '/';
+    const char *body_start = tag_end + 1;
+    const char *body_end = body_start;
+    const char *next_p;
+    if (self_closing) {
+      next_p = tag_end + 1;
+    } else {
+      const char *node_close = strstr(body_start, "</node>");
+      if (!node_close)
+        return -1;
+      body_end = node_close;
+      next_p = node_close + strlen("</node>");
+    }
+
+    char *json = gexf_build_node_json(has_label ? label : NULL, body_start,
+                                      body_end, attr_types);
+    if (!json)
       return -1;
+
+    if (gvizGraphAddVertex(out, json, NULL, NULL) < 0) {
+      GVIZ_DEALLOC(json);
+      return -1;
+    }
 
     if (gexf_id_table_insert(ids, id, gvizGraphSize(out) - 1) < 0)
       return -1;
 
-    p = tag_end + 1;
+    p = next_p;
   }
   return 0;
 }
@@ -444,20 +746,45 @@ int gvizGraphLoadFromGexfFile(const char *path, gvizGraph *out) {
     return -1;
   }
 
-  int err = gexf_load_nodes(buf, out, &ids);
+  int attr_count = gexf_count_tags(buf, "<attribute");
+  gvizGexfIdTable attr_types;
+  if (gexf_id_table_init(&attr_types, attr_count > 0 ? (size_t)attr_count : 0) <
+      0) {
+    gexf_id_table_release(&ids);
+    gvizGraphRelease(out);
+    memset(out, 0, sizeof(*out));
+    GVIZ_DEALLOC(buf);
+    return -1;
+  }
+
+  int err = gexf_load_attribute_types(buf, &attr_types);
+  if (err == 0)
+    err = gexf_load_nodes(buf, out, &ids, &attr_types);
   if (err == 0)
     err = gexf_load_edges(buf, out, &ids);
 
+  gexf_id_table_release(&attr_types);
   gexf_id_table_release(&ids);
   GVIZ_DEALLOC(buf);
 
   if (err < 0) {
+    gvizGraphFreeVertexDataStrings(out);
     gvizGraphRelease(out);
     memset(out, 0, sizeof(*out));
     return -1;
   }
 
   return 0;
+}
+
+void gvizGraphFreeVertexDataStrings(gvizGraph *g) {
+  if (!g)
+    return;
+  size_t n = gvizGraphSize(g);
+  for (size_t i = 0; i < n; i++) {
+    GVIZ_DEALLOC(gvizGraphGetVertexData(g, i));
+    gvizGraphSetVertexData(g, i, NULL);
+  }
 }
 
 int gvizGraphLoadFromEdgesFile(const char *path,

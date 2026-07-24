@@ -154,6 +154,43 @@ const double *gvizEmbeddedGraphPositions(const gvizEmbeddedGraph *embedding);
 /** Returns the subgraph describing the structure of the embedded graph. */
 const gvizSubgraph *gvizEmbeddedGraphStructure(const gvizEmbeddedGraph *embedding);
 
+// GROWTH (dynamic graphs): -----------------------------------------------------
+//
+// Proxies to the underlying gvizGraph's mutators, keeping the subgraph view,
+// draw mask, and position buffer sized to match. Vertex/edge removal is not
+// supported. Growing a subgraph that is not gvizEmbeddedGraph's own (e.g. one
+// shared with another embedded graph, or a strict induced subset a caller
+// wants to keep partial) is unsupported -- these always mark the new vertex
+// or edge visible, so they assume the subgraph is meant to track the whole
+// growing graph.
+
+/**
+ * Adds a vertex to the underlying graph (see gvizGraphAddVertex; always
+ * added bare, with no initial edges -- use gvizEmbeddedGraphAddEdge to wire
+ * it up afterward) and grows @p embedding's subgraph, position buffer, and
+ * draw mask to match. The new vertex is marked present in the subgraph and
+ * visible in the draw mask. Amortized O(1) when @p embedding's subgraph is
+ * vertex-induced; O(V+E) when it is full, since a full subgraph's edge
+ * bitset addressing depends on the graph's shared layout regardless of how
+ * much changed (see gvizSubgraphRebuild).
+ *
+ * @return 0 on success, -1 on allocation failure.
+ */
+int gvizEmbeddedGraphAddVertex(gvizEmbeddedGraph *embedding, void *data);
+
+/**
+ * Adds edge (@p from, @p to) to the underlying graph (see gvizGraphAddEdge)
+ * and, if @p embedding's subgraph is full, rebuilds its edge subset and
+ * marks the new edge visible (O(V+E), same as gvizGraphAddEdge always cost
+ * a full subgraph). No-op beyond the graph mutation itself when the
+ * subgraph is vertex-induced, since neighbor iteration there proxies
+ * straight to the parent's live adjacency lists.
+ *
+ * @return 0 on success, -1 if @p from or @p to is out of bounds.
+ */
+int gvizEmbeddedGraphAddEdge(gvizEmbeddedGraph *embedding, size_t from,
+                             size_t to);
+
 // DRAW MASK (for renderers): --------------------------------------------------
 //
 // The embedder creator sets which vertices and edges should be drawn. Defaults
