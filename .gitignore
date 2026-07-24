@@ -7,3 +7,5 @@ projects/
 .CLAUDE.md
 .claude/
 /data/
+scripts/
+.DS_Store
