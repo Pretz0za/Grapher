@@ -52,7 +52,7 @@ static gvizGraph build_rect_mesh(size_t L, size_t W) {
 }
 
 void test_filtration_nestedLayers(void) {
-  gvizGRIPState state;
+  gvizGRIPState state = {0};
   gvizGraph graph = build_rect_mesh(MESH_H, MESH_W);
 
   gvizGraphBuildLayout(&graph);
@@ -69,7 +69,7 @@ void test_filtration_nestedLayers(void) {
 }
 
 void test_filtration_eachVertexAppearsOnce(void) {
-  gvizGRIPState state;
+  gvizGRIPState state = {0};
   gvizGraph graph = build_rect_mesh(MESH_H, MESH_W);
 
   gvizGraphBuildLayout(&graph);
@@ -90,7 +90,7 @@ void test_filtration_eachVertexAppearsOnce(void) {
 }
 
 void test_filtration_layer2_is_nonempty_and_builds_depth(void) {
-  gvizGRIPState state;
+  gvizGRIPState state = {0};
   gvizGraph graph = build_rect_mesh(SMALL_MESH_H, SMALL_MESH_W);
 
   gvizGraphBuildLayout(&graph);
@@ -108,7 +108,7 @@ void test_filtration_layer2_is_nonempty_and_builds_depth(void) {
 }
 
 void test_filtration_final_layer_has_simplex_count(void) {
-  gvizGRIPState state;
+  gvizGRIPState state = {0};
   gvizGraph graph = build_rect_mesh(SMALL_MESH_H, SMALL_MESH_W);
 
   gvizGraphBuildLayout(&graph);
@@ -124,7 +124,7 @@ void test_filtration_final_layer_has_simplex_count(void) {
 }
 
 void test_filtration_finest_border_matches_subgraph(void) {
-  gvizGRIPState state;
+  gvizGRIPState state = {0};
   gvizGraph graph;
   gvizGraphInitAtCapacity(&graph, 0, 8);
 
@@ -164,7 +164,7 @@ void test_filtration_finest_border_matches_subgraph(void) {
 }
 
 void test_filtration_perLayerVertexSpacingAndMaximality(void) {
-  gvizGRIPState state;
+  gvizGRIPState state = {0};
   gvizGraph graph = build_rect_mesh(MESH_H, MESH_W);
 
   gvizGraphBuildLayout(&graph);
@@ -229,7 +229,7 @@ void test_filtration_perLayerVertexSpacingAndMaximality(void) {
 // End-to-end: the full pipeline must produce finite, non-collapsed 2D
 // positions for every vertex of a small mesh.
 void test_embed_endToEnd_producesSpreadFinitePositions(void) {
-  gvizGRIPState state;
+  gvizGRIPState state = {0};
   gvizGraph graph = build_rect_mesh(SMALL_MESH_H, SMALL_MESH_W);
 
   gvizGraphBuildLayout(&graph);
@@ -270,7 +270,7 @@ void test_embed_endToEnd_producesSpreadFinitePositions(void) {
 // Neighboring mesh vertices should land nearer each other than far-apart
 // mesh vertices do on average (sanity that the layout reflects topology).
 void test_embed_endToEnd_neighborsCloserThanFarPairs(void) {
-  gvizGRIPState state;
+  gvizGRIPState state = {0};
   gvizGraph graph = build_rect_mesh(SMALL_MESH_H, SMALL_MESH_W);
 
   gvizGraphBuildLayout(&graph);
@@ -307,8 +307,7 @@ void test_embed_endToEnd_neighborsCloserThanFarPairs(void) {
 
 // Init must reject subgraphs too small to place the coarsest simplex.
 void test_init_rejectsTooFewVertices(void) {
-  gvizGRIPState state;
-  memset(&state, 0, sizeof(state));
+  gvizGRIPState state = {0};
   gvizGraph graph;
   gvizGraphInitAtCapacity(&graph, 0, 2);
   gvizGraphAddVertex(&graph, NULL, NULL, NULL);
@@ -324,7 +323,7 @@ void test_init_rejectsTooFewVertices(void) {
 }
 
 void test_configureK_clampsToCapacity(void) {
-  gvizGRIPState state;
+  gvizGRIPState state = {0};
   gvizGraph graph = build_rect_mesh(SMALL_MESH_H, SMALL_MESH_W);
   gvizGraphBuildLayout(&graph);
   gvizSubgraph sg = gvizSubgraphCreateFull(&graph);
@@ -351,5 +350,9 @@ int main() {
   RUN_TEST(test_filtration_final_layer_has_simplex_count);
   RUN_TEST(test_filtration_finest_border_matches_subgraph);
   RUN_TEST(test_filtration_perLayerVertexSpacingAndMaximality);
+  RUN_TEST(test_embed_endToEnd_producesSpreadFinitePositions);
+  RUN_TEST(test_embed_endToEnd_neighborsCloserThanFarPairs);
+  RUN_TEST(test_init_rejectsTooFewVertices);
+  RUN_TEST(test_configureK_clampsToCapacity);
   return UNITY_END();
 }
