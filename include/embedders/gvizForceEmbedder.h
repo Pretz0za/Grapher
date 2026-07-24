@@ -19,6 +19,7 @@
 #define GVIZ_FORCE_EMBEDDER_SPEED_INITIAL 1.0
 #define GVIZ_FORCE_EMBEDDER_SPEED_EFFICIENCY_INITIAL 1.0
 #define GVIZ_FORCE_EMBEDDER_SPEED_EFFICIENCY_MIN 0.05
+#define GVIZ_FORCE_EMBEDDER_SPEED_EFFICIENCY_MAX 1.0
 #define GVIZ_FORCE_EMBEDDER_SPEED_MAX_RISE 0.5
 
 /**
@@ -88,9 +89,16 @@ typedef struct gvizForceEmbedderState {
                         * force magnitude for this round's stats */
   double *repForceMag; /* owned; vertexCount scratch, per-vertex repulsive
                         * force magnitude for this round's stats */
-  double *oldForce;    /* owned; vertexCount * 2, previous round's raw net
-                        * force, for this round's per-vertex swinging/traction
-                        * measurement */
+  double *structForce; /* owned; vertexCount * 2, this round's attraction +
+                        * repulsion only (gravity excluded) -- what swinging/
+                        * traction are actually measured against. Gravity is a
+                        * permanent anchor pulling every vertex toward the
+                        * origin, not a force that's ever expected to settle
+                        * to zero, so folding it into the convergence signal
+                        * would forever read as "still moving" even once the
+                        * graph's actual structure has settled. */
+  double *oldStructForce; /* owned; vertexCount * 2, previous round's
+                           * structForce */
   double *appliedDisp; /* owned; vertexCount * 2, this round's raw force after
                         * the global/per-vertex speed factor; what actually
                         * gets added to vertex positions */
@@ -101,7 +109,8 @@ typedef struct gvizForceEmbedderState {
   double jitterTolerance; /* user-facing tolerance for how much global
                           * swinging is allowed relative to global traction */
   double globalSpeed;     /* persists across rounds */
-  double speedEfficiency; /* persists across rounds */
+  double speedEfficiency; /* persists across rounds; clamped to
+                           * [SPEED_EFFICIENCY_MIN, SPEED_EFFICIENCY_MAX] */
   double edgeLength;
   double boxExtent;
   double gravityK; /* constant-magnitude-per-(deg+1) pull toward the origin;
@@ -209,7 +218,12 @@ void gvizForceEmbedderSetBarnesHutEnabled(gvizForceEmbedderState *state,
  * abstraction is active. @p k = 0 (the default) disables gravity. Unlike
  * the other Configure* functions, there is no "0 means keep current" special
  * case: @p k is always assigned unconditionally, since 0 is gravity's
- * legitimate default/off value.
+ * legitimate default/off value. Gravity is deliberately excluded from
+ * swinging/traction (see structForce) since, unlike attraction/repulsion,
+ * it's a permanent force that's never expected to settle to zero -- a
+ * vertex can still visibly oscillate near the origin under gravity alone
+ * (its direction is unstable right at the target), but that no longer
+ * throttles the shared global speed for the rest of the graph.
  */
 void gvizForceEmbedderConfigureGravity(gvizForceEmbedderState *state,
                                        double k);

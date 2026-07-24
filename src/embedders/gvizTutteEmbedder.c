@@ -366,7 +366,9 @@ int gvizTutteEmbedderFixOuterFace(gvizTutteState *s) {
 
     gvizTutteFixConvexPolygon(s, boundary, boundaryCount, 200.0);
     GVIZ_DEALLOC(boundary);
-    gvizTutteEmbedderSeedInterior(s);
+    s->iteration = 0;
+    s->lastMaxDelta = 0.0;
+    s->converged = 0;
     s->begun = 1;
     return 0;
 }

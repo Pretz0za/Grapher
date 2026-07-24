@@ -118,6 +118,7 @@ static void computeForceRange(void *ctx, size_t begin, size_t end) {
     gvizVecAxpy(2, 1.0, repF, f);
     state->attForceMag[i] = gvizVecNorm2(2, attF);
     state->repForceMag[i] = gvizVecNorm2(2, repF);
+    gvizVecCopy(2, f, state->structForce + i * 2);
 
     double gravityMag = state->gravityK * (double)(state->degree[i] + 1);
     gvizPairwiseGravityForce(2, vPos, gravityMag, f);
@@ -127,8 +128,8 @@ static void computeForceRange(void *ctx, size_t begin, size_t end) {
 static void computeSwingTractionRange(void *ctx, size_t begin, size_t end) {
   gvizForceEmbedderState *state = ctx;
   for (size_t i = begin; i < end; i++) {
-    double *f = state->disp + i * 2;
-    double *old = state->oldForce + i * 2;
+    double *f = state->structForce + i * 2;
+    double *old = state->oldStructForce + i * 2;
     double diff[2] = {f[0] - old[0], f[1] - old[1]};
     double sum[2] = {f[0] + old[0], f[1] + old[1]};
     state->swinging[i] = state->mass[i] * gvizVecNorm2(2, diff);
@@ -172,6 +173,11 @@ static void updateGlobalSpeed(gvizForceEmbedderState *state) {
   } else if (state->globalSpeed < 1000.0) {
     state->speedEfficiency *= 1.3;
   }
+
+  if (state->speedEfficiency < GVIZ_FORCE_EMBEDDER_SPEED_EFFICIENCY_MIN)
+    state->speedEfficiency = GVIZ_FORCE_EMBEDDER_SPEED_EFFICIENCY_MIN;
+  else if (state->speedEfficiency > GVIZ_FORCE_EMBEDDER_SPEED_EFFICIENCY_MAX)
+    state->speedEfficiency = GVIZ_FORCE_EMBEDDER_SPEED_EFFICIENCY_MAX;
 
   state->globalSpeed +=
       fmin(targetSpeed - state->globalSpeed,
@@ -265,12 +271,13 @@ int gvizForceEmbedderInit(gvizForceEmbedderState *state, gvizSubgraph subgraph,
   if (!state->attForceMag || !state->repForceMag)
     return -1;
 
-  state->oldForce = GVIZ_ALLOC(sizeof(double) * state->vertexCount * 2);
   state->appliedDisp = GVIZ_ALLOC(sizeof(double) * state->vertexCount * 2);
   state->swinging = GVIZ_ALLOC(sizeof(double) * state->vertexCount);
   state->traction = GVIZ_ALLOC(sizeof(double) * state->vertexCount);
-  if (!state->oldForce || !state->appliedDisp || !state->swinging ||
-      !state->traction)
+  state->structForce = GVIZ_ALLOC(sizeof(double) * state->vertexCount * 2);
+  state->oldStructForce = GVIZ_ALLOC(sizeof(double) * state->vertexCount * 2);
+  if (!state->appliedDisp || !state->swinging || !state->traction ||
+      !state->structForce || !state->oldStructForce)
     return -1;
 
   state->edgeLength = GVIZ_FORCE_EMBEDDER_EDGE_LENGTH_DEFAULT;
@@ -333,14 +340,16 @@ void gvizForceEmbedderRelease(gvizForceEmbedderState *state) {
     GVIZ_DEALLOC(state->attForceMag);
   if (state->repForceMag)
     GVIZ_DEALLOC(state->repForceMag);
-  if (state->oldForce)
-    GVIZ_DEALLOC(state->oldForce);
   if (state->appliedDisp)
     GVIZ_DEALLOC(state->appliedDisp);
   if (state->swinging)
     GVIZ_DEALLOC(state->swinging);
   if (state->traction)
     GVIZ_DEALLOC(state->traction);
+  if (state->structForce)
+    GVIZ_DEALLOC(state->structForce);
+  if (state->oldStructForce)
+    GVIZ_DEALLOC(state->oldStructForce);
   gvizQuadtreeRelease(&state->quadtree);
   gvizThreadPoolDestroy(state->pool);
 }
@@ -407,7 +416,8 @@ int gvizForceEmbedderBegin(gvizForceEmbedderState *state, unsigned int seed) {
   state->globalSpeed = GVIZ_FORCE_EMBEDDER_SPEED_INITIAL;
   state->speedEfficiency = GVIZ_FORCE_EMBEDDER_SPEED_EFFICIENCY_INITIAL;
   memset(state->disp, 0, sizeof(double) * state->vertexCount * 2);
-  memset(state->oldForce, 0, sizeof(double) * state->vertexCount * 2);
+  memset(state->structForce, 0, sizeof(double) * state->vertexCount * 2);
+  memset(state->oldStructForce, 0, sizeof(double) * state->vertexCount * 2);
 
   state->iteration = 0;
   state->lastMaxDisplacement = 0.0;
@@ -436,7 +446,8 @@ double gvizForceEmbedderStep(gvizForceEmbedderState *state) {
   gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
 
   gatherPositions(state);
-  gvizVecCopy(state->vertexCount * 2, state->disp, state->oldForce);
+  gvizVecCopy(state->vertexCount * 2, state->structForce,
+             state->oldStructForce);
   if (state->barnesHutEnabled)
     gvizQuadtreeRebuild(&state->quadtree, state->positionsScratch,
                         state->mass, state->vertexCount);

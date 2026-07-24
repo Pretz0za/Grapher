@@ -96,8 +96,10 @@ void gvizTutteFixConvexPolygon(gvizTutteState *s, const size_t *boundary,
 
 /**
  * Pins the highlighted face boundary (gvizEmbeddedGraph highlight subgraph) on
- * a regular convex polygon, re-seeds interior vertices, and resets convergence
- * state.
+ * a regular convex polygon and resets convergence state. Vertices not on the
+ * new boundary keep their current position (including vertices that were
+ * pinned to the previous boundary, which now relax as interior vertices from
+ * wherever they were left).
  *
  * @return 0 on success, -1 when no highlight is set or boundary setup fails.
  */
