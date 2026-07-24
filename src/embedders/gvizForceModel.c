@@ -40,9 +40,9 @@ static void linLogRepulsive(int n, double *vPos, double *otherPos,
                             double vMass, double otherMass, double vRadius,
                             double otherRadius, double overlapConstant,
                             double edgeLength, double *acc) {
-  (void)edgeLength;
   gvizPairwiseLinLogRepForce(n, vPos, otherPos, vMass, otherMass,
-                             vRadius + otherRadius, overlapConstant, acc);
+                             vRadius + otherRadius, overlapConstant,
+                             edgeLength, acc);
 }
 
 static const gvizForceModel gvizForceModelLinLog = {

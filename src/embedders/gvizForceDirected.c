@@ -49,9 +49,9 @@ void gvizPairwiseLinLogAttForce(int n, double *vPos, double *uPos,
 void gvizPairwiseLinLogRepForce(int n, double *vPos, double *uPos,
                                 double vMass, double otherMass,
                                 double radiusSum, double overlapConstant,
-                                double *acc) {
+                                double edgeLength, double *acc) {
   gvizVecAccLinLogRepForce((size_t)n, vPos, uPos, vMass, otherMass, radiusSum,
-                           overlapConstant, acc);
+                           overlapConstant, edgeLength, acc);
 }
 
 void gvizPairwiseGravityForce(int n, double *vPos, double magnitude,

@@ -447,6 +447,45 @@ void test_forceEmbedder_linLog_nonEdgeRepelsWithNonzeroDegree(void) {
   gvizGraphRelease(&g);
 }
 
+/* Regression test: with preventOverlap off (the default), LinLog repulsion
+ * used to act on raw center distance all the way to 0 (massProduct/dist),
+ * so two vertices landing almost exactly on top of each other -- entirely
+ * possible from random initial placement, or two positions briefly crossing
+ * mid-step -- produced an unbounded one-round force and got flung
+ * arbitrarily far apart in a single step. Placing two hub vertices (nonzero
+ * shared-neighbor degree, so LinLog mass > 1) a hair's width apart must
+ * still produce a bounded displacement, not a multi-thousand-unit launch. */
+void test_forceEmbedder_linLog_nearCoincidentVerticesStayBounded(void) {
+  gvizGraph g;
+  gvizGraphInit(&g, 0);
+  for (int i = 0; i < 3; i++)
+    gvizGraphAddVertex(&g, NULL, NULL, NULL);
+  gvizGraphAddEdge(&g, 0, 2);
+  gvizGraphAddEdge(&g, 1, 2);
+
+  gvizForceEmbedderState s;
+  TEST_ASSERT_EQUAL(0, gvizForceEmbedderInit(&s, makeFullSubgraph(&g), 2,
+                                             GVIZ_FORCE_MODEL_LINLOG));
+  gvizForceEmbedderSetBarnesHutEnabled(&s, 0);
+  TEST_ASSERT_EQUAL(0, gvizForceEmbedderBegin(&s, 1));
+
+  gvizEmbeddedGraph *eg = (gvizEmbeddedGraph *)&s;
+  double p0[2] = {0.0, 0.0};
+  double p1[2] = {1e-9, 0.0};
+  double p2[2] = {0.0, 1000.0};
+  gvizEmbeddedGraphSetVPosition(eg, 0, p0);
+  gvizEmbeddedGraphSetVPosition(eg, 1, p1);
+  gvizEmbeddedGraphSetVPosition(eg, 2, p2);
+
+  double maxDisp = gvizForceEmbedderStep(&s);
+
+  TEST_ASSERT_TRUE(isfinite(maxDisp));
+  TEST_ASSERT_TRUE(maxDisp < 100.0 * s.edgeLength);
+
+  gvizForceEmbedderRelease(&s);
+  gvizGraphRelease(&g);
+}
+
 /* Two non-adjacent vertices placed close together push apart harder once
  * ConfigureRadius plus enabled overlap prevention treat them as circles than
  * they do with the default zero radius, since repulsion now acts on the
@@ -734,6 +773,7 @@ int main(void) {
   RUN_TEST(test_forceEmbedder_barnesHutApproximatesExactForTinyTheta);
   RUN_TEST(test_forceEmbedder_step_handlesCoincidentPositions);
   RUN_TEST(test_forceEmbedder_linLog_nonEdgeRepelsWithNonzeroDegree);
+  RUN_TEST(test_forceEmbedder_linLog_nearCoincidentVerticesStayBounded);
   RUN_TEST(test_forceEmbedder_barnesHutDisabled_stillProducesSensibleResults);
   RUN_TEST(test_forceEmbedder_gravity_pullsVertexTowardOrigin);
   return UNITY_END();
