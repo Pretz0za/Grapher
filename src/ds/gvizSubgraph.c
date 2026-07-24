@@ -6,7 +6,7 @@
 #include <string.h>
 
 static bool subgraph_has_vertices(const gvizSubgraph *sg) {
-  return sg && sg->g && sg->g->layout && sg->vs;
+  return sg && sg->g && sg->vs;
 }
 
 static bool subgraph_is_full(const gvizSubgraph *sg) {
@@ -202,20 +202,20 @@ gvizBitArrayIterator gvizEdgeSubsetIteratorCreateVertexRange(
 
 gvizSubgraph gvizSubgraphCreateVertexInduced(const struct gvizGraph *g,
                                              gvizVertexSubset vs) {
-  return (gvizSubgraph){g, vs, (gvizEdgeSubset){0}};
+  return (gvizSubgraph){g, vs, (gvizEdgeSubset){0}, gvizGraphSize(g)};
 }
 
 gvizSubgraph gvizSubgraphCreateEmpty(const struct gvizGraph *g) {
   gvizVertexSubset vs = gvizVertexSubsetCreateEmpty(g);
   if (!vs)
-    return (gvizSubgraph){NULL, NULL, (gvizEdgeSubset){0}};
+    return (gvizSubgraph){NULL, NULL, (gvizEdgeSubset){0}, 0};
   gvizEdgeSubset es = gvizEdgeSubsetCreateEmpty(g);
   if (!es.bitset) {
     gvizVertexSubsetRelease(vs);
-    return (gvizSubgraph){NULL, NULL, (gvizEdgeSubset){0}};
+    return (gvizSubgraph){NULL, NULL, (gvizEdgeSubset){0}, 0};
   }
 
-  return (gvizSubgraph){g, vs, es};
+  return (gvizSubgraph){g, vs, es, gvizGraphSize(g)};
 }
 
 void gvizSubgraphRelease(gvizSubgraph *sg) {
@@ -228,7 +228,10 @@ void gvizSubgraphRelease(gvizSubgraph *sg) {
   sg->g = NULL;
   sg->vs = NULL;
   sg->es = (gvizEdgeSubset){0};
+  sg->vertexCapacity = 0;
 }
+
+bool gvizSubgraphIsFull(const gvizSubgraph *sg) { return subgraph_is_full(sg); }
 
 void gvizSubgraphMakeEdgeSubset(gvizSubgraph *sg) {
   if (!sg || !sg->g || !sg->g->layout || !sg->vs || sg->es.bitset)
@@ -285,29 +288,37 @@ void gvizSubgraphHideEdge(const gvizSubgraph *sg, size_t u, size_t v) {
   gvizEdgeSubsetHideEdge(sg->es, u, idx);
 }
 
-int gvizSubgraphRebuild(gvizSubgraph *sg) {
-  if (!sg || !sg->g || !sg->vs)
-    return -1;
+static int subgraph_rebuild_vertex_induced(gvizSubgraph *sg) {
+  size_t needed = gvizGraphSize(sg->g);
+  if (needed <= sg->vertexCapacity)
+    return 0;
 
-  int full = subgraph_is_full(sg);
-  int vertex_induced = subgraph_is_vertex_induced(sg);
-  if (!full && !vertex_induced)
-    return -1;
+  size_t newCap = sg->vertexCapacity ? sg->vertexCapacity * 2 : 64;
+  while (newCap < needed)
+    newCap *= 2;
 
-  size_t old_nverts =
-      sg->g->layout ? sg->g->layout->nvertices : gvizGraphSize(sg->g);
+  GVIZ_BIT_ARRAY neu = gvizBitArrayResize(sg->vs, sg->vertexCapacity, newCap);
+  if (!neu)
+    return -1;
+  gvizVertexSubsetRelease(sg->vs);
+  sg->vs = neu;
+  sg->vertexCapacity = newCap;
+  return 0;
+}
+
+static int subgraph_rebuild_full(gvizSubgraph *sg) {
+  size_t old_nverts = sg->vertexCapacity;
 
   gvizVertexSubset old_vs = sg->vs;
   gvizEdgeSubset old_es = sg->es;
-  if (full)
-    sg->es.bitset = NULL;
+  sg->es.bitset = NULL;
 
   // gvizGraphBuildLayout rewrites the shared layout in place, but the old
   // edge bits are positioned by the old offsets. Snapshot them so the
   // migration below decodes old bit positions with the layout they were
   // written under.
   gvizGraphLayout old_layout_snapshot = {0};
-  if (full && old_es.layout) {
+  if (old_es.layout) {
     size_t n = old_es.layout->nvertices;
     old_layout_snapshot.nvertices = n;
     old_layout_snapshot.edgeCount = old_es.layout->edgeCount;
@@ -341,21 +352,29 @@ int gvizSubgraphRebuild(gvizSubgraph *sg) {
   if (old_vs && old_vs != neu)
     gvizVertexSubsetRelease(old_vs);
   sg->vs = neu;
+  sg->vertexCapacity = new_nverts;
 
-  if (full) {
-    gvizEdgeSubset migrated = (gvizEdgeSubset){0};
-    int err = edge_subset_migrate(&migrated, sg->g, old_es);
-    if (old_es.bitset)
-      gvizEdgeSubsetRelease(old_es);
-    GVIZ_DEALLOC(old_layout_snapshot.vertexOffsets);
-    if (err < 0)
-      return -1;
-    sg->es = migrated;
-  } else {
-    GVIZ_DEALLOC(old_layout_snapshot.vertexOffsets);
-  }
+  gvizEdgeSubset migrated = (gvizEdgeSubset){0};
+  int err = edge_subset_migrate(&migrated, sg->g, old_es);
+  if (old_es.bitset)
+    gvizEdgeSubsetRelease(old_es);
+  GVIZ_DEALLOC(old_layout_snapshot.vertexOffsets);
+  if (err < 0)
+    return -1;
+  sg->es = migrated;
 
   return 0;
+}
+
+int gvizSubgraphRebuild(gvizSubgraph *sg) {
+  if (!sg || !sg->g || !sg->vs)
+    return -1;
+
+  if (subgraph_is_vertex_induced(sg))
+    return subgraph_rebuild_vertex_induced(sg);
+  if (subgraph_is_full(sg))
+    return subgraph_rebuild_full(sg);
+  return -1;
 }
 
 bool gvizSubgraphHasVertex(const gvizSubgraph *sg, size_t u) {
@@ -367,7 +386,7 @@ bool gvizSubgraphHasVertex(const gvizSubgraph *sg, size_t u) {
 size_t gvizSubgraphVertexCount(const gvizSubgraph *sg) {
   if (!subgraph_has_vertices(sg))
     return 0;
-  return gvizVertexSubsetCount(sg->vs, sg->g->layout->nvertices);
+  return gvizVertexSubsetCount(sg->vs, sg->vertexCapacity);
 }
 
 bool gvizSubgraphHasEdge(const gvizSubgraph *sg, size_t u, size_t v) {
@@ -413,7 +432,7 @@ size_t gvizSubgraphEdgeCount(const gvizSubgraph *sg) {
     return gvizEdgeSubsetCount(sg->es);
 
   size_t count = 0;
-  size_t n = sg->g->layout->nvertices;
+  size_t n = sg->vertexCapacity;
   gvizBitArrayIterator vit = gvizVertexSubsetIteratorCreate(sg->vs, n);
   size_t u;
   while (gvizBitArrayIterate(&vit, &u)) {
@@ -434,7 +453,7 @@ gvizSubgraphVertexIterator gvizSubgraphVertexIteratorCreate(
   gvizSubgraphVertexIterator it = {sg, {0}};
   if (!subgraph_has_vertices(sg))
     return it;
-  it.it = gvizVertexSubsetIteratorCreate(sg->vs, sg->g->layout->nvertices);
+  it.it = gvizVertexSubsetIteratorCreate(sg->vs, sg->vertexCapacity);
   return it;
 }
 

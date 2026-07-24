@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gexf xmlns="http://www.gephi.org/gexf" xmlns:viz="http://www.gephi.org/gexf/viz">
+<graph type="static">
+<attributes class="node" type="static">
+<attribute id="0" title="label" type="string"/>
+<attribute id="1" title="score" type="double"/>
+</attributes>
+<nodes>
+<node id="a" label="Alpha">
+<attvalues>
+<attvalue id="0" value="Alpha"/>
+<attvalue id="1" value="1.5"/>
+</attvalues>
+</node>
+<node id="b" label="Beta" />
+</nodes>
+<edges>
+<edge id="0" source="a" target="b"/>
+</edges>
+</graph>
+</gexf>

@@ -151,6 +151,65 @@ gvizEmbeddedGraphStructure(const gvizEmbeddedGraph *embedding) {
   return &embedding->subgraph;
 }
 
+int gvizEmbeddedGraphAddVertex(gvizEmbeddedGraph *embedding, void *data) {
+  if (!embedding)
+    return -1;
+
+  gvizGraph *g = (gvizGraph *)embedding->subgraph.g;
+  size_t oldCap = embedding->subgraph.vertexCapacity;
+
+  if (gvizGraphAddVertex(g, data, NULL, NULL) < 0)
+    return -1;
+  size_t idx = gvizGraphSize(g) - 1;
+
+  if (gvizSubgraphRebuild(&embedding->subgraph) < 0)
+    return -1;
+
+  size_t newCap = embedding->subgraph.vertexCapacity;
+  if (newCap > oldCap) {
+    size_t dim = embedding->embedding.dim;
+    double *grownPositions = GVIZ_REALLOC(embedding->embedding.vertexPositions,
+                                          sizeof(double) * newCap * dim);
+    if (!grownPositions)
+      return -1;
+    memset(grownPositions + oldCap * dim, 0,
+           sizeof(double) * (newCap - oldCap) * dim);
+    embedding->embedding.vertexPositions = grownPositions;
+
+    GVIZ_BIT_ARRAY grownMask = gvizBitArrayResize(
+        embedding->drawMask.visibleVertices, oldCap, newCap);
+    if (!grownMask)
+      return -1;
+    gvizVertexSubsetRelease(embedding->drawMask.visibleVertices);
+    embedding->drawMask.visibleVertices = grownMask;
+  }
+
+  gvizSubgraphShowVertex(&embedding->subgraph, idx);
+  gvizEmbeddedGraphDrawMaskShowVertex(embedding, idx);
+  gvizEmbeddedGraphDrawMaskNotifyChanged(embedding);
+
+  return 0;
+}
+
+int gvizEmbeddedGraphAddEdge(gvizEmbeddedGraph *embedding, size_t from,
+                             size_t to) {
+  if (!embedding)
+    return -1;
+
+  gvizGraph *g = (gvizGraph *)embedding->subgraph.g;
+  if (gvizGraphAddEdge(g, from, to) < 0)
+    return -1;
+
+  if (gvizSubgraphIsFull(&embedding->subgraph)) {
+    if (gvizSubgraphRebuild(&embedding->subgraph) < 0)
+      return -1;
+    gvizSubgraphShowEdge(&embedding->subgraph, from, to);
+    gvizEmbeddedGraphDrawMaskNotifyChanged(embedding);
+  }
+
+  return 0;
+}
+
 static gvizAction *findActionMutable(const gvizEmbeddedGraph *embedding,
                                      const char *name) {
   for (size_t i = 0; i < embedding->actions.count; i++) {

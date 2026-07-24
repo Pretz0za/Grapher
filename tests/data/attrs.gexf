@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gexf xmlns="http://www.gexf.net/1.3" version="1.3">
+  <graph mode="static" defaultedgetype="undirected">
+    <attributes class="node" mode="static">
+      <attribute id="city" title="City" type="string"/>
+      <attribute id="population" title="Population" type="integer"/>
+      <attribute id="rating" title="Rating" type="double"/>
+      <attribute id="active" title="Active" type="boolean"/>
+    </attributes>
+    <nodes>
+      <node id="a" label="Alpha">
+        <attvalues>
+          <attvalue for="city" value="Gotham"/>
+          <attvalue for="population" value="42"/>
+          <attvalue for="rating" value="3.5"/>
+          <attvalue for="active" value="true"/>
+        </attvalues>
+      </node>
+      <node id="b" label="Beta" />
+    </nodes>
+    <edges>
+      <edge id="0" source="a" target="b" />
+    </edges>
+  </graph>
+</gexf>
