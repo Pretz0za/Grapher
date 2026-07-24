@@ -120,7 +120,7 @@ static void computeForceRange(void *ctx, size_t begin, size_t end) {
     state->repForceMag[i] = gvizVecNorm2(2, repF);
     gvizVecCopy(2, f, state->structForce + i * 2);
 
-    double gravityMag = state->gravityK * (double)(state->degree[i] + 1);
+    double gravityMag = state->gravityK;
     gvizPairwiseGravityForce(2, vPos, gravityMag, f);
   }
 }
@@ -248,15 +248,11 @@ int gvizForceEmbedderInit(gvizForceEmbedderState *state, gvizSubgraph subgraph,
   if (!state->degree || !state->mass)
     return -1;
 
-  double sumDegPlusOne = 0.0;
   for (size_t i = 0; i < state->vertexCount; i++) {
     state->degree[i] =
         gvizSubgraphDegree(&embedding->subgraph, state->vertices[i]);
     state->mass[i] = state->model->vertexMass(state->degree[i]);
-    sumDegPlusOne += (double)(state->degree[i] + 1);
   }
-  state->meanDegreePlusOne =
-      state->vertexCount ? sumDegPlusOne / (double)state->vertexCount : 0.0;
 
   state->disp = GVIZ_ALLOC(sizeof(double) * state->vertexCount * 2);
   if (!state->disp)
@@ -477,7 +473,7 @@ double gvizForceEmbedderStep(gvizForceEmbedderState *state) {
   }
   double meanAtt = state->vertexCount ? sumAtt / state->vertexCount : 0.0;
   double meanRep = state->vertexCount ? sumRep / state->vertexCount : 0.0;
-  double meanGrav = state->gravityK * state->meanDegreePlusOne;
+  double meanGrav = state->gravityK;
 
   state->iteration++;
   state->lastMaxDisplacement = maxDisp;

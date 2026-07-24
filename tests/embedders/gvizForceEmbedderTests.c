@@ -717,9 +717,10 @@ void test_forceEmbedder_barnesHutDisabled_stillProducesSensibleResults(void) {
   gvizGraphRelease(&g);
 }
 
-/* Gravity pulls a vertex toward the origin even with zero degree (gravity
- * uses raw degree, not model mass). Two isolated (degree-0) vertices are
- * placed symmetrically opposite the origin so their gravity pulls are equal
+/* Gravity pulls a vertex toward the origin even with zero degree (gravity's
+ * magnitude is a constant, independent of degree or model mass). Two
+ * isolated (degree-0) vertices are placed symmetrically opposite the origin
+ * so their gravity pulls are equal
  * and opposite -- removeNetTranslation only cancels a *common* drift, so an
  * antisymmetric pull like this survives it -- and gravityK is set large
  * enough to dominate FR's default repulsion between them. */

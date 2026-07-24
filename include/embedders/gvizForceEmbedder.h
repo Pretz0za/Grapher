@@ -75,10 +75,6 @@ typedef struct gvizForceEmbedderState {
                            * center-to-center distance. 0 (off) by default --
                            * see gvizForceEmbedderSetPreventOverlapEnabled for
                            * why. */
-  double meanDegreePlusOne; /* mean over vertices of (degree + 1), computed
-                            * once at Init since degree is fixed for the
-                            * embedder's lifetime; avoids an O(vertexCount)
-                            * reduction every Step just for the gravity stat */
   double *disp;             /* owned; vertexCount * dim, this round's raw net
                              * force per vertex (attraction + repulsion +
                              * gravity), before any speed scaling */
@@ -113,8 +109,8 @@ typedef struct gvizForceEmbedderState {
                            * [SPEED_EFFICIENCY_MIN, SPEED_EFFICIENCY_MAX] */
   double edgeLength;
   double boxExtent;
-  double gravityK; /* constant-magnitude-per-(deg+1) pull toward the origin;
-                    * 0.0 (the default) disables gravity */
+  double gravityK; /* constant-magnitude pull toward the origin; 0.0 (the
+                    * default) disables gravity */
   size_t iteration;
   double lastMaxDisplacement;
   int begun;
@@ -213,12 +209,11 @@ void gvizForceEmbedderSetBarnesHutEnabled(gvizForceEmbedderState *state,
 
 /**
  * Sets the gravity constant @p k: every vertex feels a constant-magnitude
- * force of k * (deg(v) + 1) pulling it toward the origin, using the
- * vertex's raw subgraph degree regardless of which force model's mass
- * abstraction is active. @p k = 0 (the default) disables gravity. Unlike
- * the other Configure* functions, there is no "0 means keep current" special
- * case: @p k is always assigned unconditionally, since 0 is gravity's
- * legitimate default/off value. Gravity is deliberately excluded from
+ * force of k pulling it toward the origin, independent of degree or which
+ * force model's mass abstraction is active. @p k = 0 (the default) disables
+ * gravity. Unlike the other Configure* functions, there is no "0 means keep
+ * current" special case: @p k is always assigned unconditionally, since 0 is
+ * gravity's legitimate default/off value. Gravity is deliberately excluded from
  * swinging/traction (see structForce) since, unlike attraction/repulsion,
  * it's a permanent force that's never expected to settle to zero -- a
  * vertex can still visibly oscillate near the origin under gravity alone
