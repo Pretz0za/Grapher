@@ -88,12 +88,14 @@ void gvizPairwiseLinLogAttForce(int n, double *vPos, double *uPos,
  * circles touch or overlap), the magnitude stops growing and holds flat at
  * (vMass*otherMass) * @p overlapConstant instead of diverging (Gephi
  * ForceAtlas2's "Prevent Overlap" constant), keeping the force bounded by
- * construction.
+ * construction. Independent of @p radiusSum, the raw center distance is also
+ * floored to a small fraction of @p edgeLength, so two vertices landing
+ * arbitrarily close together can't produce an unbounded one-round force.
  */
 void gvizPairwiseLinLogRepForce(int n, double *vPos, double *uPos,
                                 double vMass, double otherMass,
                                 double radiusSum, double overlapConstant,
-                                double *acc);
+                                double edgeLength, double *acc);
 
 /**
  * Accumulates a constant-magnitude gravitational force into @p acc, pulling

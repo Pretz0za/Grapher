@@ -393,6 +393,20 @@ static inline void gvizVecCoincidentFallbackDir2D(const double *a, const double 
   *outY = sin(angle);
 }
 
+// Below this fraction of the model's characteristic length (k for FR,
+// edgeLength for LinLog), repulsion's 1/gap term is floored instead of left
+// to diverge. radiusSum/overlapConstant only bound repulsion once vertices'
+// *configured* radii touch (preventOverlap must be on); without it, gap
+// tracks raw center distance all the way to 0, so two vertices that land
+// arbitrarily close (random initial placement, or two positions briefly
+// crossing mid-step) would otherwise produce an unbounded one-round force --
+// the vertex is flung far away, and since attraction (FR: ~d^2, LinLog:
+// ~log(d)) grows much slower than the repulsion that just fired, it can take
+// many rounds to pull back in, especially for LinLog's logarithmic
+// attraction. This floor is a numerical-stability guard, independent of
+// preventOverlap.
+#define GVIZ_VEC_MIN_DIST_FRACTION 0.01
+
 // Repulsive force from the original Fruchterman-Reingold paper:
 // f_r(d) = k^2 / d, applied between every vertex pair, pushing v away from u.
 // radiusSum (0 to disable) shifts the effective distance from raw center
@@ -413,7 +427,8 @@ static inline void gvizVecAccFRRepForce(size_t n, const double *vPos,
     double dy = uPos[1] - vPos[1];
     double dist_sq = dx * dx + dy * dy;
     double dist = sqrt(dist_sq);
-    double gap = dist - radiusSum;
+    double safeDist = fmax(dist, k * GVIZ_VEC_MIN_DIST_FRACTION);
+    double gap = safeDist - radiusSum;
     double mag = gap > 0.0 ? kSq / gap : kSq * overlapConstant;
     double ux, uy;
     if (dist > 0.0) {
@@ -548,12 +563,16 @@ static inline void gvizVecAccLinLogAttForce(size_t n, const double *vPos,
 // magnitude stops growing and holds flat at massProduct * overlapConstant
 // (Gephi ForceAtlas2's "Prevent Overlap" constant) instead of diverging --
 // bounded by construction, since that branch never divides by the vanishing
-// gap.
+// gap. Independent of radiusSum, the raw center distance itself is floored
+// to GVIZ_VEC_MIN_DIST_FRACTION * edgeLength before computing gap, so two
+// vertices landing arbitrarily close together (radiusSum or not) can't spike
+// this into an unbounded one-round impulse.
 static inline void gvizVecAccLinLogRepForce(size_t n, const double *vPos,
                                             const double *uPos, double vMass,
                                             double otherMass,
                                             double radiusSum,
                                             double overlapConstant,
+                                            double edgeLength,
                                             double *acc) {
   double massProduct = vMass * otherMass;
 
@@ -563,7 +582,8 @@ static inline void gvizVecAccLinLogRepForce(size_t n, const double *vPos,
     double dy = uPos[1] - vPos[1];
     double dist_sq = dx * dx + dy * dy;
     double dist = sqrt(dist_sq);
-    double gap = dist - radiusSum;
+    double safeDist = fmax(dist, edgeLength * GVIZ_VEC_MIN_DIST_FRACTION);
+    double gap = safeDist - radiusSum;
     double mag = gap > 0.0 ? massProduct / gap : massProduct * overlapConstant;
     double ux, uy;
     if (dist > 0.0) {
