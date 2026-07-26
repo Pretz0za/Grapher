@@ -497,7 +497,13 @@ static inline void gvizVecAccFRRepForce(size_t n, const double *vPos,
   }
 }
 
-// LinLog attractive force: magnitude log(1 + dist), pulling v toward u.
+// LinLog attractive force: magnitude sqrt(dist), pulling v toward u. Grows
+// slower than FR's linear d/k (keeps the LinLog "weak long-range attraction"
+// character that reveals cluster structure) but faster than log(1+dist)
+// (the equilibrium gap against a mass-scaled repulsive term grows only as
+// mass^(2/3) here, vs. roughly mass/log(mass) under plain log growth --
+// which is why high-degree hubs previously stretched their incident edges
+// out to extreme lengths).
 static inline void gvizVecAccLinLogAttForce(size_t n, const double *vPos,
                                             const double *uPos, double *acc) {
   switch (n) {
@@ -507,7 +513,7 @@ static inline void gvizVecAccLinLogAttForce(size_t n, const double *vPos,
     double dist = sqrt(dx * dx + dy * dy);
     if (dist < 1e-9)
       return;
-    double s = log(1.0 + dist) / dist;
+    double s = 1.0 / sqrt(dist);
     acc[0] += s * dx;
     acc[1] += s * dy;
     return;
@@ -519,7 +525,7 @@ static inline void gvizVecAccLinLogAttForce(size_t n, const double *vPos,
     double dist = sqrt(dx * dx + dy * dy + dz * dz);
     if (dist < 1e-9)
       return;
-    double s = log(1.0 + dist) / dist;
+    double s = 1.0 / sqrt(dist);
     acc[0] += s * dx;
     acc[1] += s * dy;
     acc[2] += s * dz;
@@ -533,7 +539,7 @@ static inline void gvizVecAccLinLogAttForce(size_t n, const double *vPos,
     double dist = sqrt(dx * dx + dy * dy + dz * dz + dw * dw);
     if (dist < 1e-9)
       return;
-    double s = log(1.0 + dist) / dist;
+    double s = 1.0 / sqrt(dist);
     acc[0] += s * dx;
     acc[1] += s * dy;
     acc[2] += s * dz;
@@ -549,7 +555,7 @@ static inline void gvizVecAccLinLogAttForce(size_t n, const double *vPos,
     double dist = sqrt(dist_sq);
     if (dist < 1e-9)
       return;
-    double s = log(1.0 + dist) / dist;
+    double s = 1.0 / sqrt(dist);
     for (size_t i = 0; i < n; i++)
       acc[i] += s * (uPos[i] - vPos[i]);
   }

@@ -74,7 +74,7 @@ void gvizPairwiseFRRepForceWeighted(int n, double *vPos, double *comPos,
 
 /**
  * Accumulates the LinLog attractive force between @p vPos and @p uPos into
- * @p acc: magnitude log(1 + dist), pulling v toward u.
+ * @p acc: magnitude sqrt(dist), pulling v toward u.
  */
 void gvizPairwiseLinLogAttForce(int n, double *vPos, double *uPos,
                                 double *acc);
