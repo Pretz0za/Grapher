@@ -21,46 +21,46 @@ static void add_binaryTreeDepth2(gvizGraph *g) {
   gvizGraphInit(g, 1);
   for (int i = 0; i < 7; i++)
     gvizGraphAddVertex(g, NULL, NULL, NULL);
-  gvizGraphAddEdge(g, 0, 1);
-  gvizGraphAddEdge(g, 0, 2);
-  gvizGraphAddEdge(g, 1, 3);
-  gvizGraphAddEdge(g, 1, 4);
-  gvizGraphAddEdge(g, 2, 5);
-  gvizGraphAddEdge(g, 2, 6);
+  gvizGraphAddEdge(g, 0, 1, 1.0);
+  gvizGraphAddEdge(g, 0, 2, 1.0);
+  gvizGraphAddEdge(g, 1, 3, 1.0);
+  gvizGraphAddEdge(g, 1, 4, 1.0);
+  gvizGraphAddEdge(g, 2, 5, 1.0);
+  gvizGraphAddEdge(g, 2, 6, 1.0);
 }
 
 static void add_directedCycle(gvizGraph *g) {
   gvizGraphInit(g, 1);
   for (int i = 0; i < 3; i++)
     gvizGraphAddVertex(g, NULL, NULL, NULL);
-  gvizGraphAddEdge(g, 0, 1);
-  gvizGraphAddEdge(g, 1, 2);
-  gvizGraphAddEdge(g, 2, 0);
+  gvizGraphAddEdge(g, 0, 1, 1.0);
+  gvizGraphAddEdge(g, 1, 2, 1.0);
+  gvizGraphAddEdge(g, 2, 0, 1.0);
 }
 
 static void add_undirectedTriangle(gvizGraph *g) {
   gvizGraphInit(g, 0);
   for (int i = 0; i < 3; i++)
     gvizGraphAddVertex(g, NULL, NULL, NULL);
-  gvizGraphAddEdge(g, 0, 1);
-  gvizGraphAddEdge(g, 1, 2);
+  gvizGraphAddEdge(g, 0, 1, 1.0);
+  gvizGraphAddEdge(g, 1, 2, 1.0);
 }
 
 static void add_rootWithTwoLeaves(gvizGraph *g) {
   gvizGraphInit(g, 1);
   for (int i = 0; i < 3; i++)
     gvizGraphAddVertex(g, NULL, NULL, NULL);
-  gvizGraphAddEdge(g, 0, 1);
-  gvizGraphAddEdge(g, 0, 2);
+  gvizGraphAddEdge(g, 0, 1, 1.0);
+  gvizGraphAddEdge(g, 0, 2, 1.0);
 }
 
 static void add_path4(gvizGraph *g) {
   gvizGraphInit(g, 1);
   for (int i = 0; i < 4; i++)
     gvizGraphAddVertex(g, NULL, NULL, NULL);
-  gvizGraphAddEdge(g, 0, 1);
-  gvizGraphAddEdge(g, 1, 2);
-  gvizGraphAddEdge(g, 2, 3);
+  gvizGraphAddEdge(g, 0, 1, 1.0);
+  gvizGraphAddEdge(g, 1, 2, 1.0);
+  gvizGraphAddEdge(g, 2, 3, 1.0);
 }
 
 static void add_widerTree(gvizGraph *g) {
@@ -68,11 +68,11 @@ static void add_widerTree(gvizGraph *g) {
   gvizGraphInit(g, 1);
   for (int i = 0; i < 6; i++)
     gvizGraphAddVertex(g, NULL, NULL, NULL);
-  gvizGraphAddEdge(g, 0, 1);
-  gvizGraphAddEdge(g, 0, 2);
-  gvizGraphAddEdge(g, 0, 3);
-  gvizGraphAddEdge(g, 2, 4);
-  gvizGraphAddEdge(g, 2, 5);
+  gvizGraphAddEdge(g, 0, 1, 1.0);
+  gvizGraphAddEdge(g, 0, 2, 1.0);
+  gvizGraphAddEdge(g, 0, 3, 1.0);
+  gvizGraphAddEdge(g, 2, 4, 1.0);
+  gvizGraphAddEdge(g, 2, 5, 1.0);
 }
 
 void test_RTInit_validBinaryTree_succeeds(void) {

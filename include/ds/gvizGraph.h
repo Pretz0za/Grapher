@@ -5,16 +5,25 @@
 #include "gvizSubgraph.h"
 
 /**
+ * @brief A single directed adjacency-list entry: the neighboring vertex's
+ * index and the weight of the edge to it.
+ */
+typedef struct {
+  size_t idx;   /**< Index of the neighboring vertex in the Graph. */
+  double weight; /**< Weight of the edge to that vertex. */
+} gvizEdge;
+
+/**
  * @brief A Vertex's data for an adjacency list graph data structure.
  *
  * This structure represens a single vertex in a Graph.
- * The memory pointed to by data and neighbors is owned by the Vertex.
- * The adjacency list holds the indices of any vertex v such that there is an
+ * The memory pointed to by data and edges is owned by the Vertex.
+ * The adjacency list holds a gvizEdge for any vertex v such that there is an
  * edge (u, v) in the Graph.
  */
 typedef struct Vertex {
-  void *data;          /**< Pointer to the Vertex's data. */
-  gvizArray neighbors; /**< Dynamically allocated vector for adjacency list. */
+  void *data;      /**< Pointer to the Vertex's data. */
+  gvizArray edges; /**< Dynamically allocated vector of gvizEdge (adjacency list). */
 } gvizVertex;
 
 /**
@@ -173,8 +182,8 @@ int gvizGraphCloneReversed(gvizGraph *dest, const gvizGraph *src);
  *
  * @param g    A pointer to the Graph the vertex will be added to.
  * @param data The address the vertex's data attribute will point to.
- * @param in   (NULL?) Array with indices of vertices with edges to v.
- * @param out  (NULL?) Array with indices of vertices with edges from v.
+ * @param in   (NULL?) Array of gvizEdge with vertices that have edges to v.
+ * @param out  (NULL?) Array of gvizEdge with vertices v has edges to.
  *
  * @return An error code showing whether or not the operation was successful.
  * @retval 0  If the Vertex is created and added successfully.
@@ -191,19 +200,20 @@ void gvizGraphClear(gvizGraph *g);
 
 /**
  * Attemps to add an edge (u, v) to a Graph. If @p g is undirected, u will
- * also be added to v's adjacency list. May reallocate to increase the size of
- * affected vertex/vertices. Invalidates @p g->layout until gvizGraphBuildLayout
- * is called again.
+ * also be added to v's adjacency list (with the same weight). May reallocate
+ * to increase the size of affected vertex/vertices. Invalidates @p g->layout
+ * until gvizGraphBuildLayout is called again.
  *
- * @param g    A pointer to the Graph the vertex will be added to.
- * @param from The index of u in g->vertices.
- * @param to   The index of v in g->vertices.
+ * @param g      A pointer to the Graph the vertex will be added to.
+ * @param from   The index of u in g->vertices.
+ * @param to     The index of v in g->vertices.
+ * @param weight The weight of the edge (u, v).
  *
  * @return An error code showing whether or not the operation was successful
  * @retval 0 If the edge was created successfully.
  * @retval -1 If (from OR to is out of bounds) OR reallocation fail.
  */
-int gvizGraphAddEdge(gvizGraph *g, size_t from, size_t to);
+int gvizGraphAddEdge(gvizGraph *g, size_t from, size_t to, double weight);
 
 /**
  * Attempts to remove and edge (u, v) from a Graph. If @p g is undirected, u
@@ -233,16 +243,54 @@ int gvizGraphRemoveEdge(gvizGraph *g, size_t from, size_t to);
 void gvizGraphSetVertexData(gvizGraph *g, size_t idx, void *data);
 
 /**
- * Gets the adjacency list of a Vertex in a given Graph.
+ * Returns the number of neighbors (out-degree) of a Vertex in a given Graph.
  *
  * @param g   A pointer to the Graph the Vertex is in.
  * @param idx The index of the Vertex in @p g->vertices.
  *
- * @return A pointer to a Vector holding the adjacency list
- * @retval ptr  Pointer to the successfully retrieved adjacency list.
- * @retval NULL If the Vertex index is out of bounds.
+ * @return The number of entries in the Vertex's adjacency list. 0 if @p idx
+ *         is out of bounds.
  */
-gvizArray *gvizGraphGetVertexNeighbors(const gvizGraph *g, size_t idx);
+size_t gvizGraphDegree(const gvizGraph *g, size_t idx);
+
+/**
+ * Gets the vertex index of the @p i-th neighbor of a Vertex in a Graph.
+ *
+ * @param g   A pointer to the Graph the Vertex is in.
+ * @param idx The index of the Vertex in @p g->vertices.
+ * @param i   The position of the neighbor in @p idx's adjacency list.
+ *
+ * This function does NOT check that @p idx or @p i are in bounds.
+ *
+ * @return The vertex index of the neighbor at position @p i.
+ */
+size_t gvizGraphNeighbor(const gvizGraph *g, size_t idx, size_t i);
+
+/**
+ * Gets the weight of the edge to the @p i-th neighbor of a Vertex in a Graph.
+ *
+ * @param g   A pointer to the Graph the Vertex is in.
+ * @param idx The index of the Vertex in @p g->vertices.
+ * @param i   The position of the neighbor in @p idx's adjacency list.
+ *
+ * This function does NOT check that @p idx or @p i are in bounds.
+ *
+ * @return The weight of the edge at position @p i.
+ */
+double gvizGraphNeighborWeight(const gvizGraph *g, size_t idx, size_t i);
+
+/**
+ * Finds the position of @p to in @p from's adjacency list.
+ *
+ * @param g    A pointer to the Graph the vertices are in.
+ * @param from The index of u in @p g->vertices.
+ * @param to   The index of v in @p g->vertices.
+ *
+ * @return The position of v in u's adjacency list.
+ * @retval pos The position of v, in [0, gvizGraphDegree(g, from)).
+ * @retval -1  If from/to are out of bounds, or no edge (u, v) exists.
+ */
+int gvizGraphNeighborPosition(const gvizGraph *g, size_t from, size_t to);
 
 /**
  * Checks if there exists an edge (u, v) in a Graph.
@@ -257,6 +305,69 @@ gvizArray *gvizGraphGetVertexNeighbors(const gvizGraph *g, size_t idx);
  * @retval -1 The indices of u and/or v are out of bounds.
  */
 int gvizGraphEdgeExists(gvizGraph *g, size_t from, size_t to);
+
+/**
+ * Gets the weight of edge (u, v) in a Graph.
+ *
+ * @param g         A pointer to the Graph the vertices are in.
+ * @param from      The index of u in @p g->vertices.
+ * @param to        The index of v in @p g->vertices.
+ * @param outWeight Where the edge's weight will be written on success.
+ *
+ * @return 0 on success, -1 if from/to are out of bounds or no edge exists.
+ */
+int gvizGraphGetEdgeWeight(const gvizGraph *g, size_t from, size_t to,
+                           double *outWeight);
+
+/**
+ * Sets the weight of edge (u, v) in a Graph. If @p g is undirected, the
+ * mirrored edge (v, u) is updated to the same weight.
+ *
+ * @param g      A pointer to the Graph the vertices are in.
+ * @param from   The index of u in @p g->vertices.
+ * @param to     The index of v in @p g->vertices.
+ * @param weight The new weight for the edge.
+ *
+ * @return 0 on success, -1 if from/to are out of bounds or no edge exists.
+ */
+int gvizGraphSetEdgeWeight(gvizGraph *g, size_t from, size_t to,
+                           double weight);
+
+/**
+ * Inserts a single directed adjacency entry (@p to, @p weight) into @p from's
+ * adjacency list at position @p pos, shifting later entries back. Does NOT
+ * mirror to @p to's own list -- intended for rotation-system bookkeeping
+ * (e.g. planar embedding) where each endpoint's insertion position is
+ * computed and applied independently. Invalidates @p g->layout.
+ *
+ * @param g      A pointer to the Graph the vertex is in.
+ * @param from   The index of the vertex whose adjacency list is modified.
+ * @param to     The neighboring vertex index to insert.
+ * @param weight The weight of the new adjacency entry.
+ * @param pos    The position to insert at, in [0, gvizGraphDegree(g, from)].
+ *
+ * @return 0 on success, -1 if @p from is out of bounds, @p pos is out of
+ *         range, or reallocation fails.
+ */
+int gvizGraphInsertNeighborAt(gvizGraph *g, size_t from, size_t to,
+                              double weight, size_t pos);
+
+/**
+ * Rewrites @p idx's adjacency list to match the vertex-id order given by
+ * @p order, preserving each entry's existing weight. @p order must be a
+ * permutation of the vertex ids currently in @p idx's adjacency list.
+ *
+ * @param g     A pointer to the Graph the vertex is in.
+ * @param idx   The index of the vertex whose adjacency list is reordered.
+ * @param order An array of @p n vertex ids, a permutation of @p idx's
+ *              current neighbors.
+ * @param n     The length of @p order; must equal gvizGraphDegree(g, idx).
+ *
+ * @return 0 on success, -1 if @p idx is out of bounds or @p order is not a
+ *         valid permutation of the current neighbor set.
+ */
+int gvizGraphReorderNeighbors(gvizGraph *g, size_t idx, const size_t *order,
+                              size_t n);
 
 /**
  * Gets the data from a Vertex in a given Graph.

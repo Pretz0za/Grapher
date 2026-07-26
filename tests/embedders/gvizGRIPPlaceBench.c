@@ -26,7 +26,7 @@ static void printGraphStats(const char *label, const gvizGraph *g) {
   size_t minDeg = SIZE_MAX, maxDeg = 0;
   unsigned long long degSum = 0;
   for (size_t i = 0; i < n; i++) {
-    size_t d = gvizGraphGetVertexNeighbors(g, i)->count;
+    size_t d = gvizGraphDegree(g, i);
     if (d < minDeg)
       minDeg = d;
     if (d > maxDeg)

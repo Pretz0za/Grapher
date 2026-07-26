@@ -38,8 +38,8 @@ void test_vertexInit_WithValidData(void) {
 
   TEST_ASSERT_EQUAL_INT(0, result);
   TEST_ASSERT_EQUAL_PTR(&data, v.data);
-  TEST_ASSERT_NOT_NULL(v.neighbors.arr);
-  TEST_ASSERT_EQUAL_UINT64(0, v.neighbors.count);
+  TEST_ASSERT_NOT_NULL(v.edges.arr);
+  TEST_ASSERT_EQUAL_UINT64(0, v.edges.count);
 
   gvizVertexRelease(&v);
 }
@@ -70,7 +70,7 @@ void test_vertexInitAtCapacity_WithSpecificCapacity(void) {
 
   TEST_ASSERT_EQUAL_INT(0, result);
   TEST_ASSERT_EQUAL_PTR(&data, v.data);
-  TEST_ASSERT_EQUAL_UINT64(initialCapacity, v.neighbors.capacity);
+  TEST_ASSERT_EQUAL_UINT64(initialCapacity, v.edges.capacity);
 
   gvizVertexRelease(&v);
 }
@@ -87,14 +87,14 @@ void test_vertexCopy_Basic(void) {
   gvizVertexInit(&dest, NULL);
 
   // Add some neighbors to source
-  size_t neighbor1 = 0, neighbor2 = 1;
-  gvizArrayPush(&src.neighbors, &neighbor1);
-  gvizArrayPush(&src.neighbors, &neighbor2);
+  gvizEdge edge1 = {0, 1.0}, edge2 = {1, 2.0};
+  gvizArrayPush(&src.edges, &edge1);
+  gvizArrayPush(&src.edges, &edge2);
 
   int result = gvizVertexCopy(&dest, &src);
 
   TEST_ASSERT_EQUAL_INT(0, result);
-  TEST_ASSERT_EQUAL_UINT64(src.neighbors.count, dest.neighbors.count);
+  TEST_ASSERT_EQUAL_UINT64(src.edges.count, dest.edges.count);
 
   gvizVertexRelease(&src);
   gvizVertexRelease(&dest);
@@ -105,17 +105,18 @@ void test_vertexClone_CreatesIndependentCopy(void) {
   int data = 42;
 
   gvizVertexInit(&src, &data);
-  size_t neighbor = 5;
-  gvizArrayPush(&src.neighbors, &neighbor);
+  gvizEdge edge = {5, 3.5};
+  gvizArrayPush(&src.edges, &edge);
 
   int result = gvizVertexClone(&dest, &src);
 
   TEST_ASSERT_EQUAL_INT(0, result);
-  TEST_ASSERT_EQUAL_UINT64(1, dest.neighbors.count);
+  TEST_ASSERT_EQUAL_UINT64(1, dest.edges.count);
 
   // Verify neighbor is copied
-  size_t *destNeighbor = (size_t *)gvizArrayAtIndex(&dest.neighbors, 0);
-  TEST_ASSERT_EQUAL_UINT64(5, *destNeighbor);
+  gvizEdge *destEdge = (gvizEdge *)gvizArrayAtIndex(&dest.edges, 0);
+  TEST_ASSERT_EQUAL_UINT64(5, destEdge->idx);
+  TEST_ASSERT_EQUAL_DOUBLE(3.5, destEdge->weight);
 
   gvizVertexRelease(&src);
   gvizVertexRelease(&dest);
@@ -242,7 +243,7 @@ void test_graphAddEdge_SimpleEdge(void) {
   gvizGraphAddVertex(&g, &data2, NULL, NULL);
 
   // Add edge from vertex 0 to vertex 1
-  int result = gvizGraphAddEdge(&g, 0, 1);
+  int result = gvizGraphAddEdge(&g, 0, 1, 1.0);
 
   TEST_ASSERT_EQUAL_INT(0, result);
 
@@ -262,7 +263,7 @@ void test_graphAddEdge_UndirectedGraphBiDirectional(void) {
   gvizGraphAddVertex(&g, &data2, NULL, NULL);
 
   // Add edge between vertex 0 and vertex 1
-  int result = gvizGraphAddEdge(&g, 0, 1);
+  int result = gvizGraphAddEdge(&g, 0, 1, 1.0);
   TEST_ASSERT_EQUAL_INT(0, result);
 
   // Both directions should exist in undirected graph
@@ -283,7 +284,7 @@ void test_graphAddEdge_InvalidIndices(void) {
   gvizGraphAddVertex(&g, &data, NULL, NULL);
 
   // Try to add edge with out-of-bounds indices
-  int result = gvizGraphAddEdge(&g, 0, 5);
+  int result = gvizGraphAddEdge(&g, 0, 5, 1.0);
 
   TEST_ASSERT_EQUAL_INT(-1, result);
 
@@ -298,7 +299,7 @@ void test_graphAddEdge_SelfLoop(void) {
   gvizGraphAddVertex(&g, &data, NULL, NULL);
 
   // Add edge from vertex 0 to itself
-  int result = gvizGraphAddEdge(&g, 0, 0);
+  int result = gvizGraphAddEdge(&g, 0, 0, 1.0);
   TEST_ASSERT_EQUAL_INT(0, result);
 
   int edgeExists = gvizGraphEdgeExists(&g, 0, 0);
@@ -317,10 +318,10 @@ void test_graphAddEdge_MultipleEdges(void) {
   }
 
   // Add multiple edges
-  gvizGraphAddEdge(&g, 0, 1);
-  gvizGraphAddEdge(&g, 0, 2);
-  gvizGraphAddEdge(&g, 1, 3);
-  gvizGraphAddEdge(&g, 2, 3);
+  gvizGraphAddEdge(&g, 0, 1, 1.0);
+  gvizGraphAddEdge(&g, 0, 2, 1.0);
+  gvizGraphAddEdge(&g, 1, 3, 1.0);
+  gvizGraphAddEdge(&g, 2, 3, 1.0);
 
   TEST_ASSERT_EQUAL_INT(1, gvizGraphEdgeExists(&g, 0, 1));
   TEST_ASSERT_EQUAL_INT(1, gvizGraphEdgeExists(&g, 0, 2));
@@ -330,6 +331,81 @@ void test_graphAddEdge_MultipleEdges(void) {
   // Non-existent edges should return 0
   TEST_ASSERT_EQUAL_INT(0, gvizGraphEdgeExists(&g, 1, 0));
   TEST_ASSERT_EQUAL_INT(0, gvizGraphEdgeExists(&g, 3, 0));
+
+  gvizGraphRelease(&g);
+}
+
+// ============================================================================
+// EDGE WEIGHT TESTS
+// ============================================================================
+
+void test_graphEdgeWeight_RoundTrip(void) {
+  gvizGraph g;
+  gvizGraphInit(&g, 1); // directed
+
+  gvizGraphAddVertex(&g, NULL, NULL, NULL);
+  gvizGraphAddVertex(&g, NULL, NULL, NULL);
+  gvizGraphAddEdge(&g, 0, 1, 2.5);
+
+  double weight = 0.0;
+  int result = gvizGraphGetEdgeWeight(&g, 0, 1, &weight);
+  TEST_ASSERT_EQUAL_INT(0, result);
+  TEST_ASSERT_EQUAL_DOUBLE(2.5, weight);
+
+  gvizGraphRelease(&g);
+}
+
+void test_graphEdgeWeight_SetUpdatesWeight(void) {
+  gvizGraph g;
+  gvizGraphInit(&g, 1); // directed
+
+  gvizGraphAddVertex(&g, NULL, NULL, NULL);
+  gvizGraphAddVertex(&g, NULL, NULL, NULL);
+  gvizGraphAddEdge(&g, 0, 1, 1.0);
+
+  int result = gvizGraphSetEdgeWeight(&g, 0, 1, 9.0);
+  TEST_ASSERT_EQUAL_INT(0, result);
+
+  double weight = 0.0;
+  gvizGraphGetEdgeWeight(&g, 0, 1, &weight);
+  TEST_ASSERT_EQUAL_DOUBLE(9.0, weight);
+
+  gvizGraphRelease(&g);
+}
+
+void test_graphEdgeWeight_UndirectedMirrorsWeight(void) {
+  gvizGraph g;
+  gvizGraphInit(&g, 0); // undirected
+
+  gvizGraphAddVertex(&g, NULL, NULL, NULL);
+  gvizGraphAddVertex(&g, NULL, NULL, NULL);
+  gvizGraphAddEdge(&g, 0, 1, 4.0);
+
+  double forward = 0.0, backward = 0.0;
+  TEST_ASSERT_EQUAL_INT(0, gvizGraphGetEdgeWeight(&g, 0, 1, &forward));
+  TEST_ASSERT_EQUAL_INT(0, gvizGraphGetEdgeWeight(&g, 1, 0, &backward));
+  TEST_ASSERT_EQUAL_DOUBLE(4.0, forward);
+  TEST_ASSERT_EQUAL_DOUBLE(4.0, backward);
+
+  TEST_ASSERT_EQUAL_INT(0, gvizGraphSetEdgeWeight(&g, 1, 0, 7.0));
+  gvizGraphGetEdgeWeight(&g, 0, 1, &forward);
+  gvizGraphGetEdgeWeight(&g, 1, 0, &backward);
+  TEST_ASSERT_EQUAL_DOUBLE(7.0, forward);
+  TEST_ASSERT_EQUAL_DOUBLE(7.0, backward);
+
+  gvizGraphRelease(&g);
+}
+
+void test_graphEdgeWeight_MissingEdgeFails(void) {
+  gvizGraph g;
+  gvizGraphInit(&g, 1);
+
+  gvizGraphAddVertex(&g, NULL, NULL, NULL);
+  gvizGraphAddVertex(&g, NULL, NULL, NULL);
+
+  double weight = 0.0;
+  TEST_ASSERT_EQUAL_INT(-1, gvizGraphGetEdgeWeight(&g, 0, 1, &weight));
+  TEST_ASSERT_EQUAL_INT(-1, gvizGraphSetEdgeWeight(&g, 0, 1, 1.0));
 
   gvizGraphRelease(&g);
 }
@@ -346,7 +422,7 @@ void test_graphRemoveEdge_Basic(void) {
   gvizGraphAddVertex(&g, &data1, NULL, NULL);
   gvizGraphAddVertex(&g, &data2, NULL, NULL);
 
-  gvizGraphAddEdge(&g, 0, 1);
+  gvizGraphAddEdge(&g, 0, 1, 1.0);
   TEST_ASSERT_EQUAL_INT(1, gvizGraphEdgeExists(&g, 0, 1));
 
   // Remove the edge
@@ -396,7 +472,7 @@ void test_graphRemoveEdge_UndirectedRemovesBoth(void) {
   gvizGraphAddVertex(&g, NULL, NULL, NULL);
   gvizGraphAddVertex(&g, NULL, NULL, NULL);
 
-  gvizGraphAddEdge(&g, 0, 1);
+  gvizGraphAddEdge(&g, 0, 1, 1.0);
 
   // Remove edge should remove both directions
   int result = gvizGraphRemoveEdge(&g, 0, 1);
@@ -420,13 +496,10 @@ void test_graphGetVertexNeighbors_WithEdges(void) {
     gvizGraphAddVertex(&g, NULL, NULL, NULL);
   }
 
-  gvizGraphAddEdge(&g, 0, 1);
-  gvizGraphAddEdge(&g, 0, 2);
+  gvizGraphAddEdge(&g, 0, 1, 1.0);
+  gvizGraphAddEdge(&g, 0, 2, 1.0);
 
-  gvizArray *neighbors = gvizGraphGetVertexNeighbors(&g, 0);
-
-  TEST_ASSERT_NOT_NULL(neighbors);
-  TEST_ASSERT_EQUAL_UINT64(2, neighbors->count);
+  TEST_ASSERT_EQUAL_UINT64(2, gvizGraphDegree(&g, 0));
 
   gvizGraphRelease(&g);
 }
@@ -437,10 +510,7 @@ void test_graphGetVertexNeighbors_NoNeighbors(void) {
 
   gvizGraphAddVertex(&g, NULL, NULL, NULL);
 
-  gvizArray *neighbors = gvizGraphGetVertexNeighbors(&g, 0);
-
-  TEST_ASSERT_NOT_NULL(neighbors);
-  TEST_ASSERT_EQUAL_UINT64(0, neighbors->count);
+  TEST_ASSERT_EQUAL_UINT64(0, gvizGraphDegree(&g, 0));
 
   gvizGraphRelease(&g);
 }
@@ -451,9 +521,7 @@ void test_graphGetVertexNeighbors_InvalidIndex(void) {
 
   gvizGraphAddVertex(&g, NULL, NULL, NULL);
 
-  gvizArray *neighbors = gvizGraphGetVertexNeighbors(&g, 5);
-
-  TEST_ASSERT_NULL(neighbors);
+  TEST_ASSERT_EQUAL_UINT64(0, gvizGraphDegree(&g, 5));
 
   gvizGraphRelease(&g);
 }
@@ -471,8 +539,8 @@ void test_graphCopy_Basic(void) {
   for (int i = 0; i < 3; i++) {
     gvizGraphAddVertex(&src, NULL, NULL, NULL);
   }
-  gvizGraphAddEdge(&src, 0, 1);
-  gvizGraphAddEdge(&src, 1, 2);
+  gvizGraphAddEdge(&src, 0, 1, 1.0);
+  gvizGraphAddEdge(&src, 1, 2, 1.0);
 
   int result = gvizGraphCopy(&dest, &src);
 
@@ -495,7 +563,7 @@ void test_graphClone_Independent(void) {
   for (int i = 0; i < 2; i++) {
     gvizGraphAddVertex(&src, NULL, NULL, NULL);
   }
-  gvizGraphAddEdge(&src, 0, 1);
+  gvizGraphAddEdge(&src, 0, 1, 1.0);
 
   int result = gvizGraphClone(&dest, &src);
 
@@ -516,8 +584,8 @@ void test_graphCopyReversed_DirectedGraph(void) {
   }
 
   // Add edges: 0->1, 1->2
-  gvizGraphAddEdge(&src, 0, 1);
-  gvizGraphAddEdge(&src, 1, 2);
+  gvizGraphAddEdge(&src, 0, 1, 1.0);
+  gvizGraphAddEdge(&src, 1, 2, 1.0);
 
   int result = gvizGraphCopyReversed(&dest, &src);
 
@@ -544,9 +612,9 @@ void test_graphCloneReversed_DirectedGraph(void) {
   for (int i = 0; i < 4; i++) {
     gvizGraphAddVertex(&src, NULL, NULL, NULL);
   }
-  gvizGraphAddEdge(&src, 0, 1);
-  gvizGraphAddEdge(&src, 1, 2);
-  gvizGraphAddEdge(&src, 1, 3);
+  gvizGraphAddEdge(&src, 0, 1, 1.0);
+  gvizGraphAddEdge(&src, 1, 2, 1.0);
+  gvizGraphAddEdge(&src, 1, 3, 1.0);
 
   TEST_ASSERT_EQUAL_INT(0, gvizGraphCloneReversed(&dest, &src));
   TEST_ASSERT_EQUAL_UINT64(4, gvizGraphSize(&dest));
@@ -565,7 +633,7 @@ void test_graphCloneReversed_UndirectedFallsBackToCopy(void) {
   gvizGraphInit(&src, 0);
   for (int i = 0; i < 3; i++)
     gvizGraphAddVertex(&src, NULL, NULL, NULL);
-  gvizGraphAddEdge(&src, 0, 1);
+  gvizGraphAddEdge(&src, 0, 1, 1.0);
 
   // Clone semantics: dest is uninitialized on entry.
   TEST_ASSERT_EQUAL_INT(0, gvizGraphCloneReversed(&dest, &src));
@@ -632,7 +700,7 @@ void test_graph_CompleteGraph(void) {
   for (int i = 0; i < vertexCount; i++) {
     for (int j = 0; j < vertexCount; j++) {
       if (i != j) {
-        int result = gvizGraphAddEdge(&g, i, j);
+        int result = gvizGraphAddEdge(&g, i, j, 1.0);
         TEST_ASSERT_EQUAL_INT(0, result);
       }
     }
@@ -660,7 +728,7 @@ void test_graph_LinearChain(void) {
   }
 
   for (int i = 0; i < chainLength - 1; i++) {
-    int result = gvizGraphAddEdge(&g, i, i + 1);
+    int result = gvizGraphAddEdge(&g, i, i + 1, 1.0);
     TEST_ASSERT_EQUAL_INT(0, result);
   }
 
@@ -686,12 +754,11 @@ void test_graph_StarTopology(void) {
 
   // Connect center to all others
   for (int i = 1; i < vertexCount; i++) {
-    int result = gvizGraphAddEdge(&g, centerVertex, i);
+    int result = gvizGraphAddEdge(&g, centerVertex, i, 1.0);
     TEST_ASSERT_EQUAL_INT(0, result);
   }
 
-  gvizArray *neighbors = gvizGraphGetVertexNeighbors(&g, centerVertex);
-  TEST_ASSERT_EQUAL_UINT64(vertexCount - 1, neighbors->count);
+  TEST_ASSERT_EQUAL_UINT64(vertexCount - 1, gvizGraphDegree(&g, centerVertex));
 
   gvizGraphRelease(&g);
 }
@@ -709,7 +776,7 @@ void test_graph_LargeEdgeSet(void) {
 
   // Add many edges (e.g., every even vertex to next odd vertex)
   for (int i = 0; i < vertexCount - 1; i += 2) {
-    int result = gvizGraphAddEdge(&g, i, i + 1);
+    int result = gvizGraphAddEdge(&g, i, i + 1, 1.0);
     TEST_ASSERT_EQUAL_INT(0, result);
   }
 
@@ -727,7 +794,7 @@ void test_graph_DirectedAsymmetry(void) {
   gvizGraphAddVertex(&g, NULL, NULL, NULL);
   gvizGraphAddVertex(&g, NULL, NULL, NULL);
 
-  gvizGraphAddEdge(&g, 0, 1);
+  gvizGraphAddEdge(&g, 0, 1, 1.0);
 
   // In directed graph, only forward edge exists
   TEST_ASSERT_EQUAL_INT(1, gvizGraphEdgeExists(&g, 0, 1));
@@ -743,7 +810,7 @@ void test_graph_UndirectedSymmetry(void) {
   gvizGraphAddVertex(&g, NULL, NULL, NULL);
   gvizGraphAddVertex(&g, NULL, NULL, NULL);
 
-  gvizGraphAddEdge(&g, 0, 1);
+  gvizGraphAddEdge(&g, 0, 1, 1.0);
 
   // In undirected graph, both directions exist
   TEST_ASSERT_EQUAL_INT(1, gvizGraphEdgeExists(&g, 0, 1));
@@ -765,10 +832,10 @@ void test_graph_BuildAndModify(void) {
     gvizGraphAddVertex(&g, NULL, NULL, NULL);
   }
 
-  gvizGraphAddEdge(&g, 0, 1);
-  gvizGraphAddEdge(&g, 1, 2);
-  gvizGraphAddEdge(&g, 2, 3);
-  gvizGraphAddEdge(&g, 3, 4);
+  gvizGraphAddEdge(&g, 0, 1, 1.0);
+  gvizGraphAddEdge(&g, 1, 2, 1.0);
+  gvizGraphAddEdge(&g, 2, 3, 1.0);
+  gvizGraphAddEdge(&g, 3, 4, 1.0);
 
   // Verify initial state
   TEST_ASSERT_EQUAL_INT(1, gvizGraphEdgeExists(&g, 0, 1));
@@ -779,7 +846,7 @@ void test_graph_BuildAndModify(void) {
   TEST_ASSERT_EQUAL_INT(0, gvizGraphEdgeExists(&g, 2, 3));
 
   // Add new edges
-  gvizGraphAddEdge(&g, 0, 4);
+  gvizGraphAddEdge(&g, 0, 4, 1.0);
   TEST_ASSERT_EQUAL_INT(1, gvizGraphEdgeExists(&g, 0, 4));
 
   gvizGraphRelease(&g);
@@ -801,12 +868,8 @@ void test_graph_EdgeExistsInvalidIndices(void) {
   gvizGraphRelease(&g);
 }
 
-static int neighbor_contains(gvizArray *neighbors, size_t target) {
-  for (size_t i = 0; i < neighbors->count; i++) {
-    if (*(size_t *)gvizArrayAtIndex(neighbors, i) == target)
-      return 1;
-  }
-  return 0;
+static int neighbor_contains(const gvizGraph *g, size_t vertex, size_t target) {
+  return gvizGraphNeighborPosition(g, vertex, target) >= 0;
 }
 
 void test_graphLoadFromEdgesFile_SampleUndirected(void) {
@@ -827,11 +890,10 @@ void test_graphLoadFromEdgesFile_SampleUndirected(void) {
   TEST_ASSERT_EQUAL_INT(1, gvizGraphEdgeExists(&g, 1, 2));
   TEST_ASSERT_EQUAL_INT(1, gvizGraphEdgeExists(&g, 2, 3));
 
-  gvizArray *n3 = gvizGraphGetVertexNeighbors(&g, 2);
-  TEST_ASSERT_EQUAL_UINT64(3, n3->count);
-  TEST_ASSERT_TRUE(neighbor_contains(n3, 0));
-  TEST_ASSERT_TRUE(neighbor_contains(n3, 1));
-  TEST_ASSERT_TRUE(neighbor_contains(n3, 3));
+  TEST_ASSERT_EQUAL_UINT64(3, gvizGraphDegree(&g, 2));
+  TEST_ASSERT_TRUE(neighbor_contains(&g, 2, 0));
+  TEST_ASSERT_TRUE(neighbor_contains(&g, 2, 1));
+  TEST_ASSERT_TRUE(neighbor_contains(&g, 2, 3));
 
   gvizGraphRelease(&g);
 }
@@ -892,6 +954,12 @@ int main(void) {
   RUN_TEST(test_graphAddEdge_InvalidIndices);
   RUN_TEST(test_graphAddEdge_SelfLoop);
   RUN_TEST(test_graphAddEdge_MultipleEdges);
+
+  RUN_TEST(test_graphEdgeWeight_RoundTrip);
+  RUN_TEST(test_graphEdgeWeight_SetUpdatesWeight);
+  RUN_TEST(test_graphEdgeWeight_UndirectedMirrorsWeight);
+  RUN_TEST(test_graphEdgeWeight_MissingEdgeFails);
+
   RUN_TEST(test_graphRemoveEdge_Basic);
   RUN_TEST(test_graphRemoveEdge_NonExistentEdge);
   RUN_TEST(test_graphRemoveEdge_InvalidIndices);

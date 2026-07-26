@@ -171,7 +171,7 @@ static int load_edges_pass(const char *path, const gvizEdgesFileOptions *opts,
       return -1;
     }
 
-    if (gvizGraphAddEdge(g, from, to) < 0) {
+    if (gvizGraphAddEdge(g, from, to, 1.0) < 0) {
       free(line);
       fclose(file);
       return -1;
@@ -708,7 +708,13 @@ static int gexf_load_edges(const char *buf, gvizGraph *out,
         gexf_id_table_lookup(ids, target, &to) < 0)
       return -1;
 
-    if (gvizGraphAddEdge(out, from, to) < 0)
+    char weightStr[64];
+    double weight = 1.0;
+    if (gexf_extract_attr(tag_start, tag_end, "weight", weightStr,
+                          sizeof(weightStr)) == 0)
+      weight = strtod(weightStr, NULL);
+
+    if (gvizGraphAddEdge(out, from, to, weight) < 0)
       return -1;
 
     p = tag_end + 1;
@@ -851,14 +857,9 @@ static int obj_add_edge_undup(gvizGraph *g, size_t a, size_t b) {
     a = b;
     b = tmp;
   }
-  gvizArray *nbrs = gvizGraphGetVertexNeighbors(g, a);
-  if (!nbrs)
-    return -1;
-  for (size_t i = 0; i < nbrs->count; i++) {
-    if (*(size_t *)gvizArrayAtIndex(nbrs, i) == b)
-      return 0;
-  }
-  return gvizGraphAddEdge(g, a, b);
+  if (gvizGraphEdgeExists(g, a, b) == 1)
+    return 0;
+  return gvizGraphAddEdge(g, a, b, 1.0);
 }
 
 static int obj_face_push(size_t **verts, size_t *cap, size_t *len, size_t v) {

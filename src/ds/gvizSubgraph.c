@@ -1,5 +1,4 @@
 #include "ds/gvizSubgraph.h"
-#include "ds/gvizArray.h"
 #include "ds/gvizBitArray.h"
 #include "ds/gvizGraph.h"
 #include <stdlib.h>
@@ -44,10 +43,7 @@ static size_t layout_vertex_from_bit(const gvizGraphLayout *layout, size_t bit,
 
 static int subgraph_find_edge_idx(const gvizSubgraph *sg, size_t u, size_t v,
                                   size_t *out_idx) {
-  gvizArray *nb = gvizGraphGetVertexNeighbors(sg->g, u);
-  if (!nb)
-    return -1;
-  int idx = gvizArrayFindOne(nb, &v);
+  int idx = gvizGraphNeighborPosition(sg->g, u, v);
   if (idx < 0)
     return -1;
   *out_idx = (size_t)idx;
@@ -69,10 +65,9 @@ static void subgraph_clear_incident_edges(const gvizSubgraph *sg, size_t u) {
     size_t w = layout_vertex_from_bit(layout, pos, &idx);
     if (w == u)
       continue;
-    gvizArray *nb = gvizGraphGetVertexNeighbors(sg->g, w);
-    if (!nb || idx >= nb->count)
+    if (idx >= gvizGraphDegree(sg->g, w))
       continue;
-    if (*(size_t *)gvizArrayAtIndex(nb, idx) == u)
+    if (gvizGraphNeighbor(sg->g, w, idx) == u)
       gvizEdgeSubsetHideEdge(sg->es, w, idx);
   }
 }
@@ -90,11 +85,10 @@ static int edge_subset_migrate(gvizEdgeSubset *dest, const gvizGraph *g,
   while (gvizBitArrayIterate(&it, &pos)) {
     size_t idx;
     size_t u = layout_vertex_from_bit(old.layout, pos, &idx);
-    gvizArray *nb = gvizGraphGetVertexNeighbors(g, u);
-    if (!nb || idx >= nb->count)
+    if (idx >= gvizGraphDegree(g, u))
       continue;
-    size_t v = *(size_t *)gvizArrayAtIndex(nb, idx);
-    int idx_new = gvizArrayFindOne(nb, &v);
+    size_t v = gvizGraphNeighbor(g, u, idx);
+    int idx_new = gvizGraphNeighborPosition(g, u, v);
     if (idx_new < 0)
       continue;
     gvizEdgeSubsetShowEdge(*dest, u, (size_t)idx_new);
@@ -247,9 +241,9 @@ void gvizSubgraphMakeEdgeSubset(gvizSubgraph *sg) {
   gvizBitArrayIterator it = gvizVertexSubsetIteratorCreate(sg->vs, n);
   size_t u;
   while (gvizBitArrayIterate(&it, &u)) {
-    gvizArray *nb = gvizGraphGetVertexNeighbors(g, u);
-    for (size_t idx = 0; idx < nb->count; idx++) {
-      size_t v = *(size_t *)gvizArrayAtIndex(nb, idx);
+    size_t degree = gvizGraphDegree(g, u);
+    for (size_t idx = 0; idx < degree; idx++) {
+      size_t v = gvizGraphNeighbor(g, u, idx);
       if (gvizVertexSubsetTest(sg->vs, v))
         gvizEdgeSubsetShowEdge(sg->es, u, idx);
     }
@@ -411,13 +405,10 @@ size_t gvizSubgraphDegree(const gvizSubgraph *sg, size_t u) {
   if (subgraph_is_full(sg))
     return gvizEdgeSubsetVertexEdgeCount(sg->es, u);
 
-  gvizArray *nb = gvizGraphGetVertexNeighbors(sg->g, u);
-  if (!nb)
-    return 0;
-
+  size_t nbDegree = gvizGraphDegree(sg->g, u);
   size_t degree = 0;
-  for (size_t i = 0; i < nb->count; i++) {
-    size_t v = *(size_t *)gvizArrayAtIndex(nb, i);
+  for (size_t i = 0; i < nbDegree; i++) {
+    size_t v = gvizGraphNeighbor(sg->g, u, i);
     if (gvizVertexSubsetTest(sg->vs, v))
       degree++;
   }
@@ -436,11 +427,9 @@ size_t gvizSubgraphEdgeCount(const gvizSubgraph *sg) {
   gvizBitArrayIterator vit = gvizVertexSubsetIteratorCreate(sg->vs, n);
   size_t u;
   while (gvizBitArrayIterate(&vit, &u)) {
-    gvizArray *nb = gvizGraphGetVertexNeighbors(sg->g, u);
-    if (!nb)
-      continue;
-    for (size_t i = 0; i < nb->count; i++) {
-      size_t v = *(size_t *)gvizArrayAtIndex(nb, i);
+    size_t degree = gvizGraphDegree(sg->g, u);
+    for (size_t i = 0; i < degree; i++) {
+      size_t v = gvizGraphNeighbor(sg->g, u, i);
       if (gvizVertexSubsetTest(sg->vs, v))
         count++;
     }
@@ -466,12 +455,8 @@ bool gvizSubgraphVertexIterate(gvizSubgraphVertexIterator *it, size_t *out_u) {
 gvizSubgraphNeighborIterator gvizSubgraphNeighborIteratorCreate(
     const gvizSubgraph *sg, size_t u) {
   gvizSubgraphNeighborIterator it = {
-      sg, u, 0, {0}, 0, NULL, GVIZ_SUBGRAPH_NEIGHBOR_ITER_NONE};
+      sg, u, 0, {0}, 0, GVIZ_SUBGRAPH_NEIGHBOR_ITER_NONE};
   if (!subgraph_has_vertices(sg) || !gvizVertexSubsetTest(sg->vs, u))
-    return it;
-
-  it.nb = gvizGraphGetVertexNeighbors(sg->g, u);
-  if (!it.nb)
     return it;
 
   if (subgraph_is_full(sg)) {
@@ -499,16 +484,17 @@ bool gvizSubgraphNeighborIterate(gvizSubgraphNeighborIterator *it,
       return false;
 
     size_t idx = pos - it->base;
-    if (idx >= it->nb->count)
+    if (idx >= gvizGraphDegree(it->sg->g, it->u))
       return false;
 
-    *out_v = *(size_t *)gvizArrayAtIndex(it->nb, idx);
+    *out_v = gvizGraphNeighbor(it->sg->g, it->u, idx);
     return true;
   }
 
   if (it->mode == GVIZ_SUBGRAPH_NEIGHBOR_ITER_INDUCED) {
-    while (it->adj_idx < it->nb->count) {
-      size_t v = *(size_t *)gvizArrayAtIndex(it->nb, it->adj_idx++);
+    size_t degree = gvizGraphDegree(it->sg->g, it->u);
+    while (it->adj_idx < degree) {
+      size_t v = gvizGraphNeighbor(it->sg->g, it->u, it->adj_idx++);
       if (gvizVertexSubsetTest(it->sg->vs, v)) {
         *out_v = v;
         return true;

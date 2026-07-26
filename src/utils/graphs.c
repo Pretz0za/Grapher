@@ -13,11 +13,11 @@ static int sierpinskiRecurse(gvizGraph *g, int depth, size_t t, size_t l,
                              size_t r) {
   if (depth == 0) {
     // Base case: just wire the three corners into a triangle.
-    if (gvizGraphAddEdge(g, t, l) < 0)
+    if (gvizGraphAddEdge(g, t, l, 1.0) < 0)
       return -1;
-    if (gvizGraphAddEdge(g, l, r) < 0)
+    if (gvizGraphAddEdge(g, l, r, 1.0) < 0)
       return -1;
-    if (gvizGraphAddEdge(g, r, t) < 0)
+    if (gvizGraphAddEdge(g, r, t, 1.0) < 0)
       return -1;
     return 0;
   }
@@ -70,17 +70,17 @@ static int sierpinskiTetrahedronRecurse(gvizGraph *g, int depth, size_t a,
                                         size_t b, size_t c, size_t d) {
   if (depth == 0) {
     // Base case: wire four corners into a complete graph K4 (tetrahedron)
-    if (gvizGraphAddEdge(g, a, b) < 0)
+    if (gvizGraphAddEdge(g, a, b, 1.0) < 0)
       return -1;
-    if (gvizGraphAddEdge(g, a, c) < 0)
+    if (gvizGraphAddEdge(g, a, c, 1.0) < 0)
       return -1;
-    if (gvizGraphAddEdge(g, a, d) < 0)
+    if (gvizGraphAddEdge(g, a, d, 1.0) < 0)
       return -1;
-    if (gvizGraphAddEdge(g, b, c) < 0)
+    if (gvizGraphAddEdge(g, b, c, 1.0) < 0)
       return -1;
-    if (gvizGraphAddEdge(g, b, d) < 0)
+    if (gvizGraphAddEdge(g, b, d, 1.0) < 0)
       return -1;
-    if (gvizGraphAddEdge(g, c, d) < 0)
+    if (gvizGraphAddEdge(g, c, d, 1.0) < 0)
       return -1;
     return 0;
   }
@@ -260,18 +260,18 @@ gvizGraph build_sierpinski_carpet(size_t depth) {
       size_t idx = node_id[i * dim + j];
       // right
       if (j + 1 < dim && gvizTestBit(in_carpet, i * dim + j + 1))
-        gvizGraphAddEdge(&g, idx, node_id[i * dim + (j + 1)]);
+        gvizGraphAddEdge(&g, idx, node_id[i * dim + (j + 1)], 1.0);
       // down
       if (i + 1 < dim && gvizTestBit(in_carpet, (i + 1) * dim + j))
-        gvizGraphAddEdge(&g, idx, node_id[(i + 1) * dim + j]);
+        gvizGraphAddEdge(&g, idx, node_id[(i + 1) * dim + j], 1.0);
       // diag right (triangulate)
       if (i + 1 < dim && j + 1 < dim &&
           gvizTestBit(in_carpet, (i + 1) * dim + (j + 1)))
-        gvizGraphAddEdge(&g, idx, node_id[(i + 1) * dim + (j + 1)]);
+        gvizGraphAddEdge(&g, idx, node_id[(i + 1) * dim + (j + 1)], 1.0);
       // diag left
       if (i + 1 < dim && j > 0 &&
           gvizTestBit(in_carpet, (i + 1) * dim + (j - 1)))
-        gvizGraphAddEdge(&g, idx, node_id[(i + 1) * dim + (j - 1)]);
+        gvizGraphAddEdge(&g, idx, node_id[(i + 1) * dim + (j - 1)], 1.0);
     }
   }
 
@@ -299,13 +299,13 @@ gvizGraph build_rect_mesh(size_t L, size_t W) {
       // right neighbor
       if (j + 1 < W) {
         idx_right = i * W + (j + 1);
-        gvizGraphAddEdge(&g, idx, idx_right);
+        gvizGraphAddEdge(&g, idx, idx_right, 1.0);
       }
 
       // down neighbor
       if (i + 1 < L) {
         idx_down = (i + 1) * W + j;
-        gvizGraphAddEdge(&g, idx, idx_down);
+        gvizGraphAddEdge(&g, idx, idx_down, 1.0);
       }
     }
 
@@ -436,7 +436,7 @@ gvizGraph build_tetrahedral_mesh(size_t depth) {
         na + nb + nc + nd == (long)depth) {                                    \
       size_t to = bary4_to_index(depth, (size_t)na, (size_t)nb, (size_t)nc,    \
                                  (size_t)nd);                                  \
-      gvizGraphAddEdge(&g, idx, to);                                           \
+      gvizGraphAddEdge(&g, idx, to, 1.0);                                           \
     }                                                                          \
   } while (0)
 
@@ -470,10 +470,10 @@ gvizGraph build_equilateral_tri_mesh(size_t depth) {
   for (size_t i = 0; i <= depth; i++) {
     for (size_t j = 0; j <= i; j++) {
       if (j + 1 <= i)
-        gvizGraphAddEdge(&g, IDX(i, j), IDX(i, j + 1)); // right on same row
+        gvizGraphAddEdge(&g, IDX(i, j), IDX(i, j + 1), 1.0); // right on same row
       if (i + 1 <= depth) {
-        gvizGraphAddEdge(&g, IDX(i, j), IDX(i + 1, j));     // down-left
-        gvizGraphAddEdge(&g, IDX(i, j), IDX(i + 1, j + 1)); // down-right
+        gvizGraphAddEdge(&g, IDX(i, j), IDX(i + 1, j), 1.0);     // down-left
+        gvizGraphAddEdge(&g, IDX(i, j), IDX(i + 1, j + 1), 1.0); // down-right
       }
     }
   }
@@ -512,24 +512,24 @@ gvizGraph build_knotted_rect_mesh(size_t L, size_t W) {
       // right neighbor
       if (j + 1 < W) {
         idx_right = i * W + (j + 1);
-        gvizGraphAddEdge(&g, idx, idx_right);
+        gvizGraphAddEdge(&g, idx, idx_right, 1.0);
       }
 
       // down neighbor
       if (i + 1 < L) {
         idx_down = (i + 1) * W + j;
-        gvizGraphAddEdge(&g, idx, idx_down);
+        gvizGraphAddEdge(&g, idx, idx_down, 1.0);
       }
     }
 
   // knot the corners together
-  gvizGraphAddEdge(&g, 0, g.vertices.count - 1);
-  gvizGraphAddEdge(&g, 0, W - 1);
-  gvizGraphAddEdge(&g, g.vertices.count - 1, W - 1);
-  gvizGraphAddEdge(&g, 0, g.vertices.count - 1);
-  gvizGraphAddEdge(&g, W - 1, g.vertices.count - W);
-  gvizGraphAddEdge(&g, g.vertices.count - 1, g.vertices.count - W);
-  gvizGraphAddEdge(&g, 0, g.vertices.count - W);
+  gvizGraphAddEdge(&g, 0, g.vertices.count - 1, 1.0);
+  gvizGraphAddEdge(&g, 0, W - 1, 1.0);
+  gvizGraphAddEdge(&g, g.vertices.count - 1, W - 1, 1.0);
+  gvizGraphAddEdge(&g, 0, g.vertices.count - 1, 1.0);
+  gvizGraphAddEdge(&g, W - 1, g.vertices.count - W, 1.0);
+  gvizGraphAddEdge(&g, g.vertices.count - 1, g.vertices.count - W, 1.0);
+  gvizGraphAddEdge(&g, 0, g.vertices.count - W, 1.0);
 
   return g;
 }
@@ -552,16 +552,16 @@ gvizGraph build_mobius_strip(size_t rows, size_t cols) {
 
       // right neighbor (along width)
       if (j + 1 < cols)
-        gvizGraphAddEdge(&g, curr, i * cols + (j + 1));
+        gvizGraphAddEdge(&g, curr, i * cols + (j + 1), 1.0);
 
       // down neighbor (along length)
       if (i + 1 < rows) {
-        gvizGraphAddEdge(&g, curr, (i + 1) * cols + j);
+        gvizGraphAddEdge(&g, curr, (i + 1) * cols + j, 1.0);
       } else {
         // last row glues to first row with a flip:
         // column j connects to column (cols - 1 - j)
         size_t flipped = (cols - 1 - j);
-        gvizGraphAddEdge(&g, curr, 0 * cols + flipped);
+        gvizGraphAddEdge(&g, curr, 0 * cols + flipped, 1.0);
       }
     }
   }
@@ -581,15 +581,15 @@ gvizGraph build_klein_bottle(size_t rows, size_t cols) {
 
       // right neighbor — last col glues to first col, no flip (cylinder)
       if (j + 1 < cols)
-        gvizGraphAddEdge(&g, curr, i * cols + (j + 1));
+        gvizGraphAddEdge(&g, curr, i * cols + (j + 1), 1.0);
       else
-        gvizGraphAddEdge(&g, curr, i * cols + 0);
+        gvizGraphAddEdge(&g, curr, i * cols + 0, 1.0);
 
       // down neighbor — last row glues to first row, with flip
       if (i + 1 < rows)
-        gvizGraphAddEdge(&g, curr, (i + 1) * cols + j);
+        gvizGraphAddEdge(&g, curr, (i + 1) * cols + j, 1.0);
       else
-        gvizGraphAddEdge(&g, curr, 0 * cols + (cols - 1 - j));
+        gvizGraphAddEdge(&g, curr, 0 * cols + (cols - 1 - j), 1.0);
     }
   }
   return g;
@@ -613,7 +613,7 @@ gvizGraph build_random_connected_graph(size_t numVertices, double edgeDensity,
 
   for (size_t i = 1; i < numVertices; i++) {
     size_t j = (size_t)(rand_r(&seed) % i);
-    gvizGraphAddEdge(&g, i, j);
+    gvizGraphAddEdge(&g, i, j, 1.0);
   }
 
   size_t treeEdges = numVertices - 1;
@@ -630,7 +630,7 @@ gvizGraph build_random_connected_graph(size_t numVertices, double edgeDensity,
     size_t b = (size_t)(rand_r(&seed) % numVertices);
     if (a == b || gvizGraphEdgeExists(&g, a, b))
       continue;
-    if (gvizGraphAddEdge(&g, a, b) == 0)
+    if (gvizGraphAddEdge(&g, a, b, 1.0) == 0)
       added++;
   }
 

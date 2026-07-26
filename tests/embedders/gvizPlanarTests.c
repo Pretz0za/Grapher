@@ -6,7 +6,6 @@
 #include "embedders/gvizSchnyderWood.h"
 #include "unity/unity.h"
 #include "unity/unity_internals.h"
-#include "utils/serializers.h"
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -44,24 +43,22 @@ void test_planar() {
   size_t correctOrder[3] = {3, 2, 1};
 
   // add edges in the wrong roational order
-  gvizGraphAddEdge(&g, 0, 2);
-  gvizGraphAddEdge(&g, 0, 1);
-  gvizGraphAddEdge(&g, 0, 3);
+  gvizGraphAddEdge(&g, 0, 2, 1.0);
+  gvizGraphAddEdge(&g, 0, 1, 1.0);
+  gvizGraphAddEdge(&g, 0, 3, 1.0);
 
-  gvizGraphAddEdge(&g, 1, 2);
-  gvizGraphAddEdge(&g, 2, 3);
+  gvizGraphAddEdge(&g, 1, 2, 1.0);
+  gvizGraphAddEdge(&g, 2, 3, 1.0);
 
   gvizPlanarEmbedderState state;
   int res = gvizPlanarEmbedderInit(&state, makeFullSubgraph(&g));
 
   TEST_ASSERT_EQUAL(0, res);
 
-  gvizArray *neighbors = gvizGraphGetVertexNeighbors(&g, 0);
-
-  size_t prev = *(size_t *)gvizArrayAtIndex(neighbors, 0);
+  size_t prev = gvizGraphNeighbor(&g, 0, 0);
   for (size_t i = 1; i < 3; i++) {
 
-    size_t curr = *(size_t *)gvizArrayAtIndex(neighbors, i);
+    size_t curr = gvizGraphNeighbor(&g, 0, i);
 
     int res = getNextVertex(correctOrder, prev, 3);
     TEST_ASSERT_NOT_EQUAL(-1, res);
@@ -88,17 +85,17 @@ void test_nonPlanar() {
 
   // construct K3,3
 
-  gvizGraphAddEdge(&g, 0, 3);
-  gvizGraphAddEdge(&g, 0, 4);
-  gvizGraphAddEdge(&g, 0, 5);
+  gvizGraphAddEdge(&g, 0, 3, 1.0);
+  gvizGraphAddEdge(&g, 0, 4, 1.0);
+  gvizGraphAddEdge(&g, 0, 5, 1.0);
 
-  gvizGraphAddEdge(&g, 1, 3);
-  gvizGraphAddEdge(&g, 1, 4);
-  gvizGraphAddEdge(&g, 1, 5);
+  gvizGraphAddEdge(&g, 1, 3, 1.0);
+  gvizGraphAddEdge(&g, 1, 4, 1.0);
+  gvizGraphAddEdge(&g, 1, 5, 1.0);
 
-  gvizGraphAddEdge(&g, 2, 3);
-  gvizGraphAddEdge(&g, 2, 4);
-  gvizGraphAddEdge(&g, 2, 5);
+  gvizGraphAddEdge(&g, 2, 3, 1.0);
+  gvizGraphAddEdge(&g, 2, 4, 1.0);
+  gvizGraphAddEdge(&g, 2, 5, 1.0);
 
   gvizPlanarEmbedderState state;
   int res = gvizPlanarEmbedderInit(&state, makeFullSubgraph(&g));
@@ -121,7 +118,7 @@ void test_nonPlanar_kuratowskiWitness() {
   // K5
   for (size_t u = 0; u < 5; u++)
     for (size_t v = u + 1; v < 5; v++)
-      gvizGraphAddEdge(&g, u, v);
+      gvizGraphAddEdge(&g, u, v, 1.0);
 
   gvizGraphBuildLayout(&g);
   gvizSubgraph sg = gvizSubgraphCreateFull(&g);
@@ -148,10 +145,10 @@ void test_largestFaceBoundary_square() {
   for (int i = 0; i < 4; i++)
     gvizGraphAddVertex(&g, NULL, NULL, NULL);
   // 4-cycle: both faces are the square itself.
-  gvizGraphAddEdge(&g, 0, 1);
-  gvizGraphAddEdge(&g, 1, 2);
-  gvizGraphAddEdge(&g, 2, 3);
-  gvizGraphAddEdge(&g, 3, 0);
+  gvizGraphAddEdge(&g, 0, 1, 1.0);
+  gvizGraphAddEdge(&g, 1, 2, 1.0);
+  gvizGraphAddEdge(&g, 2, 3, 1.0);
+  gvizGraphAddEdge(&g, 3, 0, 1.0);
 
   gvizGraphBuildLayout(&g);
   gvizSubgraph sg = gvizSubgraphCreateFull(&g);
@@ -190,21 +187,19 @@ void test_triangulation() {
     gvizGraphAddVertex(&g, NULL, NULL, NULL);
 
   // basic hexagon
-  gvizGraphAddEdge(&g, 0, 1);
-  gvizGraphAddEdge(&g, 1, 2);
-  gvizGraphAddEdge(&g, 2, 3);
-  gvizGraphAddEdge(&g, 3, 4);
-  gvizGraphAddEdge(&g, 4, 5);
-  gvizGraphAddEdge(&g, 5, 0);
+  gvizGraphAddEdge(&g, 0, 1, 1.0);
+  gvizGraphAddEdge(&g, 1, 2, 1.0);
+  gvizGraphAddEdge(&g, 2, 3, 1.0);
+  gvizGraphAddEdge(&g, 3, 4, 1.0);
+  gvizGraphAddEdge(&g, 4, 5, 1.0);
+  gvizGraphAddEdge(&g, 5, 0, 1.0);
 
-  gvizGraphAddEdge(&g, 5, 3);
+  gvizGraphAddEdge(&g, 5, 3, 1.0);
 
   gvizPlanarEmbedderState state;
   int res = gvizPlanarEmbedderInit(&state, makeFullSubgraph(&g));
 
   TEST_ASSERT_EQUAL(0, res);
-
-  gvizArray *neighbors = gvizGraphGetVertexNeighbors(&g, 0);
 
   gvizFaceIteratorContext faces;
   gvizFaceIteratorInit(&state.embedding.subgraph, &faces);
@@ -220,9 +215,13 @@ void test_triangulation() {
 
   TEST_ASSERT_EQUAL(2, g.vertices.count - faces.dCount / 2 + faces.faces.count);
 
-  for (size_t i = 0; i < 6; i++)
-    gvizArrayPrint(gvizGraphGetVertexNeighbors(&g, i), stdout,
-                   gvizSerializeUINT64, 8);
+  for (size_t i = 0; i < 6; i++) {
+    printf("[ ");
+    size_t degree = gvizGraphDegree(&g, i);
+    for (size_t j = 0; j < degree; j++)
+      printf("%zu, ", gvizGraphNeighbor(&g, i, j));
+    printf(" ]\n");
+  }
 
   gvizFaceIteratorRelease(&faces);
   gvizPlanarEmbedderRelease(&state);
@@ -278,12 +277,12 @@ void test_schnyderWood_K4(void) {
   for (int i = 0; i < 4; i++)
     gvizGraphAddVertex(&g, NULL, NULL, NULL);
 
-  gvizGraphAddEdge(&g, 0, 1);
-  gvizGraphAddEdge(&g, 0, 2);
-  gvizGraphAddEdge(&g, 0, 3);
-  gvizGraphAddEdge(&g, 1, 2);
-  gvizGraphAddEdge(&g, 1, 3);
-  gvizGraphAddEdge(&g, 2, 3);
+  gvizGraphAddEdge(&g, 0, 1, 1.0);
+  gvizGraphAddEdge(&g, 0, 2, 1.0);
+  gvizGraphAddEdge(&g, 0, 3, 1.0);
+  gvizGraphAddEdge(&g, 1, 2, 1.0);
+  gvizGraphAddEdge(&g, 1, 3, 1.0);
+  gvizGraphAddEdge(&g, 2, 3, 1.0);
 
   gvizPlanarEmbedderState state;
   TEST_ASSERT_EQUAL(0, gvizPlanarEmbedderInit(&state, makeFullSubgraph(&g)));
@@ -307,13 +306,13 @@ void test_schnyderWood_hexagon(void) {
   for (int i = 0; i < 6; i++)
     gvizGraphAddVertex(&g, NULL, NULL, NULL);
 
-  gvizGraphAddEdge(&g, 0, 1);
-  gvizGraphAddEdge(&g, 1, 2);
-  gvizGraphAddEdge(&g, 2, 3);
-  gvizGraphAddEdge(&g, 3, 4);
-  gvizGraphAddEdge(&g, 4, 5);
-  gvizGraphAddEdge(&g, 5, 0);
-  gvizGraphAddEdge(&g, 5, 3);
+  gvizGraphAddEdge(&g, 0, 1, 1.0);
+  gvizGraphAddEdge(&g, 1, 2, 1.0);
+  gvizGraphAddEdge(&g, 2, 3, 1.0);
+  gvizGraphAddEdge(&g, 3, 4, 1.0);
+  gvizGraphAddEdge(&g, 4, 5, 1.0);
+  gvizGraphAddEdge(&g, 5, 0, 1.0);
+  gvizGraphAddEdge(&g, 5, 3, 1.0);
 
   gvizPlanarEmbedderState state;
   TEST_ASSERT_EQUAL(0, gvizPlanarEmbedderInit(&state, makeFullSubgraph(&g)));
@@ -377,11 +376,11 @@ void test_subgraph_neighbor_ccw_order(void) {
   for (int i = 0; i < 4; i++)
     gvizGraphAddVertex(&g, NULL, NULL, NULL);
 
-  gvizGraphAddEdge(&g, 0, 2);
-  gvizGraphAddEdge(&g, 0, 1);
-  gvizGraphAddEdge(&g, 0, 3);
-  gvizGraphAddEdge(&g, 1, 2);
-  gvizGraphAddEdge(&g, 2, 3);
+  gvizGraphAddEdge(&g, 0, 2, 1.0);
+  gvizGraphAddEdge(&g, 0, 1, 1.0);
+  gvizGraphAddEdge(&g, 0, 3, 1.0);
+  gvizGraphAddEdge(&g, 1, 2, 1.0);
+  gvizGraphAddEdge(&g, 2, 3, 1.0);
 
   gvizPlanarEmbedderState state;
   TEST_ASSERT_EQUAL(0, gvizPlanarEmbedderInit(&state, makeFullSubgraph(&g)));
@@ -411,9 +410,9 @@ void test_face_walk_triangle(void) {
   for (int i = 0; i < 3; i++)
     gvizGraphAddVertex(&g, NULL, NULL, NULL);
 
-  gvizGraphAddEdge(&g, 0, 1);
-  gvizGraphAddEdge(&g, 1, 2);
-  gvizGraphAddEdge(&g, 2, 0);
+  gvizGraphAddEdge(&g, 0, 1, 1.0);
+  gvizGraphAddEdge(&g, 1, 2, 1.0);
+  gvizGraphAddEdge(&g, 2, 0, 1.0);
 
   gvizPlanarEmbedderState state;
   TEST_ASSERT_EQUAL(0, gvizPlanarEmbedderInit(&state, makeFullSubgraph(&g)));
@@ -446,11 +445,11 @@ void test_vertex_induced_subgraph_planar(void) {
   for (int i = 0; i < 5; i++)
     gvizGraphAddVertex(&g, NULL, NULL, NULL);
 
-  gvizGraphAddEdge(&g, 0, 1);
-  gvizGraphAddEdge(&g, 1, 2);
-  gvizGraphAddEdge(&g, 2, 3);
-  gvizGraphAddEdge(&g, 3, 0);
-  gvizGraphAddEdge(&g, 0, 4);
+  gvizGraphAddEdge(&g, 0, 1, 1.0);
+  gvizGraphAddEdge(&g, 1, 2, 1.0);
+  gvizGraphAddEdge(&g, 2, 3, 1.0);
+  gvizGraphAddEdge(&g, 3, 0, 1.0);
+  gvizGraphAddEdge(&g, 0, 4, 1.0);
 
   gvizGraphBuildLayout(&g);
   gvizVertexSubset vs = gvizVertexSubsetCreateEmpty(&g);

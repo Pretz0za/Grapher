@@ -1,7 +1,6 @@
 #ifndef GVIZ_SUBGRAPH_H
 #define GVIZ_SUBGRAPH_H
 
-#include "ds/gvizArray.h"
 #include "ds/gvizBitArray.h"
 #include <stdbool.h>
 
@@ -56,8 +55,6 @@ typedef struct {
 	gvizBitArrayIterator it;
 	/** Parent adjacency index when iterating a vertex-induced subgraph. */
 	size_t adj_idx;
-	/** Cached adjacency list of @c u; resolved once at Create. */
-	const gvizArray *nb;
 	gvizSubgraphNeighborIterMode mode;
 } gvizSubgraphNeighborIterator;
 

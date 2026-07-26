@@ -192,12 +192,12 @@ int gvizEmbeddedGraphAddVertex(gvizEmbeddedGraph *embedding, void *data) {
 }
 
 int gvizEmbeddedGraphAddEdge(gvizEmbeddedGraph *embedding, size_t from,
-                             size_t to) {
+                             size_t to, double weight) {
   if (!embedding)
     return -1;
 
   gvizGraph *g = (gvizGraph *)embedding->subgraph.g;
-  if (gvizGraphAddEdge(g, from, to) < 0)
+  if (gvizGraphAddEdge(g, from, to, weight) < 0)
     return -1;
 
   if (gvizSubgraphIsFull(&embedding->subgraph)) {

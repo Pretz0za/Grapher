@@ -15,18 +15,18 @@ static void add_path4(gvizGraph *g) {
   gvizGraphInit(g, 1);
   for (int i = 0; i < 4; i++)
     gvizGraphAddVertex(g, NULL, NULL, NULL);
-  gvizGraphAddEdge(g, 0, 1);
-  gvizGraphAddEdge(g, 1, 2);
-  gvizGraphAddEdge(g, 2, 3);
+  gvizGraphAddEdge(g, 0, 1, 1.0);
+  gvizGraphAddEdge(g, 1, 2, 1.0);
+  gvizGraphAddEdge(g, 2, 3, 1.0);
 }
 
 static void add_triangle(gvizGraph *g) {
   gvizGraphInit(g, 0);
   for (int i = 0; i < 3; i++)
     gvizGraphAddVertex(g, NULL, NULL, NULL);
-  gvizGraphAddEdge(g, 0, 1);
-  gvizGraphAddEdge(g, 1, 2);
-  gvizGraphAddEdge(g, 0, 2);
+  gvizGraphAddEdge(g, 0, 1, 1.0);
+  gvizGraphAddEdge(g, 1, 2, 1.0);
+  gvizGraphAddEdge(g, 0, 2, 1.0);
 }
 
 void test_searchBreadthFirst_path(void) {
@@ -154,8 +154,8 @@ void test_connectedComponents_disconnected(void) {
   gvizGraphInit(&g, 0);
   for (int i = 0; i < 5; i++)
     gvizGraphAddVertex(&g, NULL, NULL, NULL);
-  gvizGraphAddEdge(&g, 0, 1);
-  gvizGraphAddEdge(&g, 2, 3);
+  gvizGraphAddEdge(&g, 0, 1, 1.0);
+  gvizGraphAddEdge(&g, 2, 3, 1.0);
   gvizGraphBuildLayout(&g);
 
   gvizSubgraph sg = gvizSubgraphCreateFull(&g);
@@ -318,7 +318,7 @@ void test_searchKNearest_batchMatchesPerVertex(void) {
   for (int i = 0; i < N; i++)
     gvizGraphAddVertex(&g, NULL, NULL, NULL);
   for (int i = 0; i + 1 < N; i++)
-    gvizGraphAddEdge(&g, i, i + 1); // path graph
+    gvizGraphAddEdge(&g, i, i + 1, 1.0); // path graph
   gvizGraphBuildLayout(&g);
 
   gvizSubgraph sg = gvizSubgraphCreateFull(&g);

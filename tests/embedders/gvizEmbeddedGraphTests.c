@@ -13,7 +13,7 @@ static gvizEmbeddedGraph makeEmbedding(gvizGraph *g, size_t nvertices,
   for (size_t i = 0; i < nvertices; i++)
     gvizGraphAddVertex(g, NULL, NULL, NULL);
   for (size_t i = 0; i + 1 < nvertices; i++)
-    gvizGraphAddEdge(g, i, i + 1);
+    gvizGraphAddEdge(g, i, i + 1, 1.0);
   gvizGraphBuildLayout(g);
 
   gvizEmbeddedGraph eg;
@@ -476,12 +476,12 @@ void test_addEdge_visibleOnFullEmbedding(void) {
   gvizEmbeddedGraph eg = makeEmbedding(&g, 3, 2); // path 0-1-2, no edge 0-2
   TEST_ASSERT_FALSE(gvizEmbeddedGraphIsEdgeVisible(&eg, 0, 2));
 
-  TEST_ASSERT_EQUAL_INT(0, gvizEmbeddedGraphAddEdge(&eg, 0, 2));
+  TEST_ASSERT_EQUAL_INT(0, gvizEmbeddedGraphAddEdge(&eg, 0, 2, 1.0));
   TEST_ASSERT_TRUE(gvizEmbeddedGraphIsEdgeVisible(&eg, 0, 2));
   TEST_ASSERT_TRUE(gvizSubgraphHasEdge(gvizEmbeddedGraphStructure(&eg), 0, 2));
 
   // Out-of-bounds endpoint fails, matching gvizGraphAddEdge.
-  TEST_ASSERT_EQUAL_INT(-1, gvizEmbeddedGraphAddEdge(&eg, 0, 99));
+  TEST_ASSERT_EQUAL_INT(-1, gvizEmbeddedGraphAddEdge(&eg, 0, 99, 1.0));
 
   gvizEmbeddedGraphRelease(&eg);
   gvizGraphRelease(&g);
@@ -492,7 +492,7 @@ void test_addVertexAndEdge_vertexInducedEmbeddingNeverBuildsLayout(void) {
   gvizGraphInitAtCapacity(&g, 0, 3);
   for (int i = 0; i < 3; i++)
     gvizGraphAddVertex(&g, NULL, NULL, NULL);
-  gvizGraphAddEdge(&g, 0, 1);
+  gvizGraphAddEdge(&g, 0, 1, 1.0);
 
   gvizVertexSubset vs = gvizVertexSubsetCreateEmpty(&g);
   gvizVertexSubsetShowVertex(vs, 0);
@@ -511,7 +511,7 @@ void test_addVertexAndEdge_vertexInducedEmbeddingNeverBuildsLayout(void) {
   TEST_ASSERT_TRUE(gvizEmbeddedGraphIsVertexVisible(&eg, 3));
   TEST_ASSERT_NULL(g.layout);
 
-  TEST_ASSERT_EQUAL_INT(0, gvizEmbeddedGraphAddEdge(&eg, 3, 0));
+  TEST_ASSERT_EQUAL_INT(0, gvizEmbeddedGraphAddEdge(&eg, 3, 0, 1.0));
   TEST_ASSERT_TRUE(gvizSubgraphHasEdge(gvizEmbeddedGraphStructure(&eg), 3, 0));
   TEST_ASSERT_NULL(g.layout);
 

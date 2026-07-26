@@ -27,7 +27,7 @@ void test_forceEmbedder_init_release_lifecycle(void) {
   for (int i = 0; i < 10; i++)
     gvizGraphAddVertex(&g, NULL, NULL, NULL);
   for (int i = 0; i < 9; i++)
-    gvizGraphAddEdge(&g, i, i + 1);
+    gvizGraphAddEdge(&g, i, i + 1, 1.0);
 
   gvizForceEmbedderState s;
   TEST_ASSERT_EQUAL(0, gvizForceEmbedderInit(&s, makeFullSubgraph(&g), 2, GVIZ_FORCE_MODEL_FRUCHTERMAN_REINGOLD));
@@ -42,7 +42,7 @@ void test_forceEmbedder_init_rejectsNonDimension2(void) {
   gvizGraphInit(&g, 0);
   gvizGraphAddVertex(&g, NULL, NULL, NULL);
   gvizGraphAddVertex(&g, NULL, NULL, NULL);
-  gvizGraphAddEdge(&g, 0, 1);
+  gvizGraphAddEdge(&g, 0, 1, 1.0);
 
   gvizForceEmbedderState s;
   TEST_ASSERT_EQUAL(-2, gvizForceEmbedderInit(&s, makeFullSubgraph(&g), 3, GVIZ_FORCE_MODEL_FRUCHTERMAN_REINGOLD));
@@ -56,7 +56,7 @@ void test_forceEmbedder_configure_keepsOrOverrides(void) {
   gvizGraphInit(&g, 0);
   gvizGraphAddVertex(&g, NULL, NULL, NULL);
   gvizGraphAddVertex(&g, NULL, NULL, NULL);
-  gvizGraphAddEdge(&g, 0, 1);
+  gvizGraphAddEdge(&g, 0, 1, 1.0);
 
   gvizForceEmbedderState s;
   TEST_ASSERT_EQUAL(0, gvizForceEmbedderInit(&s, makeFullSubgraph(&g), 2, GVIZ_FORCE_MODEL_FRUCHTERMAN_REINGOLD));
@@ -81,7 +81,7 @@ void test_forceEmbedder_configureSpeed_keepsOrOverrides(void) {
   gvizGraphInit(&g, 0);
   gvizGraphAddVertex(&g, NULL, NULL, NULL);
   gvizGraphAddVertex(&g, NULL, NULL, NULL);
-  gvizGraphAddEdge(&g, 0, 1);
+  gvizGraphAddEdge(&g, 0, 1, 1.0);
 
   gvizForceEmbedderState s;
   TEST_ASSERT_EQUAL(0, gvizForceEmbedderInit(&s, makeFullSubgraph(&g), 2, GVIZ_FORCE_MODEL_FRUCHTERMAN_REINGOLD));
@@ -103,7 +103,7 @@ void test_forceEmbedder_configureBarnesHut_keepsOrOverrides(void) {
   gvizGraphInit(&g, 0);
   gvizGraphAddVertex(&g, NULL, NULL, NULL);
   gvizGraphAddVertex(&g, NULL, NULL, NULL);
-  gvizGraphAddEdge(&g, 0, 1);
+  gvizGraphAddEdge(&g, 0, 1, 1.0);
 
   gvizForceEmbedderState s;
   TEST_ASSERT_EQUAL(0, gvizForceEmbedderInit(&s, makeFullSubgraph(&g), 2, GVIZ_FORCE_MODEL_FRUCHTERMAN_REINGOLD));
@@ -129,7 +129,7 @@ void test_forceEmbedder_begin_positionsWithinBoxAndTreeBuilt(void) {
   for (int i = 0; i < 20; i++)
     gvizGraphAddVertex(&g, NULL, NULL, NULL);
   for (int i = 0; i < 19; i++)
-    gvizGraphAddEdge(&g, i, i + 1);
+    gvizGraphAddEdge(&g, i, i + 1, 1.0);
 
   gvizForceEmbedderState s;
   TEST_ASSERT_EQUAL(0, gvizForceEmbedderInit(&s, makeFullSubgraph(&g), 2, GVIZ_FORCE_MODEL_FRUCHTERMAN_REINGOLD));
@@ -154,7 +154,7 @@ void test_forceEmbedder_edgeAttracts(void) {
   gvizGraphInit(&g, 0);
   gvizGraphAddVertex(&g, NULL, NULL, NULL);
   gvizGraphAddVertex(&g, NULL, NULL, NULL);
-  gvizGraphAddEdge(&g, 0, 1);
+  gvizGraphAddEdge(&g, 0, 1, 1.0);
 
   gvizForceEmbedderState s;
   TEST_ASSERT_EQUAL(0, gvizForceEmbedderInit(&s, makeFullSubgraph(&g), 2, GVIZ_FORCE_MODEL_FRUCHTERMAN_REINGOLD));
@@ -216,7 +216,7 @@ void test_forceEmbedder_edgeRepelsWhenVeryClose(void) {
   gvizGraphInit(&g, 0);
   gvizGraphAddVertex(&g, NULL, NULL, NULL);
   gvizGraphAddVertex(&g, NULL, NULL, NULL);
-  gvizGraphAddEdge(&g, 0, 1);
+  gvizGraphAddEdge(&g, 0, 1, 1.0);
 
   gvizForceEmbedderState s;
   TEST_ASSERT_EQUAL(0, gvizForceEmbedderInit(&s, makeFullSubgraph(&g), 2, GVIZ_FORCE_MODEL_FRUCHTERMAN_REINGOLD));
@@ -271,7 +271,7 @@ void test_forceEmbedder_begin_restartRebuildsQuadtree(void) {
   for (int i = 0; i < 12; i++)
     gvizGraphAddVertex(&g, NULL, NULL, NULL);
   for (int i = 0; i < 11; i++)
-    gvizGraphAddEdge(&g, i, i + 1);
+    gvizGraphAddEdge(&g, i, i + 1, 1.0);
 
   gvizForceEmbedderState s;
   TEST_ASSERT_EQUAL(0, gvizForceEmbedderInit(&s, makeFullSubgraph(&g), 2, GVIZ_FORCE_MODEL_FRUCHTERMAN_REINGOLD));
@@ -318,13 +318,13 @@ void test_forceEmbedder_barnesHutApproximatesExactForTinyTheta(void) {
   gvizGraphInit(&g, 0);
   for (int i = 0; i < 6; i++)
     gvizGraphAddVertex(&g, NULL, NULL, NULL);
-  gvizGraphAddEdge(&g, 0, 1);
-  gvizGraphAddEdge(&g, 1, 2);
-  gvizGraphAddEdge(&g, 2, 3);
-  gvizGraphAddEdge(&g, 3, 4);
-  gvizGraphAddEdge(&g, 4, 5);
-  gvizGraphAddEdge(&g, 5, 0);
-  gvizGraphAddEdge(&g, 0, 3);
+  gvizGraphAddEdge(&g, 0, 1, 1.0);
+  gvizGraphAddEdge(&g, 1, 2, 1.0);
+  gvizGraphAddEdge(&g, 2, 3, 1.0);
+  gvizGraphAddEdge(&g, 3, 4, 1.0);
+  gvizGraphAddEdge(&g, 4, 5, 1.0);
+  gvizGraphAddEdge(&g, 5, 0, 1.0);
+  gvizGraphAddEdge(&g, 0, 3, 1.0);
 
   gvizForceEmbedderState exact;
   TEST_ASSERT_EQUAL(0, gvizForceEmbedderInit(&exact, makeFullSubgraph(&g), 2,
@@ -381,9 +381,9 @@ void test_forceEmbedder_step_handlesCoincidentPositions(void) {
   gvizGraphInit(&g, 0);
   for (int i = 0; i < 6; i++)
     gvizGraphAddVertex(&g, NULL, NULL, NULL);
-  gvizGraphAddEdge(&g, 0, 1);
-  gvizGraphAddEdge(&g, 2, 3);
-  gvizGraphAddEdge(&g, 4, 5);
+  gvizGraphAddEdge(&g, 0, 1, 1.0);
+  gvizGraphAddEdge(&g, 2, 3, 1.0);
+  gvizGraphAddEdge(&g, 4, 5, 1.0);
 
   gvizForceEmbedderState s;
   TEST_ASSERT_EQUAL(0, gvizForceEmbedderInit(&s, makeFullSubgraph(&g), 2, GVIZ_FORCE_MODEL_FRUCHTERMAN_REINGOLD));
@@ -418,8 +418,8 @@ void test_forceEmbedder_linLog_nonEdgeRepelsWithNonzeroDegree(void) {
   gvizGraphInit(&g, 0);
   for (int i = 0; i < 3; i++)
     gvizGraphAddVertex(&g, NULL, NULL, NULL);
-  gvizGraphAddEdge(&g, 0, 2);
-  gvizGraphAddEdge(&g, 1, 2);
+  gvizGraphAddEdge(&g, 0, 2, 1.0);
+  gvizGraphAddEdge(&g, 1, 2, 1.0);
 
   gvizForceEmbedderState s;
   TEST_ASSERT_EQUAL(0, gvizForceEmbedderInit(&s, makeFullSubgraph(&g), 2,
@@ -460,8 +460,8 @@ void test_forceEmbedder_linLog_nearCoincidentVerticesStayBounded(void) {
   gvizGraphInit(&g, 0);
   for (int i = 0; i < 3; i++)
     gvizGraphAddVertex(&g, NULL, NULL, NULL);
-  gvizGraphAddEdge(&g, 0, 2);
-  gvizGraphAddEdge(&g, 1, 2);
+  gvizGraphAddEdge(&g, 0, 2, 1.0);
+  gvizGraphAddEdge(&g, 1, 2, 1.0);
 
   gvizForceEmbedderState s;
   TEST_ASSERT_EQUAL(0, gvizForceEmbedderInit(&s, makeFullSubgraph(&g), 2,
@@ -545,8 +545,8 @@ void test_forceEmbedder_configureRadius_scalesWithDegree(void) {
   gvizGraphInit(&g, 0);
   for (int i = 0; i < 3; i++)
     gvizGraphAddVertex(&g, NULL, NULL, NULL);
-  gvizGraphAddEdge(&g, 0, 1);
-  gvizGraphAddEdge(&g, 0, 2);
+  gvizGraphAddEdge(&g, 0, 1, 1.0);
+  gvizGraphAddEdge(&g, 0, 2, 1.0);
 
   gvizForceEmbedderState s;
   TEST_ASSERT_EQUAL(0, gvizForceEmbedderInit(&s, makeFullSubgraph(&g), 2,
@@ -573,8 +573,8 @@ void test_forceEmbedder_configureRadius_baseScalesRatioPreserving(void) {
   gvizGraphInit(&g, 0);
   for (int i = 0; i < 3; i++)
     gvizGraphAddVertex(&g, NULL, NULL, NULL);
-  gvizGraphAddEdge(&g, 0, 1);
-  gvizGraphAddEdge(&g, 0, 2);
+  gvizGraphAddEdge(&g, 0, 1, 1.0);
+  gvizGraphAddEdge(&g, 0, 2, 1.0);
 
   gvizForceEmbedderState s;
   TEST_ASSERT_EQUAL(0, gvizForceEmbedderInit(&s, makeFullSubgraph(&g), 2,
@@ -687,7 +687,7 @@ void test_forceEmbedder_barnesHutDisabled_stillProducesSensibleResults(void) {
   gvizGraphInit(&g, 0);
   gvizGraphAddVertex(&g, NULL, NULL, NULL);
   gvizGraphAddVertex(&g, NULL, NULL, NULL);
-  gvizGraphAddEdge(&g, 0, 1);
+  gvizGraphAddEdge(&g, 0, 1, 1.0);
 
   gvizForceEmbedderState s;
   TEST_ASSERT_EQUAL(0, gvizForceEmbedderInit(&s, makeFullSubgraph(&g), 2,

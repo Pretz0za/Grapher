@@ -19,12 +19,12 @@ static void buildK4(gvizGraph *g) {
     gvizGraphInit(g, 0);
     for (int i = 0; i < 4; i++)
         gvizGraphAddVertex(g, NULL, NULL, NULL);
-    gvizGraphAddEdge(g, 0, 1);
-    gvizGraphAddEdge(g, 0, 2);
-    gvizGraphAddEdge(g, 0, 3);
-    gvizGraphAddEdge(g, 1, 2);
-    gvizGraphAddEdge(g, 1, 3);
-    gvizGraphAddEdge(g, 2, 3);
+    gvizGraphAddEdge(g, 0, 1, 1.0);
+    gvizGraphAddEdge(g, 0, 2, 1.0);
+    gvizGraphAddEdge(g, 0, 3, 1.0);
+    gvizGraphAddEdge(g, 1, 2, 1.0);
+    gvizGraphAddEdge(g, 1, 3, 1.0);
+    gvizGraphAddEdge(g, 2, 3, 1.0);
 }
 
 /*
@@ -106,8 +106,8 @@ void test_tutte_convergence(void) {
     for (size_t i = 0; i < L; i++)
         for (size_t j = 0; j < W; j++) {
             size_t idx = i * W + j;
-            if (j + 1 < W) gvizGraphAddEdge(&g, idx, i * W + j + 1);
-            if (i + 1 < L) gvizGraphAddEdge(&g, idx, (i + 1) * W + j);
+            if (j + 1 < W) gvizGraphAddEdge(&g, idx, i * W + j + 1, 1.0);
+            if (i + 1 < L) gvizGraphAddEdge(&g, idx, (i + 1) * W + j, 1.0);
         }
 
     gvizTutteState s;

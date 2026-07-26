@@ -11,8 +11,8 @@ void test_isTree_undirected_returns_negative_two(void) {
   gvizGraphInit(&g, 0);
   for (int i = 0; i < 3; i++)
     gvizGraphAddVertex(&g, NULL, NULL, NULL);
-  gvizGraphAddEdge(&g, 0, 1);
-  gvizGraphAddEdge(&g, 1, 2);
+  gvizGraphAddEdge(&g, 0, 1, 1.0);
+  gvizGraphAddEdge(&g, 1, 2, 1.0);
 
   TEST_ASSERT_EQUAL_INT(-2, gvizGraphIsTree(&g, NULL));
 
@@ -36,8 +36,8 @@ void test_isTree_path(void) {
   gvizGraphInit(&g, 1);
   for (int i = 0; i < 3; i++)
     gvizGraphAddVertex(&g, NULL, NULL, NULL);
-  gvizGraphAddEdge(&g, 0, 1);
-  gvizGraphAddEdge(&g, 1, 2);
+  gvizGraphAddEdge(&g, 0, 1, 1.0);
+  gvizGraphAddEdge(&g, 1, 2, 1.0);
 
   int parents[3];
   TEST_ASSERT_EQUAL_INT(1, gvizGraphIsTree(&g, parents));
@@ -53,9 +53,9 @@ void test_isTree_star(void) {
   gvizGraphInit(&g, 1);
   for (int i = 0; i < 4; i++)
     gvizGraphAddVertex(&g, NULL, NULL, NULL);
-  gvizGraphAddEdge(&g, 0, 1);
-  gvizGraphAddEdge(&g, 0, 2);
-  gvizGraphAddEdge(&g, 0, 3);
+  gvizGraphAddEdge(&g, 0, 1, 1.0);
+  gvizGraphAddEdge(&g, 0, 2, 1.0);
+  gvizGraphAddEdge(&g, 0, 3, 1.0);
 
   int parents[4];
   TEST_ASSERT_EQUAL_INT(1, gvizGraphIsTree(&g, parents));
@@ -72,8 +72,8 @@ void test_isTree_twoRoots(void) {
   gvizGraphInit(&g, 1);
   for (int i = 0; i < 4; i++)
     gvizGraphAddVertex(&g, NULL, NULL, NULL);
-  gvizGraphAddEdge(&g, 0, 1);
-  gvizGraphAddEdge(&g, 2, 3);
+  gvizGraphAddEdge(&g, 0, 1, 1.0);
+  gvizGraphAddEdge(&g, 2, 3, 1.0);
 
   TEST_ASSERT_EQUAL_INT(-1, gvizGraphIsTree(&g, NULL));
 
@@ -85,8 +85,8 @@ void test_isTree_inDegreeTwo(void) {
   gvizGraphInit(&g, 1);
   for (int i = 0; i < 3; i++)
     gvizGraphAddVertex(&g, NULL, NULL, NULL);
-  gvizGraphAddEdge(&g, 0, 2);
-  gvizGraphAddEdge(&g, 1, 2);
+  gvizGraphAddEdge(&g, 0, 2, 1.0);
+  gvizGraphAddEdge(&g, 1, 2, 1.0);
 
   TEST_ASSERT_EQUAL_INT(-1, gvizGraphIsTree(&g, NULL));
 
@@ -98,9 +98,9 @@ void test_isTree_isolatedRootPlusCycle(void) {
   gvizGraphInit(&g, 1);
   for (int i = 0; i < 4; i++)
     gvizGraphAddVertex(&g, NULL, NULL, NULL);
-  gvizGraphAddEdge(&g, 1, 2);
-  gvizGraphAddEdge(&g, 2, 3);
-  gvizGraphAddEdge(&g, 3, 1);
+  gvizGraphAddEdge(&g, 1, 2, 1.0);
+  gvizGraphAddEdge(&g, 2, 3, 1.0);
+  gvizGraphAddEdge(&g, 3, 1, 1.0);
 
   TEST_ASSERT_EQUAL_INT(0, gvizGraphIsTree(&g, NULL));
 
@@ -112,8 +112,8 @@ void test_isTree_parentsNull_noCrash(void) {
   gvizGraphInit(&g, 1);
   for (int i = 0; i < 3; i++)
     gvizGraphAddVertex(&g, NULL, NULL, NULL);
-  gvizGraphAddEdge(&g, 0, 1);
-  gvizGraphAddEdge(&g, 1, 2);
+  gvizGraphAddEdge(&g, 0, 1, 1.0);
+  gvizGraphAddEdge(&g, 1, 2, 1.0);
 
   TEST_ASSERT_EQUAL_INT(1, gvizGraphIsTree(&g, NULL));
 
@@ -125,8 +125,8 @@ void test_isLeaf(void) {
   gvizGraphInit(&g, 1);
   for (int i = 0; i < 3; i++)
     gvizGraphAddVertex(&g, NULL, NULL, NULL);
-  gvizGraphAddEdge(&g, 0, 1);
-  gvizGraphAddEdge(&g, 1, 2);
+  gvizGraphAddEdge(&g, 0, 1, 1.0);
+  gvizGraphAddEdge(&g, 1, 2, 1.0);
 
   TEST_ASSERT_EQUAL_INT(0, gvizTreeIsLeaf(&g, 0));
   TEST_ASSERT_EQUAL_INT(0, gvizTreeIsLeaf(&g, 1));
@@ -141,10 +141,10 @@ void test_countLeaves_smallTree(void) {
   for (int i = 0; i < 5; i++)
     gvizGraphAddVertex(&g, NULL, NULL, NULL);
   // root(0) -> 1, 2 ; 1 -> 3, 4
-  gvizGraphAddEdge(&g, 0, 1);
-  gvizGraphAddEdge(&g, 0, 2);
-  gvizGraphAddEdge(&g, 1, 3);
-  gvizGraphAddEdge(&g, 1, 4);
+  gvizGraphAddEdge(&g, 0, 1, 1.0);
+  gvizGraphAddEdge(&g, 0, 2, 1.0);
+  gvizGraphAddEdge(&g, 1, 3, 1.0);
+  gvizGraphAddEdge(&g, 1, 4, 1.0);
 
   TEST_ASSERT_EQUAL_INT(1, gvizGraphIsTree(&g, NULL));
   TEST_ASSERT_EQUAL_UINT64(3, gvizTreeCountLeaves(&g, 0));

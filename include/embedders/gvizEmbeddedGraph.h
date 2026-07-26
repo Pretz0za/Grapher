@@ -189,7 +189,7 @@ int gvizEmbeddedGraphAddVertex(gvizEmbeddedGraph *embedding, void *data);
  * @return 0 on success, -1 if @p from or @p to is out of bounds.
  */
 int gvizEmbeddedGraphAddEdge(gvizEmbeddedGraph *embedding, size_t from,
-                             size_t to);
+                             size_t to, double weight);
 
 // DRAW MASK (for renderers): --------------------------------------------------
 //

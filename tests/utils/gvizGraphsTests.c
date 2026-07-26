@@ -165,9 +165,9 @@ void test_isConnected_triangle(void) {
   gvizGraphInit(&g, 0);
   for (int i = 0; i < 3; i++)
     gvizGraphAddVertex(&g, NULL, NULL, NULL);
-  gvizGraphAddEdge(&g, 0, 1);
-  gvizGraphAddEdge(&g, 1, 2);
-  gvizGraphAddEdge(&g, 0, 2);
+  gvizGraphAddEdge(&g, 0, 1, 1.0);
+  gvizGraphAddEdge(&g, 1, 2, 1.0);
+  gvizGraphAddEdge(&g, 0, 2, 1.0);
 
   TEST_ASSERT_EQUAL_INT(1, isConnected(&g));
 

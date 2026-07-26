@@ -1,6 +1,5 @@
 #include "ds/gvizTree.h"
 #include "core/alloc.h"
-#include "ds/gvizArray.h"
 #include "ds/gvizGraph.h"
 #include <stdlib.h>
 
@@ -25,11 +24,10 @@ int gvizGraphIsTree(const gvizGraph *graph, int *parents) {
 
   size_t edgeCount = 0;
 
-  gvizArray *curr;
   for (size_t i = 0; i < n; i++) {
-    curr = gvizGraphGetVertexNeighbors(graph, i);
-    for (size_t j = 0; j < curr->count; j++) {
-      size_t child = *(size_t *)gvizArrayAtIndex(curr, j);
+    size_t degree = gvizGraphDegree(graph, i);
+    for (size_t j = 0; j < degree; j++) {
+      size_t child = gvizGraphNeighbor(graph, i, j);
       if (ptr[child] != -1)
         goto done; // Vertex with in-degree > 1
 
@@ -66,9 +64,9 @@ int gvizGraphIsTree(const gvizGraph *graph, int *parents) {
     while (top > 0) {
       size_t v = stack[--top];
       reached++;
-      curr = gvizGraphGetVertexNeighbors(graph, v);
-      for (size_t j = 0; j < curr->count; j++)
-        stack[top++] = *(size_t *)gvizArrayAtIndex(curr, j);
+      size_t degree = gvizGraphDegree(graph, v);
+      for (size_t j = 0; j < degree; j++)
+        stack[top++] = gvizGraphNeighbor(graph, v, j);
     }
     GVIZ_DEALLOC(stack);
     result = reached == n;
@@ -81,7 +79,7 @@ done:
 }
 
 int gvizTreeIsLeaf(const gvizGraph *tree, size_t index) {
-  return (gvizArrayIsEmpty(gvizGraphGetVertexNeighbors(tree, index)));
+  return gvizGraphDegree(tree, index) == 0;
 }
 
 size_t gvizTreeCountLeaves(const gvizGraph *tree, size_t root) {
@@ -89,10 +87,10 @@ size_t gvizTreeCountLeaves(const gvizGraph *tree, size_t root) {
     return 1;
 
   size_t out = 0;
-  gvizArray *children = gvizGraphGetVertexNeighbors(tree, root);
+  size_t degree = gvizGraphDegree(tree, root);
 
-  for (size_t i = 0; i < children->count; i++) {
-    out += gvizTreeCountLeaves(tree, *(size_t *)gvizArrayAtIndex(children, i));
+  for (size_t i = 0; i < degree; i++) {
+    out += gvizTreeCountLeaves(tree, gvizGraphNeighbor(tree, root, i));
   }
 
   return out;

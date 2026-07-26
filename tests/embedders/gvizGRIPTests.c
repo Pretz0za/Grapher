@@ -39,12 +39,12 @@ static gvizGraph build_rect_mesh(size_t L, size_t W) {
 
       if (j + 1 < W) {
         idx_right = i * W + (j + 1);
-        gvizGraphAddEdge(&g, idx, idx_right);
+        gvizGraphAddEdge(&g, idx, idx_right, 1.0);
       }
 
       if (i + 1 < L) {
         idx_down = (i + 1) * W + j;
-        gvizGraphAddEdge(&g, idx, idx_down);
+        gvizGraphAddEdge(&g, idx, idx_down, 1.0);
       }
     }
 
@@ -133,11 +133,11 @@ void test_filtration_finest_border_matches_subgraph(void) {
   for (size_t i = 0; i < 4; i++)
     gvizGraphAddVertex(&graph, NULL, NULL, NULL);
 
-  gvizGraphAddEdge(&graph, 0, 1);
-  gvizGraphAddEdge(&graph, 1, 2);
-  gvizGraphAddEdge(&graph, 2, 3);
-  gvizGraphAddEdge(&graph, 4, 5);
-  gvizGraphAddEdge(&graph, 5, 6);
+  gvizGraphAddEdge(&graph, 0, 1, 1.0);
+  gvizGraphAddEdge(&graph, 1, 2, 1.0);
+  gvizGraphAddEdge(&graph, 2, 3, 1.0);
+  gvizGraphAddEdge(&graph, 4, 5, 1.0);
+  gvizGraphAddEdge(&graph, 5, 6, 1.0);
 
   gvizGraphBuildLayout(&graph);
 
@@ -312,7 +312,7 @@ void test_init_rejectsTooFewVertices(void) {
   gvizGraphInitAtCapacity(&graph, 0, 2);
   gvizGraphAddVertex(&graph, NULL, NULL, NULL);
   gvizGraphAddVertex(&graph, NULL, NULL, NULL);
-  gvizGraphAddEdge(&graph, 0, 1);
+  gvizGraphAddEdge(&graph, 0, 1, 1.0);
   gvizGraphBuildLayout(&graph);
 
   gvizSubgraph sg = gvizSubgraphCreateFull(&graph);

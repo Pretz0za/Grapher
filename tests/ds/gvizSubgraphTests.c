@@ -11,18 +11,18 @@ static void add_triangle(gvizGraph *g) {
   gvizGraphInit(g, 0);
   for (int i = 0; i < 3; i++)
     gvizGraphAddVertex(g, NULL, NULL, NULL);
-  gvizGraphAddEdge(g, 0, 1);
-  gvizGraphAddEdge(g, 1, 2);
-  gvizGraphAddEdge(g, 0, 2);
+  gvizGraphAddEdge(g, 0, 1, 1.0);
+  gvizGraphAddEdge(g, 1, 2, 1.0);
+  gvizGraphAddEdge(g, 0, 2, 1.0);
 }
 
 static void add_path4(gvizGraph *g) {
   gvizGraphInit(g, 1);
   for (int i = 0; i < 4; i++)
     gvizGraphAddVertex(g, NULL, NULL, NULL);
-  gvizGraphAddEdge(g, 0, 1);
-  gvizGraphAddEdge(g, 1, 2);
-  gvizGraphAddEdge(g, 2, 3);
+  gvizGraphAddEdge(g, 0, 1, 1.0);
+  gvizGraphAddEdge(g, 1, 2, 1.0);
+  gvizGraphAddEdge(g, 2, 3, 1.0);
 }
 
 // ============================================================================
@@ -63,7 +63,7 @@ void test_graphBuildLayout_rebuild_after_edge_add(void) {
 
   TEST_ASSERT_EQUAL_UINT64(0, g.layout->vertexOffsets[2]);
 
-  gvizGraphAddEdge(&g, 0, 1);
+  gvizGraphAddEdge(&g, 0, 1, 1.0);
   gvizGraphBuildLayout(&g);
 
   TEST_ASSERT_EQUAL_UINT64(0, g.layout->vertexOffsets[0]);
@@ -266,10 +266,10 @@ static void build_square(gvizGraph *g) {
   gvizGraphInit(g, 0);
   for (int i = 0; i < 4; i++)
     gvizGraphAddVertex(g, NULL, NULL, NULL);
-  gvizGraphAddEdge(g, 0, 1);
-  gvizGraphAddEdge(g, 1, 2);
-  gvizGraphAddEdge(g, 2, 3);
-  gvizGraphAddEdge(g, 3, 0);
+  gvizGraphAddEdge(g, 0, 1, 1.0);
+  gvizGraphAddEdge(g, 1, 2, 1.0);
+  gvizGraphAddEdge(g, 2, 3, 1.0);
+  gvizGraphAddEdge(g, 3, 0, 1.0);
 }
 
 static size_t collect_vertices(const gvizSubgraph *sg, size_t *out, size_t max) {
@@ -489,7 +489,7 @@ void test_subgraph_rebuild_full_preserves_bits(void) {
   gvizSubgraphShowEdge(&sg, 1, 2);
 
   gvizGraphAddVertex(&g, NULL, NULL, NULL);
-  gvizGraphAddEdge(&g, 3, 4);
+  gvizGraphAddEdge(&g, 3, 4, 1.0);
   TEST_ASSERT_EQUAL_INT(0, gvizSubgraphRebuild(&sg));
 
   TEST_ASSERT_TRUE(gvizSubgraphHasVertex(&sg, 1));
@@ -529,7 +529,7 @@ void test_subgraph_rebuild_drops_removed_edge(void) {
   gvizGraphInit(&g, 0);
   gvizGraphAddVertex(&g, NULL, NULL, NULL);
   gvizGraphAddVertex(&g, NULL, NULL, NULL);
-  gvizGraphAddEdge(&g, 0, 1);
+  gvizGraphAddEdge(&g, 0, 1, 1.0);
   gvizGraphBuildLayout(&g);
 
   gvizSubgraph sg = gvizSubgraphCreateEmpty(&g);

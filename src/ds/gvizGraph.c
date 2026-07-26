@@ -13,11 +13,22 @@ static int inBoundsVertices(const gvizGraph *g, size_t idx1, size_t idx2) {
   return idx1 < g->vertices.count && idx2 < g->vertices.count;
 }
 
+/* Finds the position of a neighbor with vertex id @p to in @p edges,
+ * comparing only the idx field (edges may carry arbitrary weights, so a raw
+ * memcmp via gvizArrayFindOne would also compare weight bytes). */
+static int findNeighborPos(const gvizArray *edges, size_t to) {
+  for (size_t i = 0; i < edges->count; i++) {
+    if (((gvizEdge *)gvizArrayAtIndex(edges, i))->idx == to)
+      return (int)i;
+  }
+  return -1;
+}
+
 int gvizVertexInit(gvizVertex *v, void *data) {
   if (v == NULL)
     return -1;
   v->data = data;
-  int err = gvizArrayInit(&v->neighbors, sizeof(size_t));
+  int err = gvizArrayInit(&v->edges, sizeof(gvizEdge));
   return err;
 }
 
@@ -27,7 +38,7 @@ int gvizVertexInitAtCapacity(gvizVertex *v, void *data,
     return -1;
   v->data = data;
   int err =
-      gvizArrayInitAtCapacity(&v->neighbors, sizeof(size_t), initialCapacity);
+      gvizArrayInitAtCapacity(&v->edges, sizeof(gvizEdge), initialCapacity);
   return err;
 }
 
@@ -36,7 +47,7 @@ int gvizVertexCopy(gvizVertex *dest, const gvizVertex *src) {
     return -1;
 
   dest->data = src->data;
-  int err = gvizArrayCopy(&dest->neighbors, &src->neighbors);
+  int err = gvizArrayCopy(&dest->edges, &src->edges);
   return err;
 }
 
@@ -45,7 +56,7 @@ int gvizVertexClone(gvizVertex *dest, const gvizVertex *src) {
     return -1;
 
   dest->data = src->data;
-  int err = gvizArrayClone(&dest->neighbors, &src->neighbors);
+  int err = gvizArrayClone(&dest->edges, &src->edges);
   return err;
 }
 
@@ -122,7 +133,7 @@ void gvizGraphBuildLayout(gvizGraph *g) {
   size_t off = 0;
   for (size_t i = 0; i < n; i++) {
     g->layout->vertexOffsets[i] = off;
-    off += gvizGraphGetVertexNeighbors(g, i)->count;
+    off += gvizGraphDegree(g, i);
   }
   g->layout->vertexOffsets[n] = off;
   g->layout->edgeCount = g->directed ? off : off / 2;
@@ -137,7 +148,7 @@ int gvizGraphAddVertex(gvizGraph *g, void *data, gvizArray *in,
     err = gvizVertexInitAtCapacity(&v, data, out->count);
     if (err < 0)
       return err;
-    gvizArrayCopy(&v.neighbors, out);
+    gvizArrayCopy(&v.edges, out);
   } else {
     err = gvizVertexInit(&v, data);
     if (err < 0)
@@ -149,9 +160,10 @@ int gvizGraphAddVertex(gvizGraph *g, void *data, gvizArray *in,
   if (in != NULL) {
     size_t idx = g->vertices.count - 1;
     for (size_t i = 0; i < in->count; i++) {
-      err = gvizArrayPush(
-          gvizArrayAtIndex(&g->vertices, *(size_t *)gvizArrayAtIndex(in, i)),
-          &idx);
+      gvizEdge e = *(gvizEdge *)gvizArrayAtIndex(in, i);
+      e.idx = idx;
+      gvizVertex *src = gvizArrayAtIndex(&g->vertices, e.idx);
+      err = gvizArrayPush(&src->edges, &e);
       if (err < 0)
         return err;
     }
@@ -160,13 +172,17 @@ int gvizGraphAddVertex(gvizGraph *g, void *data, gvizArray *in,
   return 0;
 }
 
-int gvizGraphAddEdge(gvizGraph *g, size_t from, size_t to) {
+int gvizGraphAddEdge(gvizGraph *g, size_t from, size_t to, double weight) {
   if (!inBoundsVertices(g, from, to))
     return -1;
   int err;
-  err = gvizArrayPush(gvizGraphGetVertexNeighbors(g, from), &to);
+  gvizEdge forward = {to, weight};
+  err = gvizArrayPush(&((gvizVertex *)gvizArrayAtIndex(&g->vertices, from))->edges,
+                      &forward);
   if (err == 0 && !g->directed) {
-    err = gvizArrayPush(gvizGraphGetVertexNeighbors(g, to), &from);
+    gvizEdge backward = {from, weight};
+    err = gvizArrayPush(&((gvizVertex *)gvizArrayAtIndex(&g->vertices, to))->edges,
+                        &backward);
   }
   return err;
 }
@@ -174,13 +190,23 @@ int gvizGraphAddEdge(gvizGraph *g, size_t from, size_t to) {
 int gvizGraphRemoveEdge(gvizGraph *g, size_t from, size_t to) {
   if (!inBoundsVertices(g, from, to))
     return -1;
-  int err;
-  err = gvizArrayFindOneAndDelete(
-      &((gvizVertex *)gvizArrayAtIndex(&g->vertices, from))->neighbors, &to);
-  if (err >= 0 && !g->directed)
-    err = gvizArrayFindOneAndDelete(
-        &((gvizVertex *)gvizArrayAtIndex(&g->vertices, to))->neighbors, &from);
-  return err < 0 ? err : 0;
+
+  gvizArray *fromEdges =
+      &((gvizVertex *)gvizArrayAtIndex(&g->vertices, from))->edges;
+  int pos = findNeighborPos(fromEdges, to);
+  if (pos < 0)
+    return -1;
+  gvizArrayDeleteAtIndex(fromEdges, (size_t)pos);
+
+  if (!g->directed) {
+    gvizArray *toEdges =
+        &((gvizVertex *)gvizArrayAtIndex(&g->vertices, to))->edges;
+    int backPos = findNeighborPos(toEdges, from);
+    if (backPos < 0)
+      return -1;
+    gvizArrayDeleteAtIndex(toEdges, (size_t)backPos);
+  }
+  return 0;
 }
 
 void gvizGraphSetVertexData(gvizGraph *g, size_t idx, void *data) {
@@ -194,24 +220,113 @@ void *gvizGraphGetVertexData(gvizGraph *g, size_t idx) {
   return ((gvizVertex *)gvizArrayAtIndex(&g->vertices, idx))->data;
 }
 
-gvizArray *gvizGraphGetVertexNeighbors(const gvizGraph *g, size_t idx) {
+size_t gvizGraphDegree(const gvizGraph *g, size_t idx) {
   if (!inBoundsVertex(g, idx))
-    return NULL;
-  return &((gvizVertex *)gvizArrayAtIndex(&g->vertices, idx))->neighbors;
+    return 0;
+  return ((gvizVertex *)gvizArrayAtIndex(&g->vertices, idx))->edges.count;
+}
+
+size_t gvizGraphNeighbor(const gvizGraph *g, size_t idx, size_t i) {
+  gvizArray *edges = &((gvizVertex *)gvizArrayAtIndex(&g->vertices, idx))->edges;
+  return ((gvizEdge *)gvizArrayAtIndex(edges, i))->idx;
+}
+
+double gvizGraphNeighborWeight(const gvizGraph *g, size_t idx, size_t i) {
+  gvizArray *edges = &((gvizVertex *)gvizArrayAtIndex(&g->vertices, idx))->edges;
+  return ((gvizEdge *)gvizArrayAtIndex(edges, i))->weight;
+}
+
+int gvizGraphNeighborPosition(const gvizGraph *g, size_t from, size_t to) {
+  if (!inBoundsVertices(g, from, to))
+    return -1;
+  return findNeighborPos(
+      &((gvizVertex *)gvizArrayAtIndex(&g->vertices, from))->edges, to);
 }
 
 int gvizGraphEdgeExists(gvizGraph *g, size_t from, size_t to) {
   if (!inBoundsVertices(g, from, to))
     return -1;
 
-  return gvizArrayFindOne(
-             &((gvizVertex *)gvizArrayAtIndex(&g->vertices, from))->neighbors,
-             &to) >= 0
+  return findNeighborPos(
+             &((gvizVertex *)gvizArrayAtIndex(&g->vertices, from))->edges,
+             to) >= 0
              ? 1
              : 0;
 }
 
-void gvizVertexRelease(gvizVertex *v) { gvizArrayRelease(&v->neighbors); }
+int gvizGraphGetEdgeWeight(const gvizGraph *g, size_t from, size_t to,
+                           double *outWeight) {
+  if (!inBoundsVertices(g, from, to))
+    return -1;
+  gvizArray *edges = &((gvizVertex *)gvizArrayAtIndex(&g->vertices, from))->edges;
+  int pos = findNeighborPos(edges, to);
+  if (pos < 0)
+    return -1;
+  *outWeight = ((gvizEdge *)gvizArrayAtIndex(edges, (size_t)pos))->weight;
+  return 0;
+}
+
+int gvizGraphSetEdgeWeight(gvizGraph *g, size_t from, size_t to,
+                           double weight) {
+  if (!inBoundsVertices(g, from, to))
+    return -1;
+
+  gvizArray *fromEdges =
+      &((gvizVertex *)gvizArrayAtIndex(&g->vertices, from))->edges;
+  int pos = findNeighborPos(fromEdges, to);
+  if (pos < 0)
+    return -1;
+  ((gvizEdge *)gvizArrayAtIndex(fromEdges, (size_t)pos))->weight = weight;
+
+  if (!g->directed) {
+    gvizArray *toEdges =
+        &((gvizVertex *)gvizArrayAtIndex(&g->vertices, to))->edges;
+    int backPos = findNeighborPos(toEdges, from);
+    if (backPos < 0)
+      return -1;
+    ((gvizEdge *)gvizArrayAtIndex(toEdges, (size_t)backPos))->weight = weight;
+  }
+  return 0;
+}
+
+int gvizGraphInsertNeighborAt(gvizGraph *g, size_t from, size_t to,
+                              double weight, size_t pos) {
+  if (!inBoundsVertex(g, from))
+    return -1;
+  gvizArray *edges = &((gvizVertex *)gvizArrayAtIndex(&g->vertices, from))->edges;
+  gvizEdge e = {to, weight};
+  return gvizArrayInsert(edges, &e, pos);
+}
+
+int gvizGraphReorderNeighbors(gvizGraph *g, size_t idx, const size_t *order,
+                              size_t n) {
+  if (!inBoundsVertex(g, idx))
+    return -1;
+
+  gvizArray *edges = &((gvizVertex *)gvizArrayAtIndex(&g->vertices, idx))->edges;
+  if (n != edges->count)
+    return -1;
+
+  gvizArray rebuilt;
+  if (gvizArrayInitAtCapacity(&rebuilt, sizeof(gvizEdge), n) < 0)
+    return -1;
+
+  for (size_t i = 0; i < n; i++) {
+    int pos = findNeighborPos(edges, order[i]);
+    if (pos < 0) {
+      gvizArrayRelease(&rebuilt);
+      return -1;
+    }
+    gvizEdge e = *(gvizEdge *)gvizArrayAtIndex(edges, (size_t)pos);
+    gvizArrayPush(&rebuilt, &e);
+  }
+
+  gvizArrayRelease(edges);
+  *edges = rebuilt;
+  return 0;
+}
+
+void gvizVertexRelease(gvizVertex *v) { gvizArrayRelease(&v->edges); }
 
 void gvizGraphRelease(gvizGraph *g) {
   if (!gvizArrayIsEmpty(&g->vertices)) {
@@ -298,13 +413,16 @@ static int graphFillReversed(gvizGraph *dest, const gvizGraph *src) {
   if (!reversedLists)
     return -1;
   for (size_t i = 0; i < n; i++) {
-    gvizArrayInit(&reversedLists[i], sizeof(size_t));
+    gvizArrayInit(&reversedLists[i], sizeof(gvizEdge));
   }
 
   for (size_t i = 0; i < n; i++) {
-    gvizArray *curr = gvizGraphGetVertexNeighbors(src, i);
-    for (size_t j = 0; j < curr->count; j++) {
-      gvizArrayPush(reversedLists + *(size_t *)gvizArrayAtIndex(curr, j), &i);
+    size_t degree = gvizGraphDegree(src, i);
+    for (size_t j = 0; j < degree; j++) {
+      size_t v = gvizGraphNeighbor(src, i, j);
+      double weight = gvizGraphNeighborWeight(src, i, j);
+      gvizEdge reversed = {i, weight};
+      gvizArrayPush(reversedLists + v, &reversed);
     }
   }
 
@@ -312,7 +430,7 @@ static int graphFillReversed(gvizGraph *dest, const gvizGraph *src) {
     gvizVertex *target = gvizArrayAtIndex(&dest->vertices, i);
     gvizVertex *source = gvizArrayAtIndex(&src->vertices, i);
     target->data = source->data;
-    gvizArrayMove(&target->neighbors, &reversedLists[i]);
+    gvizArrayMove(&target->edges, &reversedLists[i]);
   }
   GVIZ_DEALLOC(reversedLists);
 

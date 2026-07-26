@@ -22,17 +22,16 @@
  *            (i.e. the neighbour just before u in v's CCW adjacency list).
  */
 static size_t swFaceThird(const gvizGraph *g, size_t u, size_t v) {
-  gvizArray *nb = gvizGraphGetVertexNeighbors(g, v);
-  int idx = gvizArrayFindOne(nb, &u);
+  int idx = gvizGraphNeighborPosition(g, v, u);
   assert(idx >= 0);
-  size_t prev = ((size_t)idx == 0 ? nb->count : (size_t)idx) - 1;
-  return *(size_t *)gvizArrayAtIndex(nb, prev);
+  size_t degree = gvizGraphDegree(g, v);
+  size_t prev = ((size_t)idx == 0 ? degree : (size_t)idx) - 1;
+  return gvizGraphNeighbor(g, v, prev);
 }
 
 /* Returns non-zero if edge (u, v) exists in g. */
 static int swHasEdge(const gvizGraph *g, size_t u, size_t v) {
-  gvizArray *nb = gvizGraphGetVertexNeighbors(g, u);
-  return nb && gvizArrayFindOne(nb, &v) >= 0;
+  return gvizGraphNeighborPosition(g, u, v) >= 0;
 }
 
 /* -----------------------------------------------------------------------
@@ -76,13 +75,12 @@ int gvizSchnyderWoodInit(gvizSchnyderWood *sw, const gvizGraph *g) {
    * The opposite face (traced by dart s1→s0) contains the first interior
    * vertex to be processed.
    */
-  gvizArray *nb0 = gvizGraphGetVertexNeighbors(g, 0);
-  if (!nb0 || nb0->count == 0) {
+  if (gvizGraphDegree(g, 0) == 0) {
     gvizSchnyderWoodRelease(sw);
     return -1;
   }
   size_t s0 = 0;
-  size_t s1 = *(size_t *)gvizArrayAtIndex(nb0, 0);
+  size_t s1 = gvizGraphNeighbor(g, 0, 0);
   size_t s2 = swFaceThird(g, s0, s1);
 
   sw->root[0] = s0;
@@ -235,11 +233,12 @@ void gvizSchnyderWoodRelease(gvizSchnyderWood *sw) {
 
 size_t nextNeighborIdx(const gvizGraph *g, size_t v, size_t u) {
   printf("finding next vertex in %zu adjacency list after %zu.\n", v, u);
-  gvizArray *neighbors = gvizGraphGetVertexNeighbors(g, v);
-  size_t idx = gvizArrayFindOne(neighbors, &u);
-  printf("u index: %zu, adjacency list length: %zu.\n", idx, neighbors->count);
+  int idx = gvizGraphNeighborPosition(g, v, u);
+  size_t degree = gvizGraphDegree(g, v);
+  printf("u index: %d, adjacency list length: %zu.\n", idx, degree);
   assert(idx >= 0);
-  return (++idx == neighbors->count ? 0 : idx);
+  size_t next = (size_t)idx + 1;
+  return (next == degree ? 0 : next);
 }
 
 // Given a vertex inside on region, counts all the other vertices in the same
@@ -276,10 +275,10 @@ size_t verticesInRegion(const gvizGraph *g, size_t v,
     size_t curr;
     gvizDequePopLeft(&queue, &curr);
 
-    gvizArray *currNeighbors = gvizGraphGetVertexNeighbors(g, curr);
+    size_t currDegree = gvizGraphDegree(g, curr);
 
-    for (size_t i = 0; i < currNeighbors->count; i++) {
-      size_t currNeighbor = *(size_t *)gvizArrayAtIndex(currNeighbors, i);
+    for (size_t i = 0; i < currDegree; i++) {
+      size_t currNeighbor = gvizGraphNeighbor(g, curr, i);
 
       // seen keyed by vertex ID or on the boundary
       if (gvizTestBit(seen, currNeighbor) ||
@@ -305,10 +304,9 @@ int findVertexInsideFace(const gvizGraph *g, const gvizArray *face,
     size_t next = (i + 1) % face->count;
     size_t v = *(size_t *)gvizArrayAtIndex(face, i);
     size_t u = *(size_t *)gvizArrayAtIndex(face, next);
-    gvizArray *neighbors = gvizGraphGetVertexNeighbors(g, v);
     size_t potentialInside = nextNeighborIdx(g, v, u);
     printf("next vertex index: %zu, ", potentialInside);
-    potentialInside = *(size_t *)gvizArrayAtIndex(neighbors, potentialInside);
+    potentialInside = gvizGraphNeighbor(g, v, potentialInside);
     printf("next vertex: %zu\n", potentialInside);
     if (!gvizTestBit(faceVertices, potentialInside))
       return (int)potentialInside;
