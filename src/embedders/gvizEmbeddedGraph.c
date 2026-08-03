@@ -31,6 +31,14 @@ int gvizEmbeddedGraphInit(gvizEmbeddedGraph *embedding, gvizSubgraph subgraph,
   embedding->embedding.dim = n;
   embedding->actions = (gvizActionRegistry){0};
   embedding->stats = (gvizStatRegistry){0};
+  /* UINT64_MAX = "never synced": the first gvizEmbeddedGraphSync always
+   * builds the snapshot, whatever the graph's counter happens to be. */
+  embedding->syncedMutationCount = UINT64_MAX;
+  embedding->syncedGraphSize = gvizGraphSize(graph);
+  embedding->outNeighborOffsets = NULL;
+  embedding->outNeighbors = NULL;
+  embedding->inNeighborOffsets = NULL;
+  embedding->inNeighbors = NULL;
   drawMaskDefaults(&embedding->drawMask);
   embedding->drawMask.visibleVertices = gvizVertexSubsetCreateEmpty(graph);
   if (!embedding->drawMask.visibleVertices)
@@ -70,6 +78,18 @@ void gvizEmbeddedGraphRelease(gvizEmbeddedGraph *embedding) {
   if (embedding->drawMask.visibleVertices)
     gvizVertexSubsetRelease(embedding->drawMask.visibleVertices);
   drawMaskDefaults(&embedding->drawMask);
+  if (embedding->outNeighborOffsets)
+    GVIZ_DEALLOC(embedding->outNeighborOffsets);
+  if (embedding->outNeighbors)
+    GVIZ_DEALLOC(embedding->outNeighbors);
+  if (embedding->inNeighborOffsets)
+    GVIZ_DEALLOC(embedding->inNeighborOffsets);
+  if (embedding->inNeighbors)
+    GVIZ_DEALLOC(embedding->inNeighbors);
+  embedding->outNeighborOffsets = NULL;
+  embedding->outNeighbors = NULL;
+  embedding->inNeighborOffsets = NULL;
+  embedding->inNeighbors = NULL;
 }
 
 void gvizEmbeddedGraphSetDrawMaskEdgePolicy(gvizEmbeddedGraph *embedding,
@@ -89,8 +109,11 @@ void gvizEmbeddedGraphDrawMaskHideVertex(gvizEmbeddedGraph *embedding,
 }
 
 void gvizEmbeddedGraphDrawMaskClearVertices(gvizEmbeddedGraph *embedding) {
+  /* vertexCapacity, not the live gvizGraphSize: the mask bitset is sized to
+   * the subgraph's capacity, which only catches up to graph growth at
+   * Sync. */
   gvizVertexSubsetClearAll(embedding->drawMask.visibleVertices,
-                           gvizGraphSize(embedding->subgraph.g));
+                           embedding->subgraph.vertexCapacity);
 }
 
 void gvizEmbeddedGraphDrawMaskNotifyChanged(gvizEmbeddedGraph *embedding) {
@@ -139,7 +162,10 @@ size_t gvizEmbeddedGraphDim(const gvizEmbeddedGraph *embedding) {
 }
 
 size_t gvizEmbeddedGraphPositionCount(const gvizEmbeddedGraph *embedding) {
-  return gvizGraphSize(embedding->subgraph.g);
+  /* The SYNCED raw count, not the live gvizGraphSize: between a graph
+   * mutation and the next Sync the position buffer hasn't grown yet, and a
+   * bulk reader iterating count * dim doubles must not run past it. */
+  return embedding->syncedGraphSize;
 }
 
 const double *gvizEmbeddedGraphPositions(const gvizEmbeddedGraph *embedding) {
@@ -151,17 +177,114 @@ gvizEmbeddedGraphStructure(const gvizEmbeddedGraph *embedding) {
   return &embedding->subgraph;
 }
 
-int gvizEmbeddedGraphAddVertex(gvizEmbeddedGraph *embedding, void *data) {
+/**
+ * Builds the synced out- (and, for directed graphs, in-) adjacency CSRs
+ * over raw ids [0, @p rawCount) from @p sg as it stands right now, into
+ * fresh buffers handed back through the out-parameters, so the caller can
+ * publish them only once everything has succeeded. Rows of vertices outside
+ * the subgraph are empty. Undirected graphs get no in-CSR (their out rows
+ * already hold both directions of every edge); *outInOffsets and
+ * *outInNeighbors are returned NULL then.
+ *
+ * The out rows fill sequentially (vertex iteration is ascending and each
+ * vertex appends only to its own row), so only the scattered in-CSR fill
+ * needs a cursor array.
+ *
+ * @return 0 on success, -1 on allocation failure (nothing is returned).
+ */
+static int buildSyncedAdjacency(const gvizSubgraph *sg, size_t rawCount,
+                                size_t **outOutOffsets,
+                                size_t **outOutNeighbors,
+                                size_t **outInOffsets,
+                                size_t **outInNeighbors) {
+  int directed = gvizGraphIsDirected(sg->g);
+
+  size_t *outOffsets = GVIZ_ALLOC(sizeof(size_t) * (rawCount + 1));
+  size_t *inOffsets =
+      directed ? GVIZ_ALLOC(sizeof(size_t) * (rawCount + 1)) : NULL;
+  if (!outOffsets || (directed && !inOffsets)) {
+    if (outOffsets)
+      GVIZ_DEALLOC(outOffsets);
+    if (inOffsets)
+      GVIZ_DEALLOC(inOffsets);
+    return -1;
+  }
+  memset(outOffsets, 0, sizeof(size_t) * (rawCount + 1));
+  if (directed)
+    memset(inOffsets, 0, sizeof(size_t) * (rawCount + 1));
+
+  size_t u;
+  gvizSubgraphVertexIterator vit = gvizSubgraphVertexIteratorCreate(sg);
+  while (gvizSubgraphVertexIterate(&vit, &u)) {
+    gvizSubgraphNeighborIterator nit =
+        gvizSubgraphNeighborIteratorCreate(sg, u);
+    size_t v;
+    while (gvizSubgraphNeighborIterate(&nit, &v)) {
+      outOffsets[u + 1]++;
+      if (directed)
+        inOffsets[v + 1]++;
+    }
+  }
+  for (size_t i = 0; i < rawCount; i++) {
+    outOffsets[i + 1] += outOffsets[i];
+    if (directed)
+      inOffsets[i + 1] += inOffsets[i];
+  }
+
+  size_t outTotal = outOffsets[rawCount];
+  size_t inTotal = directed ? inOffsets[rawCount] : 0;
+  size_t *outNeighbors = GVIZ_ALLOC(sizeof(size_t) * (outTotal ? outTotal : 1));
+  size_t *inNeighbors =
+      directed ? GVIZ_ALLOC(sizeof(size_t) * (inTotal ? inTotal : 1)) : NULL;
+  size_t *inCursor =
+      directed ? GVIZ_ALLOC(sizeof(size_t) * (rawCount ? rawCount : 1)) : NULL;
+  if (!outNeighbors || (directed && (!inNeighbors || !inCursor))) {
+    GVIZ_DEALLOC(outOffsets);
+    if (inOffsets)
+      GVIZ_DEALLOC(inOffsets);
+    if (outNeighbors)
+      GVIZ_DEALLOC(outNeighbors);
+    if (inNeighbors)
+      GVIZ_DEALLOC(inNeighbors);
+    if (inCursor)
+      GVIZ_DEALLOC(inCursor);
+    return -1;
+  }
+  if (directed)
+    memcpy(inCursor, inOffsets, sizeof(size_t) * rawCount);
+
+  size_t outCursor = 0;
+  vit = gvizSubgraphVertexIteratorCreate(sg);
+  while (gvizSubgraphVertexIterate(&vit, &u)) {
+    gvizSubgraphNeighborIterator nit =
+        gvizSubgraphNeighborIteratorCreate(sg, u);
+    size_t v;
+    while (gvizSubgraphNeighborIterate(&nit, &v)) {
+      outNeighbors[outCursor++] = v;
+      if (directed)
+        inNeighbors[inCursor[v]++] = u;
+    }
+  }
+
+  if (inCursor)
+    GVIZ_DEALLOC(inCursor);
+  *outOutOffsets = outOffsets;
+  *outOutNeighbors = outNeighbors;
+  *outInOffsets = inOffsets;
+  *outInNeighbors = inNeighbors;
+  return 0;
+}
+
+int gvizEmbeddedGraphSync(gvizEmbeddedGraph *embedding) {
   if (!embedding)
     return -1;
+  const gvizGraph *g = embedding->subgraph.g;
 
-  gvizGraph *g = (gvizGraph *)embedding->subgraph.g;
+  if (embedding->syncedMutationCount == gvizGraphMutationCount(g))
+    return 0;
+
+  size_t newRaw = gvizGraphSize(g);
   size_t oldCap = embedding->subgraph.vertexCapacity;
-
-  if (gvizGraphAddVertex(g, data, NULL, NULL) < 0)
-    return -1;
-  size_t idx = gvizGraphSize(g) - 1;
-
   if (gvizSubgraphRebuild(&embedding->subgraph) < 0)
     return -1;
 
@@ -184,30 +307,77 @@ int gvizEmbeddedGraphAddVertex(gvizEmbeddedGraph *embedding, void *data) {
     embedding->drawMask.visibleVertices = grownMask;
   }
 
-  gvizSubgraphShowVertex(&embedding->subgraph, idx);
-  gvizEmbeddedGraphDrawMaskShowVertex(embedding, idx);
-  gvizEmbeddedGraphDrawMaskNotifyChanged(embedding);
-
-  return 0;
-}
-
-int gvizEmbeddedGraphAddEdge(gvizEmbeddedGraph *embedding, size_t from,
-                             size_t to, double weight) {
-  if (!embedding)
-    return -1;
-
-  gvizGraph *g = (gvizGraph *)embedding->subgraph.g;
-  if (gvizGraphAddEdge(g, from, to, weight) < 0)
-    return -1;
-
-  if (gvizSubgraphIsFull(&embedding->subgraph)) {
-    if (gvizSubgraphRebuild(&embedding->subgraph) < 0)
-      return -1;
-    gvizSubgraphShowEdge(&embedding->subgraph, from, to);
-    gvizEmbeddedGraphDrawMaskNotifyChanged(embedding);
+  /* Admit every vertex added since the last commit (position slots are
+   * already zeroed by the growth above). Vertices that existed when the
+   * embedding was created keep whatever membership the caller chose. */
+  for (size_t v = embedding->syncedGraphSize; v < newRaw; v++) {
+    gvizSubgraphShowVertex(&embedding->subgraph, v);
+    gvizEmbeddedGraphDrawMaskShowVertex(embedding, v);
   }
 
-  return 0;
+  size_t *outOffsets, *outNeighbors, *inOffsets, *inNeighbors;
+  if (buildSyncedAdjacency(&embedding->subgraph, newRaw, &outOffsets,
+                           &outNeighbors, &inOffsets, &inNeighbors) < 0)
+    return -1;
+
+  if (embedding->outNeighborOffsets)
+    GVIZ_DEALLOC(embedding->outNeighborOffsets);
+  if (embedding->outNeighbors)
+    GVIZ_DEALLOC(embedding->outNeighbors);
+  if (embedding->inNeighborOffsets)
+    GVIZ_DEALLOC(embedding->inNeighborOffsets);
+  if (embedding->inNeighbors)
+    GVIZ_DEALLOC(embedding->inNeighbors);
+  embedding->outNeighborOffsets = outOffsets;
+  embedding->outNeighbors = outNeighbors;
+  embedding->inNeighborOffsets = inOffsets;
+  embedding->inNeighbors = inNeighbors;
+  embedding->syncedGraphSize = newRaw;
+  embedding->syncedMutationCount = gvizGraphMutationCount(g);
+  gvizEmbeddedGraphDrawMaskNotifyChanged(embedding);
+
+  return 1;
+}
+
+size_t gvizEmbeddedGraphOutDegree(const gvizEmbeddedGraph *embedding,
+                                  size_t v) {
+  if (!embedding->outNeighborOffsets || v >= embedding->syncedGraphSize)
+    return 0;
+  return embedding->outNeighborOffsets[v + 1] -
+         embedding->outNeighborOffsets[v];
+}
+
+const size_t *gvizEmbeddedGraphOutNeighbors(const gvizEmbeddedGraph *embedding,
+                                            size_t v, size_t *outCount) {
+  if (!embedding->outNeighborOffsets || v >= embedding->syncedGraphSize) {
+    if (outCount)
+      *outCount = 0;
+    return NULL;
+  }
+  if (outCount)
+    *outCount = embedding->outNeighborOffsets[v + 1] -
+                embedding->outNeighborOffsets[v];
+  return embedding->outNeighbors + embedding->outNeighborOffsets[v];
+}
+
+size_t gvizEmbeddedGraphInDegree(const gvizEmbeddedGraph *embedding,
+                                 size_t v) {
+  if (!embedding->inNeighborOffsets || v >= embedding->syncedGraphSize)
+    return 0;
+  return embedding->inNeighborOffsets[v + 1] - embedding->inNeighborOffsets[v];
+}
+
+const size_t *gvizEmbeddedGraphInNeighbors(const gvizEmbeddedGraph *embedding,
+                                           size_t v, size_t *outCount) {
+  if (!embedding->inNeighborOffsets || v >= embedding->syncedGraphSize) {
+    if (outCount)
+      *outCount = 0;
+    return NULL;
+  }
+  if (outCount)
+    *outCount = embedding->inNeighborOffsets[v + 1] -
+                embedding->inNeighborOffsets[v];
+  return embedding->inNeighbors + embedding->inNeighborOffsets[v];
 }
 
 static gvizAction *findActionMutable(const gvizEmbeddedGraph *embedding,
@@ -433,7 +603,7 @@ int gvizEmbeddedGraphSaveEmbedding(gvizEmbeddedGraph *embedding,
 
   fprintf(f, "%s\n", name);
 
-  size_t nvertices = gvizGraphSize(embedding->subgraph.g);
+  size_t nvertices = gvizEmbeddedGraphPositionCount(embedding);
   fprintf(f, "%zu %zu\n", nvertices, embedding->embedding.dim);
   for (size_t i = 0; i < nvertices; i++) {
     double *pos = gvizEmbeddedGraphGetVPosition(embedding, i);
@@ -464,7 +634,7 @@ int gvizEmbeddedGraphLoadEmbedding(gvizEmbeddedGraph *embedding,
     fclose(f);
     return -1;
   }
-  if (vertexCount != gvizGraphSize(embedding->subgraph.g) ||
+  if (vertexCount != gvizEmbeddedGraphPositionCount(embedding) ||
       dim != embedding->embedding.dim) {
     fclose(f);
     return -1;

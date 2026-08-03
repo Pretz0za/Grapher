@@ -15,6 +15,18 @@ static gvizSubgraph makeFullSubgraph(gvizGraph *g) {
   return gvizSubgraphCreateFull(g);
 }
 
+/* Whole-graph vertex-induced view: the recommended subgraph for dynamic
+ * (growing) embeddings -- Sync's structural commit is then amortized O(1)
+ * capacity growth plus the CSR rebuild, with no edge bitset or layout
+ * remigration (see gvizEmbeddedGraph.h's GROWTH & SYNC section). */
+static gvizSubgraph makeInducedView(gvizGraph *g) {
+  gvizVertexSubset vs = gvizVertexSubsetCreateEmpty(g);
+  gvizSubgraph sg = gvizSubgraphCreateVertexInduced(g, vs);
+  for (size_t i = 0; i < gvizGraphSize(g); i++)
+    gvizSubgraphShowVertex(&sg, i);
+  return sg;
+}
+
 static double dist2(const double *a, const double *b) {
   double dx = a[0] - b[0];
   double dy = a[1] - b[1];
@@ -753,6 +765,351 @@ void test_forceEmbedder_gravity_pullsVertexTowardOrigin(void) {
   gvizGraphRelease(&g);
 }
 
+/* A directed edge u -> v must attract both endpoints, not just u (the only
+ * one gvizSubgraphNeighborIterate would visit from u's own iteration). Here
+ * vertex 1 is a pure sink (in-degree 1, out-degree 0): with only repulsion
+ * and no attraction it would drift away from vertex 0, so this specifically
+ * exercises the symmetric physics CSR's mirrored in-edge rows. */
+void test_forceEmbedder_directedEdge_attractsSinkToo(void) {
+  gvizGraph g;
+  gvizGraphInit(&g, 1);
+  gvizGraphAddVertex(&g, NULL, NULL, NULL);
+  gvizGraphAddVertex(&g, NULL, NULL, NULL);
+  gvizGraphAddEdge(&g, 0, 1, 1.0);
+
+  gvizForceEmbedderState s;
+  TEST_ASSERT_EQUAL(0, gvizForceEmbedderInit(&s, makeFullSubgraph(&g), 2, GVIZ_FORCE_MODEL_FRUCHTERMAN_REINGOLD));
+  TEST_ASSERT_EQUAL(0, gvizForceEmbedderBegin(&s, 1));
+
+  gvizEmbeddedGraph *eg = (gvizEmbeddedGraph *)&s;
+  double p0[2] = {-50.0, 0.0};
+  double p1[2] = {50.0, 0.0};
+  gvizEmbeddedGraphSetVPosition(eg, 0, p0);
+  gvizEmbeddedGraphSetVPosition(eg, 1, p1);
+
+  double before = dist2(gvizEmbeddedGraphGetVPosition(eg, 0),
+                        gvizEmbeddedGraphGetVPosition(eg, 1));
+  gvizForceEmbedderStep(&s);
+  double after = dist2(gvizEmbeddedGraphGetVPosition(eg, 0),
+                       gvizEmbeddedGraphGetVPosition(eg, 1));
+
+  TEST_ASSERT_TRUE(after < before);
+
+  gvizForceEmbedderRelease(&s);
+  gvizGraphRelease(&g);
+}
+
+/* A vertex's degree (and thus mass/radius) should reflect every incident
+ * edge regardless of direction, not just outgoing ones -- otherwise a
+ * heavily-referenced sink would be treated as near-massless. */
+void test_forceEmbedder_directedGraph_degreeIncludesInEdges(void) {
+  gvizGraph g;
+  gvizGraphInit(&g, 1);
+  gvizGraphAddVertex(&g, NULL, NULL, NULL); /* 0: one out-edge */
+  gvizGraphAddVertex(&g, NULL, NULL, NULL); /* 1: two in-edges */
+  gvizGraphAddVertex(&g, NULL, NULL, NULL); /* 2: one out-edge */
+  gvizGraphAddEdge(&g, 0, 1, 1.0);
+  gvizGraphAddEdge(&g, 2, 1, 1.0);
+
+  gvizForceEmbedderState s;
+  TEST_ASSERT_EQUAL(0, gvizForceEmbedderInit(&s, makeFullSubgraph(&g), 2, GVIZ_FORCE_MODEL_FRUCHTERMAN_REINGOLD));
+
+  TEST_ASSERT_EQUAL(1, (int)s.degree[0]);
+  TEST_ASSERT_EQUAL(2, (int)s.degree[1]);
+  TEST_ASSERT_EQUAL(1, (int)s.degree[2]);
+
+  gvizForceEmbedderRelease(&s);
+  gvizGraphRelease(&g);
+}
+
+/* A single directed edge should behave exactly like the same edge in an
+ * undirected graph -- same degree/mass on both endpoints, same attraction
+ * applied to both -- since a lone directed edge with no reverse edge is the
+ * degenerate case the user described as "if it's undirected the edge gets
+ * visited twice anyway". */
+void test_forceEmbedder_directedEdge_matchesUndirectedAfterStep(void) {
+  gvizGraph gd, gu;
+  gvizGraphInit(&gd, 1);
+  gvizGraphInit(&gu, 0);
+  gvizGraphAddVertex(&gd, NULL, NULL, NULL);
+  gvizGraphAddVertex(&gd, NULL, NULL, NULL);
+  gvizGraphAddEdge(&gd, 0, 1, 1.0);
+  gvizGraphAddVertex(&gu, NULL, NULL, NULL);
+  gvizGraphAddVertex(&gu, NULL, NULL, NULL);
+  gvizGraphAddEdge(&gu, 0, 1, 1.0);
+
+  gvizForceEmbedderState sd, su;
+  TEST_ASSERT_EQUAL(0, gvizForceEmbedderInit(&sd, makeFullSubgraph(&gd), 2, GVIZ_FORCE_MODEL_FRUCHTERMAN_REINGOLD));
+  TEST_ASSERT_EQUAL(0, gvizForceEmbedderInit(&su, makeFullSubgraph(&gu), 2, GVIZ_FORCE_MODEL_FRUCHTERMAN_REINGOLD));
+  TEST_ASSERT_EQUAL(0, gvizForceEmbedderBegin(&sd, 7));
+  TEST_ASSERT_EQUAL(0, gvizForceEmbedderBegin(&su, 7));
+
+  gvizEmbeddedGraph *egd = (gvizEmbeddedGraph *)&sd;
+  gvizEmbeddedGraph *egu = (gvizEmbeddedGraph *)&su;
+  double p0[2] = {-50.0, 3.0};
+  double p1[2] = {50.0, -3.0};
+  gvizEmbeddedGraphSetVPosition(egd, 0, p0);
+  gvizEmbeddedGraphSetVPosition(egd, 1, p1);
+  gvizEmbeddedGraphSetVPosition(egu, 0, p0);
+  gvizEmbeddedGraphSetVPosition(egu, 1, p1);
+
+  gvizForceEmbedderStep(&sd);
+  gvizForceEmbedderStep(&su);
+
+  for (int v = 0; v < 2; v++) {
+    double *pd = gvizEmbeddedGraphGetVPosition(egd, (size_t)v);
+    double *pu = gvizEmbeddedGraphGetVPosition(egu, (size_t)v);
+    TEST_ASSERT_DOUBLE_WITHIN(1e-9, pu[0], pd[0]);
+    TEST_ASSERT_DOUBLE_WITHIN(1e-9, pu[1], pd[1]);
+  }
+
+  gvizForceEmbedderRelease(&sd);
+  gvizForceEmbedderRelease(&su);
+  gvizGraphRelease(&gd);
+  gvizGraphRelease(&gu);
+}
+
+/* Sync is a no-op when nothing has grown since Init: same vertexCount,
+ * returns 0. */
+void test_forceEmbedder_sync_noopWhenNothingAdded(void) {
+  gvizGraph g;
+  gvizGraphInit(&g, 0);
+  gvizGraphAddVertex(&g, NULL, NULL, NULL);
+  gvizGraphAddVertex(&g, NULL, NULL, NULL);
+  gvizGraphAddEdge(&g, 0, 1, 1.0);
+
+  gvizForceEmbedderState s;
+  TEST_ASSERT_EQUAL(0, gvizForceEmbedderInit(&s, makeInducedView(&g), 2, GVIZ_FORCE_MODEL_FRUCHTERMAN_REINGOLD));
+  TEST_ASSERT_EQUAL(0, gvizForceEmbedderBegin(&s, 1));
+
+  TEST_ASSERT_EQUAL(0, gvizForceEmbedderSync(&s, 2));
+  TEST_ASSERT_EQUAL(2, (int)s.vertexCount);
+
+  gvizForceEmbedderRelease(&s);
+  gvizGraphRelease(&g);
+}
+
+/* Core isolation guarantee: an edge added between two vertices ForceEmbedder
+ * already knows about must not attract them until Sync runs. Before Sync,
+ * a Step should only ever push them apart (repulsion is unconditional,
+ * attraction is edge-gated); after Sync, the same edge should pull them
+ * together, exactly like a pre-existing edge would (test_forceEmbedder_
+ * edgeAttracts). */
+void test_forceEmbedder_sync_newEdgeBetweenOldVertices_deferredUntilSync(void) {
+  gvizGraph g;
+  gvizGraphInit(&g, 0);
+  gvizGraphAddVertex(&g, NULL, NULL, NULL);
+  gvizGraphAddVertex(&g, NULL, NULL, NULL);
+
+  gvizForceEmbedderState s;
+  TEST_ASSERT_EQUAL(0, gvizForceEmbedderInit(&s, makeInducedView(&g), 2, GVIZ_FORCE_MODEL_FRUCHTERMAN_REINGOLD));
+  TEST_ASSERT_EQUAL(0, gvizForceEmbedderBegin(&s, 1));
+
+  gvizEmbeddedGraph *eg = (gvizEmbeddedGraph *)&s;
+  double p0[2] = {-50.0, 0.0};
+  double p1[2] = {50.0, 0.0};
+  gvizEmbeddedGraphSetVPosition(eg, 0, p0);
+  gvizEmbeddedGraphSetVPosition(eg, 1, p1);
+
+  TEST_ASSERT_EQUAL(0, gvizGraphAddEdge(&g, 0, 1, 1.0));
+  TEST_ASSERT_EQUAL(0, (int)s.degree[0]);
+  TEST_ASSERT_EQUAL(0, (int)s.degree[1]);
+  /* The renderer-facing snapshot defers exactly like the physics does. */
+  TEST_ASSERT_EQUAL(0, (int)gvizEmbeddedGraphOutDegree(eg, 0));
+
+  double before = dist2(gvizEmbeddedGraphGetVPosition(eg, 0),
+                        gvizEmbeddedGraphGetVPosition(eg, 1));
+  gvizForceEmbedderStep(&s);
+  double afterPreSync = dist2(gvizEmbeddedGraphGetVPosition(eg, 0),
+                              gvizEmbeddedGraphGetVPosition(eg, 1));
+  TEST_ASSERT_TRUE(afterPreSync > before);
+  TEST_ASSERT_EQUAL(0, (int)s.degree[0]);
+  TEST_ASSERT_EQUAL(0, (int)s.degree[1]);
+
+  TEST_ASSERT_EQUAL(0, gvizForceEmbedderSync(&s, 2));
+  TEST_ASSERT_EQUAL(1, (int)s.degree[0]);
+  TEST_ASSERT_EQUAL(1, (int)s.degree[1]);
+  TEST_ASSERT_EQUAL(1, (int)gvizEmbeddedGraphOutDegree(eg, 0));
+
+  gvizForceEmbedderStep(&s);
+  double afterSync = dist2(gvizEmbeddedGraphGetVPosition(eg, 0),
+                           gvizEmbeddedGraphGetVPosition(eg, 1));
+  TEST_ASSERT_TRUE(afterSync < afterPreSync);
+
+  gvizForceEmbedderRelease(&s);
+  gvizGraphRelease(&g);
+}
+
+/* A directed in-edge (the sink-attraction path, driven by the embedding's
+ * synced in-neighbor rows) must be just as deferred as an out-edge: added
+ * before Sync, a Step must not attract the sink; after Sync, it must,
+ * mirroring test_forceEmbedder_directedEdge_attractsSinkToo. */
+void test_forceEmbedder_sync_directedInEdge_deferredUntilSync(void) {
+  gvizGraph g;
+  gvizGraphInit(&g, 1);
+  gvizGraphAddVertex(&g, NULL, NULL, NULL);
+  gvizGraphAddVertex(&g, NULL, NULL, NULL);
+
+  gvizForceEmbedderState s;
+  TEST_ASSERT_EQUAL(0, gvizForceEmbedderInit(&s, makeInducedView(&g), 2, GVIZ_FORCE_MODEL_FRUCHTERMAN_REINGOLD));
+  TEST_ASSERT_EQUAL(0, gvizForceEmbedderBegin(&s, 1));
+
+  gvizEmbeddedGraph *eg = (gvizEmbeddedGraph *)&s;
+  double p0[2] = {-50.0, 0.0};
+  double p1[2] = {50.0, 0.0};
+  gvizEmbeddedGraphSetVPosition(eg, 0, p0);
+  gvizEmbeddedGraphSetVPosition(eg, 1, p1);
+
+  TEST_ASSERT_EQUAL(0, gvizGraphAddEdge(&g, 0, 1, 1.0));
+  TEST_ASSERT_EQUAL(0, (int)gvizEmbeddedGraphInDegree(eg, 1));
+
+  double before = dist2(gvizEmbeddedGraphGetVPosition(eg, 0),
+                        gvizEmbeddedGraphGetVPosition(eg, 1));
+  gvizForceEmbedderStep(&s);
+  double afterPreSync = dist2(gvizEmbeddedGraphGetVPosition(eg, 0),
+                              gvizEmbeddedGraphGetVPosition(eg, 1));
+  TEST_ASSERT_TRUE(afterPreSync > before);
+
+  TEST_ASSERT_EQUAL(0, gvizForceEmbedderSync(&s, 2));
+  TEST_ASSERT_EQUAL(1, (int)gvizEmbeddedGraphInDegree(eg, 1));
+  gvizForceEmbedderStep(&s);
+  double afterSync = dist2(gvizEmbeddedGraphGetVPosition(eg, 0),
+                           gvizEmbeddedGraphGetVPosition(eg, 1));
+  TEST_ASSERT_TRUE(afterSync < afterPreSync);
+
+  gvizForceEmbedderRelease(&s);
+  gvizGraphRelease(&g);
+}
+
+/* A brand new vertex is invisible to physics -- not counted in vertexCount,
+ * not walked by Step -- until Sync, at which point it's picked up, given a
+ * finite position, and folded into vertexCount/degree/mass. */
+void test_forceEmbedder_sync_newVertexInvisibleUntilSync(void) {
+  gvizGraph g;
+  gvizGraphInit(&g, 0);
+  gvizGraphAddVertex(&g, NULL, NULL, NULL);
+
+  gvizForceEmbedderState s;
+  TEST_ASSERT_EQUAL(0, gvizForceEmbedderInit(&s, makeInducedView(&g), 2, GVIZ_FORCE_MODEL_FRUCHTERMAN_REINGOLD));
+  TEST_ASSERT_EQUAL(0, gvizForceEmbedderBegin(&s, 1));
+  TEST_ASSERT_EQUAL(1, (int)s.vertexCount);
+
+  gvizEmbeddedGraph *eg = (gvizEmbeddedGraph *)&s;
+  TEST_ASSERT_EQUAL(0, gvizGraphAddVertex(&g, NULL, NULL, NULL));
+  TEST_ASSERT_EQUAL(1, (int)s.vertexCount);
+  /* Invisible to the renderer view too: the embedding is the synced
+   * snapshot, so vertex 1 isn't shown, positioned, or counted yet. */
+  TEST_ASSERT_FALSE(gvizEmbeddedGraphIsVertexVisible(eg, 1));
+  TEST_ASSERT_EQUAL(1, (int)gvizEmbeddedGraphPositionCount(eg));
+
+  double maxDisp = gvizForceEmbedderStep(&s);
+  TEST_ASSERT_TRUE(isfinite(maxDisp));
+  TEST_ASSERT_EQUAL(1, (int)s.vertexCount);
+
+  TEST_ASSERT_EQUAL(0, gvizForceEmbedderSync(&s, 3));
+  TEST_ASSERT_EQUAL(2, (int)s.vertexCount);
+  TEST_ASSERT_EQUAL(1, (int)s.vertices[1]);
+  TEST_ASSERT_TRUE(gvizEmbeddedGraphIsVertexVisible(eg, 1));
+  TEST_ASSERT_EQUAL(2, (int)gvizEmbeddedGraphPositionCount(eg));
+
+  double *p = gvizEmbeddedGraphGetVPosition(eg, 1);
+  TEST_ASSERT_TRUE(isfinite(p[0]) && isfinite(p[1]));
+
+  maxDisp = gvizForceEmbedderStep(&s);
+  TEST_ASSERT_TRUE(isfinite(maxDisp));
+
+  gvizForceEmbedderRelease(&s);
+  gvizGraphRelease(&g);
+}
+
+/* A vertex added and wired up (AddVertex then AddEdge) before Sync gets
+ * placed near its neighbor's position once Sync runs, not at the origin or
+ * an unrelated random spot -- so it eases into the layout instead of
+ * flying in from across the canvas. */
+void test_forceEmbedder_sync_placesNewVertexNearNeighbor(void) {
+  gvizGraph g;
+  gvizGraphInit(&g, 0);
+  gvizGraphAddVertex(&g, NULL, NULL, NULL);
+
+  gvizForceEmbedderState s;
+  TEST_ASSERT_EQUAL(0, gvizForceEmbedderInit(&s, makeInducedView(&g), 2, GVIZ_FORCE_MODEL_FRUCHTERMAN_REINGOLD));
+  TEST_ASSERT_EQUAL(0, gvizForceEmbedderBegin(&s, 1));
+
+  gvizEmbeddedGraph *eg = (gvizEmbeddedGraph *)&s;
+  double anchor[2] = {500.0, -500.0};
+  gvizEmbeddedGraphSetVPosition(eg, 0, anchor);
+
+  TEST_ASSERT_EQUAL(0, gvizGraphAddVertex(&g, NULL, NULL, NULL));
+  TEST_ASSERT_EQUAL(0, gvizGraphAddEdge(&g, 0, 1, 1.0));
+
+  TEST_ASSERT_EQUAL(0, gvizForceEmbedderSync(&s, 7));
+
+  double *p1 = gvizEmbeddedGraphGetVPosition(eg, 1);
+  double d = dist2(p1, anchor);
+  TEST_ASSERT_TRUE(d <= s.edgeLength);
+
+  gvizForceEmbedderRelease(&s);
+  gvizGraphRelease(&g);
+}
+
+/* Streaming-graph regression/robustness check: repeatedly grow the graph
+ * (new vertices wired to random existing ones) and interleave Sync/Step,
+ * on both directed and undirected models, for enough rounds to exercise
+ * every array's realloc path and the quadtree's growth path many times
+ * over. Every position must stay finite and vertexCount must land exactly
+ * on the number of vertices ever added -- a stray out-of-bounds write into
+ * unrelated heap memory would tend to surface here (doubly so under ASan)
+ * even though this test doesn't crash-inspect memory directly. */
+void test_forceEmbedder_sync_manyGrowthBatchesStayFiniteAndInBounds(void) {
+  int directedFlags[] = {0, 1};
+  for (size_t d = 0; d < 2; d++) {
+    gvizGraph g;
+    gvizGraphInit(&g, directedFlags[d]);
+    gvizGraphAddVertex(&g, NULL, NULL, NULL);
+    gvizGraphAddVertex(&g, NULL, NULL, NULL);
+    gvizGraphAddEdge(&g, 0, 1, 1.0);
+
+    gvizForceEmbedderState s;
+    TEST_ASSERT_EQUAL(0, gvizForceEmbedderInit(&s, makeInducedView(&g), 2,
+                                               GVIZ_FORCE_MODEL_FRUCHTERMAN_REINGOLD));
+    TEST_ASSERT_EQUAL(0, gvizForceEmbedderBegin(&s, 11));
+
+    gvizEmbeddedGraph *eg = (gvizEmbeddedGraph *)&s;
+    unsigned int rngState = 99;
+    size_t liveCount = 2;
+
+    for (int batch = 0; batch < 25; batch++) {
+      size_t before = liveCount;
+      int newInBatch = 1 + (int)(rand_r(&rngState) % 3);
+      for (int i = 0; i < newInBatch; i++) {
+        TEST_ASSERT_EQUAL(0, gvizGraphAddVertex(&g, NULL, NULL, NULL));
+        size_t newId = liveCount;
+        size_t target = rand_r(&rngState) % before;
+        TEST_ASSERT_EQUAL(0, gvizGraphAddEdge(&g, newId, target, 1.0));
+        liveCount++;
+      }
+
+      double preSyncDisp = gvizForceEmbedderStep(&s);
+      TEST_ASSERT_TRUE(isfinite(preSyncDisp));
+      TEST_ASSERT_EQUAL((int)before, (int)s.vertexCount);
+
+      TEST_ASSERT_EQUAL(0, gvizForceEmbedderSync(&s, batch + 2));
+      TEST_ASSERT_EQUAL((int)liveCount, (int)s.vertexCount);
+
+      double maxDisp = gvizForceEmbedderStep(&s);
+      TEST_ASSERT_TRUE(isfinite(maxDisp));
+
+      for (size_t i = 0; i < s.vertexCount; i++) {
+        double *p = gvizEmbeddedGraphGetVPosition(eg, s.vertices[i]);
+        TEST_ASSERT_TRUE(isfinite(p[0]) && isfinite(p[1]));
+      }
+    }
+
+    gvizForceEmbedderRelease(&s);
+    gvizGraphRelease(&g);
+  }
+}
+
 int main(void) {
   UNITY_BEGIN();
   RUN_TEST(test_forceEmbedder_init_release_lifecycle);
@@ -777,5 +1134,14 @@ int main(void) {
   RUN_TEST(test_forceEmbedder_linLog_nearCoincidentVerticesStayBounded);
   RUN_TEST(test_forceEmbedder_barnesHutDisabled_stillProducesSensibleResults);
   RUN_TEST(test_forceEmbedder_gravity_pullsVertexTowardOrigin);
+  RUN_TEST(test_forceEmbedder_directedEdge_attractsSinkToo);
+  RUN_TEST(test_forceEmbedder_directedGraph_degreeIncludesInEdges);
+  RUN_TEST(test_forceEmbedder_directedEdge_matchesUndirectedAfterStep);
+  RUN_TEST(test_forceEmbedder_sync_noopWhenNothingAdded);
+  RUN_TEST(test_forceEmbedder_sync_newEdgeBetweenOldVertices_deferredUntilSync);
+  RUN_TEST(test_forceEmbedder_sync_directedInEdge_deferredUntilSync);
+  RUN_TEST(test_forceEmbedder_sync_newVertexInvisibleUntilSync);
+  RUN_TEST(test_forceEmbedder_sync_placesNewVertexNearNeighbor);
+  RUN_TEST(test_forceEmbedder_sync_manyGrowthBatchesStayFiniteAndInBounds);
   return UNITY_END();
 }

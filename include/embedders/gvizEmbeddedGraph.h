@@ -115,6 +115,43 @@ typedef struct gvizEmbeddedGraph {
   gvizStatRegistry stats;
   int planarEmbedded;
   gvizSubgraph highlight;
+  /*
+   * SYNCED TOPOLOGY -- the embedding's own answer to "what is currently
+   * laid out and ready to render", advanced only by gvizEmbeddedGraphSync.
+   * The parent gvizGraph is mutated directly (gvizGraphAddVertex/AddEdge)
+   * and is always live; nothing here reflects a mutation until the next
+   * Sync commits it, so every consumer of the embedding -- a renderer, an
+   * embedder's physics -- reads one coherent snapshot instead of choosing
+   * between a live view and a simulated view that disagree.
+   */
+  /** gvizGraphMutationCount(subgraph.g) as of the last Sync, making the
+   *  no-op Sync check one integer compare. UINT64_MAX until the first
+   *  Sync, so that first call always builds the snapshot. */
+  uint64_t syncedMutationCount;
+  /**
+   * gvizGraphSize(subgraph.g) as of the last Sync. Raw ids >= this are
+   * unknown to the snapshot: the adjacency accessors return 0/NULL for
+   * them (never out-of-bounds reads), and the next Sync admits them. Also
+   * the admission low-water mark: vertices that existed when the embedding
+   * was initialized are the caller's membership choice (via the subgraph's
+   * vertex subset); only vertices added after that are auto-admitted.
+   */
+  size_t syncedGraphSize;
+  /**
+   * Out-adjacency CSR of the synced structure, rows indexed by raw vertex
+   * id: outNeighborOffsets has syncedGraphSize + 1 entries; row v holds
+   * v's subgraph neighbors as of the last Sync (for undirected graphs the
+   * parent adjacency is stored symmetrically, so this is simply v's full
+   * neighborhood). Rows of vertices outside the subgraph are empty. NULL
+   * before the first Sync.
+   */
+  size_t *outNeighborOffsets;
+  size_t *outNeighbors;
+  /** Reverse (in-neighbor) CSR of the synced structure, same indexing: row
+   *  v holds every u with a synced edge u -> v. NULL unless the graph is
+   *  directed -- an undirected edge is already in both out rows. */
+  size_t *inNeighborOffsets;
+  size_t *inNeighbors;
 } gvizEmbeddedGraph;
 
 /**
@@ -137,9 +174,11 @@ void gvizEmbeddedGraphRelease(gvizEmbeddedGraph *embedding);
 size_t gvizEmbeddedGraphDim(const gvizEmbeddedGraph *embedding);
 
 /**
- * Returns the number of position slots in the embedding, i.e. the vertex count
- * of the parent graph. Positions are indexed by parent-graph vertex id; use the
- * subgraph vertex subset to determine which slots are live.
+ * Returns the number of position slots in the embedding: the parent graph's
+ * vertex count as of the last Sync (a vertex added to the graph gets its
+ * slot when the next Sync commits it, not before). Positions are indexed by
+ * parent-graph vertex id; use the subgraph vertex subset to determine which
+ * slots are live.
  */
 size_t gvizEmbeddedGraphPositionCount(const gvizEmbeddedGraph *embedding);
 
@@ -154,42 +193,89 @@ const double *gvizEmbeddedGraphPositions(const gvizEmbeddedGraph *embedding);
 /** Returns the subgraph describing the structure of the embedded graph. */
 const gvizSubgraph *gvizEmbeddedGraphStructure(const gvizEmbeddedGraph *embedding);
 
-// GROWTH (dynamic graphs): -----------------------------------------------------
+// GROWTH & SYNC (dynamic graphs): ---------------------------------------------
 //
-// Proxies to the underlying gvizGraph's mutators, keeping the subgraph view,
-// draw mask, and position buffer sized to match. Vertex/edge removal is not
-// supported. Growing a subgraph that is not gvizEmbeddedGraph's own (e.g. one
-// shared with another embedded graph, or a strict induced subset a caller
-// wants to keep partial) is unsupported -- these always mark the new vertex
-// or edge visible, so they assume the subgraph is meant to track the whole
-// growing graph.
+// Mutate the parent gvizGraph directly (gvizGraphAddVertex/AddEdge/
+// RemoveEdge); the embedding deliberately has no mutation proxies. Nothing
+// about the embedding -- subgraph membership, positions, draw mask,
+// adjacency accessors -- reflects a mutation until gvizEmbeddedGraphSync
+// commits it, so the embedding always describes one coherent moment: the
+// last commit. The intended loop is mutate freely during a frame, then Sync
+// once at the frame boundary (a no-op Sync is one integer compare against
+// gvizGraphMutationCount).
+//
+// Sync assumes the subgraph is meant to track the whole growing graph:
+// every vertex added to the graph since the embedding last synced is
+// admitted (shown in the subgraph and the draw mask). A strict subset
+// chosen at Init is preserved -- only vertices newer than the embedding's
+// last sync are auto-admitted. Edge removal commits like any other
+// mutation; vertex removal is unsupported (nothing in this stack removes
+// vertices).
+//
+// Use a VERTEX-INDUCED subgraph for a dynamic embedding
+// (gvizSubgraphCreateVertexInduced): its Sync-time rebuild is amortized
+// O(1) bit-capacity growth. A full subgraph's rebuild remigrates the whole
+// edge bitset (O(V+E) and worse, see gvizSubgraphRebuild) and its
+// explicitly-managed edge subset does NOT auto-include edges added after
+// creation -- full subgraphs are for static layouts; structurally hiding
+// edges for presentation is the draw mask edge policy's job.
 
 /**
- * Adds a vertex to the underlying graph (see gvizGraphAddVertex; always
- * added bare, with no initial edges -- use gvizEmbeddedGraphAddEdge to wire
- * it up afterward) and grows @p embedding's subgraph, position buffer, and
- * draw mask to match. The new vertex is marked present in the subgraph and
- * visible in the draw mask. Amortized O(1) when @p embedding's subgraph is
- * vertex-induced; O(V+E) when it is full, since a full subgraph's edge
- * bitset addressing depends on the graph's shared layout regardless of how
- * much changed (see gvizSubgraphRebuild).
+ * Commits the parent graph's mutations since the last Sync into the
+ * embedding: admits vertices added since the embedding last synced (marks
+ * them present in the subgraph and visible in the draw mask, with zeroed
+ * positions), grows the position buffer and draw mask to match, rebuilds
+ * the out/in adjacency CSRs from the subgraph as it now stands, and bumps
+ * the draw mask revision so renderers re-read geometry. O(1) no-op when
+ * gvizGraphMutationCount matches the last commit.
  *
- * @return 0 on success, -1 on allocation failure.
+ * An embedder layers its own catch-up on top of this (see
+ * gvizForceEmbedderSync, which also places the admitted vertices before
+ * returning); frontends driving a force layout should call that wrapper,
+ * not this, so a new vertex is never observable at its zeroed placeholder
+ * position.
+ *
+ * @return 1 if a commit happened, 0 for the no-op, -1 on allocation
+ * failure. On failure the previous snapshot (CSRs, syncedGraphSize, the
+ * mutation mark) is left intact, so the accessors stay coherent and the
+ * next Sync retries the whole commit; newly admitted subgraph/draw-mask
+ * bits may already be set, which the retry re-commits harmlessly.
  */
-int gvizEmbeddedGraphAddVertex(gvizEmbeddedGraph *embedding, void *data);
+int gvizEmbeddedGraphSync(gvizEmbeddedGraph *embedding);
 
 /**
- * Adds edge (@p from, @p to) to the underlying graph (see gvizGraphAddEdge)
- * and, if @p embedding's subgraph is full, rebuilds its edge subset and
- * marks the new edge visible (O(V+E), same as gvizGraphAddEdge always cost
- * a full subgraph). No-op beyond the graph mutation itself when the
- * subgraph is vertex-induced, since neighbor iteration there proxies
- * straight to the parent's live adjacency lists.
- *
- * @return 0 on success, -1 if @p from or @p to is out of bounds.
+ * Out-degree of raw vertex @p v in the synced snapshot -- for undirected
+ * graphs simply v's degree, since undirected adjacency is stored on both
+ * endpoints. 0 for a vertex the snapshot doesn't know: one added after the
+ * last Sync, or any vertex before the first Sync.
  */
-int gvizEmbeddedGraphAddEdge(gvizEmbeddedGraph *embedding, size_t from,
-                             size_t to, double weight);
+size_t gvizEmbeddedGraphOutDegree(const gvizEmbeddedGraph *embedding,
+                                  size_t v);
+
+/**
+ * Out-neighbors of raw vertex @p v in the synced snapshot (raw ids),
+ * writing the count to @p outCount. NULL/0 for a vertex the snapshot
+ * doesn't know (see gvizEmbeddedGraphOutDegree). The pointer is valid
+ * until the next Sync or Release.
+ */
+const size_t *gvizEmbeddedGraphOutNeighbors(const gvizEmbeddedGraph *embedding,
+                                            size_t v, size_t *outCount);
+
+/**
+ * In-degree of raw vertex @p v in the synced snapshot: how many synced
+ * edges u -> v exist. 0 when the graph is undirected (those edges are
+ * already counted by OutDegree) or the snapshot doesn't know @p v.
+ */
+size_t gvizEmbeddedGraphInDegree(const gvizEmbeddedGraph *embedding, size_t v);
+
+/**
+ * In-neighbors of raw vertex @p v in the synced snapshot -- every u with a
+ * synced edge u -> v -- writing the count to @p outCount. NULL/0 when the
+ * graph is undirected or the snapshot doesn't know @p v. The pointer is
+ * valid until the next Sync or Release.
+ */
+const size_t *gvizEmbeddedGraphInNeighbors(const gvizEmbeddedGraph *embedding,
+                                           size_t v, size_t *outCount);
 
 // DRAW MASK (for renderers): --------------------------------------------------
 //

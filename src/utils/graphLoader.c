@@ -722,7 +722,7 @@ static int gexf_load_edges(const char *buf, gvizGraph *out,
   return 0;
 }
 
-int gvizGraphLoadFromGexfFile(const char *path, gvizGraph *out) {
+int gvizGraphLoadFromGexfFile(const char *path, int directed, gvizGraph *out) {
   if (!path || !out)
     return -1;
 
@@ -739,7 +739,7 @@ int gvizGraphLoadFromGexfFile(const char *path, gvizGraph *out) {
     return -1;
   }
 
-  if (gvizGraphInitAtCapacity(out, 0, (size_t)node_count) < 0) {
+  if (gvizGraphInitAtCapacity(out, directed, (size_t)node_count) < 0) {
     GVIZ_DEALLOC(buf);
     return -1;
   }

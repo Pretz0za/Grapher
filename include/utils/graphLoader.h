@@ -45,8 +45,13 @@ int gvizGraphLoadFromEdgesFile(const char *path,
  * accepted. Values whose
  * declared <attribute type="..."> is integer/long/float/double or boolean
  * are emitted as unquoted JSON numbers/booleans; everything else is emitted
- * as a quoted, escaped JSON string. Edges are treated as undirected. Node
- * ids are matched as opaque strings (per the GEXF spec).
+ * as a quoted, escaped JSON string. Node ids are matched as opaque strings
+ * (per the GEXF spec).
+ *
+ * @p directed selects whether every parsed <edge> is added as a directed or
+ * undirected edge (non-zero for directed); this ignores any
+ * defaultedgetype/type attribute in the file itself, since the caller is
+ * expected to know how it wants the result interpreted.
  *
  * @p out must be uninitialized on entry. On failure, any partial state
  * (including any per-vertex JSON strings already allocated) is released and
@@ -58,7 +63,7 @@ int gvizGraphLoadFromEdgesFile(const char *path,
  *
  * @return 0 on success, -1 on I/O, parse, or allocation failure.
  */
-int gvizGraphLoadFromGexfFile(const char *path, gvizGraph *out);
+int gvizGraphLoadFromGexfFile(const char *path, int directed, gvizGraph *out);
 
 /**
  * Frees each vertex's data pointer as a heap-allocated, null-terminated

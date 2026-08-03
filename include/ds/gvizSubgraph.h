@@ -3,18 +3,23 @@
 
 #include "ds/gvizBitArray.h"
 #include <stdbool.h>
+#include <stdint.h>
 
 struct gvizGraph;
 
 /**
  * Shared edge-bitset layout for a graph. Populated by gvizGraphBuildLayout;
  * callers must rebuild after structural edge changes before using edge subsets
- * or subgraphs that depend on it.
+ * or subgraphs that depend on it -- gvizGraphEnsureLayout does exactly that,
+ * and only when actually needed.
  */
 typedef struct {
 	size_t *vertexOffsets;
 	size_t nvertices;
 	size_t edgeCount;
+	/** gvizGraphMutationCount at the time this layout was built; lets
+	 * gvizGraphEnsureLayout detect staleness with one integer compare. */
+	uint64_t builtAtMutation;
 } gvizGraphLayout;
 
 typedef GVIZ_BIT_ARRAY gvizVertexSubset;
@@ -85,7 +90,9 @@ gvizBitArrayIterator gvizVertexSubsetIteratorCreate(const gvizVertexSubset vs,
 
 /**
  * Allocates an empty edge subset sized from @p g->layout.
- * Requires a current layout from gvizGraphBuildLayout.
+ * Requires a current layout from gvizGraphBuildLayout; returns a NULL-bitset
+ * subset (which gvizSubgraphCreateEmpty and friends treat as failure) when
+ * the graph has never built one.
  */
 gvizEdgeSubset gvizEdgeSubsetCreateEmpty(const struct gvizGraph *g);
 

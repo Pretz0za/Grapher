@@ -70,6 +70,7 @@ int gvizGraphInit(gvizGraph *g, int directed) {
   g->directed = directed;
   g->map = NULL;
   g->layout = NULL;
+  g->mutationCount = 0;
   return 0;
 }
 
@@ -86,6 +87,7 @@ int gvizGraphInitAtCapacity(gvizGraph *g, int directed,
   g->directed = directed;
   g->map = NULL;
   g->layout = NULL;
+  g->mutationCount = 0;
   return 0;
 }
 
@@ -96,6 +98,10 @@ size_t gvizGraphSize(const gvizGraph *g) {
 
 int gvizGraphIsDirected(const gvizGraph *g) {
 	return g->directed;
+}
+
+uint64_t gvizGraphMutationCount(const gvizGraph *g) {
+  return g->mutationCount;
 }
 
 size_t gvizGraphEdgeCount(const gvizGraph *g) {
@@ -137,6 +143,16 @@ void gvizGraphBuildLayout(gvizGraph *g) {
   }
   g->layout->vertexOffsets[n] = off;
   g->layout->edgeCount = g->directed ? off : off / 2;
+  g->layout->builtAtMutation = g->mutationCount;
+}
+
+int gvizGraphEnsureLayout(gvizGraph *g) {
+  if (!g)
+    return -1;
+  if (g->layout && g->layout->builtAtMutation == g->mutationCount)
+    return 0;
+  gvizGraphBuildLayout(g);
+  return g->layout ? 0 : -1;
 }
 
 int gvizGraphAddVertex(gvizGraph *g, void *data, gvizArray *in,
@@ -156,6 +172,7 @@ int gvizGraphAddVertex(gvizGraph *g, void *data, gvizArray *in,
   }
 
   gvizArrayPush(&g->vertices, &v);
+  g->mutationCount++;
 
   if (in != NULL) {
     size_t idx = g->vertices.count - 1;
@@ -184,6 +201,8 @@ int gvizGraphAddEdge(gvizGraph *g, size_t from, size_t to, double weight) {
     err = gvizArrayPush(&((gvizVertex *)gvizArrayAtIndex(&g->vertices, to))->edges,
                         &backward);
   }
+  if (err == 0)
+    g->mutationCount++;
   return err;
 }
 
@@ -206,6 +225,7 @@ int gvizGraphRemoveEdge(gvizGraph *g, size_t from, size_t to) {
       return -1;
     gvizArrayDeleteAtIndex(toEdges, (size_t)backPos);
   }
+  g->mutationCount++;
   return 0;
 }
 
@@ -295,7 +315,10 @@ int gvizGraphInsertNeighborAt(gvizGraph *g, size_t from, size_t to,
     return -1;
   gvizArray *edges = &((gvizVertex *)gvizArrayAtIndex(&g->vertices, from))->edges;
   gvizEdge e = {to, weight};
-  return gvizArrayInsert(edges, &e, pos);
+  int err = gvizArrayInsert(edges, &e, pos);
+  if (err == 0)
+    g->mutationCount++;
+  return err;
 }
 
 int gvizGraphReorderNeighbors(gvizGraph *g, size_t idx, const size_t *order,
@@ -353,6 +376,7 @@ void gvizGraphClear(gvizGraph *g) {
     gvizVertexRelease(gvizArrayAtIndex(&g->vertices, i));
   }
   g->vertices.count = 0;
+  g->mutationCount++;
   if (g->layout) {
     GVIZ_DEALLOC(g->layout->vertexOffsets);
     GVIZ_DEALLOC(g->layout);

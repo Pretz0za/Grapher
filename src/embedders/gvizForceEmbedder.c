@@ -4,8 +4,11 @@
 #include "ds/gvizSubgraph.h"
 #include "embedders/gvizForceDirected.h"
 #include <math.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #define FORCE_EMBEDDER_PARALLEL_GRAIN 1
 
@@ -76,7 +79,6 @@ static void bhAccumulateRepulsion(gvizForceEmbedderState *state,
 static void computeForceRange(void *ctx, size_t begin, size_t end) {
   gvizForceEmbedderState *state = ctx;
   gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
-  const gvizSubgraph *sg = &embedding->subgraph;
   const gvizQuadtreeNode *root =
       state->barnesHutEnabled ? gvizQuadtreeRoot(&state->quadtree) : NULL;
 
@@ -90,11 +92,21 @@ static void computeForceRange(void *ctx, size_t begin, size_t end) {
     gvizVecZero(2, repF);
     double *vPos = state->positionsScratch + i * 2;
 
-    gvizSubgraphNeighborIterator nit =
-        gvizSubgraphNeighborIteratorCreate(sg, v);
-    size_t u;
-    while (gvizSubgraphNeighborIterate(&nit, &u)) {
-      double *uPos = gvizEmbeddedGraphGetVPosition(embedding, u);
+    /* The embedding's synced CSRs, never the live gvizGraph: a mutation
+     * stays invisible to physics (and renderers) until a Sync commits it.
+     * Out-row plus in-row makes every edge attract both endpoints
+     * regardless of direction; the in-row is empty/NULL for undirected
+     * graphs, whose out rows already hold both directions. */
+    size_t neighborCount;
+    const size_t *neighbors =
+        gvizEmbeddedGraphOutNeighbors(embedding, v, &neighborCount);
+    for (size_t k = 0; k < neighborCount; k++) {
+      double *uPos = gvizEmbeddedGraphGetVPosition(embedding, neighbors[k]);
+      state->model->attractive(2, vPos, uPos, state->edgeLength, attF);
+    }
+    neighbors = gvizEmbeddedGraphInNeighbors(embedding, v, &neighborCount);
+    for (size_t k = 0; k < neighborCount; k++) {
+      double *uPos = gvizEmbeddedGraphGetVPosition(embedding, neighbors[k]);
       state->model->attractive(2, vPos, uPos, state->edgeLength, attF);
     }
 
@@ -196,6 +208,77 @@ static void applySpeedRange(void *ctx, size_t begin, size_t end) {
   }
 }
 
+/* Reallocates *@p arr from @p oldElems to @p newElems elements of @p
+ * elemSize, zero-filling the newly grown tail. @p newElems >= @p oldElems
+ * always here (physics only grows), so the tail is exactly
+ * [oldElems, newElems). A no-op realloc (equal element counts) is safe and
+ * cheap, which is what lets gvizForceEmbedderSync call this unconditionally
+ * even on a Sync that only picked up new edges among already-tracked
+ * vertices. */
+static int growArray(void **arr, size_t oldElems, size_t newElems,
+                     size_t elemSize) {
+  void *grown = GVIZ_REALLOC(*arr, elemSize * newElems);
+  if (!grown)
+    return -1;
+  memset((char *)grown + elemSize * oldElems, 0,
+         elemSize * (newElems - oldElems));
+  *arr = grown;
+  return 0;
+}
+
+/* Grows every per-vertex physics array from @p oldCount to @p newCount
+ * entries, zero-filling each new tail -- Init's initial allocation is the
+ * @p oldCount = 0 case, since GVIZ_REALLOC on a NULL pointer behaves like
+ * GVIZ_ALLOC. On failure some arrays may already have grown; that's
+ * harmless: a failed Sync never publishes the new vertexCount (so the old
+ * count still bounds every read), a failed Init only supports Release, and
+ * Release frees whatever the pointers hold either way. */
+static int growPerVertexArrays(gvizForceEmbedderState *state, size_t oldCount,
+                               size_t newCount) {
+  int ok =
+      growArray((void **)&state->vertices, oldCount, newCount,
+                sizeof(size_t)) == 0 &&
+      growArray((void **)&state->degree, oldCount, newCount,
+                sizeof(size_t)) == 0 &&
+      growArray((void **)&state->mass, oldCount, newCount,
+                sizeof(double)) == 0 &&
+      growArray((void **)&state->disp, oldCount * 2, newCount * 2,
+                sizeof(double)) == 0 &&
+      growArray((void **)&state->positionsScratch, oldCount * 2, newCount * 2,
+                sizeof(double)) == 0 &&
+      growArray((void **)&state->attForceMag, oldCount, newCount,
+                sizeof(double)) == 0 &&
+      growArray((void **)&state->repForceMag, oldCount, newCount,
+                sizeof(double)) == 0 &&
+      growArray((void **)&state->appliedDisp, oldCount * 2, newCount * 2,
+                sizeof(double)) == 0 &&
+      growArray((void **)&state->swinging, oldCount, newCount,
+                sizeof(double)) == 0 &&
+      growArray((void **)&state->traction, oldCount, newCount,
+                sizeof(double)) == 0 &&
+      growArray((void **)&state->structForce, oldCount * 2, newCount * 2,
+                sizeof(double)) == 0 &&
+      growArray((void **)&state->oldStructForce, oldCount * 2, newCount * 2,
+                sizeof(double)) == 0;
+  return ok ? 0 : -1;
+}
+
+/* degree[i] is out-degree + in-degree from the embedding's synced CSR rows
+ * -- every incident edge regardless of direction (the in term is 0 for
+ * undirected graphs, whose out rows already hold both directions) -- and
+ * mass follows the model. Shared by Init and Sync; Sync must recompute
+ * every vertex, old and new alike, since a new edge can raise an
+ * already-tracked vertex's degree without that vertex being new itself. */
+static void recomputeDegreeMass(gvizForceEmbedderState *state) {
+  const gvizEmbeddedGraph *embedding = (const gvizEmbeddedGraph *)state;
+  for (size_t i = 0; i < state->vertexCount; i++) {
+    size_t rawId = state->vertices[i];
+    state->degree[i] = gvizEmbeddedGraphOutDegree(embedding, rawId) +
+                       gvizEmbeddedGraphInDegree(embedding, rawId);
+    state->mass[i] = state->model->vertexMass(state->degree[i]);
+  }
+}
+
 static void forceEmbedderActionStep(gvizEmbeddedGraph *embedding,
                                     void *userData,
                                     const gvizActionPayload *payload) {
@@ -229,11 +312,16 @@ int gvizForceEmbedderInit(gvizForceEmbedderState *state, gvizSubgraph subgraph,
     return res;
 
   gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
-  state->vertexCount = gvizSubgraphVertexCount(&embedding->subgraph);
   state->model = gvizForceModelGet(model);
 
-  state->vertices = GVIZ_ALLOC(sizeof(size_t) * state->vertexCount);
-  if (!state->vertices)
+  /* First structural commit: builds the embedding's synced adjacency CSRs
+   * over the graph as it stands right now -- the snapshot both the physics
+   * below and any renderer will read until a Sync commits more. */
+  if (gvizEmbeddedGraphSync(embedding) < 0)
+    return -1;
+
+  state->vertexCount = gvizSubgraphVertexCount(&embedding->subgraph);
+  if (growPerVertexArrays(state, 0, state->vertexCount) < 0)
     return -1;
 
   size_t k = 0;
@@ -243,38 +331,9 @@ int gvizForceEmbedderInit(gvizForceEmbedderState *state, gvizSubgraph subgraph,
   while (gvizSubgraphVertexIterate(&vit, &u))
     state->vertices[k++] = u;
 
-  state->degree = GVIZ_ALLOC(sizeof(size_t) * state->vertexCount);
-  state->mass = GVIZ_ALLOC(sizeof(double) * state->vertexCount);
-  if (!state->degree || !state->mass)
-    return -1;
+  state->syncedMutationCount = embedding->syncedMutationCount;
 
-  for (size_t i = 0; i < state->vertexCount; i++) {
-    state->degree[i] =
-        gvizSubgraphDegree(&embedding->subgraph, state->vertices[i]);
-    state->mass[i] = state->model->vertexMass(state->degree[i]);
-  }
-
-  state->disp = GVIZ_ALLOC(sizeof(double) * state->vertexCount * 2);
-  if (!state->disp)
-    return -1;
-
-  state->positionsScratch = GVIZ_ALLOC(sizeof(double) * state->vertexCount * 2);
-  if (!state->positionsScratch)
-    return -1;
-
-  state->attForceMag = GVIZ_ALLOC(sizeof(double) * state->vertexCount);
-  state->repForceMag = GVIZ_ALLOC(sizeof(double) * state->vertexCount);
-  if (!state->attForceMag || !state->repForceMag)
-    return -1;
-
-  state->appliedDisp = GVIZ_ALLOC(sizeof(double) * state->vertexCount * 2);
-  state->swinging = GVIZ_ALLOC(sizeof(double) * state->vertexCount);
-  state->traction = GVIZ_ALLOC(sizeof(double) * state->vertexCount);
-  state->structForce = GVIZ_ALLOC(sizeof(double) * state->vertexCount * 2);
-  state->oldStructForce = GVIZ_ALLOC(sizeof(double) * state->vertexCount * 2);
-  if (!state->appliedDisp || !state->swinging || !state->traction ||
-      !state->structForce || !state->oldStructForce)
-    return -1;
+  recomputeDegreeMass(state);
 
   state->edgeLength = GVIZ_FORCE_EMBEDDER_EDGE_LENGTH_DEFAULT;
   state->boxExtent = defaultBoxExtent(state->vertexCount, state->edgeLength);
@@ -436,6 +495,116 @@ int gvizForceEmbedderBegin(gvizForceEmbedderState *state, unsigned int seed) {
   }
 
   return res;
+}
+
+/* Positions a vertex that gvizForceEmbedderSync just added to physics: near
+ * the centroid of whatever neighbors (out and, for directed graphs, in) it
+ * already has in the embedding's freshly committed snapshot -- jittered so
+ * landing exactly on a neighbor doesn't hand the next Step a zero-distance
+ * repulsion -- or, if it has none yet, uniformly at random in the layout's
+ * box, matching gvizForceEmbedderBegin's own initial placement. @p i is
+ * @p state->vertices' compact index for the vertex being placed; must run
+ * after gvizEmbeddedGraphSync has committed, since it reads the synced
+ * rows. */
+static void placeGrownVertex(gvizForceEmbedderState *state, size_t i,
+                             unsigned int *seed) {
+  gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
+  size_t rawId = state->vertices[i];
+  double centroid[2] = {0.0, 0.0};
+  size_t neighborCount = 0;
+
+  size_t count;
+  const size_t *neighbors =
+      gvizEmbeddedGraphOutNeighbors(embedding, rawId, &count);
+  for (size_t k = 0; k < count; k++) {
+    double *p = gvizEmbeddedGraphGetVPosition(embedding, neighbors[k]);
+    centroid[0] += p[0];
+    centroid[1] += p[1];
+    neighborCount++;
+  }
+  neighbors = gvizEmbeddedGraphInNeighbors(embedding, rawId, &count);
+  for (size_t k = 0; k < count; k++) {
+    double *p = gvizEmbeddedGraphGetVPosition(embedding, neighbors[k]);
+    centroid[0] += p[0];
+    centroid[1] += p[1];
+    neighborCount++;
+  }
+
+  double unitX = (double)rand_r(seed) / ((double)RAND_MAX + 1.0);
+  double unitY = (double)rand_r(seed) / ((double)RAND_MAX + 1.0);
+  double pos[2];
+  if (neighborCount > 0) {
+    pos[0] = centroid[0] / (double)neighborCount +
+             state->edgeLength * 0.5 * (2.0 * unitX - 1.0);
+    pos[1] = centroid[1] / (double)neighborCount +
+             state->edgeLength * 0.5 * (2.0 * unitY - 1.0);
+  } else {
+    pos[0] = state->boxExtent * (2.0 * unitX - 1.0);
+    pos[1] = state->boxExtent * (2.0 * unitY - 1.0);
+  }
+
+  gvizEmbeddedGraphSetVPosition(embedding, rawId, pos);
+}
+
+int gvizForceEmbedderSync(gvizForceEmbedderState *state, unsigned int seed) {
+  gvizEmbeddedGraph *embedding = (gvizEmbeddedGraph *)state;
+
+  /* Structural commit first: the embedding admits new vertices, grows the
+   * position buffer/draw mask, and rebuilds its synced CSRs (O(1) no-op
+   * when the graph's mutation counter hasn't moved). */
+  if (gvizEmbeddedGraphSync(embedding) < 0)
+    return -1;
+
+  /* Compare against the embedding's commit mark rather than the embedding
+   * Sync's return value: if a previous call committed structurally but
+   * failed in the physics growth below, the embedding reports "nothing
+   * new" while the physics is still behind -- this catches that and
+   * retries. */
+  if (state->syncedMutationCount == embedding->syncedMutationCount)
+    return 0;
+
+  if (seed == 0)
+    seed = (unsigned int)time(NULL);
+
+  size_t oldVertexCount = state->vertexCount;
+  size_t newTotal = gvizSubgraphVertexCount(&embedding->subgraph);
+
+  if (growPerVertexArrays(state, oldVertexCount, newTotal) < 0)
+    return -1;
+
+  /* Growth is append-only (no vertex removal anywhere in this stack), so
+   * the subgraph's vertex ids in iteration order are exactly
+   * state->vertices' existing prefix followed by whatever's new; only the
+   * new tail needs writing. Writing it before the publish below is safe:
+   * everything beyond vertexCount is invisible to Step. */
+  size_t k = 0;
+  size_t u;
+  gvizSubgraphVertexIterator vit =
+      gvizSubgraphVertexIteratorCreate(&embedding->subgraph);
+  while (gvizSubgraphVertexIterate(&vit, &u)) {
+    if (k >= oldVertexCount)
+      state->vertices[k] = u;
+    k++;
+  }
+
+  /* Physics publish: everything that could fail has succeeded. */
+  state->vertexCount = newTotal;
+
+  /* Placement reads the committed snapshot for other new vertices too, so
+   * it must run only after every new vertex is already registered in
+   * state->vertices above -- not interleaved into that loop. */
+  for (size_t i = oldVertexCount; i < newTotal; i++)
+    placeGrownVertex(state, i, &seed);
+
+  recomputeDegreeMass(state);
+
+  double grownBoxExtent = defaultBoxExtent(newTotal, state->edgeLength);
+  if (grownBoxExtent > state->boxExtent)
+    state->boxExtent = grownBoxExtent;
+
+  state->syncedMutationCount = embedding->syncedMutationCount;
+
+  return 0;
 }
 
 double gvizForceEmbedderStep(gvizForceEmbedderState *state) {

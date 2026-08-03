@@ -90,7 +90,7 @@ void test_loadFromEdgesFile_idsWithGaps(void) {
 void test_loadFromGexfFile_tiny(void) {
   gvizGraph g;
 
-  TEST_ASSERT_EQUAL_INT(0, gvizGraphLoadFromGexfFile(GVIZ_TINY_GEXF_PATH, &g));
+  TEST_ASSERT_EQUAL_INT(0, gvizGraphLoadFromGexfFile(GVIZ_TINY_GEXF_PATH, 0, &g));
   TEST_ASSERT_EQUAL_UINT64(3, gvizGraphSize(&g));
 
   gvizGraphBuildLayout(&g);
@@ -113,10 +113,29 @@ void test_loadFromGexfFile_tiny(void) {
   gvizGraphRelease(&g);
 }
 
+void test_loadFromGexfFile_directed(void) {
+  gvizGraph g;
+
+  TEST_ASSERT_EQUAL_INT(0, gvizGraphLoadFromGexfFile(GVIZ_TINY_GEXF_PATH, 1, &g));
+  TEST_ASSERT_EQUAL_UINT64(3, gvizGraphSize(&g));
+  TEST_ASSERT_TRUE(gvizGraphIsDirected(&g));
+
+  gvizGraphBuildLayout(&g);
+  TEST_ASSERT_EQUAL_UINT64(2, gvizGraphEdgeCount(&g));
+
+  TEST_ASSERT_EQUAL_INT(1, gvizGraphEdgeExists(&g, 0, 1));
+  TEST_ASSERT_EQUAL_INT(0, gvizGraphEdgeExists(&g, 1, 0));
+  TEST_ASSERT_EQUAL_INT(1, gvizGraphEdgeExists(&g, 1, 2));
+  TEST_ASSERT_EQUAL_INT(0, gvizGraphEdgeExists(&g, 2, 1));
+
+  gvizGraphFreeVertexDataStrings(&g);
+  gvizGraphRelease(&g);
+}
+
 void test_loadFromGexfFile_attributes(void) {
   gvizGraph g;
 
-  TEST_ASSERT_EQUAL_INT(0, gvizGraphLoadFromGexfFile(GVIZ_ATTRS_GEXF_PATH, &g));
+  TEST_ASSERT_EQUAL_INT(0, gvizGraphLoadFromGexfFile(GVIZ_ATTRS_GEXF_PATH, 0, &g));
   TEST_ASSERT_EQUAL_UINT64(2, gvizGraphSize(&g));
 
   gvizGraphBuildLayout(&g);
@@ -143,7 +162,7 @@ void test_loadFromGexfFile_legacyAttvalueId(void) {
   gvizGraph g;
 
   TEST_ASSERT_EQUAL_INT(
-      0, gvizGraphLoadFromGexfFile(GVIZ_ATTRS_LEGACY_GEXF_PATH, &g));
+      0, gvizGraphLoadFromGexfFile(GVIZ_ATTRS_LEGACY_GEXF_PATH, 0, &g));
   TEST_ASSERT_EQUAL_UINT64(2, gvizGraphSize(&g));
 
   TEST_ASSERT_EQUAL_STRING("{\n"
@@ -160,13 +179,13 @@ void test_loadFromGexfFile_legacyAttvalueId(void) {
 void test_loadFromGexfFile_zeroNodes(void) {
   gvizGraph g;
   TEST_ASSERT_EQUAL_INT(
-      -1, gvizGraphLoadFromGexfFile(GVIZ_EMPTY_NODES_GEXF_PATH, &g));
+      -1, gvizGraphLoadFromGexfFile(GVIZ_EMPTY_NODES_GEXF_PATH, 0, &g));
 }
 
 void test_loadFromGexfFile_missingFile(void) {
   gvizGraph g;
   TEST_ASSERT_EQUAL_INT(-1,
-                        gvizGraphLoadFromGexfFile(GVIZ_MISSING_GEXF_PATH, &g));
+                        gvizGraphLoadFromGexfFile(GVIZ_MISSING_GEXF_PATH, 0, &g));
 }
 
 void test_loadFromObjFile_quad(void) {
@@ -223,6 +242,7 @@ int main(void) {
   RUN_TEST(test_loadFromEdgesFile_directed);
   RUN_TEST(test_loadFromEdgesFile_idsWithGaps);
   RUN_TEST(test_loadFromGexfFile_tiny);
+  RUN_TEST(test_loadFromGexfFile_directed);
   RUN_TEST(test_loadFromGexfFile_attributes);
   RUN_TEST(test_loadFromGexfFile_legacyAttvalueId);
   RUN_TEST(test_loadFromGexfFile_zeroNodes);

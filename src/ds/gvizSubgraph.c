@@ -130,7 +130,13 @@ gvizBitArrayIterator gvizVertexSubsetIteratorCreate(const gvizVertexSubset vs,
 }
 
 gvizEdgeSubset gvizEdgeSubsetCreateEmpty(const struct gvizGraph *g) {
-  const gvizGraphLayout *layout = g->layout;
+  const gvizGraphLayout *layout = g ? g->layout : NULL;
+  /* No layout, no edge subset -- callers already treat a NULL bitset as
+   * failure (see gvizSubgraphCreateEmpty), so a graph that never built a
+   * layout (e.g. one only ever viewed through vertex-induced subgraphs)
+   * degrades to "no subgraph" instead of a NULL dereference. */
+  if (!layout)
+    return (gvizEdgeSubset){NULL, NULL};
   size_t nbits = layout->vertexOffsets[layout->nvertices];
   GVIZ_BIT_ARRAY es = gvizBitArrayAlloc(nbits);
   if (!es)
@@ -372,7 +378,12 @@ int gvizSubgraphRebuild(gvizSubgraph *sg) {
 }
 
 bool gvizSubgraphHasVertex(const gvizSubgraph *sg, size_t u) {
-  if (!subgraph_has_vertices(sg))
+  /* u can legitimately exceed the bitset when the parent graph has grown
+   * past the subgraph's last rebuild (e.g. graph mutations not yet
+   * committed by gvizEmbeddedGraphSync): such a vertex is simply not in the
+   * subgraph, never an out-of-bounds bit read. Same guard in HasEdge/
+   * Degree/NeighborIteratorCreate below. */
+  if (!subgraph_has_vertices(sg) || u >= sg->vertexCapacity)
     return false;
   return gvizVertexSubsetTest(sg->vs, u);
 }
@@ -384,7 +395,8 @@ size_t gvizSubgraphVertexCount(const gvizSubgraph *sg) {
 }
 
 bool gvizSubgraphHasEdge(const gvizSubgraph *sg, size_t u, size_t v) {
-  if (!subgraph_has_vertices(sg))
+  if (!subgraph_has_vertices(sg) || u >= sg->vertexCapacity ||
+      v >= sg->vertexCapacity)
     return false;
   if (!gvizVertexSubsetTest(sg->vs, u) || !gvizVertexSubsetTest(sg->vs, v))
     return false;
@@ -399,7 +411,8 @@ bool gvizSubgraphHasEdge(const gvizSubgraph *sg, size_t u, size_t v) {
 }
 
 size_t gvizSubgraphDegree(const gvizSubgraph *sg, size_t u) {
-  if (!subgraph_has_vertices(sg) || !gvizVertexSubsetTest(sg->vs, u))
+  if (!subgraph_has_vertices(sg) || u >= sg->vertexCapacity ||
+      !gvizVertexSubsetTest(sg->vs, u))
     return 0;
 
   if (subgraph_is_full(sg))
@@ -456,7 +469,8 @@ gvizSubgraphNeighborIterator gvizSubgraphNeighborIteratorCreate(
     const gvizSubgraph *sg, size_t u) {
   gvizSubgraphNeighborIterator it = {
       sg, u, 0, {0}, 0, GVIZ_SUBGRAPH_NEIGHBOR_ITER_NONE};
-  if (!subgraph_has_vertices(sg) || !gvizVertexSubsetTest(sg->vs, u))
+  if (!subgraph_has_vertices(sg) || u >= sg->vertexCapacity ||
+      !gvizVertexSubsetTest(sg->vs, u))
     return it;
 
   if (subgraph_is_full(sg)) {

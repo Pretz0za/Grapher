@@ -41,14 +41,34 @@
  */
 typedef struct gvizForceEmbedderState {
   gvizEmbeddedGraph graph; /* MUST be first */
-  size_t *vertices;        /* owned; active subgraph vertex ids, compact index
-                            * i -> real vertex id */
+  /*
+   * This embedder owns NO copy of the graph's topology. Attraction, degree,
+   * mass, and new-vertex placement all read the embedding's synced out/in
+   * adjacency CSRs (see gvizEmbeddedGraph's SYNCED TOPOLOGY fields), which
+   * advance only when gvizForceEmbedderSync commits -- so "what physics
+   * simulates" and "what renderers draw" are the same snapshot by
+   * construction, and a graph mutation is invisible to both until the next
+   * Sync. Each vertex reads only its own rows (out + in), so
+   * computeForceRange's parallel per-vertex ranges never write into another
+   * vertex's accumulator. Everything below is physics state, not structure.
+   */
+  size_t *vertices; /* owned; active subgraph vertex ids, compact index
+                     * i -> real vertex id */
   size_t vertexCount;
+  /* graph.syncedMutationCount as of the last time the PHYSICS side of Sync
+   * completed. Normally equal to the embedding's own mark; it lags only
+   * when a Sync's structural commit succeeded but its physics growth then
+   * failed on allocation, and it's what lets the next Sync notice and
+   * retry the physics catch-up even though the embedding itself reports
+   * nothing new. */
+  uint64_t syncedMutationCount;
   const gvizForceModel *model; /* force computation strategy, fixed at Init */
   double *mass;   /* owned; vertexCount, model->vertexMass(degree[i]) per
-                   * vertex, computed once at Init */
-  size_t *degree; /* owned; vertexCount, raw subgraph degree per vertex,
-                   * independent of model->vertexMass; used by gravity */
+                   * vertex, recomputed at Init/Sync */
+  size_t *degree; /* owned; vertexCount, per vertex: out-degree + in-degree
+                   * from the embedding's synced CSR rows, i.e. all incident
+                   * edges regardless of direction, recomputed at Init/Sync
+                   * so mass/radius track the synced structure. */
   double radiusBase;      /* r(v) = radiusBase * (1 + radiusPerDegree *
                            * sqrt(degree(v))); a multiplicative overall scale
                            * rather than a flat minimum, so adjusting it
@@ -153,6 +173,23 @@ typedef struct gvizForceEmbedderState {
  * structural, like @p dimension: fixed for the embedder's lifetime. The
  * quadtree itself is not built until Begin, since positions are all zero
  * right after this call.
+ *
+ * Init runs the embedding's first structural commit (gvizEmbeddedGraphSync)
+ * to build the synced adjacency CSRs the physics reads; the graph as it
+ * stands at Init is the first snapshot.
+ *
+ * @p subgraph's graph may be directed or undirected. Directed graphs are
+ * fully supported: attraction walks each vertex's synced out-row AND
+ * in-row, and degree/mass/radius count both, so every edge pulls both
+ * endpoints together and highly-referenced "sink" vertices aren't treated
+ * as low-mass. Direction is otherwise irrelevant to the physics: repulsion,
+ * gravity, and speed regulation don't distinguish directed from undirected
+ * graphs.
+ *
+ * For a graph that will grow while animated (mutate the gvizGraph directly,
+ * then gvizForceEmbedderSync each frame), pass a VERTEX-INDUCED subgraph
+ * over the whole graph rather than a full one -- see gvizEmbeddedGraph.h's
+ * GROWTH & SYNC section.
  *
  * @return 0 on success, -1 on allocation failure, -2 if @p dimension != 2.
  */
@@ -305,6 +342,49 @@ double gvizForceEmbedderVertexRadius(const gvizForceEmbedderState *state,
  * quadtree.
  */
 int gvizForceEmbedderBegin(gvizForceEmbedderState *state, unsigned int seed);
+
+/**
+ * Commits whatever has been mutated on the underlying gvizGraph since Init
+ * or the last Sync -- first structurally, via gvizEmbeddedGraphSync (admit
+ * new vertices, grow positions/draw mask, rebuild the synced adjacency
+ * CSRs), then for the physics (grow the per-vertex arrays, place the new
+ * vertices, recompute degree/mass). The intended way to grow a graph while
+ * it's being animated: mutate the gvizGraph freely during a frame, then
+ * call this once at the frame boundary; the no-op case is one integer
+ * compare against gvizGraphMutationCount. Until this runs, a mutation is
+ * invisible EVERYWHERE downstream of the graph -- renderers and physics
+ * alike read the same synced snapshot -- so there is never a frame showing
+ * a vertex that isn't simulated or simulating a vertex that isn't shown.
+ * Existing vertices' positions and swinging/traction history are left
+ * untouched -- Sync only ever grows, never resets -- so the layout doesn't
+ * jump; a genuinely new vertex has no such history to preserve, so it
+ * starts as if this were its first round (zeroed
+ * disp/swinging/traction/structForce, exactly Begin's convention).
+ *
+ * A new vertex is placed near the centroid of whichever neighbors it
+ * already has by the time Sync runs (so add its edges before syncing if you
+ * want that), jittered by up to edgeLength/2 in each axis so exact
+ * coincidence with a neighbor doesn't hand the next Step a zero-distance
+ * repulsion; a vertex with no edges yet is placed uniformly at random in
+ * [-boxExtent, boxExtent]^2 instead, matching gvizForceEmbedderBegin's
+ * initial placement.
+ *
+ * Every vertex's degree/mass is recomputed from scratch, not just new
+ * vertices' -- a new edge can land between two already-tracked vertices and
+ * change their degree without either being new itself.
+ *
+ * No-op, returning 0, if nothing has changed since the last Sync/Init.
+ *
+ * @return 0 on success (including the no-op case), -1 on allocation
+ * failure. On failure @p state stays step-safe at its pre-Sync size: the
+ * physics vertex count is only published once every allocation has
+ * succeeded, and a later Sync retries whatever half (structural commit or
+ * physics catch-up) failed. The one blemish, possible only under OOM: if
+ * the structural commit lands but the physics growth fails, renderers see
+ * the new vertices (zero-positioned) one-or-more frames before physics
+ * does, until a retry succeeds.
+ */
+int gvizForceEmbedderSync(gvizForceEmbedderState *state, unsigned int seed);
 
 /**
  * Runs one round: accumulates the model's repulsive force, approximated by

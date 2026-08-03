@@ -3,6 +3,7 @@
 
 #include "gvizArray.h"
 #include "gvizSubgraph.h"
+#include <stdint.h>
 
 /**
  * @brief A single directed adjacency-list entry: the neighboring vertex's
@@ -41,6 +42,15 @@ typedef struct gvizGraph {
   int directed;       /**< Whether or not the graph is directed. */
   /** Shared edge layout; NULL until gvizGraphBuildLayout. Not auto-updated. */
   gvizGraphLayout *layout;
+  /**
+   * Monotonic counter bumped by every structural mutation (AddVertex,
+   * AddEdge, RemoveEdge, InsertNeighborAt, Clear). Lets a derived view
+   * (e.g. gvizEmbeddedGraph's synced snapshot) answer "has the graph
+   * changed since I last looked?" with one integer compare instead of
+   * re-walking the structure. Not bumped by data/weight updates or
+   * adjacency reordering, which change no topology.
+   */
+  uint64_t mutationCount;
 } gvizGraph;
 
 // GRAPH CONSTRUCTION: ---------------------------------------------------------
@@ -113,6 +123,9 @@ size_t gvizGraphSize(const gvizGraph *g);
 /** Returns whether @p g is directed. */
 int gvizGraphIsDirected(const gvizGraph *g);
 
+/** Returns the structural mutation counter -- see the mutationCount field. */
+uint64_t gvizGraphMutationCount(const gvizGraph *g);
+
 /**
  * Returns the number of edges in @p g. Requires a current layout from
  * gvizGraphBuildLayout; returns 0 if @p g->layout is NULL.
@@ -126,6 +139,22 @@ size_t gvizGraphEdgeCount(const gvizGraph *g);
  * Call again after structural edge changes; layout is not auto-invalidated.
  */
 void gvizGraphBuildLayout(gvizGraph *g);
+
+/**
+ * Rebuilds the layout only if the graph has been structurally mutated since
+ * it was last built (or it was never built): an O(1) mutation-counter
+ * compare, then gvizGraphBuildLayout when stale. The on-demand way to use
+ * layout-dependent machinery (edge subsets, full subgraphs -- e.g. a
+ * transient pick/highlight subgraph) against a graph that grows between
+ * uses. Callers holding OTHER full subgraphs over @p g must know a rebuild
+ * after mutations shifts the shared bit addressing under those subgraphs
+ * (the same caveat gvizGraphBuildLayout always had); replace or rebuild
+ * them before reading them again.
+ *
+ * @return 0 when the layout is current (rebuilt or already fresh), -1 on
+ * allocation failure or NULL @p g.
+ */
+int gvizGraphEnsureLayout(gvizGraph *g);
 
 /**
  * Copies the Graph data of @p src to @p dest.

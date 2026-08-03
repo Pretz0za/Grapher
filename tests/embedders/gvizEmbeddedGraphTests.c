@@ -440,16 +440,51 @@ void test_drawMask_clearAndNotify(void) {
   gvizGraphRelease(&g);
 }
 
-// GROWTH (ADD VERTEX / ADD EDGE): -----------------------------------------------
+// GROWTH & SYNC (commit semantics): -------------------------------------------
 
-void test_addVertex_growsFullEmbedding(void) {
+/* Whole-graph vertex-induced embedding: the recommended shape for a dynamic
+ * layout (see gvizEmbeddedGraph.h's GROWTH & SYNC section). */
+static gvizEmbeddedGraph makeInducedEmbedding(gvizGraph *g, size_t nvertices,
+                                              size_t dim) {
+  gvizGraphInitAtCapacity(g, 0, nvertices);
+  for (size_t i = 0; i < nvertices; i++)
+    gvizGraphAddVertex(g, NULL, NULL, NULL);
+  for (size_t i = 0; i + 1 < nvertices; i++)
+    gvizGraphAddEdge(g, i, i + 1, 1.0);
+
+  gvizVertexSubset vs = gvizVertexSubsetCreateEmpty(g);
+  gvizSubgraph sg = gvizSubgraphCreateVertexInduced(g, vs);
+  for (size_t i = 0; i < nvertices; i++)
+    gvizSubgraphShowVertex(&sg, i);
+
+  gvizEmbeddedGraph eg;
+  gvizEmbeddedGraphInit(&eg, sg, dim);
+  return eg;
+}
+
+/* A vertex added directly to the gvizGraph is invisible everywhere on the
+ * embedding -- membership, draw mask, position count, accessors -- until
+ * Sync commits it; the commit admits it with a zeroed position, preserves
+ * existing positions, and bumps the draw mask revision. */
+void test_sync_commitsNewVertex(void) {
   gvizGraph g;
-  gvizEmbeddedGraph eg = makeEmbedding(&g, 3, 2);
+  gvizEmbeddedGraph eg = makeInducedEmbedding(&g, 3, 2);
+  TEST_ASSERT_EQUAL_INT(1, gvizEmbeddedGraphSync(&eg)); // first commit
+  TEST_ASSERT_EQUAL_INT(0, gvizEmbeddedGraphSync(&eg)); // now a no-op
+
+  double preset[2] = {5.0, 6.0};
+  gvizEmbeddedGraphSetVPosition(&eg, 1, preset);
+
+  TEST_ASSERT_EQUAL_INT(0, gvizGraphAddVertex(&g, NULL, NULL, NULL));
 
   TEST_ASSERT_EQUAL_size_t(3, gvizEmbeddedGraphPositionCount(&eg));
-  TEST_ASSERT_TRUE(gvizSubgraphIsFull(gvizEmbeddedGraphStructure(&eg)));
+  TEST_ASSERT_FALSE(gvizSubgraphHasVertex(gvizEmbeddedGraphStructure(&eg), 3));
+  TEST_ASSERT_FALSE(gvizEmbeddedGraphIsVertexVisible(&eg, 3));
+  TEST_ASSERT_EQUAL_size_t(0, gvizEmbeddedGraphOutDegree(&eg, 3));
 
-  TEST_ASSERT_EQUAL_INT(0, gvizEmbeddedGraphAddVertex(&eg, NULL));
+  uint64_t rev = gvizEmbeddedGraphDrawMaskRevision(&eg);
+  TEST_ASSERT_EQUAL_INT(1, gvizEmbeddedGraphSync(&eg));
+  TEST_ASSERT_EQUAL_UINT64(rev + 1, gvizEmbeddedGraphDrawMaskRevision(&eg));
 
   TEST_ASSERT_EQUAL_size_t(4, gvizEmbeddedGraphPositionCount(&eg));
   TEST_ASSERT_TRUE(gvizSubgraphHasVertex(gvizEmbeddedGraphStructure(&eg), 3));
@@ -458,11 +493,6 @@ void test_addVertex_growsFullEmbedding(void) {
   double *p = gvizEmbeddedGraphGetVPosition(&eg, 3);
   TEST_ASSERT_EQUAL_DOUBLE(0.0, p[0]);
   TEST_ASSERT_EQUAL_DOUBLE(0.0, p[1]);
-
-  // Pre-existing vertex positions must survive the growth realloc.
-  double preset[2] = {5.0, 6.0};
-  gvizEmbeddedGraphSetVPosition(&eg, 1, preset);
-  TEST_ASSERT_EQUAL_INT(0, gvizEmbeddedGraphAddVertex(&eg, NULL));
   double *p1 = gvizEmbeddedGraphGetVPosition(&eg, 1);
   TEST_ASSERT_EQUAL_DOUBLE(5.0, p1[0]);
   TEST_ASSERT_EQUAL_DOUBLE(6.0, p1[1]);
@@ -471,49 +501,138 @@ void test_addVertex_growsFullEmbedding(void) {
   gvizGraphRelease(&g);
 }
 
-void test_addEdge_visibleOnFullEmbedding(void) {
+/* An edge added directly to the gvizGraph stays out of the synced adjacency
+ * accessors until Sync commits it, then shows up symmetrically from both
+ * endpoints on an undirected graph. */
+void test_sync_commitsNewEdge_accessorsSymmetric(void) {
   gvizGraph g;
-  gvizEmbeddedGraph eg = makeEmbedding(&g, 3, 2); // path 0-1-2, no edge 0-2
-  TEST_ASSERT_FALSE(gvizEmbeddedGraphIsEdgeVisible(&eg, 0, 2));
+  gvizEmbeddedGraph eg = makeInducedEmbedding(&g, 3, 2); // path 0-1-2
+  TEST_ASSERT_EQUAL_INT(1, gvizEmbeddedGraphSync(&eg));
 
-  TEST_ASSERT_EQUAL_INT(0, gvizEmbeddedGraphAddEdge(&eg, 0, 2, 1.0));
-  TEST_ASSERT_TRUE(gvizEmbeddedGraphIsEdgeVisible(&eg, 0, 2));
-  TEST_ASSERT_TRUE(gvizSubgraphHasEdge(gvizEmbeddedGraphStructure(&eg), 0, 2));
+  TEST_ASSERT_EQUAL_size_t(1, gvizEmbeddedGraphOutDegree(&eg, 0));
+  TEST_ASSERT_EQUAL_size_t(2, gvizEmbeddedGraphOutDegree(&eg, 1));
+  TEST_ASSERT_EQUAL_size_t(0, gvizEmbeddedGraphInDegree(&eg, 1)); // undirected
 
-  // Out-of-bounds endpoint fails, matching gvizGraphAddEdge.
-  TEST_ASSERT_EQUAL_INT(-1, gvizEmbeddedGraphAddEdge(&eg, 0, 99, 1.0));
+  TEST_ASSERT_EQUAL_INT(0, gvizGraphAddEdge(&g, 0, 2, 1.0));
+  TEST_ASSERT_EQUAL_size_t(1, gvizEmbeddedGraphOutDegree(&eg, 0)); // deferred
+
+  TEST_ASSERT_EQUAL_INT(1, gvizEmbeddedGraphSync(&eg));
+  TEST_ASSERT_EQUAL_size_t(2, gvizEmbeddedGraphOutDegree(&eg, 0));
+  TEST_ASSERT_EQUAL_size_t(2, gvizEmbeddedGraphOutDegree(&eg, 2));
+
+  size_t count;
+  const size_t *nbrs = gvizEmbeddedGraphOutNeighbors(&eg, 0, &count);
+  TEST_ASSERT_EQUAL_size_t(2, count);
+  TEST_ASSERT_TRUE(nbrs[0] == 2 || nbrs[1] == 2);
+  nbrs = gvizEmbeddedGraphOutNeighbors(&eg, 2, &count);
+  TEST_ASSERT_EQUAL_size_t(2, count);
+  TEST_ASSERT_TRUE(nbrs[0] == 0 || nbrs[1] == 0);
 
   gvizEmbeddedGraphRelease(&eg);
   gvizGraphRelease(&g);
 }
 
-void test_addVertexAndEdge_vertexInducedEmbeddingNeverBuildsLayout(void) {
+/* Directed snapshots expose out- and in-edges separately: the frontend can
+ * ask both "who does v point at" and "who points at v" for any synced
+ * vertex. */
+void test_sync_directedInOutAccessors(void) {
   gvizGraph g;
-  gvizGraphInitAtCapacity(&g, 0, 3);
+  gvizGraphInitAtCapacity(&g, 1, 3);
   for (int i = 0; i < 3; i++)
     gvizGraphAddVertex(&g, NULL, NULL, NULL);
   gvizGraphAddEdge(&g, 0, 1, 1.0);
+  gvizGraphAddEdge(&g, 2, 1, 1.0);
 
   gvizVertexSubset vs = gvizVertexSubsetCreateEmpty(&g);
-  gvizVertexSubsetShowVertex(vs, 0);
-  gvizVertexSubsetShowVertex(vs, 1);
-  gvizVertexSubsetShowVertex(vs, 2);
   gvizSubgraph sg = gvizSubgraphCreateVertexInduced(&g, vs);
-
+  for (size_t i = 0; i < 3; i++)
+    gvizSubgraphShowVertex(&sg, i);
   gvizEmbeddedGraph eg;
   gvizEmbeddedGraphInit(&eg, sg, 2);
+  TEST_ASSERT_EQUAL_INT(1, gvizEmbeddedGraphSync(&eg));
+
+  TEST_ASSERT_EQUAL_size_t(1, gvizEmbeddedGraphOutDegree(&eg, 0));
+  TEST_ASSERT_EQUAL_size_t(0, gvizEmbeddedGraphOutDegree(&eg, 1));
+  TEST_ASSERT_EQUAL_size_t(0, gvizEmbeddedGraphInDegree(&eg, 0));
+  TEST_ASSERT_EQUAL_size_t(2, gvizEmbeddedGraphInDegree(&eg, 1));
+
+  size_t count;
+  const size_t *in = gvizEmbeddedGraphInNeighbors(&eg, 1, &count);
+  TEST_ASSERT_EQUAL_size_t(2, count);
+  TEST_ASSERT_TRUE((in[0] == 0 && in[1] == 2) || (in[0] == 2 && in[1] == 0));
+
+  gvizEmbeddedGraphRelease(&eg);
+  gvizGraphRelease(&g);
+}
+
+/* Querying anything about a not-yet-committed vertex must be safe and empty
+ * -- no out-of-bounds reads (ASan builds verify), no phantom membership. */
+void test_sync_uncommittedVertexQueriesAreSafe(void) {
+  gvizGraph g;
+  gvizEmbeddedGraph eg = makeInducedEmbedding(&g, 2, 2);
+  TEST_ASSERT_EQUAL_INT(1, gvizEmbeddedGraphSync(&eg));
+
+  TEST_ASSERT_EQUAL_INT(0, gvizGraphAddVertex(&g, NULL, NULL, NULL));
+  TEST_ASSERT_EQUAL_INT(0, gvizGraphAddEdge(&g, 2, 0, 1.0));
+
+  size_t newId = 2;
+  TEST_ASSERT_FALSE(gvizSubgraphHasVertex(gvizEmbeddedGraphStructure(&eg), newId));
+  TEST_ASSERT_FALSE(gvizEmbeddedGraphIsVertexVisible(&eg, newId));
+  TEST_ASSERT_FALSE(gvizEmbeddedGraphIsEdgeVisible(&eg, newId, 0));
+  TEST_ASSERT_EQUAL_size_t(0,
+                           gvizSubgraphDegree(gvizEmbeddedGraphStructure(&eg), newId));
+  TEST_ASSERT_EQUAL_size_t(0, gvizEmbeddedGraphOutDegree(&eg, newId));
+  TEST_ASSERT_EQUAL_size_t(0, gvizEmbeddedGraphInDegree(&eg, newId));
+  size_t count = 99;
+  TEST_ASSERT_NULL(gvizEmbeddedGraphOutNeighbors(&eg, newId, &count));
+  TEST_ASSERT_EQUAL_size_t(0, count);
+
+  TEST_ASSERT_EQUAL_INT(1, gvizEmbeddedGraphSync(&eg));
+  TEST_ASSERT_EQUAL_size_t(1, gvizEmbeddedGraphOutDegree(&eg, newId));
+
+  gvizEmbeddedGraphRelease(&eg);
+  gvizGraphRelease(&g);
+}
+
+/* The whole grow-and-commit cycle on a vertex-induced embedding never
+ * touches the graph's shared edge layout. */
+void test_sync_vertexInducedEmbeddingNeverBuildsLayout(void) {
+  gvizGraph g;
+  gvizEmbeddedGraph eg = makeInducedEmbedding(&g, 3, 2);
   TEST_ASSERT_NULL(g.layout);
+  TEST_ASSERT_EQUAL_INT(1, gvizEmbeddedGraphSync(&eg));
+  TEST_ASSERT_NULL(g.layout);
+
+  TEST_ASSERT_EQUAL_INT(0, gvizGraphAddVertex(&g, NULL, NULL, NULL));
+  TEST_ASSERT_EQUAL_INT(0, gvizGraphAddEdge(&g, 3, 0, 1.0));
+  TEST_ASSERT_EQUAL_INT(1, gvizEmbeddedGraphSync(&eg));
+
+  TEST_ASSERT_EQUAL_size_t(4, gvizEmbeddedGraphPositionCount(&eg));
+  TEST_ASSERT_TRUE(gvizSubgraphHasEdge(gvizEmbeddedGraphStructure(&eg), 3, 0));
+  TEST_ASSERT_EQUAL_size_t(1, gvizEmbeddedGraphOutDegree(&eg, 3));
+  TEST_ASSERT_NULL(g.layout);
+
+  gvizEmbeddedGraphRelease(&eg);
+  gvizGraphRelease(&g);
+}
+
+/* Sync on a full-subgraph embedding still admits new vertices (static
+ * full-subgraph consumers keep working if their graph grows); new EDGES are
+ * not auto-shown in a full subgraph's explicitly-managed edge subset,
+ * which is why dynamic embeddings use the vertex-induced shape. */
+void test_sync_fullSubgraphAdmitsNewVertices(void) {
+  gvizGraph g;
+  gvizEmbeddedGraph eg = makeEmbedding(&g, 3, 2);
+  TEST_ASSERT_TRUE(gvizSubgraphIsFull(gvizEmbeddedGraphStructure(&eg)));
+  TEST_ASSERT_EQUAL_INT(1, gvizEmbeddedGraphSync(&eg));
+
+  TEST_ASSERT_EQUAL_INT(0, gvizGraphAddVertex(&g, NULL, NULL, NULL));
   TEST_ASSERT_EQUAL_size_t(3, gvizEmbeddedGraphPositionCount(&eg));
 
-  TEST_ASSERT_EQUAL_INT(0, gvizEmbeddedGraphAddVertex(&eg, NULL));
+  TEST_ASSERT_EQUAL_INT(1, gvizEmbeddedGraphSync(&eg));
   TEST_ASSERT_EQUAL_size_t(4, gvizEmbeddedGraphPositionCount(&eg));
   TEST_ASSERT_TRUE(gvizSubgraphHasVertex(gvizEmbeddedGraphStructure(&eg), 3));
   TEST_ASSERT_TRUE(gvizEmbeddedGraphIsVertexVisible(&eg, 3));
-  TEST_ASSERT_NULL(g.layout);
-
-  TEST_ASSERT_EQUAL_INT(0, gvizEmbeddedGraphAddEdge(&eg, 3, 0, 1.0));
-  TEST_ASSERT_TRUE(gvizSubgraphHasEdge(gvizEmbeddedGraphStructure(&eg), 3, 0));
-  TEST_ASSERT_NULL(g.layout);
 
   gvizEmbeddedGraphRelease(&eg);
   gvizGraphRelease(&g);
@@ -532,8 +651,11 @@ int main(void) {
   RUN_TEST(test_drawMask_defaultsShowAll);
   RUN_TEST(test_drawMask_vertexFilterAndNoEdges);
   RUN_TEST(test_drawMask_edgesIfBothVisible);
-  RUN_TEST(test_addVertex_growsFullEmbedding);
-  RUN_TEST(test_addEdge_visibleOnFullEmbedding);
-  RUN_TEST(test_addVertexAndEdge_vertexInducedEmbeddingNeverBuildsLayout);
+  RUN_TEST(test_sync_commitsNewVertex);
+  RUN_TEST(test_sync_commitsNewEdge_accessorsSymmetric);
+  RUN_TEST(test_sync_directedInOutAccessors);
+  RUN_TEST(test_sync_uncommittedVertexQueriesAreSafe);
+  RUN_TEST(test_sync_vertexInducedEmbeddingNeverBuildsLayout);
+  RUN_TEST(test_sync_fullSubgraphAdmitsNewVertices);
   return UNITY_END();
 }
