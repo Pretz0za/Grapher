@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.20)
-project(Grapher C)
+project(gviz CXX C)
 set(CMAKE_C_STANDARD 11)
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 option(ENABLE_ASAN "Enable AddressSanitizer" OFF)
@@ -12,6 +14,7 @@ if(ENABLE_ASAN)
     add_link_options(-fsanitize=address)
 endif()
 
+# Vendored Boyer-Myrvold planarity testing (stays C, linked into gviz).
 add_library(planar STATIC
     third-party/boyerMyrvold/graphEmbed.c
     third-party/boyerMyrvold/graphIO.c
@@ -24,216 +27,224 @@ add_library(planar STATIC
 )
 target_include_directories(planar PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/third-party/)
 
-add_library(graphvis STATIC
-    src/core/gvizThreadPool.c
+add_library(gviz STATIC
+    # core/
+    src/ThreadPool.cpp
 
-    src/ds/gvizGraph.c
-    src/ds/gvizTree.c
-    src/ds/gvizArray.c
-    src/ds/gvizDeque.c
-    src/ds/gvizBitArray.c
-    src/ds/gvizSubgraph.c
-    src/ds/gvizQuadtree.c
+    # ds/
+    src/Graph.cpp
+    src/Subgraph.cpp
+    src/QuadTree.cpp
 
-    src/algorithms/search/gvizBreadthFirst.c
-    src/algorithms/search/gvizDepthFirst.c
-    src/algorithms/search/gvizConnectedComponents.c
-    src/algorithms/search/gvizKNearest.c
+    # search/
+    src/BreadthFirst.cpp
+    src/DepthFirst.cpp
+    src/ConnectedComponents.cpp
+    src/Tree.cpp
+    src/KNearest.cpp
 
-    src/embedders/gvizEmbeddedGraph.c
-    src/embedders/gvizEmbeddedTree.c
-    src/embedders/gvizGRIPEmbedder.c
-    src/embedders/gvizForceDirected.c
-    src/embedders/gvizForceModel.c
-    src/embedders/gvizForceEmbedder.c
-    src/embedders/gvizPlanarEmbedder.c
-    src/embedders/gvizSchnyderWood.c
-    src/embedders/gvizTutteEmbedder.c
-    src/embedders/gvizSpringTutteEmbedder.c
+    # layout/
+    src/EmbeddedGraph.cpp
+    src/ForceAtlas.cpp
+    src/GRIP.cpp
+    src/ReingoldTilford.cpp
+    src/Planar.cpp
+    src/SchnyderWood.cpp
+    src/Tutte.cpp
+    src/SpringTutte.cpp
 
-    src/utils/graphs.c
-    src/utils/graphLoader.c
-    src/utils/serializers.c
+    # io/ + graphs/
+    src/GraphLoader.cpp
+    src/Graphs.cpp
 )
 
-target_include_directories(graphvis
+target_include_directories(gviz
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include/
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/third-party/
 )
 
-target_link_libraries(graphvis
+target_link_libraries(gviz
     PRIVATE
     planar
     m
     Threads::Threads
 )
 
-# Core tests
-add_executable(gvizThreadPoolTests third-party/unity/unity.c tests/core/gvizThreadPoolTests.c)
-add_executable(gvizVecTests third-party/unity/unity.c tests/core/gvizVecTests.c)
+# Smoke test: full gviz.hpp umbrella header compiles cleanly, exception
+# hierarchy behaves as documented.
+add_executable(gvizCxxSmokeTest third-party/unity/unity.c tests/gvizCxxSmokeTest.cpp)
+target_include_directories(gvizCxxSmokeTest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/third-party/unity)
 
-# DS tests
-add_executable(gvizArrayTests third-party/unity/unity.c tests/ds/gvizArrayTests.c)
-add_executable(gvizGraphTests third-party/unity/unity.c tests/ds/gvizGraphTests.c)
-add_executable(gvizBitArrayTests third-party/unity/unity.c tests/ds/gvizBitArrayTests.c)
-add_executable(gvizDequeTests third-party/unity/unity.c tests/ds/gvizDequeTests.c)
-add_executable(gvizSubgraphTests third-party/unity/unity.c tests/ds/gvizSubgraphTests.c)
-add_executable(gvizQuadtreeTests third-party/unity/unity.c tests/ds/gvizQuadtreeTests.c)
+# core/: ThreadPool, Vec helpers
+add_executable(ThreadPoolTests third-party/unity/unity.c tests/ThreadPoolTests.cpp)
+add_executable(VecTests third-party/unity/unity.c tests/VecTests.cpp)
 
-add_executable(gvizTreeTests third-party/unity/unity.c tests/ds/gvizTreeTests.c)
+# ds/: Graph, Subgraph, BitSet, QuadTree
+add_executable(BitSetTests third-party/unity/unity.c tests/BitSetTests.cpp)
+add_executable(GraphTests third-party/unity/unity.c tests/GraphTests.cpp)
+add_executable(SubgraphTests third-party/unity/unity.c tests/SubgraphTests.cpp)
+add_executable(QuadTreeTests third-party/unity/unity.c tests/QuadTreeTests.cpp)
 
-# Algorithm tests
-add_executable(gvizSearchTests third-party/unity/unity.c tests/algorithms/search/gvizSearchTests.c)
+# search/: BreadthFirst, DepthFirst, ConnectedComponents,
+# Tree (IsTree/IsLeaf/CountLeaves), KNearest
+add_executable(SearchTests third-party/unity/unity.c tests/SearchTests.cpp)
+add_executable(TreeTests third-party/unity/unity.c tests/TreeTests.cpp)
+add_executable(KNearestTests third-party/unity/unity.c tests/KNearestTests.cpp)
 
-# Utility tests
-add_executable(gvizGraphLoaderTests third-party/unity/unity.c tests/utils/gvizGraphLoaderTests.c)
-add_executable(gvizGraphsTests third-party/unity/unity.c tests/utils/gvizGraphsTests.c)
+# layout/: ForceModel, EmbeddedGraph, ForceAtlas, GRIP, ReingoldTilford,
+# Planar, SchnyderWood, Tutte, SpringTutte
+add_executable(ForceModelTests third-party/unity/unity.c tests/ForceModelTests.cpp)
+add_executable(EmbeddedGraphTests third-party/unity/unity.c tests/EmbeddedGraphTests.cpp)
+add_executable(ForceAtlasTests third-party/unity/unity.c tests/ForceAtlasTests.cpp)
+add_executable(GRIPTests third-party/unity/unity.c tests/GRIPTests.cpp)
+add_executable(ReingoldTilfordTests third-party/unity/unity.c tests/ReingoldTilfordTests.cpp)
+add_executable(PlanarTests third-party/unity/unity.c tests/PlanarTests.cpp)
+add_executable(SchnyderWoodTests third-party/unity/unity.c tests/SchnyderWoodTests.cpp)
+add_executable(TutteTests third-party/unity/unity.c tests/TutteTests.cpp)
+add_executable(SpringTutteTests third-party/unity/unity.c tests/SpringTutteTests.cpp)
 
-# Embedder tests
-add_executable(gvizEmbeddedGraphTests third-party/unity/unity.c tests/embedders/gvizEmbeddedGraphTests.c)
-add_executable(gvizEmbeddedTreeTests third-party/unity/unity.c tests/embedders/gvizEmbeddedTreeTests.c)
-add_executable(gvizGRIPTests third-party/unity/unity.c tests/embedders/gvizGRIPTests.c)
-add_executable(gvizGRIPKBench tests/embedders/gvizGRIPKBench.c)
-add_executable(gvizGRIPLayerProbe tests/embedders/gvizGRIPLayerProbe.c)
-add_executable(gvizGRIPMigrateBench tests/embedders/gvizGRIPMigrateBench.c)
-add_executable(gvizGRIPFiltrationDebug tests/embedders/gvizGRIPFiltrationDebug.c)
-add_executable(gvizGRIPPlaceBench tests/embedders/gvizGRIPPlaceBench.c)
-add_executable(gvizPlanarTests third-party/unity/unity.c tests/embedders/gvizPlanarTests.c)
-add_executable(gvizTutteTests third-party/unity/unity.c tests/embedders/gvizTutteTests.c)
-add_executable(gvizTuttePickTests tests/embedders/gvizTuttePickTests.c)
-add_executable(gvizSpringTutteTests third-party/unity/unity.c tests/embedders/gvizSpringTutteTests.c)
-add_executable(gvizForceEmbedderTests third-party/unity/unity.c tests/embedders/gvizForceEmbedderTests.c)
+# io/ + graphs/: GraphLoader, Graphs (synthetic generators)
+add_executable(GraphLoaderTests third-party/unity/unity.c tests/GraphLoaderTests.cpp)
+add_executable(GraphsTests third-party/unity/unity.c tests/GraphsTests.cpp)
 
-target_compile_definitions(gvizThreadPoolTests PRIVATE UNITY_INCLUDE_DOUBLE)
-target_compile_definitions(gvizVecTests PRIVATE UNITY_INCLUDE_DOUBLE)
-target_compile_definitions(gvizArrayTests PRIVATE UNITY_INCLUDE_DOUBLE)
-target_compile_definitions(gvizGraphTests PRIVATE UNITY_INCLUDE_DOUBLE
+# Benchmarks and debug tools (not registered with ctest, except TuttePick
+# which returns a real pass/fail exit code): standalone drivers exercising
+# internals via layout/'s narrow debug-introspection accessors
+# (GRIP::DebugXxx, GRIP::LayerBorder/FiltrationVertexAt/Displacement).
+add_executable(GRIPKBench tests/GRIPKBench.cpp)
+add_executable(GRIPLayerProbe tests/GRIPLayerProbe.cpp)
+add_executable(GRIPMigrateBench tests/GRIPMigrateBench.cpp)
+add_executable(GRIPFiltrationDebug tests/GRIPFiltrationDebug.cpp)
+add_executable(GRIPPlaceBench tests/GRIPPlaceBench.cpp)
+add_executable(TuttePick tests/TuttePick.cpp)
+
+target_compile_definitions(ThreadPoolTests PRIVATE UNITY_INCLUDE_DOUBLE)
+target_compile_definitions(VecTests PRIVATE UNITY_INCLUDE_DOUBLE)
+target_compile_definitions(BitSetTests PRIVATE UNITY_INCLUDE_DOUBLE)
+target_compile_definitions(GraphTests PRIVATE UNITY_INCLUDE_DOUBLE)
+target_compile_definitions(SubgraphTests PRIVATE UNITY_INCLUDE_DOUBLE)
+target_compile_definitions(QuadTreeTests PRIVATE UNITY_INCLUDE_DOUBLE)
+target_compile_definitions(SearchTests PRIVATE UNITY_INCLUDE_DOUBLE)
+target_compile_definitions(TreeTests PRIVATE UNITY_INCLUDE_DOUBLE)
+target_compile_definitions(KNearestTests PRIVATE UNITY_INCLUDE_DOUBLE)
+target_compile_definitions(ForceModelTests PRIVATE UNITY_INCLUDE_DOUBLE)
+target_compile_definitions(EmbeddedGraphTests PRIVATE UNITY_INCLUDE_DOUBLE)
+target_compile_definitions(ForceAtlasTests PRIVATE UNITY_INCLUDE_DOUBLE)
+target_compile_definitions(GRIPTests PRIVATE UNITY_INCLUDE_DOUBLE)
+target_compile_definitions(ReingoldTilfordTests PRIVATE UNITY_INCLUDE_DOUBLE)
+target_compile_definitions(PlanarTests PRIVATE UNITY_INCLUDE_DOUBLE)
+target_compile_definitions(SchnyderWoodTests PRIVATE UNITY_INCLUDE_DOUBLE)
+target_compile_definitions(TutteTests PRIVATE UNITY_INCLUDE_DOUBLE)
+target_compile_definitions(SpringTutteTests PRIVATE UNITY_INCLUDE_DOUBLE)
+target_compile_definitions(GraphLoaderTests PRIVATE UNITY_INCLUDE_DOUBLE
     GVIZ_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/data")
-target_compile_definitions(gvizBitArrayTests PRIVATE UNITY_INCLUDE_DOUBLE)
-target_compile_definitions(gvizDequeTests PRIVATE UNITY_INCLUDE_DOUBLE)
-target_compile_definitions(gvizSubgraphTests PRIVATE UNITY_INCLUDE_DOUBLE)
-target_compile_definitions(gvizQuadtreeTests PRIVATE UNITY_INCLUDE_DOUBLE)
-target_compile_definitions(gvizSearchTests PRIVATE UNITY_INCLUDE_DOUBLE)
-target_compile_definitions(gvizTreeTests PRIVATE UNITY_INCLUDE_DOUBLE)
-target_compile_definitions(gvizEmbeddedTreeTests PRIVATE UNITY_INCLUDE_DOUBLE)
-target_compile_definitions(gvizGraphLoaderTests PRIVATE UNITY_INCLUDE_DOUBLE
-    GVIZ_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/data")
-target_compile_definitions(gvizGraphsTests PRIVATE UNITY_INCLUDE_DOUBLE)
-target_compile_definitions(gvizEmbeddedGraphTests PRIVATE UNITY_INCLUDE_DOUBLE)
-target_compile_definitions(gvizGRIPTests PRIVATE UNITY_INCLUDE_DOUBLE)
-target_compile_definitions(gvizPlanarTests PRIVATE UNITY_INCLUDE_DOUBLE)
-target_compile_definitions(gvizTutteTests PRIVATE UNITY_INCLUDE_DOUBLE)
-target_compile_definitions(gvizSpringTutteTests PRIVATE UNITY_INCLUDE_DOUBLE)
-target_compile_definitions(gvizForceEmbedderTests PRIVATE UNITY_INCLUDE_DOUBLE)
+target_compile_definitions(GraphsTests PRIVATE UNITY_INCLUDE_DOUBLE)
 
-set_target_properties(gvizThreadPoolTests PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/core)
-set_target_properties(gvizVecTests PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/core)
-set_target_properties(gvizArrayTests PROPERTIES
+set_target_properties(gvizCxxSmokeTest PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests)
+set_target_properties(ThreadPoolTests PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests)
+set_target_properties(VecTests PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests)
+set_target_properties(BitSetTests PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/ds)
-set_target_properties(gvizGraphTests PROPERTIES
+set_target_properties(GraphTests PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/ds)
-set_target_properties(gvizBitArrayTests PROPERTIES
+set_target_properties(SubgraphTests PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/ds)
-set_target_properties(gvizDequeTests PROPERTIES
+set_target_properties(QuadTreeTests PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/ds)
-set_target_properties(gvizSubgraphTests PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/ds)
-set_target_properties(gvizQuadtreeTests PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/ds)
-
-set_target_properties(gvizTreeTests PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/ds)
-
-set_target_properties(gvizSearchTests PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/algorithms/search)
-
-set_target_properties(gvizGraphLoaderTests PROPERTIES
+set_target_properties(SearchTests PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/search)
+set_target_properties(TreeTests PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/search)
+set_target_properties(KNearestTests PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/search)
+set_target_properties(ForceModelTests PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/layout)
+set_target_properties(EmbeddedGraphTests PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/layout)
+set_target_properties(ForceAtlasTests PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/layout)
+set_target_properties(GRIPTests PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/layout)
+set_target_properties(ReingoldTilfordTests PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/layout)
+set_target_properties(PlanarTests PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/layout)
+set_target_properties(SchnyderWoodTests PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/layout)
+set_target_properties(TutteTests PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/layout)
+set_target_properties(SpringTutteTests PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/layout)
+set_target_properties(GraphLoaderTests PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/utils)
-set_target_properties(gvizGraphsTests PROPERTIES
+set_target_properties(GraphsTests PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/utils)
-set_target_properties(gvizEmbeddedTreeTests PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/embedders)
+set_target_properties(GRIPKBench PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/layout)
+set_target_properties(GRIPLayerProbe PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/layout)
+set_target_properties(GRIPMigrateBench PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/layout)
+set_target_properties(GRIPFiltrationDebug PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/layout)
+set_target_properties(GRIPPlaceBench PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/layout)
+set_target_properties(TuttePick PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/layout)
 
-set_target_properties(gvizEmbeddedGraphTests PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/embedders)
-set_target_properties(gvizGRIPKBench PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/embedders)
-set_target_properties(gvizGRIPLayerProbe PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/embedders)
-set_target_properties(gvizGRIPMigrateBench PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/embedders)
-set_target_properties(gvizGRIPFiltrationDebug PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/embedders)
-set_target_properties(gvizGRIPPlaceBench PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/embedders)
-set_target_properties(gvizGRIPTests PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/embedders)
-set_target_properties(gvizPlanarTests PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/embedders)
-set_target_properties(gvizTutteTests PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/embedders)
-set_target_properties(gvizTuttePickTests PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/embedders)
-set_target_properties(gvizSpringTutteTests PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/embedders)
-set_target_properties(gvizForceEmbedderTests PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/embedders)
-
-target_link_libraries(gvizThreadPoolTests PRIVATE graphvis)
-target_link_libraries(gvizVecTests PRIVATE graphvis)
-target_link_libraries(gvizArrayTests PRIVATE graphvis)
-target_link_libraries(gvizGraphTests PRIVATE graphvis)
-target_link_libraries(gvizBitArrayTests PRIVATE graphvis)
-target_link_libraries(gvizDequeTests PRIVATE graphvis)
-target_link_libraries(gvizSubgraphTests PRIVATE graphvis)
-target_link_libraries(gvizQuadtreeTests PRIVATE graphvis)
-target_link_libraries(gvizSearchTests PRIVATE graphvis)
-target_link_libraries(gvizTreeTests PRIVATE graphvis)
-target_link_libraries(gvizEmbeddedTreeTests PRIVATE graphvis)
-target_link_libraries(gvizGraphLoaderTests PRIVATE graphvis)
-target_link_libraries(gvizGraphsTests PRIVATE graphvis)
-
-target_link_libraries(gvizEmbeddedGraphTests PRIVATE graphvis)
-target_link_libraries(gvizGRIPKBench PRIVATE graphvis)
-target_link_libraries(gvizGRIPLayerProbe PRIVATE graphvis)
-target_link_libraries(gvizGRIPMigrateBench PRIVATE graphvis)
-target_include_directories(gvizGRIPMigrateBench PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/src)
-target_link_libraries(gvizGRIPFiltrationDebug PRIVATE graphvis)
-target_link_libraries(gvizGRIPPlaceBench PRIVATE graphvis)
-target_include_directories(gvizGRIPFiltrationDebug PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/src)
-target_link_libraries(gvizGRIPTests PRIVATE graphvis)
-target_include_directories(gvizGRIPTests PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/src)
-target_include_directories(gvizGRIPKBench PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/src)
-target_link_libraries(gvizPlanarTests PRIVATE graphvis)
-target_link_libraries(gvizTutteTests PRIVATE graphvis)
-target_link_libraries(gvizTuttePickTests PRIVATE graphvis)
-target_link_libraries(gvizSpringTutteTests PRIVATE graphvis)
-target_link_libraries(gvizForceEmbedderTests PRIVATE graphvis)
+target_link_libraries(gvizCxxSmokeTest PRIVATE gviz)
+target_link_libraries(ThreadPoolTests PRIVATE gviz)
+target_link_libraries(VecTests PRIVATE gviz)
+target_link_libraries(BitSetTests PRIVATE gviz)
+target_link_libraries(GraphTests PRIVATE gviz)
+target_link_libraries(SubgraphTests PRIVATE gviz)
+target_link_libraries(QuadTreeTests PRIVATE gviz)
+target_link_libraries(SearchTests PRIVATE gviz)
+target_link_libraries(TreeTests PRIVATE gviz)
+target_link_libraries(KNearestTests PRIVATE gviz)
+target_link_libraries(ForceModelTests PRIVATE gviz)
+target_link_libraries(EmbeddedGraphTests PRIVATE gviz)
+target_link_libraries(ForceAtlasTests PRIVATE gviz)
+target_link_libraries(GRIPTests PRIVATE gviz)
+target_link_libraries(ReingoldTilfordTests PRIVATE gviz)
+target_link_libraries(PlanarTests PRIVATE gviz)
+target_link_libraries(SchnyderWoodTests PRIVATE gviz)
+target_link_libraries(TutteTests PRIVATE gviz)
+target_link_libraries(SpringTutteTests PRIVATE gviz)
+target_link_libraries(GraphLoaderTests PRIVATE gviz)
+target_link_libraries(GraphsTests PRIVATE gviz)
+target_link_libraries(GRIPKBench PRIVATE gviz)
+target_link_libraries(GRIPLayerProbe PRIVATE gviz)
+target_link_libraries(GRIPMigrateBench PRIVATE gviz)
+target_link_libraries(GRIPFiltrationDebug PRIVATE gviz)
+target_link_libraries(GRIPPlaceBench PRIVATE gviz)
+target_link_libraries(TuttePick PRIVATE gviz)
 
 enable_testing()
-add_test(NAME gvizThreadPoolTests COMMAND gvizThreadPoolTests)
-add_test(NAME gvizVecTests COMMAND gvizVecTests)
-add_test(NAME gvizArrayTests COMMAND gvizArrayTests)
-add_test(NAME gvizGraphTests COMMAND gvizGraphTests)
-add_test(NAME gvizBitArrayTests COMMAND gvizBitArrayTests)
-add_test(NAME gvizDequeTests COMMAND gvizDequeTests)
-add_test(NAME gvizSubgraphTests COMMAND gvizSubgraphTests)
-add_test(NAME gvizQuadtreeTests COMMAND gvizQuadtreeTests)
-add_test(NAME gvizSearchTests COMMAND gvizSearchTests)
-add_test(NAME gvizTreeTests COMMAND gvizTreeTests)
-add_test(NAME gvizEmbeddedTreeTests COMMAND gvizEmbeddedTreeTests)
-add_test(NAME gvizGraphLoaderTests COMMAND gvizGraphLoaderTests)
-add_test(NAME gvizGraphsTests COMMAND gvizGraphsTests)
-add_test(NAME gvizEmbeddedGraphTests COMMAND gvizEmbeddedGraphTests)
-add_test(NAME gvizGRIPTests COMMAND gvizGRIPTests)
-add_test(NAME gvizPlanarTests COMMAND gvizPlanarTests)
-add_test(NAME gvizTutteTests COMMAND gvizTutteTests)
-add_test(NAME gvizTuttePickTests COMMAND gvizTuttePickTests)
-add_test(NAME gvizSpringTutteTests COMMAND gvizSpringTutteTests)
-add_test(NAME gvizForceEmbedderTests COMMAND gvizForceEmbedderTests)
+add_test(NAME gvizCxxSmokeTest COMMAND gvizCxxSmokeTest)
+add_test(NAME ThreadPoolTests COMMAND ThreadPoolTests)
+add_test(NAME VecTests COMMAND VecTests)
+add_test(NAME BitSetTests COMMAND BitSetTests)
+add_test(NAME GraphTests COMMAND GraphTests)
+add_test(NAME SubgraphTests COMMAND SubgraphTests)
+add_test(NAME QuadTreeTests COMMAND QuadTreeTests)
+add_test(NAME SearchTests COMMAND SearchTests)
+add_test(NAME TreeTests COMMAND TreeTests)
+add_test(NAME KNearestTests COMMAND KNearestTests)
+add_test(NAME ForceModelTests COMMAND ForceModelTests)
+add_test(NAME EmbeddedGraphTests COMMAND EmbeddedGraphTests)
+add_test(NAME ForceAtlasTests COMMAND ForceAtlasTests)
+add_test(NAME GRIPTests COMMAND GRIPTests)
+add_test(NAME ReingoldTilfordTests COMMAND ReingoldTilfordTests)
+add_test(NAME PlanarTests COMMAND PlanarTests)
+add_test(NAME SchnyderWoodTests COMMAND SchnyderWoodTests)
+add_test(NAME TutteTests COMMAND TutteTests)
+add_test(NAME SpringTutteTests COMMAND SpringTutteTests)
+add_test(NAME GraphLoaderTests COMMAND GraphLoaderTests)
+add_test(NAME GraphsTests COMMAND GraphsTests)
+add_test(NAME TuttePick COMMAND TuttePick)
