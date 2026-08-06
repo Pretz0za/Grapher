@@ -1,451 +1,451 @@
 [
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -arch arm64 -o CMakeFiles/planar.dir/third-party/boyerMyrvold/graphEmbed.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/boyerMyrvold/graphEmbed.c",
+  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -arch arm64 -fPIC -o CMakeFiles/planar.dir/third-party/boyerMyrvold/graphEmbed.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/boyerMyrvold/graphEmbed.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/third-party/boyerMyrvold/graphEmbed.c",
   "output": "CMakeFiles/planar.dir/third-party/boyerMyrvold/graphEmbed.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -arch arm64 -o CMakeFiles/planar.dir/third-party/boyerMyrvold/graphIO.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/boyerMyrvold/graphIO.c",
+  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -arch arm64 -fPIC -o CMakeFiles/planar.dir/third-party/boyerMyrvold/graphIO.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/boyerMyrvold/graphIO.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/third-party/boyerMyrvold/graphIO.c",
   "output": "CMakeFiles/planar.dir/third-party/boyerMyrvold/graphIO.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -arch arm64 -o CMakeFiles/planar.dir/third-party/boyerMyrvold/graphIsolator.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/boyerMyrvold/graphIsolator.c",
+  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -arch arm64 -fPIC -o CMakeFiles/planar.dir/third-party/boyerMyrvold/graphIsolator.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/boyerMyrvold/graphIsolator.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/third-party/boyerMyrvold/graphIsolator.c",
   "output": "CMakeFiles/planar.dir/third-party/boyerMyrvold/graphIsolator.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -arch arm64 -o CMakeFiles/planar.dir/third-party/boyerMyrvold/graphNonplanar.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/boyerMyrvold/graphNonplanar.c",
+  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -arch arm64 -fPIC -o CMakeFiles/planar.dir/third-party/boyerMyrvold/graphNonplanar.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/boyerMyrvold/graphNonplanar.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/third-party/boyerMyrvold/graphNonplanar.c",
   "output": "CMakeFiles/planar.dir/third-party/boyerMyrvold/graphNonplanar.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -arch arm64 -o CMakeFiles/planar.dir/third-party/boyerMyrvold/graphPreprocess.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/boyerMyrvold/graphPreprocess.c",
+  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -arch arm64 -fPIC -o CMakeFiles/planar.dir/third-party/boyerMyrvold/graphPreprocess.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/boyerMyrvold/graphPreprocess.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/third-party/boyerMyrvold/graphPreprocess.c",
   "output": "CMakeFiles/planar.dir/third-party/boyerMyrvold/graphPreprocess.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -arch arm64 -o CMakeFiles/planar.dir/third-party/boyerMyrvold/graphStructure.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/boyerMyrvold/graphStructure.c",
+  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -arch arm64 -fPIC -o CMakeFiles/planar.dir/third-party/boyerMyrvold/graphStructure.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/boyerMyrvold/graphStructure.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/third-party/boyerMyrvold/graphStructure.c",
   "output": "CMakeFiles/planar.dir/third-party/boyerMyrvold/graphStructure.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -arch arm64 -o CMakeFiles/planar.dir/third-party/boyerMyrvold/listcoll.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/boyerMyrvold/listcoll.c",
+  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -arch arm64 -fPIC -o CMakeFiles/planar.dir/third-party/boyerMyrvold/listcoll.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/boyerMyrvold/listcoll.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/third-party/boyerMyrvold/listcoll.c",
   "output": "CMakeFiles/planar.dir/third-party/boyerMyrvold/listcoll.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -arch arm64 -o CMakeFiles/planar.dir/third-party/boyerMyrvold/stack.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/boyerMyrvold/stack.c",
+  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -arch arm64 -fPIC -o CMakeFiles/planar.dir/third-party/boyerMyrvold/stack.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/boyerMyrvold/stack.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/third-party/boyerMyrvold/stack.c",
   "output": "CMakeFiles/planar.dir/third-party/boyerMyrvold/stack.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/c++  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -o CMakeFiles/gviz.dir/src/ThreadPool.cpp.o -c /Users/abdulaziz.alahmadi/gviz/src/ThreadPool.cpp",
+  "command": "/usr/bin/c++ -Dgviz_EXPORTS -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -fPIC -o CMakeFiles/gviz.dir/src/ThreadPool.cpp.o -c /Users/abdulaziz.alahmadi/gviz/src/ThreadPool.cpp",
   "file": "/Users/abdulaziz.alahmadi/gviz/src/ThreadPool.cpp",
   "output": "CMakeFiles/gviz.dir/src/ThreadPool.cpp.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/c++  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -o CMakeFiles/gviz.dir/src/Graph.cpp.o -c /Users/abdulaziz.alahmadi/gviz/src/Graph.cpp",
+  "command": "/usr/bin/c++ -Dgviz_EXPORTS -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -fPIC -o CMakeFiles/gviz.dir/src/Graph.cpp.o -c /Users/abdulaziz.alahmadi/gviz/src/Graph.cpp",
   "file": "/Users/abdulaziz.alahmadi/gviz/src/Graph.cpp",
   "output": "CMakeFiles/gviz.dir/src/Graph.cpp.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/c++  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -o CMakeFiles/gviz.dir/src/Subgraph.cpp.o -c /Users/abdulaziz.alahmadi/gviz/src/Subgraph.cpp",
+  "command": "/usr/bin/c++ -Dgviz_EXPORTS -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -fPIC -o CMakeFiles/gviz.dir/src/Subgraph.cpp.o -c /Users/abdulaziz.alahmadi/gviz/src/Subgraph.cpp",
   "file": "/Users/abdulaziz.alahmadi/gviz/src/Subgraph.cpp",
   "output": "CMakeFiles/gviz.dir/src/Subgraph.cpp.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/c++  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -o CMakeFiles/gviz.dir/src/QuadTree.cpp.o -c /Users/abdulaziz.alahmadi/gviz/src/QuadTree.cpp",
+  "command": "/usr/bin/c++ -Dgviz_EXPORTS -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -fPIC -o CMakeFiles/gviz.dir/src/QuadTree.cpp.o -c /Users/abdulaziz.alahmadi/gviz/src/QuadTree.cpp",
   "file": "/Users/abdulaziz.alahmadi/gviz/src/QuadTree.cpp",
   "output": "CMakeFiles/gviz.dir/src/QuadTree.cpp.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/c++  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -o CMakeFiles/gviz.dir/src/BreadthFirst.cpp.o -c /Users/abdulaziz.alahmadi/gviz/src/BreadthFirst.cpp",
+  "command": "/usr/bin/c++ -Dgviz_EXPORTS -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -fPIC -o CMakeFiles/gviz.dir/src/BreadthFirst.cpp.o -c /Users/abdulaziz.alahmadi/gviz/src/BreadthFirst.cpp",
   "file": "/Users/abdulaziz.alahmadi/gviz/src/BreadthFirst.cpp",
   "output": "CMakeFiles/gviz.dir/src/BreadthFirst.cpp.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/c++  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -o CMakeFiles/gviz.dir/src/DepthFirst.cpp.o -c /Users/abdulaziz.alahmadi/gviz/src/DepthFirst.cpp",
+  "command": "/usr/bin/c++ -Dgviz_EXPORTS -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -fPIC -o CMakeFiles/gviz.dir/src/DepthFirst.cpp.o -c /Users/abdulaziz.alahmadi/gviz/src/DepthFirst.cpp",
   "file": "/Users/abdulaziz.alahmadi/gviz/src/DepthFirst.cpp",
   "output": "CMakeFiles/gviz.dir/src/DepthFirst.cpp.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/c++  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -o CMakeFiles/gviz.dir/src/ConnectedComponents.cpp.o -c /Users/abdulaziz.alahmadi/gviz/src/ConnectedComponents.cpp",
+  "command": "/usr/bin/c++ -Dgviz_EXPORTS -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -fPIC -o CMakeFiles/gviz.dir/src/ConnectedComponents.cpp.o -c /Users/abdulaziz.alahmadi/gviz/src/ConnectedComponents.cpp",
   "file": "/Users/abdulaziz.alahmadi/gviz/src/ConnectedComponents.cpp",
   "output": "CMakeFiles/gviz.dir/src/ConnectedComponents.cpp.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/c++  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -o CMakeFiles/gviz.dir/src/Tree.cpp.o -c /Users/abdulaziz.alahmadi/gviz/src/Tree.cpp",
+  "command": "/usr/bin/c++ -Dgviz_EXPORTS -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -fPIC -o CMakeFiles/gviz.dir/src/Tree.cpp.o -c /Users/abdulaziz.alahmadi/gviz/src/Tree.cpp",
   "file": "/Users/abdulaziz.alahmadi/gviz/src/Tree.cpp",
   "output": "CMakeFiles/gviz.dir/src/Tree.cpp.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/c++  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -o CMakeFiles/gviz.dir/src/KNearest.cpp.o -c /Users/abdulaziz.alahmadi/gviz/src/KNearest.cpp",
+  "command": "/usr/bin/c++ -Dgviz_EXPORTS -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -fPIC -o CMakeFiles/gviz.dir/src/KNearest.cpp.o -c /Users/abdulaziz.alahmadi/gviz/src/KNearest.cpp",
   "file": "/Users/abdulaziz.alahmadi/gviz/src/KNearest.cpp",
   "output": "CMakeFiles/gviz.dir/src/KNearest.cpp.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/c++  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -o CMakeFiles/gviz.dir/src/EmbeddedGraph.cpp.o -c /Users/abdulaziz.alahmadi/gviz/src/EmbeddedGraph.cpp",
+  "command": "/usr/bin/c++ -Dgviz_EXPORTS -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -fPIC -o CMakeFiles/gviz.dir/src/EmbeddedGraph.cpp.o -c /Users/abdulaziz.alahmadi/gviz/src/EmbeddedGraph.cpp",
   "file": "/Users/abdulaziz.alahmadi/gviz/src/EmbeddedGraph.cpp",
   "output": "CMakeFiles/gviz.dir/src/EmbeddedGraph.cpp.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/c++  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -o CMakeFiles/gviz.dir/src/ForceAtlas.cpp.o -c /Users/abdulaziz.alahmadi/gviz/src/ForceAtlas.cpp",
+  "command": "/usr/bin/c++ -Dgviz_EXPORTS -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -fPIC -o CMakeFiles/gviz.dir/src/ForceAtlas.cpp.o -c /Users/abdulaziz.alahmadi/gviz/src/ForceAtlas.cpp",
   "file": "/Users/abdulaziz.alahmadi/gviz/src/ForceAtlas.cpp",
   "output": "CMakeFiles/gviz.dir/src/ForceAtlas.cpp.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/c++  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -o CMakeFiles/gviz.dir/src/GRIP.cpp.o -c /Users/abdulaziz.alahmadi/gviz/src/GRIP.cpp",
+  "command": "/usr/bin/c++ -Dgviz_EXPORTS -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -fPIC -o CMakeFiles/gviz.dir/src/GRIP.cpp.o -c /Users/abdulaziz.alahmadi/gviz/src/GRIP.cpp",
   "file": "/Users/abdulaziz.alahmadi/gviz/src/GRIP.cpp",
   "output": "CMakeFiles/gviz.dir/src/GRIP.cpp.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/c++  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -o CMakeFiles/gviz.dir/src/ReingoldTilford.cpp.o -c /Users/abdulaziz.alahmadi/gviz/src/ReingoldTilford.cpp",
+  "command": "/usr/bin/c++ -Dgviz_EXPORTS -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -fPIC -o CMakeFiles/gviz.dir/src/ReingoldTilford.cpp.o -c /Users/abdulaziz.alahmadi/gviz/src/ReingoldTilford.cpp",
   "file": "/Users/abdulaziz.alahmadi/gviz/src/ReingoldTilford.cpp",
   "output": "CMakeFiles/gviz.dir/src/ReingoldTilford.cpp.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/c++  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -o CMakeFiles/gviz.dir/src/Planar.cpp.o -c /Users/abdulaziz.alahmadi/gviz/src/Planar.cpp",
+  "command": "/usr/bin/c++ -Dgviz_EXPORTS -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -fPIC -o CMakeFiles/gviz.dir/src/Planar.cpp.o -c /Users/abdulaziz.alahmadi/gviz/src/Planar.cpp",
   "file": "/Users/abdulaziz.alahmadi/gviz/src/Planar.cpp",
   "output": "CMakeFiles/gviz.dir/src/Planar.cpp.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/c++  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -o CMakeFiles/gviz.dir/src/SchnyderWood.cpp.o -c /Users/abdulaziz.alahmadi/gviz/src/SchnyderWood.cpp",
+  "command": "/usr/bin/c++ -Dgviz_EXPORTS -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -fPIC -o CMakeFiles/gviz.dir/src/SchnyderWood.cpp.o -c /Users/abdulaziz.alahmadi/gviz/src/SchnyderWood.cpp",
   "file": "/Users/abdulaziz.alahmadi/gviz/src/SchnyderWood.cpp",
   "output": "CMakeFiles/gviz.dir/src/SchnyderWood.cpp.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/c++  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -o CMakeFiles/gviz.dir/src/Tutte.cpp.o -c /Users/abdulaziz.alahmadi/gviz/src/Tutte.cpp",
+  "command": "/usr/bin/c++ -Dgviz_EXPORTS -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -fPIC -o CMakeFiles/gviz.dir/src/Tutte.cpp.o -c /Users/abdulaziz.alahmadi/gviz/src/Tutte.cpp",
   "file": "/Users/abdulaziz.alahmadi/gviz/src/Tutte.cpp",
   "output": "CMakeFiles/gviz.dir/src/Tutte.cpp.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/c++  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -o CMakeFiles/gviz.dir/src/SpringTutte.cpp.o -c /Users/abdulaziz.alahmadi/gviz/src/SpringTutte.cpp",
+  "command": "/usr/bin/c++ -Dgviz_EXPORTS -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -fPIC -o CMakeFiles/gviz.dir/src/SpringTutte.cpp.o -c /Users/abdulaziz.alahmadi/gviz/src/SpringTutte.cpp",
   "file": "/Users/abdulaziz.alahmadi/gviz/src/SpringTutte.cpp",
   "output": "CMakeFiles/gviz.dir/src/SpringTutte.cpp.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/c++  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -o CMakeFiles/gviz.dir/src/GraphLoader.cpp.o -c /Users/abdulaziz.alahmadi/gviz/src/GraphLoader.cpp",
+  "command": "/usr/bin/c++ -Dgviz_EXPORTS -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -fPIC -o CMakeFiles/gviz.dir/src/GraphLoader.cpp.o -c /Users/abdulaziz.alahmadi/gviz/src/GraphLoader.cpp",
   "file": "/Users/abdulaziz.alahmadi/gviz/src/GraphLoader.cpp",
   "output": "CMakeFiles/gviz.dir/src/GraphLoader.cpp.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/c++  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -o CMakeFiles/gviz.dir/src/Graphs.cpp.o -c /Users/abdulaziz.alahmadi/gviz/src/Graphs.cpp",
+  "command": "/usr/bin/c++ -Dgviz_EXPORTS -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -fPIC -o CMakeFiles/gviz.dir/src/Graphs.cpp.o -c /Users/abdulaziz.alahmadi/gviz/src/Graphs.cpp",
   "file": "/Users/abdulaziz.alahmadi/gviz/src/Graphs.cpp",
   "output": "CMakeFiles/gviz.dir/src/Graphs.cpp.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party/unity -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -arch arm64 -o CMakeFiles/gvizCxxSmokeTest.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
+  "command": "/usr/bin/cc  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party/unity -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -arch arm64 -fPIE -o CMakeFiles/gvizCxxSmokeTest.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "output": "CMakeFiles/gvizCxxSmokeTest.dir/third-party/unity/unity.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/c++  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party/unity -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -o CMakeFiles/gvizCxxSmokeTest.dir/tests/gvizCxxSmokeTest.cpp.o -c /Users/abdulaziz.alahmadi/gviz/tests/gvizCxxSmokeTest.cpp",
+  "command": "/usr/bin/c++  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party/unity -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -fPIE -o CMakeFiles/gvizCxxSmokeTest.dir/tests/gvizCxxSmokeTest.cpp.o -c /Users/abdulaziz.alahmadi/gviz/tests/gvizCxxSmokeTest.cpp",
   "file": "/Users/abdulaziz.alahmadi/gviz/tests/gvizCxxSmokeTest.cpp",
   "output": "CMakeFiles/gvizCxxSmokeTest.dir/tests/gvizCxxSmokeTest.cpp.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -arch arm64 -o CMakeFiles/ThreadPoolTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -arch arm64 -fPIE -o CMakeFiles/ThreadPoolTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "output": "CMakeFiles/ThreadPoolTests.dir/third-party/unity/unity.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/c++ -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -o CMakeFiles/ThreadPoolTests.dir/tests/ThreadPoolTests.cpp.o -c /Users/abdulaziz.alahmadi/gviz/tests/ThreadPoolTests.cpp",
+  "command": "/usr/bin/c++ -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -fPIE -o CMakeFiles/ThreadPoolTests.dir/tests/ThreadPoolTests.cpp.o -c /Users/abdulaziz.alahmadi/gviz/tests/ThreadPoolTests.cpp",
   "file": "/Users/abdulaziz.alahmadi/gviz/tests/ThreadPoolTests.cpp",
   "output": "CMakeFiles/ThreadPoolTests.dir/tests/ThreadPoolTests.cpp.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -arch arm64 -o CMakeFiles/VecTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -arch arm64 -fPIE -o CMakeFiles/VecTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "output": "CMakeFiles/VecTests.dir/third-party/unity/unity.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/c++ -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -o CMakeFiles/VecTests.dir/tests/VecTests.cpp.o -c /Users/abdulaziz.alahmadi/gviz/tests/VecTests.cpp",
+  "command": "/usr/bin/c++ -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -fPIE -o CMakeFiles/VecTests.dir/tests/VecTests.cpp.o -c /Users/abdulaziz.alahmadi/gviz/tests/VecTests.cpp",
   "file": "/Users/abdulaziz.alahmadi/gviz/tests/VecTests.cpp",
   "output": "CMakeFiles/VecTests.dir/tests/VecTests.cpp.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -arch arm64 -o CMakeFiles/BitSetTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -arch arm64 -fPIE -o CMakeFiles/BitSetTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "output": "CMakeFiles/BitSetTests.dir/third-party/unity/unity.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/c++ -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -o CMakeFiles/BitSetTests.dir/tests/BitSetTests.cpp.o -c /Users/abdulaziz.alahmadi/gviz/tests/BitSetTests.cpp",
+  "command": "/usr/bin/c++ -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -fPIE -o CMakeFiles/BitSetTests.dir/tests/BitSetTests.cpp.o -c /Users/abdulaziz.alahmadi/gviz/tests/BitSetTests.cpp",
   "file": "/Users/abdulaziz.alahmadi/gviz/tests/BitSetTests.cpp",
   "output": "CMakeFiles/BitSetTests.dir/tests/BitSetTests.cpp.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -arch arm64 -o CMakeFiles/GraphTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -arch arm64 -fPIE -o CMakeFiles/GraphTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "output": "CMakeFiles/GraphTests.dir/third-party/unity/unity.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/c++ -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -o CMakeFiles/GraphTests.dir/tests/GraphTests.cpp.o -c /Users/abdulaziz.alahmadi/gviz/tests/GraphTests.cpp",
+  "command": "/usr/bin/c++ -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -fPIE -o CMakeFiles/GraphTests.dir/tests/GraphTests.cpp.o -c /Users/abdulaziz.alahmadi/gviz/tests/GraphTests.cpp",
   "file": "/Users/abdulaziz.alahmadi/gviz/tests/GraphTests.cpp",
   "output": "CMakeFiles/GraphTests.dir/tests/GraphTests.cpp.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -arch arm64 -o CMakeFiles/SubgraphTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -arch arm64 -fPIE -o CMakeFiles/SubgraphTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "output": "CMakeFiles/SubgraphTests.dir/third-party/unity/unity.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/c++ -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -o CMakeFiles/SubgraphTests.dir/tests/SubgraphTests.cpp.o -c /Users/abdulaziz.alahmadi/gviz/tests/SubgraphTests.cpp",
+  "command": "/usr/bin/c++ -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -fPIE -o CMakeFiles/SubgraphTests.dir/tests/SubgraphTests.cpp.o -c /Users/abdulaziz.alahmadi/gviz/tests/SubgraphTests.cpp",
   "file": "/Users/abdulaziz.alahmadi/gviz/tests/SubgraphTests.cpp",
   "output": "CMakeFiles/SubgraphTests.dir/tests/SubgraphTests.cpp.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -arch arm64 -o CMakeFiles/QuadTreeTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -arch arm64 -fPIE -o CMakeFiles/QuadTreeTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "output": "CMakeFiles/QuadTreeTests.dir/third-party/unity/unity.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/c++ -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -o CMakeFiles/QuadTreeTests.dir/tests/QuadTreeTests.cpp.o -c /Users/abdulaziz.alahmadi/gviz/tests/QuadTreeTests.cpp",
+  "command": "/usr/bin/c++ -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -fPIE -o CMakeFiles/QuadTreeTests.dir/tests/QuadTreeTests.cpp.o -c /Users/abdulaziz.alahmadi/gviz/tests/QuadTreeTests.cpp",
   "file": "/Users/abdulaziz.alahmadi/gviz/tests/QuadTreeTests.cpp",
   "output": "CMakeFiles/QuadTreeTests.dir/tests/QuadTreeTests.cpp.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -arch arm64 -o CMakeFiles/SearchTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -arch arm64 -fPIE -o CMakeFiles/SearchTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "output": "CMakeFiles/SearchTests.dir/third-party/unity/unity.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/c++ -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -o CMakeFiles/SearchTests.dir/tests/SearchTests.cpp.o -c /Users/abdulaziz.alahmadi/gviz/tests/SearchTests.cpp",
+  "command": "/usr/bin/c++ -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -fPIE -o CMakeFiles/SearchTests.dir/tests/SearchTests.cpp.o -c /Users/abdulaziz.alahmadi/gviz/tests/SearchTests.cpp",
   "file": "/Users/abdulaziz.alahmadi/gviz/tests/SearchTests.cpp",
   "output": "CMakeFiles/SearchTests.dir/tests/SearchTests.cpp.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -arch arm64 -o CMakeFiles/TreeTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -arch arm64 -fPIE -o CMakeFiles/TreeTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "output": "CMakeFiles/TreeTests.dir/third-party/unity/unity.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/c++ -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -o CMakeFiles/TreeTests.dir/tests/TreeTests.cpp.o -c /Users/abdulaziz.alahmadi/gviz/tests/TreeTests.cpp",
+  "command": "/usr/bin/c++ -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -fPIE -o CMakeFiles/TreeTests.dir/tests/TreeTests.cpp.o -c /Users/abdulaziz.alahmadi/gviz/tests/TreeTests.cpp",
   "file": "/Users/abdulaziz.alahmadi/gviz/tests/TreeTests.cpp",
   "output": "CMakeFiles/TreeTests.dir/tests/TreeTests.cpp.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -arch arm64 -o CMakeFiles/KNearestTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -arch arm64 -fPIE -o CMakeFiles/KNearestTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "output": "CMakeFiles/KNearestTests.dir/third-party/unity/unity.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/c++ -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -o CMakeFiles/KNearestTests.dir/tests/KNearestTests.cpp.o -c /Users/abdulaziz.alahmadi/gviz/tests/KNearestTests.cpp",
+  "command": "/usr/bin/c++ -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -fPIE -o CMakeFiles/KNearestTests.dir/tests/KNearestTests.cpp.o -c /Users/abdulaziz.alahmadi/gviz/tests/KNearestTests.cpp",
   "file": "/Users/abdulaziz.alahmadi/gviz/tests/KNearestTests.cpp",
   "output": "CMakeFiles/KNearestTests.dir/tests/KNearestTests.cpp.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -arch arm64 -o CMakeFiles/ForceModelTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -arch arm64 -fPIE -o CMakeFiles/ForceModelTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "output": "CMakeFiles/ForceModelTests.dir/third-party/unity/unity.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/c++ -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -o CMakeFiles/ForceModelTests.dir/tests/ForceModelTests.cpp.o -c /Users/abdulaziz.alahmadi/gviz/tests/ForceModelTests.cpp",
+  "command": "/usr/bin/c++ -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -fPIE -o CMakeFiles/ForceModelTests.dir/tests/ForceModelTests.cpp.o -c /Users/abdulaziz.alahmadi/gviz/tests/ForceModelTests.cpp",
   "file": "/Users/abdulaziz.alahmadi/gviz/tests/ForceModelTests.cpp",
   "output": "CMakeFiles/ForceModelTests.dir/tests/ForceModelTests.cpp.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -arch arm64 -o CMakeFiles/EmbeddedGraphTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -arch arm64 -fPIE -o CMakeFiles/EmbeddedGraphTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "output": "CMakeFiles/EmbeddedGraphTests.dir/third-party/unity/unity.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/c++ -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -o CMakeFiles/EmbeddedGraphTests.dir/tests/EmbeddedGraphTests.cpp.o -c /Users/abdulaziz.alahmadi/gviz/tests/EmbeddedGraphTests.cpp",
+  "command": "/usr/bin/c++ -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -fPIE -o CMakeFiles/EmbeddedGraphTests.dir/tests/EmbeddedGraphTests.cpp.o -c /Users/abdulaziz.alahmadi/gviz/tests/EmbeddedGraphTests.cpp",
   "file": "/Users/abdulaziz.alahmadi/gviz/tests/EmbeddedGraphTests.cpp",
   "output": "CMakeFiles/EmbeddedGraphTests.dir/tests/EmbeddedGraphTests.cpp.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -arch arm64 -o CMakeFiles/ForceAtlasTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -arch arm64 -fPIE -o CMakeFiles/ForceAtlasTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "output": "CMakeFiles/ForceAtlasTests.dir/third-party/unity/unity.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/c++ -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -o CMakeFiles/ForceAtlasTests.dir/tests/ForceAtlasTests.cpp.o -c /Users/abdulaziz.alahmadi/gviz/tests/ForceAtlasTests.cpp",
+  "command": "/usr/bin/c++ -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -fPIE -o CMakeFiles/ForceAtlasTests.dir/tests/ForceAtlasTests.cpp.o -c /Users/abdulaziz.alahmadi/gviz/tests/ForceAtlasTests.cpp",
   "file": "/Users/abdulaziz.alahmadi/gviz/tests/ForceAtlasTests.cpp",
   "output": "CMakeFiles/ForceAtlasTests.dir/tests/ForceAtlasTests.cpp.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -arch arm64 -o CMakeFiles/GRIPTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -arch arm64 -fPIE -o CMakeFiles/GRIPTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "output": "CMakeFiles/GRIPTests.dir/third-party/unity/unity.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/c++ -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -o CMakeFiles/GRIPTests.dir/tests/GRIPTests.cpp.o -c /Users/abdulaziz.alahmadi/gviz/tests/GRIPTests.cpp",
+  "command": "/usr/bin/c++ -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -fPIE -o CMakeFiles/GRIPTests.dir/tests/GRIPTests.cpp.o -c /Users/abdulaziz.alahmadi/gviz/tests/GRIPTests.cpp",
   "file": "/Users/abdulaziz.alahmadi/gviz/tests/GRIPTests.cpp",
   "output": "CMakeFiles/GRIPTests.dir/tests/GRIPTests.cpp.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -arch arm64 -o CMakeFiles/ReingoldTilfordTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -arch arm64 -fPIE -o CMakeFiles/ReingoldTilfordTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "output": "CMakeFiles/ReingoldTilfordTests.dir/third-party/unity/unity.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/c++ -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -o CMakeFiles/ReingoldTilfordTests.dir/tests/ReingoldTilfordTests.cpp.o -c /Users/abdulaziz.alahmadi/gviz/tests/ReingoldTilfordTests.cpp",
+  "command": "/usr/bin/c++ -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -fPIE -o CMakeFiles/ReingoldTilfordTests.dir/tests/ReingoldTilfordTests.cpp.o -c /Users/abdulaziz.alahmadi/gviz/tests/ReingoldTilfordTests.cpp",
   "file": "/Users/abdulaziz.alahmadi/gviz/tests/ReingoldTilfordTests.cpp",
   "output": "CMakeFiles/ReingoldTilfordTests.dir/tests/ReingoldTilfordTests.cpp.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -arch arm64 -o CMakeFiles/PlanarTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -arch arm64 -fPIE -o CMakeFiles/PlanarTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "output": "CMakeFiles/PlanarTests.dir/third-party/unity/unity.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/c++ -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -o CMakeFiles/PlanarTests.dir/tests/PlanarTests.cpp.o -c /Users/abdulaziz.alahmadi/gviz/tests/PlanarTests.cpp",
+  "command": "/usr/bin/c++ -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -fPIE -o CMakeFiles/PlanarTests.dir/tests/PlanarTests.cpp.o -c /Users/abdulaziz.alahmadi/gviz/tests/PlanarTests.cpp",
   "file": "/Users/abdulaziz.alahmadi/gviz/tests/PlanarTests.cpp",
   "output": "CMakeFiles/PlanarTests.dir/tests/PlanarTests.cpp.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -arch arm64 -o CMakeFiles/SchnyderWoodTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -arch arm64 -fPIE -o CMakeFiles/SchnyderWoodTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "output": "CMakeFiles/SchnyderWoodTests.dir/third-party/unity/unity.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/c++ -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -o CMakeFiles/SchnyderWoodTests.dir/tests/SchnyderWoodTests.cpp.o -c /Users/abdulaziz.alahmadi/gviz/tests/SchnyderWoodTests.cpp",
+  "command": "/usr/bin/c++ -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -fPIE -o CMakeFiles/SchnyderWoodTests.dir/tests/SchnyderWoodTests.cpp.o -c /Users/abdulaziz.alahmadi/gviz/tests/SchnyderWoodTests.cpp",
   "file": "/Users/abdulaziz.alahmadi/gviz/tests/SchnyderWoodTests.cpp",
   "output": "CMakeFiles/SchnyderWoodTests.dir/tests/SchnyderWoodTests.cpp.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -arch arm64 -o CMakeFiles/TutteTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -arch arm64 -fPIE -o CMakeFiles/TutteTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "output": "CMakeFiles/TutteTests.dir/third-party/unity/unity.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/c++ -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -o CMakeFiles/TutteTests.dir/tests/TutteTests.cpp.o -c /Users/abdulaziz.alahmadi/gviz/tests/TutteTests.cpp",
+  "command": "/usr/bin/c++ -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -fPIE -o CMakeFiles/TutteTests.dir/tests/TutteTests.cpp.o -c /Users/abdulaziz.alahmadi/gviz/tests/TutteTests.cpp",
   "file": "/Users/abdulaziz.alahmadi/gviz/tests/TutteTests.cpp",
   "output": "CMakeFiles/TutteTests.dir/tests/TutteTests.cpp.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -arch arm64 -o CMakeFiles/SpringTutteTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -arch arm64 -fPIE -o CMakeFiles/SpringTutteTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "output": "CMakeFiles/SpringTutteTests.dir/third-party/unity/unity.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/c++ -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -o CMakeFiles/SpringTutteTests.dir/tests/SpringTutteTests.cpp.o -c /Users/abdulaziz.alahmadi/gviz/tests/SpringTutteTests.cpp",
+  "command": "/usr/bin/c++ -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -fPIE -o CMakeFiles/SpringTutteTests.dir/tests/SpringTutteTests.cpp.o -c /Users/abdulaziz.alahmadi/gviz/tests/SpringTutteTests.cpp",
   "file": "/Users/abdulaziz.alahmadi/gviz/tests/SpringTutteTests.cpp",
   "output": "CMakeFiles/SpringTutteTests.dir/tests/SpringTutteTests.cpp.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc -DGVIZ_TEST_DATA_DIR=\\\"/Users/abdulaziz.alahmadi/gviz/tests/data\\\" -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -arch arm64 -o CMakeFiles/GraphLoaderTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
+  "command": "/usr/bin/cc -DGVIZ_TEST_DATA_DIR=\\\"/Users/abdulaziz.alahmadi/gviz/tests/data\\\" -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -arch arm64 -fPIE -o CMakeFiles/GraphLoaderTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "output": "CMakeFiles/GraphLoaderTests.dir/third-party/unity/unity.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/c++ -DGVIZ_TEST_DATA_DIR=\\\"/Users/abdulaziz.alahmadi/gviz/tests/data\\\" -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -o CMakeFiles/GraphLoaderTests.dir/tests/GraphLoaderTests.cpp.o -c /Users/abdulaziz.alahmadi/gviz/tests/GraphLoaderTests.cpp",
+  "command": "/usr/bin/c++ -DGVIZ_TEST_DATA_DIR=\\\"/Users/abdulaziz.alahmadi/gviz/tests/data\\\" -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -fPIE -o CMakeFiles/GraphLoaderTests.dir/tests/GraphLoaderTests.cpp.o -c /Users/abdulaziz.alahmadi/gviz/tests/GraphLoaderTests.cpp",
   "file": "/Users/abdulaziz.alahmadi/gviz/tests/GraphLoaderTests.cpp",
   "output": "CMakeFiles/GraphLoaderTests.dir/tests/GraphLoaderTests.cpp.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -arch arm64 -o CMakeFiles/GraphsTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -arch arm64 -fPIE -o CMakeFiles/GraphsTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "output": "CMakeFiles/GraphsTests.dir/third-party/unity/unity.c.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/c++ -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -o CMakeFiles/GraphsTests.dir/tests/GraphsTests.cpp.o -c /Users/abdulaziz.alahmadi/gviz/tests/GraphsTests.cpp",
+  "command": "/usr/bin/c++ -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -fPIE -o CMakeFiles/GraphsTests.dir/tests/GraphsTests.cpp.o -c /Users/abdulaziz.alahmadi/gviz/tests/GraphsTests.cpp",
   "file": "/Users/abdulaziz.alahmadi/gviz/tests/GraphsTests.cpp",
   "output": "CMakeFiles/GraphsTests.dir/tests/GraphsTests.cpp.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/c++  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -o CMakeFiles/GRIPKBench.dir/tests/GRIPKBench.cpp.o -c /Users/abdulaziz.alahmadi/gviz/tests/GRIPKBench.cpp",
+  "command": "/usr/bin/c++  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -fPIE -o CMakeFiles/GRIPKBench.dir/tests/GRIPKBench.cpp.o -c /Users/abdulaziz.alahmadi/gviz/tests/GRIPKBench.cpp",
   "file": "/Users/abdulaziz.alahmadi/gviz/tests/GRIPKBench.cpp",
   "output": "CMakeFiles/GRIPKBench.dir/tests/GRIPKBench.cpp.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/c++  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -o CMakeFiles/GRIPLayerProbe.dir/tests/GRIPLayerProbe.cpp.o -c /Users/abdulaziz.alahmadi/gviz/tests/GRIPLayerProbe.cpp",
+  "command": "/usr/bin/c++  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -fPIE -o CMakeFiles/GRIPLayerProbe.dir/tests/GRIPLayerProbe.cpp.o -c /Users/abdulaziz.alahmadi/gviz/tests/GRIPLayerProbe.cpp",
   "file": "/Users/abdulaziz.alahmadi/gviz/tests/GRIPLayerProbe.cpp",
   "output": "CMakeFiles/GRIPLayerProbe.dir/tests/GRIPLayerProbe.cpp.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/c++  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -o CMakeFiles/GRIPMigrateBench.dir/tests/GRIPMigrateBench.cpp.o -c /Users/abdulaziz.alahmadi/gviz/tests/GRIPMigrateBench.cpp",
+  "command": "/usr/bin/c++  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -fPIE -o CMakeFiles/GRIPMigrateBench.dir/tests/GRIPMigrateBench.cpp.o -c /Users/abdulaziz.alahmadi/gviz/tests/GRIPMigrateBench.cpp",
   "file": "/Users/abdulaziz.alahmadi/gviz/tests/GRIPMigrateBench.cpp",
   "output": "CMakeFiles/GRIPMigrateBench.dir/tests/GRIPMigrateBench.cpp.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/c++  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -o CMakeFiles/GRIPFiltrationDebug.dir/tests/GRIPFiltrationDebug.cpp.o -c /Users/abdulaziz.alahmadi/gviz/tests/GRIPFiltrationDebug.cpp",
+  "command": "/usr/bin/c++  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -fPIE -o CMakeFiles/GRIPFiltrationDebug.dir/tests/GRIPFiltrationDebug.cpp.o -c /Users/abdulaziz.alahmadi/gviz/tests/GRIPFiltrationDebug.cpp",
   "file": "/Users/abdulaziz.alahmadi/gviz/tests/GRIPFiltrationDebug.cpp",
   "output": "CMakeFiles/GRIPFiltrationDebug.dir/tests/GRIPFiltrationDebug.cpp.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/c++  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -o CMakeFiles/GRIPPlaceBench.dir/tests/GRIPPlaceBench.cpp.o -c /Users/abdulaziz.alahmadi/gviz/tests/GRIPPlaceBench.cpp",
+  "command": "/usr/bin/c++  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -fPIE -o CMakeFiles/GRIPPlaceBench.dir/tests/GRIPPlaceBench.cpp.o -c /Users/abdulaziz.alahmadi/gviz/tests/GRIPPlaceBench.cpp",
   "file": "/Users/abdulaziz.alahmadi/gviz/tests/GRIPPlaceBench.cpp",
   "output": "CMakeFiles/GRIPPlaceBench.dir/tests/GRIPPlaceBench.cpp.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/c++  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -o CMakeFiles/TuttePick.dir/tests/TuttePick.cpp.o -c /Users/abdulaziz.alahmadi/gviz/tests/TuttePick.cpp",
+  "command": "/usr/bin/c++  -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -fPIE -o CMakeFiles/TuttePick.dir/tests/TuttePick.cpp.o -c /Users/abdulaziz.alahmadi/gviz/tests/TuttePick.cpp",
   "file": "/Users/abdulaziz.alahmadi/gviz/tests/TuttePick.cpp",
   "output": "CMakeFiles/TuttePick.dir/tests/TuttePick.cpp.o"
 }

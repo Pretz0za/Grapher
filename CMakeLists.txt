@@ -14,6 +14,11 @@ if(ENABLE_ASAN)
     add_link_options(-fsanitize=address)
 endif()
 
+# gviz (and everything it statically links, e.g. `planar` below) builds as a
+# shared library, so every object file needs position-independent code even
+# on platforms where that isn't the default for static archives.
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
 # Vendored Boyer-Myrvold planarity testing (stays C, linked into gviz).
 add_library(planar STATIC
     third-party/boyerMyrvold/graphEmbed.c
@@ -27,7 +32,7 @@ add_library(planar STATIC
 )
 target_include_directories(planar PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/third-party/)
 
-add_library(gviz STATIC
+add_library(gviz SHARED
     # core/
     src/ThreadPool.cpp
 
@@ -61,6 +66,15 @@ add_library(gviz STATIC
 target_include_directories(gviz
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include/
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/third-party/
+)
+
+set_target_properties(gviz PROPERTIES
+    VERSION 0.1.0
+    SOVERSION 0
+    # MSVC/MinGW shared libs need explicit exports; auto-export every symbol
+    # rather than hand-annotating ~20 public headers with __declspec. No
+    # effect on non-Windows targets.
+    WINDOWS_EXPORT_ALL_SYMBOLS ON
 )
 
 target_link_libraries(gviz
