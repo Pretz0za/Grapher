@@ -7,6 +7,7 @@
 #include <cstdlib>
 #include <ctime>
 #include <stdexcept>
+#include <system_error>
 
 namespace gviz::layout {
 
@@ -277,6 +278,24 @@ void ForceAtlas::ApplySpeedRange(size_t begin, size_t end) {
   }
 }
 
+// Same shape and same reason as GRIP::RunForRange (GRIP.cpp): pool_ may be
+// null (constructor's worker thread(s) failed to start -- see the
+// constructor's try/catch), in which case every data-parallel phase just
+// runs its whole range as one synchronous call on the calling thread
+// instead of failing or silently doing nothing.
+void ForceAtlas::RunForRange(size_t begin, size_t end, size_t grain,
+                              const std::function<void(size_t, size_t)> &task) {
+  if (begin >= end)
+    return;
+  if (grain == 0)
+    grain = 1;
+  if (pool_) {
+    pool_->ForRange(begin, end, grain, task);
+  } else {
+    task(begin, end);
+  }
+}
+
 // Shared by the constructor and Sync(): degree_[i] is out-degree + in-degree
 // from the embedding's synced CSR rows (every incident edge regardless of
 // direction; the in term is 0 for undirected graphs, whose out rows already
@@ -355,7 +374,21 @@ void ForceAtlas::ActionToggleOverlapPrevention(EmbeddedGraph &embedding,
 ForceAtlas::ForceAtlas(Subgraph subgraph, size_t dimension,
                         std::unique_ptr<ForceModel> model)
     : EmbeddedGraph(std::move(subgraph), RequireDim2(dimension)),
-      model_(std::move(model)), pool_(std::make_unique<ThreadPool>()) {
+      model_(std::move(model)) {
+  // NULL pool is fine: parallel phases fall back to running serially (see
+  // RunForRange). Constructed in the body rather than the member-init list
+  // so the std::system_error a failed pthread_create throws (e.g. a wasm
+  // build with no -pthread/-sUSE_PTHREADS) can actually be caught here --
+  // an exception thrown from an init list can only be observed by a
+  // constructor function-try-block, which is required to rethrow, so
+  // there'd be no way to swallow it from there. Same pattern and same
+  // reasoning as GRIP's constructor (see GRIP.cpp).
+  try {
+    pool_ = std::make_unique<ThreadPool>();
+  } catch (const std::system_error &) {
+    pool_.reset();
+  }
+
   // First structural commit: builds the synced adjacency CSRs the physics
   // below (and any renderer) reads until the next Sync(). Explicitly
   // qualified because ForceAtlas::Sync (below) hides this name -- see the
@@ -491,14 +524,14 @@ double ForceAtlas::Step() {
   if (barnesHutEnabled_)
     quadtree_->Rebuild(positionsScratch_.data(), mass_.data(), vertices_.size());
 
-  pool_->ForRange(0, vertices_.size(), kParallelGrain,
-                   [this](size_t b, size_t e) { ComputeForceRange(b, e); });
+  RunForRange(0, vertices_.size(), kParallelGrain,
+              [this](size_t b, size_t e) { ComputeForceRange(b, e); });
 
-  pool_->ForRange(0, vertices_.size(), kParallelGrain,
-                   [this](size_t b, size_t e) { ComputeSwingTractionRange(b, e); });
+  RunForRange(0, vertices_.size(), kParallelGrain,
+              [this](size_t b, size_t e) { ComputeSwingTractionRange(b, e); });
   UpdateGlobalSpeed();
-  pool_->ForRange(0, vertices_.size(), kParallelGrain,
-                   [this](size_t b, size_t e) { ApplySpeedRange(b, e); });
+  RunForRange(0, vertices_.size(), kParallelGrain,
+              [this](size_t b, size_t e) { ApplySpeedRange(b, e); });
 
   double maxDisp = 0.0;
   double sumAtt = 0.0, sumRep = 0.0;

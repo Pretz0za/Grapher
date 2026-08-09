@@ -10,6 +10,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <optional>
 
@@ -50,9 +51,12 @@ namespace gviz::layout {
  * same escape hatch the old C code had via the free function pair.
  *
  * Threading: force evaluation, swinging/traction, and speed application are
- * data-parallel across vertices via an owned ThreadPool (see the .cpp for
- * why it's owned unconditionally rather than the old C's maybe-null,
- * fall-back-to-serial pool).
+ * data-parallel across vertices via an owned ThreadPool when one could be
+ * started (see the .cpp constructor for the try/catch around its
+ * construction, and RunForRange for the serial fallback each call site
+ * uses when it couldn't) -- same tolerant-of-a-threadless-platform pattern
+ * as GRIP, e.g. Emscripten builds without -pthread, where std::thread/
+ * pthread_create simply isn't available.
  */
 class ForceAtlas : public EmbeddedGraph {
 public:
@@ -270,6 +274,12 @@ private:
   void RecomputeDegreeMass();
   void PlaceGrownVertex(size_t i, unsigned int &seed);
 
+  /** Runs @p task over [begin, end) via the worker pool if one exists,
+   *  falling back to one synchronous call on the calling thread otherwise
+   *  -- same shape and same reason as GRIP::RunForRange (see GRIP.hpp). */
+  void RunForRange(size_t begin, size_t end, size_t grain,
+                    const std::function<void(size_t, size_t)> &task);
+
   static void ActionStep(EmbeddedGraph &embedding, void *userData,
                           const ActionPayload &payload);
   static void ActionToggleOverlapPrevention(EmbeddedGraph &embedding,
@@ -338,22 +348,21 @@ private:
   // explicitly instead.
   std::optional<QuadTree> quadtree_;
 
-  // Owned unconditionally, unlike the old C state->pool (created with
-  // gvizThreadPoolCreate(0), tolerated NULL on failure, and fell back to
-  // gvizThreadPoolForRange's serial path everywhere it was used). ThreadPool
-  // now throws std::system_error immediately on startup failure instead of
-  // returning null, so there is no partially-constructed pool state to carry
-  // around or null-check at every call site -- construction either succeeds
-  // outright or this object's own construction fails with it, matching the
-  // rest of this class's "allocation failure propagates, no manual checks"
-  // convention. Held via unique_ptr rather than by value specifically so
-  // ForceAtlas stays move-constructible: ThreadPool itself is neither
-  // copyable nor movable (see ThreadPool.hpp), so a `ThreadPool pool_;`
-  // value member would make the implicitly-declared ForceAtlas move
-  // constructor deleted, breaking parity with the base EmbeddedGraph (which
-  // *is* move-constructible) for no benefit -- the pointer is never null
-  // after a successful construction, so no caller ever needs to check it
-  // either way.
+  // Null when a worker thread failed to start (ThreadPool's constructor
+  // throws std::system_error on the first pthread_create failure -- see the
+  // .cpp constructor's try/catch) -- e.g. a wasm build with no -pthread/
+  // -sUSE_PTHREADS, or a platform genuinely out of thread resources. Every
+  // parallel phase (ComputeForceRange/ComputeSwingTractionRange/
+  // ApplySpeedRange, called through RunForRange in the .cpp) falls back to
+  // running its whole range serially on the calling thread when this is
+  // null, exactly like GRIP's identically-shaped pool_/RunForRange pair
+  // (see GRIP.hpp) -- a missing thread pool is a performance loss, not a
+  // reason to fail construction. Held via unique_ptr rather than by value
+  // specifically so ForceAtlas stays move-constructible: ThreadPool itself
+  // is neither copyable nor movable (see ThreadPool.hpp), so a
+  // `ThreadPool pool_;` value member would make the implicitly-declared
+  // ForceAtlas move constructor deleted, breaking parity with the base
+  // EmbeddedGraph (which *is* move-constructible) for no benefit.
   std::unique_ptr<ThreadPool> pool_;
 };
 

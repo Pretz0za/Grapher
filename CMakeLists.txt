@@ -32,7 +32,18 @@ add_library(planar STATIC
 )
 target_include_directories(planar PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/third-party/)
 
-add_library(gviz SHARED
+# Emscripten has no real dynamic linking story for a plain add_subdirectory
+# consumer like grender's wasm build (that needs -sMAIN_MODULE/-sSIDE_MODULE
+# wiring this project doesn't otherwise need), so gviz builds STATIC there
+# and links straight into the final .wasm; every other platform keeps the
+# existing shared library.
+if(EMSCRIPTEN)
+    set(GVIZ_LIB_TYPE STATIC)
+else()
+    set(GVIZ_LIB_TYPE SHARED)
+endif()
+
+add_library(gviz ${GVIZ_LIB_TYPE}
     # core/
     src/ThreadPool.cpp
 
