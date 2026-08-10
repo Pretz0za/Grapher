@@ -64,6 +64,7 @@ add_library(gviz ${GVIZ_LIB_TYPE}
     src/ForceAtlas.cpp
     src/GRIP.cpp
     src/ReingoldTilford.cpp
+    src/ReingoldTilfordTrace.cpp
     src/Planar.cpp
     src/SchnyderWood.cpp
     src/Tutte.cpp
@@ -125,6 +126,7 @@ add_executable(EmbeddedGraphTests third-party/unity/unity.c tests/EmbeddedGraphT
 add_executable(ForceAtlasTests third-party/unity/unity.c tests/ForceAtlasTests.cpp)
 add_executable(GRIPTests third-party/unity/unity.c tests/GRIPTests.cpp)
 add_executable(ReingoldTilfordTests third-party/unity/unity.c tests/ReingoldTilfordTests.cpp)
+add_executable(ReingoldTilfordTraceTests third-party/unity/unity.c tests/ReingoldTilfordTraceTests.cpp)
 add_executable(PlanarTests third-party/unity/unity.c tests/PlanarTests.cpp)
 add_executable(SchnyderWoodTests third-party/unity/unity.c tests/SchnyderWoodTests.cpp)
 add_executable(TutteTests third-party/unity/unity.c tests/TutteTests.cpp)
@@ -159,6 +161,7 @@ target_compile_definitions(EmbeddedGraphTests PRIVATE UNITY_INCLUDE_DOUBLE)
 target_compile_definitions(ForceAtlasTests PRIVATE UNITY_INCLUDE_DOUBLE)
 target_compile_definitions(GRIPTests PRIVATE UNITY_INCLUDE_DOUBLE)
 target_compile_definitions(ReingoldTilfordTests PRIVATE UNITY_INCLUDE_DOUBLE)
+target_compile_definitions(ReingoldTilfordTraceTests PRIVATE UNITY_INCLUDE_DOUBLE)
 target_compile_definitions(PlanarTests PRIVATE UNITY_INCLUDE_DOUBLE)
 target_compile_definitions(SchnyderWoodTests PRIVATE UNITY_INCLUDE_DOUBLE)
 target_compile_definitions(TutteTests PRIVATE UNITY_INCLUDE_DOUBLE)
@@ -196,6 +199,8 @@ set_target_properties(ForceAtlasTests PROPERTIES
 set_target_properties(GRIPTests PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/layout)
 set_target_properties(ReingoldTilfordTests PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/layout)
+set_target_properties(ReingoldTilfordTraceTests PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/layout)
 set_target_properties(PlanarTests PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/layout)
@@ -237,6 +242,7 @@ target_link_libraries(EmbeddedGraphTests PRIVATE gviz)
 target_link_libraries(ForceAtlasTests PRIVATE gviz)
 target_link_libraries(GRIPTests PRIVATE gviz)
 target_link_libraries(ReingoldTilfordTests PRIVATE gviz)
+target_link_libraries(ReingoldTilfordTraceTests PRIVATE gviz)
 target_link_libraries(PlanarTests PRIVATE gviz)
 target_link_libraries(SchnyderWoodTests PRIVATE gviz)
 target_link_libraries(TutteTests PRIVATE gviz)
@@ -266,6 +272,7 @@ add_test(NAME EmbeddedGraphTests COMMAND EmbeddedGraphTests)
 add_test(NAME ForceAtlasTests COMMAND ForceAtlasTests)
 add_test(NAME GRIPTests COMMAND GRIPTests)
 add_test(NAME ReingoldTilfordTests COMMAND ReingoldTilfordTests)
+add_test(NAME ReingoldTilfordTraceTests COMMAND ReingoldTilfordTraceTests)
 add_test(NAME PlanarTests COMMAND PlanarTests)
 add_test(NAME SchnyderWoodTests COMMAND SchnyderWoodTests)
 add_test(NAME TutteTests COMMAND TutteTests)

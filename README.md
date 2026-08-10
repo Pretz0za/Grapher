@@ -91,6 +91,8 @@ cd build && ctest
 ./build/tests/ds/SubgraphTests
 ./build/tests/search/KNearestTests
 ./build/tests/layout/GRIPTests
+./build/tests/layout/ReingoldTilfordTests
+./build/tests/layout/ReingoldTilfordTraceTests
 ./build/tests/layout/PlanarTests
 ./build/tests/layout/TutteTests
 ./build/tests/layout/SpringTutteTests

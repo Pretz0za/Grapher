@@ -26,6 +26,7 @@
 #include "Planar.hpp"
 #include "QuadTree.hpp"
 #include "ReingoldTilford.hpp"
+#include "ReingoldTilfordTrace.hpp"
 #include "SchnyderWood.hpp"
 #include "SpringTutte.hpp"
 #include "Subgraph.hpp"
@@ -39,8 +40,8 @@
 // search/  — BreadthFirst, DepthFirst, ConnectedComponents,
 //            Tree (IsTree/IsLeaf/CountLeaves), KNearest.
 // layout/  — EmbeddedGraph, ForceModel, ForceAtlas, GRIP,
-//            ReingoldTilford, Planar, SchnyderWood, Tutte,
-//            SpringTutte.
+//            ReingoldTilford, ReingoldTilfordTrace (teaching-only, see its
+//            own header), Planar, SchnyderWood, Tutte, SpringTutte.
 // io/      — GraphLoader.
 // graphs/  — synthetic graph generators (Graphs.hpp).
 

@@ -36,6 +36,19 @@ namespace gviz::layout {
 namespace {
 constexpr float kXSeparation = 500.0f;
 constexpr float kYSeparation = 1000.0f;
+// SeparateAlongContours' minimum-separation target between two contour
+// vertices, in offset units. A gap of exactly kMinSeparation never needs
+// correcting; anything less does, by exactly the shortfall -- no more.
+constexpr float kMinSeparation = 1.0f;
+// Floating-point slack below kMinSeparation treated as "no shortfall,"
+// purely to absorb float rounding noise from repeated +=/-= accumulation
+// -- NOT a re-introduction of the old 0.1f slop threshold. Unlike that
+// threshold, this epsilon never lets a real shortfall silently carry over
+// into a later iteration: every iteration's own currsep is checked and, if
+// it's short by more than this, corrected and reset to exactly
+// kMinSeparation right then, so no iteration's requirement is ever
+// deferred or bundled with another's.
+constexpr float kSeparationEpsilon = 1e-4f;
 } // namespace
 
 ReingoldTilford::ReingoldTilford(const Graph &graph, size_t root)
@@ -188,7 +201,7 @@ ReingoldTilford::SeparationResult
 ReingoldTilford::SeparateAlongContours(size_t &lrContour, size_t &rlContour) {
   assert(parents_[lrContour] == parents_[rlContour]);
 
-  float lOffset = 0, rOffset = 0, lstep, rstep, currsep = 1.0f;
+  float lOffset = 0, rOffset = 0, lstep, rstep, currsep = kMinSeparation;
   size_t root = static_cast<size_t>(parents_[lrContour]);
 
   // tracks how much separation needs to be added to merge the right
@@ -198,12 +211,12 @@ ReingoldTilford::SeparateAlongContours(size_t &lrContour, size_t &rlContour) {
   size_t rightSubtreeIndex;
   graph_.NeighborPosition(root, rlContour, rightSubtreeIndex);
   std::vector<float> newSeparations(rightSubtreeIndex, 0.0f);
-  newSeparations[rightSubtreeIndex - 1] = 1.0f;
+  newSeparations[rightSubtreeIndex - 1] = kMinSeparation;
 
   while (!gviz::search::IsLeaf(graph_, lrContour) &&
          !gviz::search::IsLeaf(graph_, rlContour)) {
 
-    // take one step along each contour, stores x-displacement
+    // Step one level deeper along each contour, storing x-displacement.
     rstep = IterateContourLeftward(rlContour);
     lstep = IterateContourRightward(lrContour);
 
@@ -211,18 +224,28 @@ ReingoldTilford::SeparateAlongContours(size_t &lrContour, size_t &rlContour) {
     rOffset += rstep;
     lOffset += lstep;
 
-    // update separation
+    // currsep, right after this step, is exactly this level's contour gap
+    // given every correction applied at shallower levels so far -- measure
+    // it fresh every iteration, no bundling.
     currsep += rstep;
     currsep -= lstep;
 
-    if (std::fabs(currsep - 1.0f) > 0.1f) {
+    // Only ever correct a genuine shortfall (currsep below kMinSeparation),
+    // and correct it fully and immediately -- not a threshold-gated slop
+    // that lets several iterations' worth of drift accumulate unreported
+    // before dumping it as one lump. When currsep is already at or above
+    // kMinSeparation there is real slack from this level, which must
+    // carry forward uncorrected (not reset) for later, deeper levels to
+    // draw on -- resetting it here would double-correct a shortfall that
+    // slack already covers.
+    if (currsep < kMinSeparation - kSeparationEpsilon) {
       size_t ancestor = GetAncestor(root, lrContour);
 
       // # of subtrees between the colliding vertices
       size_t n = rightSubtreeIndex - ancestor;
 
-      newSeparations[ancestor] += std::fabs(1.0f - currsep) / static_cast<float>(n);
-      currsep = 1.0f;
+      newSeparations[ancestor] += (kMinSeparation - currsep) / static_cast<float>(n);
+      currsep = kMinSeparation;
     }
   }
 
