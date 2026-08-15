@@ -34,8 +34,8 @@
 namespace gviz::layout {
 
 namespace {
-constexpr float kXSeparation = 500.0f;
-constexpr float kYSeparation = 1000.0f;
+constexpr float kXSeparation = 2000.0f;
+constexpr float kYSeparation = -2500.0f;
 // SeparateAlongContours' minimum-separation target between two contour
 // vertices, in offset units. A gap of exactly kMinSeparation never needs
 // correcting; anything less does, by exactly the shortfall -- no more.
@@ -221,20 +221,9 @@ ReingoldTilford::SeparateAlongContours(size_t &lrContour, size_t &rlContour) {
     rOffset += rstep;
     lOffset += lstep;
 
-    // currsep, right after this step, is exactly this level's contour gap
-    // given every correction applied at shallower levels so far -- measure
-    // it fresh every iteration, no bundling.
     currsep += rstep;
     currsep -= lstep;
 
-    // Only ever correct a genuine shortfall (currsep below kMinSeparation),
-    // and correct it fully and immediately -- not a threshold-gated slop
-    // that lets several iterations' worth of drift accumulate unreported
-    // before dumping it as one lump. When currsep is already at or above
-    // kMinSeparation there is real slack from this level, which must
-    // carry forward uncorrected (not reset) for later, deeper levels to
-    // draw on -- resetting it here would double-correct a shortfall that
-    // slack already covers.
     if (currsep < kMinSeparation - kSeparationEpsilon) {
       size_t ancestor = GetAncestor(root, lrContour);
 
@@ -322,7 +311,7 @@ void ReingoldTilford::CalculateOffsets(size_t root, size_t level) {
 
   // Divide
   for (size_t i = 0; i < degree; i++)
-    CalculateOffsets(graph_.Neighbor(root, i), level);
+    CalculateOffsets(graph_.Neighbor(root, i), level + 1);
 
   // Initialization. Includes base case (leaf node)
   InitializeRTSubtreeRoot(root, level);
