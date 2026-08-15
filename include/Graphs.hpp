@@ -67,8 +67,8 @@ Graph BuildMobiusStrip(size_t rows, size_t cols);
 Graph BuildKleinBottle(size_t rows, size_t cols);
 
 /**
- * Builds a random connected undirected graph via a random spanning tree
- * plus extra random edges.
+ * Builds a random connected graph via a random spanning tree plus extra
+ * random edges.
  *
  * A spanning tree is grown first: for i = 1..numVertices-1, vertex i is
  * wired to a uniformly random earlier vertex in [0, i), which guarantees
@@ -79,10 +79,20 @@ Graph BuildKleinBottle(size_t rows, size_t cols);
  * @param numVertices Number of vertices to create.
  * @param edgeDensity Fraction in [0, 1] of the non-tree edges to add on top
  *                     of the spanning tree. 0 = tree only, 1 = complete
- *                     graph. Clamped into [0, 1].
+ *                     graph. Clamped into [0, 1]. With @p directed true and
+ *                     @p edgeDensity 0, the result is a directed tree rooted
+ *                     at vertex 0 (every spanning-tree edge points from the
+ *                     earlier, already-attached vertex to the new one) --
+ *                     suitable for gviz::search::IsTree / ReingoldTilford.
+ *                     Any @p edgeDensity > 0 with @p directed true still adds
+ *                     extra directed edges on top, so the result is no
+ *                     longer a tree (IsTree will reject it).
  * @param seed        Seed for the random number generator (reproducibility).
+ * @param directed    Whether the returned graph is directed. Defaults to
+ *                     false (matching prior behavior).
  */
-Graph BuildRandomConnectedGraph(size_t numVertices, double edgeDensity, unsigned int seed);
+Graph BuildRandomConnectedGraph(size_t numVertices, double edgeDensity, unsigned int seed,
+                                 bool directed = false);
 
 /**
  * Returns whether every vertex of @p g is reachable from every other vertex

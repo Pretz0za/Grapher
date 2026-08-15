@@ -105,7 +105,7 @@ size_t ReingoldTilford::GetAncestor(size_t root, size_t i) const {
 void ReingoldTilford::SetAncestorAlongRightContour(size_t i) {
   size_t curr = i;
   dec_[curr].ancestor = i;
-  while (!gviz::search::IsLeaf(graph_, curr)) {
+  while (!ContourAtEnd(curr)) {
     IterateContourRightward(curr);
     dec_[curr].ancestor = i;
   }
@@ -159,8 +159,7 @@ void ReingoldTilford::CreateThreads(size_t root, size_t i, size_t &lrContour,
   SeparationResult r = res;
 
   // left subtree (blob of subtrees) is deeper. thread rr.
-  if (!gviz::search::IsLeaf(graph_, lrContour) &&
-      gviz::search::IsLeaf(graph_, rlContour)) {
+  if (!ContourAtEnd(lrContour) && ContourAtEnd(rlContour)) {
     r.lOffset += IterateContourRightward(lrContour);
     dec_[extremes.rr].threadTo = lrContour;
     dec_[extremes.rr].offsets[0] =
@@ -168,8 +167,7 @@ void ReingoldTilford::CreateThreads(size_t root, size_t i, size_t &lrContour,
 
   }
   // right subtree is deeper. thread ll.
-  else if (gviz::search::IsLeaf(graph_, lrContour) &&
-           !gviz::search::IsLeaf(graph_, rlContour)) {
+  else if (ContourAtEnd(lrContour) && !ContourAtEnd(rlContour)) {
     r.rOffset += IterateContourLeftward(rlContour);
     dec_[extremes.ll].threadTo = rlContour;
     dec_[extremes.ll].offsets[0] = dec_[extremes.ll].offsets[0] +
@@ -213,8 +211,7 @@ ReingoldTilford::SeparateAlongContours(size_t &lrContour, size_t &rlContour) {
   std::vector<float> newSeparations(rightSubtreeIndex, 0.0f);
   newSeparations[rightSubtreeIndex - 1] = kMinSeparation;
 
-  while (!gviz::search::IsLeaf(graph_, lrContour) &&
-         !gviz::search::IsLeaf(graph_, rlContour)) {
+  while (!ContourAtEnd(lrContour) && !ContourAtEnd(rlContour)) {
 
     // Step one level deeper along each contour, storing x-displacement.
     rstep = IterateContourLeftward(rlContour);
@@ -308,8 +305,7 @@ void ReingoldTilford::CombineSubtreeLeft(size_t root, size_t i) {
 
   // Maintain ancestor values.
   // If the right subtree was deeper or as deep
-  if (!gviz::search::IsLeaf(graph_, rlContour) ||
-      gviz::search::IsLeaf(graph_, lrContour)) {
+  if (!ContourAtEnd(rlContour) || ContourAtEnd(lrContour)) {
     // New default ancestor
     defaultAncestor_ = rightSubtree;
   } else {

@@ -171,7 +171,7 @@ static void test_polymorphism_dispatchesToCorrectOverride(void) {
   models[0]->Attractive(2, v, u, 5.0, accFr);
   models[1]->Attractive(2, v, u, 5.0, accLinLog);
 
-  // Both pull v toward u (+x), but FR (d^2/k) and LinLog (1/sqrt(d)) give
+  // Both pull v toward u (+x), but FR (d^2/k) and LinLog (log(1+d)) give
   // different magnitudes for the same 10-unit separation -- confirms the
   // reference dispatched to two genuinely different implementations rather
   // than the same one twice.

@@ -450,13 +450,14 @@ Graph BuildKleinBottle(size_t rows, size_t cols) {
   return g;
 }
 
-Graph BuildRandomConnectedGraph(size_t numVertices, double edgeDensity, unsigned int seed) {
+Graph BuildRandomConnectedGraph(size_t numVertices, double edgeDensity, unsigned int seed,
+                                 bool directed) {
   if (edgeDensity < 0.0)
     edgeDensity = 0.0;
   if (edgeDensity > 1.0)
     edgeDensity = 1.0;
 
-  Graph g(/*directed=*/false, numVertices);
+  Graph g(directed, numVertices);
   for (size_t i = 0; i < numVertices; i++)
     g.AddVertex();
 
@@ -465,7 +466,15 @@ Graph BuildRandomConnectedGraph(size_t numVertices, double edgeDensity, unsigned
 
   for (size_t i = 1; i < numVertices; i++) {
     size_t j = static_cast<size_t>(rand_r(&seed) % i);
-    g.AddEdge(i, j, 1.0);
+    // Undirected: orientation is irrelevant. Directed: point parent (the
+    // earlier, already-attached vertex) -> child (the new vertex) so the
+    // whole spanning tree is a proper out-tree rooted at vertex 0, matching
+    // gviz::search::IsTree's parent-scan (in-degree <= 1, one parentless
+    // root).
+    if (directed)
+      g.AddEdge(j, i, 1.0);
+    else
+      g.AddEdge(i, j, 1.0);
   }
 
   size_t treeEdges = numVertices - 1;

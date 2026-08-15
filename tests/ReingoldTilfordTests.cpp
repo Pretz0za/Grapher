@@ -23,11 +23,16 @@
 
 #include "Error.hpp"
 #include "Graph.hpp"
+#include "Graphs.hpp"
 #include "Tree.hpp"
 #include "unity/unity.h"
 
 #include <cmath>
 #include <cstdio>
+#include <ctime>
+#include <queue>
+#include <utility>
+#include <vector>
 
 using gviz::Graph;
 using gviz::NotATreeError;
@@ -394,6 +399,87 @@ static void test_countLeaves_matchesPositionScan(void) {
   TEST_ASSERT_EQUAL_UINT64(scannedLeaves, search::CountLeaves(g, 0));
 }
 
+// ============================================================================
+// STRESS: large random trees, no same-depth overlaps / order inversions
+// ============================================================================
+//
+// Verifies a whole-tree invariant CalculateOffsets/Embed are supposed to
+// guarantee: at any given depth, siblings-of-siblings (i.e. every vertex at
+// that depth, taken in left-to-right tree order) end up strictly
+// left-to-right in x with no two vertices coincident or crossed. BFS from
+// the root produces exactly that left-to-right order per depth -- parents
+// are dequeued in the previous level's left-to-right order, and each
+// parent's own children are enqueued in their stored (already left-to-right)
+// adjacency order -- so grouping GetVPosition results by BFS depth and
+// checking strictly-increasing x within each group is a direct check of the
+// invariant, without relying on dec_.depth (known broken -- see
+// CalculateOffsets' doc comment; Embed's y, driven by real recursion depth,
+// is used for the sanity cross-check instead).
+static void CheckRandomTreeNoOverlap(size_t numVertices, unsigned int seed) {
+  Graph g = gviz::graphs::BuildRandomConnectedGraph(numVertices, 0.0, seed, /*directed=*/true);
+  g.BuildLayout();
+
+  ReingoldTilford rt(g, 0);
+  rt.CalculateOffsets(0, 0);
+
+  double origin[2] = {0.0, 0.0};
+  rt.Embed(0, origin);
+
+  std::vector<std::vector<size_t>> levels;
+  std::queue<std::pair<size_t, size_t>> q; // (vertex, depth)
+  q.push({0, 0});
+  while (!q.empty()) {
+    auto [v, depth] = q.front();
+    q.pop();
+    if (levels.size() <= depth)
+      levels.resize(depth + 1);
+    levels[depth].push_back(v);
+    size_t degree = g.Degree(v);
+    for (size_t i = 0; i < degree; i++)
+      q.push({g.Neighbor(v, i), depth + 1});
+  }
+
+  char msg[256];
+  for (size_t depth = 0; depth < levels.size(); depth++) {
+    const auto &level = levels[depth];
+    double prevX = 0.0;
+    for (size_t i = 0; i < level.size(); i++) {
+      double *p = rt.GetVPosition(level[i]);
+
+      std::snprintf(msg, sizeof(msg), "seed=%u N=%zu depth=%zu vertex=%zu x=%f y=%f not finite",
+                    seed, numVertices, depth, level[i], p[0], p[1]);
+      TEST_ASSERT_TRUE_MESSAGE(std::isfinite(p[0]) && std::isfinite(p[1]), msg);
+
+      std::snprintf(msg, sizeof(msg),
+                    "seed=%u N=%zu depth=%zu vertex=%zu y=%f expected=%f "
+                    "(BFS-depth grouping disagrees with Embed's own recursion depth)",
+                    seed, numVertices, depth, level[i], p[1], static_cast<double>(depth) * 1000.0);
+      TEST_ASSERT_DOUBLE_WITHIN_MESSAGE(1e-6, static_cast<double>(depth) * 1000.0, p[1], msg);
+
+      if (i > 0) {
+        std::snprintf(msg, sizeof(msg),
+                      "seed=%u N=%zu depth=%zu overlap/inversion between vertex=%zu (x=%f) "
+                      "and next vertex=%zu (x=%f), dx=%f",
+                      seed, numVertices, depth, level[i - 1], prevX, level[i], p[0],
+                      p[0] - prevX);
+        TEST_ASSERT_TRUE_MESSAGE(p[0] - prevX > 0.0, msg);
+      }
+      prevX = p[0];
+    }
+  }
+}
+
+static void test_stress_randomTree_1000_noOverlap(void) {
+  unsigned int seed = static_cast<unsigned int>(time(NULL));
+  CheckRandomTreeNoOverlap(1000, seed);
+}
+
+static void test_stress_randomTree_manySeeds_noOverlap(void) {
+  unsigned int base = static_cast<unsigned int>(time(NULL));
+  for (unsigned int trial = 0; trial < 30; trial++)
+    CheckRandomTreeNoOverlap(1000, base + trial);
+}
+
 int main(void) {
   UNITY_BEGIN();
 
@@ -411,6 +497,9 @@ int main(void) {
   RUN_TEST(test_embed_widerTree_noOverlap);
   RUN_TEST(test_embed_skewedThenBranching);
   RUN_TEST(test_countLeaves_matchesPositionScan);
+
+  RUN_TEST(test_stress_randomTree_1000_noOverlap);
+  RUN_TEST(test_stress_randomTree_manySeeds_noOverlap);
 
   return UNITY_END();
 }

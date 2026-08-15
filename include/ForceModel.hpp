@@ -43,7 +43,7 @@ public:
    *  the model's target edge length; models that don't use it may ignore
    *  it. */
   virtual void Attractive(size_t n, const double *vPos, const double *uPos,
-                           double edgeLength, double *acc) const = 0;
+                          double edgeLength, double *acc) const = 0;
 
   /** Accumulates the repulsive force @p vPos feels from @p otherPos (either
    *  another vertex or a quadtree pseudo-body) into @p acc. @p vMass and
@@ -57,9 +57,9 @@ public:
    *  @p edgeLength is the model's target edge length, ignored by models
    *  that don't use it. */
   virtual void Repulsive(size_t n, const double *vPos, const double *otherPos,
-                          double vMass, double otherMass, double vRadius,
-                          double otherRadius, double overlapConstant,
-                          double edgeLength, double *acc) const = 0;
+                         double vMass, double otherMass, double vRadius,
+                         double otherRadius, double overlapConstant,
+                         double edgeLength, double *acc) const = 0;
 };
 
 /**
@@ -78,7 +78,7 @@ public:
   }
 
   void Attractive(size_t n, const double *vPos, const double *uPos,
-                   double edgeLength, double *acc) const override {
+                  double edgeLength, double *acc) const override {
     VecAccFRAttForce(n, vPos, uPos, edgeLength, acc);
   }
 
@@ -91,22 +91,22 @@ public:
   // not a bug, preserved deliberately.
   void Repulsive(size_t n, const double *vPos, const double *otherPos,
                  double vMass, double otherMass, double vRadius,
-                 double otherRadius, double overlapConstant,
-                 double edgeLength, double *acc) const override {
+                 double otherRadius, double overlapConstant, double edgeLength,
+                 double *acc) const override {
     (void)vMass;
     VecAccFRRepForceWeighted(n, vPos, otherPos, static_cast<size_t>(otherMass),
-                              edgeLength, vRadius + otherRadius,
-                              overlapConstant, acc);
+                             edgeLength, vRadius + otherRadius, overlapConstant,
+                             acc);
   }
 };
 
 /**
  * LinLog. Vertex mass grows with degree (1 + degree, so high-degree hubs
  * repel more strongly and aggregate more weight in Barnes-Hut); attraction
- * decays as 1/sqrt(dist) and ignores edgeLength entirely (VecAccLinLogAttForce);
- * repulsion scales with the product of both sides' masses over distance
- * (VecAccLinLogRepForce). See Vec.hpp's doc comments on those two functions
- * for the full "why sqrt, not log" rationale.
+ * grows as log(1 + dist) and ignores edgeLength entirely
+ * (VecAccLinLogAttForce); repulsion scales with the product of both sides'
+ * masses over distance (VecAccLinLogRepForce). See Vec.hpp's doc comment on
+ * VecAccLinLogAttForce for the growth-rate rationale.
  */
 class LinLog final : public ForceModel {
 public:
@@ -115,18 +115,18 @@ public:
   }
 
   void Attractive(size_t n, const double *vPos, const double *uPos,
-                   double edgeLength, double *acc) const override {
+                  double edgeLength, double *acc) const override {
     (void)edgeLength;
     VecAccLinLogAttForce(n, vPos, uPos, acc);
   }
 
   void Repulsive(size_t n, const double *vPos, const double *otherPos,
                  double vMass, double otherMass, double vRadius,
-                 double otherRadius, double overlapConstant,
-                 double edgeLength, double *acc) const override {
+                 double otherRadius, double overlapConstant, double edgeLength,
+                 double *acc) const override {
     VecAccLinLogRepForce(n, vPos, otherPos, vMass, otherMass,
-                          vRadius + otherRadius, overlapConstant, edgeLength,
-                          acc);
+                         vRadius + otherRadius, overlapConstant, edgeLength,
+                         acc);
   }
 };
 

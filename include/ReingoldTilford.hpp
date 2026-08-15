@@ -4,6 +4,7 @@
 #include "EmbeddedGraph.hpp"
 #include "Error.hpp"
 #include "Graph.hpp"
+#include "Tree.hpp"
 
 #include <cstddef>
 #include <vector>
@@ -139,6 +140,9 @@ private:
   };
 
   bool IsThreaded(size_t v) const noexcept { return dec_[v].threadTo != kNoThread; }
+  bool ContourAtEnd(size_t v) const noexcept {
+    return gviz::search::IsLeaf(graph_, v) && !IsThreaded(v);
+  }
   float IterateContourRightward(size_t &contour);
   float IterateContourLeftward(size_t &contour);
   size_t GetAncestor(size_t root, size_t i) const;

@@ -60,7 +60,7 @@ namespace gviz::layout {
  */
 class ForceAtlas : public EmbeddedGraph {
 public:
-  static constexpr double kEdgeLengthDefault = 10.0;
+  static constexpr double kEdgeLengthDefault = 1000.0;
   static constexpr double kThetaDefault = 1.0;
   static constexpr double kOverlapConstantDefault = 100.0;
   static constexpr double kJitterToleranceDefault = 1.0;

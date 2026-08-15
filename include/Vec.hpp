@@ -516,13 +516,14 @@ inline void VecAccFRRepForceWeighted(size_t n, const double *vPos,
   VecAxpy(n, static_cast<double>(mass), scratch, acc);
 }
 
-// LinLog attractive force: magnitude sqrt(dist), pulling v toward u. Grows
-// slower than FR's linear d/k (keeps the LinLog "weak long-range attraction"
-// character that reveals cluster structure) but faster than log(1+dist)
-// (the equilibrium gap against a mass-scaled repulsive term grows only as
-// mass^(2/3) here, vs. roughly mass/log(mass) under plain log growth --
-// which is why high-degree hubs previously stretched their incident edges
-// out to extreme lengths).
+// LinLog attractive force: magnitude log(1 + dist), pulling v toward u --
+// the textbook Noack LinLog energy model's attractive term. Grows slower
+// than FR's linear d/k (keeps the LinLog "weak long-range attraction"
+// character that reveals cluster structure), and slower still than
+// sqrt(dist) (the equilibrium gap against a mass-scaled repulsive term
+// grows as roughly mass/log(mass) here, vs. mass^(2/3) under sqrt(dist)
+// growth -- so high-degree hubs stretch their incident edges out further
+// than under the sqrt(dist) variant).
 inline void VecAccLinLogAttForce(size_t n, const double *vPos,
                                   const double *uPos, double *acc) {
   switch (n) {
@@ -532,7 +533,7 @@ inline void VecAccLinLogAttForce(size_t n, const double *vPos,
     double dist = sqrt(dx * dx + dy * dy);
     if (dist < 1e-9)
       return;
-    double s = 1.0 / sqrt(dist);
+    double s = log1p(dist) / dist;
     acc[0] += s * dx;
     acc[1] += s * dy;
     return;
@@ -544,7 +545,7 @@ inline void VecAccLinLogAttForce(size_t n, const double *vPos,
     double dist = sqrt(dx * dx + dy * dy + dz * dz);
     if (dist < 1e-9)
       return;
-    double s = 1.0 / sqrt(dist);
+    double s = log1p(dist) / dist;
     acc[0] += s * dx;
     acc[1] += s * dy;
     acc[2] += s * dz;
@@ -558,7 +559,7 @@ inline void VecAccLinLogAttForce(size_t n, const double *vPos,
     double dist = sqrt(dx * dx + dy * dy + dz * dz + dw * dw);
     if (dist < 1e-9)
       return;
-    double s = 1.0 / sqrt(dist);
+    double s = log1p(dist) / dist;
     acc[0] += s * dx;
     acc[1] += s * dy;
     acc[2] += s * dz;
@@ -574,7 +575,7 @@ inline void VecAccLinLogAttForce(size_t n, const double *vPos,
     double dist = sqrt(dist_sq);
     if (dist < 1e-9)
       return;
-    double s = 1.0 / sqrt(dist);
+    double s = log1p(dist) / dist;
     for (size_t i = 0; i < n; i++)
       acc[i] += s * (uPos[i] - vPos[i]);
   }
