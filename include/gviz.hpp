@@ -23,6 +23,7 @@
 #include "GraphLoader.hpp"
 #include "Graphs.hpp"
 #include "KNearest.hpp"
+#include "KamadaKawai.hpp"
 #include "Planar.hpp"
 #include "QuadTree.hpp"
 #include "ReingoldTilford.hpp"
@@ -41,7 +42,8 @@
 //            Tree (IsTree/IsLeaf/CountLeaves), KNearest.
 // layout/  — EmbeddedGraph, ForceModel, ForceAtlas, GRIP,
 //            ReingoldTilford, ReingoldTilfordTrace (teaching-only, see its
-//            own header), Planar, SchnyderWood, Tutte, SpringTutte.
+//            own header), Planar, SchnyderWood, Tutte, SpringTutte,
+//            KamadaKawai.
 // io/      — GraphLoader.
 // graphs/  — synthetic graph generators (Graphs.hpp).
 

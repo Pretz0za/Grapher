@@ -69,6 +69,7 @@ add_library(gviz ${GVIZ_LIB_TYPE}
     src/SchnyderWood.cpp
     src/Tutte.cpp
     src/SpringTutte.cpp
+    src/KamadaKawai.cpp
 
     # io/ + graphs/
     src/GraphLoader.cpp
@@ -120,7 +121,7 @@ add_executable(TreeTests third-party/unity/unity.c tests/TreeTests.cpp)
 add_executable(KNearestTests third-party/unity/unity.c tests/KNearestTests.cpp)
 
 # layout/: ForceModel, EmbeddedGraph, ForceAtlas, GRIP, ReingoldTilford,
-# Planar, SchnyderWood, Tutte, SpringTutte
+# Planar, SchnyderWood, Tutte, SpringTutte, KamadaKawai
 add_executable(ForceModelTests third-party/unity/unity.c tests/ForceModelTests.cpp)
 add_executable(EmbeddedGraphTests third-party/unity/unity.c tests/EmbeddedGraphTests.cpp)
 add_executable(ForceAtlasTests third-party/unity/unity.c tests/ForceAtlasTests.cpp)
@@ -131,6 +132,7 @@ add_executable(PlanarTests third-party/unity/unity.c tests/PlanarTests.cpp)
 add_executable(SchnyderWoodTests third-party/unity/unity.c tests/SchnyderWoodTests.cpp)
 add_executable(TutteTests third-party/unity/unity.c tests/TutteTests.cpp)
 add_executable(SpringTutteTests third-party/unity/unity.c tests/SpringTutteTests.cpp)
+add_executable(KamadaKawaiTests third-party/unity/unity.c tests/KamadaKawaiTests.cpp)
 
 # io/ + graphs/: GraphLoader, Graphs (synthetic generators)
 add_executable(GraphLoaderTests third-party/unity/unity.c tests/GraphLoaderTests.cpp)
@@ -166,6 +168,7 @@ target_compile_definitions(PlanarTests PRIVATE UNITY_INCLUDE_DOUBLE)
 target_compile_definitions(SchnyderWoodTests PRIVATE UNITY_INCLUDE_DOUBLE)
 target_compile_definitions(TutteTests PRIVATE UNITY_INCLUDE_DOUBLE)
 target_compile_definitions(SpringTutteTests PRIVATE UNITY_INCLUDE_DOUBLE)
+target_compile_definitions(KamadaKawaiTests PRIVATE UNITY_INCLUDE_DOUBLE)
 target_compile_definitions(GraphLoaderTests PRIVATE UNITY_INCLUDE_DOUBLE
     GVIZ_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/data")
 target_compile_definitions(GraphsTests PRIVATE UNITY_INCLUDE_DOUBLE)
@@ -210,6 +213,8 @@ set_target_properties(TutteTests PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/layout)
 set_target_properties(SpringTutteTests PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/layout)
+set_target_properties(KamadaKawaiTests PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/layout)
 set_target_properties(GraphLoaderTests PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests/utils)
 set_target_properties(GraphsTests PROPERTIES
@@ -247,6 +252,7 @@ target_link_libraries(PlanarTests PRIVATE gviz)
 target_link_libraries(SchnyderWoodTests PRIVATE gviz)
 target_link_libraries(TutteTests PRIVATE gviz)
 target_link_libraries(SpringTutteTests PRIVATE gviz)
+target_link_libraries(KamadaKawaiTests PRIVATE gviz)
 target_link_libraries(GraphLoaderTests PRIVATE gviz)
 target_link_libraries(GraphsTests PRIVATE gviz)
 target_link_libraries(GRIPKBench PRIVATE gviz)
@@ -277,6 +283,7 @@ add_test(NAME PlanarTests COMMAND PlanarTests)
 add_test(NAME SchnyderWoodTests COMMAND SchnyderWoodTests)
 add_test(NAME TutteTests COMMAND TutteTests)
 add_test(NAME SpringTutteTests COMMAND SpringTutteTests)
+add_test(NAME KamadaKawaiTests COMMAND KamadaKawaiTests)
 add_test(NAME GraphLoaderTests COMMAND GraphLoaderTests)
 add_test(NAME GraphsTests COMMAND GraphsTests)
 add_test(NAME TuttePick COMMAND TuttePick)

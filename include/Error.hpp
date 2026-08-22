@@ -33,6 +33,16 @@ public:
       : LayoutError(what) {}
 };
 
+/** Thrown by KamadaKawai::Begin() when the embedded subgraph is not
+ *  connected (graph-theoretic distance, which its energy model is defined
+ *  in terms of, is undefined between components). An empty or single-vertex
+ *  subgraph is trivially connected and does not trigger this. */
+class NotConnectedError : public LayoutError {
+public:
+  explicit NotConnectedError(const std::string &what = "graph is not connected")
+      : LayoutError(what) {}
+};
+
 /** Thrown when an embedding dimension is invalid for the requesting
  *  embedder (e.g. ForceAtlas requires 2, GRIP requires 2/3/4) or a loaded
  *  embedding's dimension does not match the target. */
