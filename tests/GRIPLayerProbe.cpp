@@ -13,7 +13,7 @@
 //     INTROSPECTION section) -- the exact three fields this tool reads from
 //     the old gvizGRIPState/gvizGRIPDecorators, and nothing more.
 //   - gvizSearchBreadthFirst(sg, &bfs, src, 0, distances) becomes
-//     search::BreadthFirst(grip.Structure(), out, src, 0, &distances); `out`
+//     search::BreadthFirstTree(grip.Structure(), out, src, 0, &distances); `out`
 //     is a fresh Subgraph::CreateEmpty(graph) each call, using the driver's
 //     own retained Graph (GRIP only holds a reference to it via the moved
 //     Subgraph, never hands the parent graph back out -- see Subgraph.hpp).
@@ -51,9 +51,9 @@ struct RoundMetrics {
   double rotCoherence = 0.0;
 };
 
-size_t ActiveCount(const GRIP &grip) { return grip.LayerBorder(grip.CurrentLayer()); }
+size_t ActiveCount(const GRIP<Subgraph> &grip) { return grip.LayerBorder(grip.CurrentLayer()); }
 
-void ComputeCOM(GRIP &grip, double *com) {
+void ComputeCOM(GRIP<Subgraph> &grip, double *com) {
   size_t dim = grip.Dim();
   size_t n = ActiveCount(grip);
   std::memset(com, 0, sizeof(double) * dim);
@@ -66,7 +66,7 @@ void ComputeCOM(GRIP &grip, double *com) {
     com[d] /= static_cast<double>(n);
 }
 
-RoundMetrics MeasureRound(GRIP &grip) {
+RoundMetrics MeasureRound(GRIP<Subgraph> &grip) {
   size_t dim = grip.Dim();
   size_t n = ActiveCount(grip);
   RoundMetrics m;
@@ -122,7 +122,7 @@ RoundMetrics MeasureRound(GRIP &grip) {
  * A healthy unfolded embedding keeps the ratio near a constant; folding
  * shows up as the min (and mean) ratio collapsing toward 0.
  */
-void FoldMetric(GRIP &grip, const Graph &graph, size_t minGd, double *meanRatio,
+void FoldMetric(GRIP<Subgraph> &grip, const Graph &graph, size_t minGd, double *meanRatio,
                  double *minRatio) {
   size_t dim = grip.Dim();
   size_t n = ActiveCount(grip);
@@ -137,7 +137,7 @@ void FoldMetric(GRIP &grip, const Graph &graph, size_t minGd, double *meanRatio,
   for (size_t si = 0; si < sources; si++) {
     size_t src = grip.FiltrationVertexAt((si * 2654435761u) % n);
     Subgraph bfs = Subgraph::CreateEmpty(graph);
-    search::BreadthFirst(grip.Structure(), bfs, src, 0, &distances);
+    search::BreadthFirstTree(grip.Structure(), bfs, src, 0, &distances);
     const double *ps = grip.GetVPosition(src);
     for (size_t i = 0; i < n; i++) {
       size_t v = grip.FiltrationVertexAt(i);
@@ -172,15 +172,15 @@ int main(int argc, char **argv) {
   size_t rounds = argc > 6 ? static_cast<size_t>(std::atoi(argv[6])) : 60;
   size_t minLayer = argc > 7 ? static_cast<size_t>(std::atoi(argv[7])) : 0;
 
-  GRIP::KPolicy policy = GRIP::KPolicy::Constant;
+  GRIP<Subgraph>::KPolicy policy = GRIP<Subgraph>::KPolicy::Constant;
   if (policyName == "decay")
-    policy = GRIP::KPolicy::LayerDecay;
+    policy = GRIP<Subgraph>::KPolicy::LayerDecay;
   else if (policyName == "grow")
-    policy = GRIP::KPolicy::LayerGrow;
+    policy = GRIP<Subgraph>::KPolicy::LayerGrow;
   else if (policyName == "pdecay")
-    policy = GRIP::KPolicy::PlacementDecay;
+    policy = GRIP<Subgraph>::KPolicy::PlacementDecay;
   else if (policyName == "budget")
-    policy = GRIP::KPolicy::Budget;
+    policy = GRIP<Subgraph>::KPolicy::Budget;
 
   Graph graph = CreateSierpinskiTetrahedron(depth);
   graph.BuildLayout();

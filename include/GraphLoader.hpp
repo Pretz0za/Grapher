@@ -22,16 +22,12 @@ struct EdgesFileOptions {
 
 /**
  * Loads a graph from a Network Repository .edges file: one edge per line
- * ("u v" or "u v weight" -- as in the old C loader, any weight token
- * present is parsed-past but not applied; every loaded edge gets weight
- * 1.0, matching gvizGraphLoadFromEdgesFile's actual behavior, not its
- * more ambitious doc comment), optional '%' comment lines.
+ * ("u v" or "u v weight" -- any weight token present is parsed-past but not
+ * applied; every loaded edge gets weight 1.0), optional '%' comment lines.
  *
  * @throws std::runtime_error on I/O failure (file can't be opened), a
  * malformed line, a negative vertex id, or a file with no parseable edges
- * (after any header skip) -- these are file-content problems, not the kind
- * of graph-structural/dimensional failure gviz::LayoutError (Error.hpp) is
- * for, so this deliberately doesn't reach for that hierarchy.
+ * (after any header skip).
  */
 Graph LoadFromEdgesFile(const std::filesystem::path &path, const EdgesFileOptions &opts = {});
 
@@ -70,16 +66,12 @@ Graph LoadFromGexfFile(const std::filesystem::path &path, bool directed);
 
 /**
  * Deletes each vertex's data pointer as a heap-allocated `std::string*` (as
- * set by LoadFromGexfFile -- NOT a generic "any loader-owned string"
- * utility the way the old C gvizGraphFreeVertexDataStrings was, since a
- * `std::string*` and a bare `char*` require different deallocation and
- * Graph's vertex data is an untyped void*; only call this on a Graph whose
- * vertex data was populated by LoadFromGexfFile), then clears each to
- * nullptr. Vertices with a nullptr data pointer are left untouched.
+ * set by LoadFromGexfFile; only call this on a Graph populated that way),
+ * then clears each to nullptr. Vertices with a nullptr data pointer are
+ * left untouched.
  *
  * Call before a Graph loaded via LoadFromGexfFile is destroyed; Graph's
- * destructor never touches vertex data since Graph does not assume any
- * particular ownership of it.
+ * destructor never touches vertex data.
  */
 void FreeVertexDataStrings(Graph &g);
 

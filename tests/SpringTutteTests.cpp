@@ -19,7 +19,6 @@
 
 #include "Error.hpp"
 #include "Graph.hpp"
-#include "Planar.hpp"
 #include "Subgraph.hpp"
 #include "unity/unity.h"
 
@@ -30,9 +29,6 @@
 using gviz::DimensionError;
 using gviz::Graph;
 using gviz::Subgraph;
-using gviz::layout::FaceEnumerator;
-using gviz::layout::FaceSubgraph;
-using gviz::layout::PlanarNotPlanarError;
 using gviz::layout::SpringTutte;
 
 void setUp(void) {}
@@ -80,7 +76,7 @@ static Graph BuildGrid(size_t L, size_t W) {
 // directly, the same path the old C test used.
 static void test_springTutte_k4_centroid(void) {
   Graph g = BuildK4();
-  SpringTutte st(g, MakeFullSubgraph(g), 2, 1e-8);
+  SpringTutte st(MakeFullSubgraph(g), 2, 1e-8);
 
   size_t boundary[3] = {0, 1, 2};
   TEST_ASSERT_TRUE(st.FixConvexPolygon(boundary, 100.0));
@@ -103,7 +99,7 @@ static void test_springTutte_k4_centroid(void) {
 // Boundary vertex positions must be bit-exact after any number of steps.
 static void test_springTutte_boundary_pinned(void) {
   Graph g = BuildK4();
-  SpringTutte st(g, MakeFullSubgraph(g), 2, 1e-8);
+  SpringTutte st(MakeFullSubgraph(g), 2, 1e-8);
 
   size_t boundary[3] = {0, 1, 2};
   TEST_ASSERT_TRUE(st.FixConvexPolygon(boundary, 50.0));
@@ -131,7 +127,7 @@ static void test_springTutte_boundary_pinned(void) {
 // has no velocity state).
 static void test_springTutte_seedsInteriorAndZeroesVelocity(void) {
   Graph g = BuildK4();
-  SpringTutte st(g, MakeFullSubgraph(g), 2);
+  SpringTutte st(MakeFullSubgraph(g), 2);
 
   size_t boundary[3] = {0, 1, 2};
   TEST_ASSERT_TRUE(st.FixConvexPolygon(boundary, 100.0));
@@ -162,7 +158,7 @@ static void test_springTutte_seedsInteriorAndZeroesVelocity(void) {
 // never cross its target.
 static void test_springTutte_underdamped_overshoots(void) {
   Graph g = BuildK4();
-  SpringTutte st(g, MakeFullSubgraph(g), 2, 1e-9);
+  SpringTutte st(MakeFullSubgraph(g), 2, 1e-9);
 
   size_t boundary[3] = {0, 1, 2};
   TEST_ASSERT_TRUE(st.FixConvexPolygon(boundary, 100.0));
@@ -192,7 +188,7 @@ static void test_springTutte_grid_convergesOverdamped(void) {
   size_t L = 5, W = 5;
   Graph g = BuildGrid(L, W);
 
-  SpringTutte st(g, MakeFullSubgraph(g), 2, 1e-4);
+  SpringTutte st(MakeFullSubgraph(g), 2, 1e-4);
   st.Configure(30.0, 40.0); // overdamped so this settles within a bounded budget
 
   std::vector<size_t> rim;
@@ -218,7 +214,7 @@ static void test_springTutte_grid_convergesOverdamped(void) {
 // leave the object otherwise usable.
 static void test_springTutte_setBoundary_validation(void) {
   Graph g = BuildK4();
-  SpringTutte st(g, MakeFullSubgraph(g), 2);
+  SpringTutte st(MakeFullSubgraph(g), 2);
 
   size_t tooFew[2] = {0, 1};
   double pos[4] = {0.0, 0.0, 1.0, 0.0};
@@ -238,7 +234,7 @@ static void test_springTutte_dimension_validation(void) {
   Graph g = BuildK4();
   bool threw = false;
   try {
-    SpringTutte st(g, MakeFullSubgraph(g), 3);
+    SpringTutte st(MakeFullSubgraph(g), 3);
     (void)st;
   } catch (const DimensionError &) {
     threw = true;
@@ -250,18 +246,18 @@ static void test_springTutte_dimension_validation(void) {
 // overrides only its own field.
 static void test_springTutte_configure_zeroMeansKeepCurrent(void) {
   Graph g = BuildK4();
-  SpringTutte st(g, MakeFullSubgraph(g), 2);
+  SpringTutte st(MakeFullSubgraph(g), 2);
 
-  TEST_ASSERT_EQUAL_DOUBLE(SpringTutte::kDefaultStiffness, st.Stiffness());
-  TEST_ASSERT_EQUAL_DOUBLE(SpringTutte::kDefaultDamping, st.Damping());
+  TEST_ASSERT_EQUAL_DOUBLE(SpringTutte<Subgraph>::kDefaultStiffness, st.Stiffness());
+  TEST_ASSERT_EQUAL_DOUBLE(SpringTutte<Subgraph>::kDefaultDamping, st.Damping());
 
   st.Configure(0.0, 0.0);
-  TEST_ASSERT_EQUAL_DOUBLE(SpringTutte::kDefaultStiffness, st.Stiffness());
-  TEST_ASSERT_EQUAL_DOUBLE(SpringTutte::kDefaultDamping, st.Damping());
+  TEST_ASSERT_EQUAL_DOUBLE(SpringTutte<Subgraph>::kDefaultStiffness, st.Stiffness());
+  TEST_ASSERT_EQUAL_DOUBLE(SpringTutte<Subgraph>::kDefaultDamping, st.Damping());
 
   st.Configure(50.0, 0.0);
   TEST_ASSERT_EQUAL_DOUBLE(50.0, st.Stiffness());
-  TEST_ASSERT_EQUAL_DOUBLE(SpringTutte::kDefaultDamping, st.Damping());
+  TEST_ASSERT_EQUAL_DOUBLE(SpringTutte<Subgraph>::kDefaultDamping, st.Damping());
 
   st.Configure(0.0, 12.0);
   TEST_ASSERT_EQUAL_DOUBLE(50.0, st.Stiffness());
@@ -271,7 +267,7 @@ static void test_springTutte_configure_zeroMeansKeepCurrent(void) {
 // Run() before any boundary has ever been pinned is a usage-order error.
 static void test_springTutte_run_before_boundary_throws(void) {
   Graph g = BuildK4();
-  SpringTutte st(g, MakeFullSubgraph(g), 2);
+  SpringTutte st(MakeFullSubgraph(g), 2);
 
   bool threw = false;
   try {
@@ -282,24 +278,30 @@ static void test_springTutte_run_before_boundary_throws(void) {
   TEST_ASSERT_TRUE(threw);
 }
 
-// Begin() on a planar graph succeeds, installs a rotation system, and
-// leaves the embedding ready to Run().
-static void test_springTutte_begin_planar_succeeds(void) {
+// SetBoundary()/FixConvexPolygon() succeeding marks Begun() true -- the
+// replacement for what a successful Begin() used to do (see SpringTutte.hpp's
+// class doc: Begin()/FixOuterFace()/the highlight subgraph were all removed
+// in this refactor).
+static void test_springTutte_setBoundary_marksBegun(void) {
   Graph g = BuildK4();
-  SpringTutte st(g, MakeFullSubgraph(g), 2, 1e-6);
+  SpringTutte st(MakeFullSubgraph(g), 2, 1e-6);
 
-  st.Begin();
-
-  TEST_ASSERT_TRUE(st.IsPlanarEmbedded());
+  TEST_ASSERT_FALSE(st.Begun());
+  size_t boundary[3] = {0, 1, 2};
+  TEST_ASSERT_TRUE(st.FixConvexPolygon(boundary, 100.0));
   TEST_ASSERT_TRUE(st.Begun());
   TEST_ASSERT_TRUE(st.Boundary().size() >= 3);
 
+  st.SeedInterior();
   st.Run(20000, 0.016);
   TEST_ASSERT_TRUE(st.Converged());
 }
 
-// Begin() on a non-planar graph (K3,3) must throw PlanarNotPlanarError.
-static void test_springTutte_begin_nonplanar_throws(void) {
+// A non-planar Structure() (K3,3) is no longer tested for planarity at all
+// (see SpringTutte.hpp's class doc): it just relaxes like any other graph.
+// Only asserts it runs to completion without crashing/hanging/producing
+// non-finite output -- not that the result is geometrically valid.
+static void test_springTutte_nonplanar_runsWithoutThrowing(void) {
   Graph g(false);
   for (int i = 0; i < 6; i++)
     g.AddVertex();
@@ -307,144 +309,21 @@ static void test_springTutte_begin_nonplanar_throws(void) {
     for (size_t v = 3; v < 6; v++)
       g.AddEdge(u, v, 1.0);
 
-  SpringTutte st(g, MakeFullSubgraph(g), 2);
+  SpringTutte st(MakeFullSubgraph(g), 2);
+  st.Configure(30.0, 40.0); // overdamped so this settles quickly either way
 
-  bool threw = false;
-  try {
-    st.Begin();
-  } catch (const PlanarNotPlanarError &) {
-    threw = true;
+  size_t boundary[3] = {0, 1, 2};
+  TEST_ASSERT_TRUE(st.FixConvexPolygon(boundary, 100.0));
+  st.SeedInterior();
+
+  size_t iters = st.Run(1000, 0.016);
+  TEST_ASSERT_TRUE(iters > 0 || st.Converged());
+
+  for (size_t v = 0; v < 6; v++) {
+    const double *p = st.GetVPosition(v);
+    TEST_ASSERT_TRUE(std::isfinite(p[0]));
+    TEST_ASSERT_TRUE(std::isfinite(p[1]));
   }
-  TEST_ASSERT_TRUE(threw);
-  TEST_ASSERT_FALSE(st.IsPlanarEmbedded());
-}
-
-// Begin() is safe to call a second time (deliberate reset, not guarded
-// against, matching Tutte::Begin()) -- it re-tests planarity, re-pins the
-// boundary, and re-seeds interior vertices (and velocities) from scratch.
-static void test_springTutte_begin_twice(void) {
-  Graph g = BuildK4();
-  SpringTutte st(g, MakeFullSubgraph(g), 2, 1e-6);
-
-  st.Begin();
-  st.Run(20000, 0.016);
-  TEST_ASSERT_TRUE(st.Converged());
-
-  st.Begin();
-  TEST_ASSERT_EQUAL_UINT64(0, st.Iteration());
-  TEST_ASSERT_FALSE(st.Converged());
-  st.Run(20000, 0.016);
-  TEST_ASSERT_TRUE(st.Converged());
-}
-
-// FixOuterFace() with no highlight set must return false.
-static void test_springTutte_fixOuterFace_noHighlight(void) {
-  Graph g = BuildK4();
-  SpringTutte st(g, MakeFullSubgraph(g), 2);
-  st.Begin();
-
-  TEST_ASSERT_FALSE(st.HasHighlight());
-  TEST_ASSERT_FALSE(st.FixOuterFace());
-}
-
-// FixOuterFace() before any rotation system is installed (Begin() never
-// called) must return false rather than walking an undefined rotation.
-static void test_springTutte_fixOuterFace_notPlanarEmbedded(void) {
-  Graph g = BuildK4();
-  SpringTutte st(g, MakeFullSubgraph(g), 2);
-
-  TEST_ASSERT_FALSE(st.IsPlanarEmbedded());
-  TEST_ASSERT_FALSE(st.FixOuterFace());
-}
-
-// FixOuterFace() with a highlight covering real subgraph edges must succeed
-// and re-pin the boundary to whichever face FaceWalk finds starting from an
-// edge inside the highlight (K4's planar rotation has 4 triangular faces,
-// each missing exactly one vertex -- which one gets picked depends on which
-// direction the implementation happens to walk first, so this test only
-// checks the outcome shape, not a specific vertex set).
-static void test_springTutte_fixOuterFace_withHighlight(void) {
-  Graph g = BuildK4();
-  SpringTutte st(g, MakeFullSubgraph(g), 2);
-  st.Begin();
-
-  Subgraph highlight = Subgraph::CreateFull(g);
-  highlight.HideVertex(0);
-  st.SetHighlight(std::move(highlight));
-
-  TEST_ASSERT_TRUE(st.HasHighlight());
-  TEST_ASSERT_TRUE(st.FixOuterFace());
-  TEST_ASSERT_EQUAL_UINT64(0, st.Iteration());
-  TEST_ASSERT_FALSE(st.Converged());
-  TEST_ASSERT_EQUAL_UINT64(3, st.Boundary().size());
-
-  st.Run(20000, 0.016);
-  TEST_ASSERT_TRUE(st.Converged());
-}
-
-// Picking a different face as the new outer boundary must leave every vertex
-// NOT on the new boundary -- including ones off in another part of the
-// graph that were never touched -- with its position AND velocity exactly
-// as they were, which is the one place SpringTutte's FixOuterFace contract
-// differs from plain Tutte's (Tutte has no velocity to preserve).
-static void test_springTutte_fixOuterFace_preservesVelocityOffBoundary(void) {
-  size_t L = 5, W = 5;
-  Graph g = BuildGrid(L, W);
-
-  SpringTutte st(g, MakeFullSubgraph(g), 2);
-  st.Begin(); // largest face (the grid's rim, 16 vertices) becomes the boundary
-
-  size_t center = 2 * W + 2; // (2,2): far interior, degree 4
-  TEST_ASSERT_FALSE(st.IsBoundaryVertex(center));
-
-  // Displace the center vertex and run a few underdamped steps so it
-  // accumulates a genuinely nonzero velocity to test preservation of.
-  double displaced[2] = {40.0, -15.0};
-  st.SetVPosition(center, displaced);
-  for (int i = 0; i < 5; i++)
-    st.Step(0.016);
-
-  const double *p = st.GetVPosition(center);
-  const double *v = st.GetVelocity(center);
-  double centerPosBefore[2] = {p[0], p[1]};
-  double centerVelBefore[2] = {v[0], v[1]};
-  TEST_ASSERT_TRUE(centerVelBefore[0] != 0.0 || centerVelBefore[1] != 0.0);
-
-  // A real unit-square face (per the graph's actual installed rotation,
-  // found via FaceEnumerator rather than hand-guessed -- FaceWalk direction
-  // is orientation-sensitive, so an arbitrarily-ordered 4-cycle isn't
-  // guaranteed to reproduce the same face FixOuterFace() would walk to) that
-  // does not touch the center vertex, so center is guaranteed to land off
-  // the new boundary.
-  FaceEnumerator faces(g, st.Structure());
-  std::vector<size_t> smallFace;
-  for (const auto &face : faces.Faces()) {
-    if (face.size() != 4)
-      continue;
-    bool touchesCenter = false;
-    for (size_t v : face)
-      if (v == center)
-        touchesCenter = true;
-    if (!touchesCenter) {
-      smallFace = face;
-      break;
-    }
-  }
-  TEST_ASSERT_FALSE(smallFace.empty());
-
-  Subgraph highlight = FaceSubgraph(g, smallFace);
-  st.SetHighlight(std::move(highlight));
-
-  TEST_ASSERT_TRUE(st.FixOuterFace());
-  TEST_ASSERT_EQUAL_UINT64(4, st.Boundary().size());
-  TEST_ASSERT_FALSE(st.IsBoundaryVertex(center));
-
-  const double *pAfter = st.GetVPosition(center);
-  const double *vAfter = st.GetVelocity(center);
-  TEST_ASSERT_EQUAL_DOUBLE(centerPosBefore[0], pAfter[0]);
-  TEST_ASSERT_EQUAL_DOUBLE(centerPosBefore[1], pAfter[1]);
-  TEST_ASSERT_EQUAL_DOUBLE(centerVelBefore[0], vAfter[0]);
-  TEST_ASSERT_EQUAL_DOUBLE(centerVelBefore[1], vAfter[1]);
 }
 
 int main() {
@@ -459,13 +338,8 @@ int main() {
   RUN_TEST(test_springTutte_dimension_validation);
   RUN_TEST(test_springTutte_configure_zeroMeansKeepCurrent);
   RUN_TEST(test_springTutte_run_before_boundary_throws);
-  RUN_TEST(test_springTutte_begin_planar_succeeds);
-  RUN_TEST(test_springTutte_begin_nonplanar_throws);
-  RUN_TEST(test_springTutte_begin_twice);
-  RUN_TEST(test_springTutte_fixOuterFace_noHighlight);
-  RUN_TEST(test_springTutte_fixOuterFace_notPlanarEmbedded);
-  RUN_TEST(test_springTutte_fixOuterFace_withHighlight);
-  RUN_TEST(test_springTutte_fixOuterFace_preservesVelocityOffBoundary);
+  RUN_TEST(test_springTutte_setBoundary_marksBegun);
+  RUN_TEST(test_springTutte_nonplanar_runsWithoutThrowing);
 
   return UNITY_END();
 }

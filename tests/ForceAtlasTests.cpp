@@ -4,6 +4,17 @@
 // "wrong dimension" return; std::bad_alloc propagates on its own for
 // allocation failure, nothing to assert there), and Run() throws
 // std::logic_error in place of the old -1 "Begin not called" sentinel.
+//
+// The dynamic-graph Sync() test (test_sync_placesNewVertexNearNeighborAnd-
+// PreservesExisting) is dropped: dynamic graph growth during an active
+// embedding is out of scope for this library now (see CLAUDE.md's
+// EmbeddedGraph section) -- ForceAtlas's physics arrays are built once, at
+// construction, from GraphLike<G>::structure_ as it stood then, and there
+// is no Sync() left to test.
+//
+// ForceAtlas is generic over GraphLike (`template <GraphLike G> class
+// ForceAtlas`); every construction below deduces G = Subgraph via CTAD from
+// the Subgraph argument, same call syntax as before the refactor.
 
 #include "ForceAtlas.hpp"
 
@@ -230,56 +241,6 @@ static void test_preventOverlap_separatesCoincidentVertices(void) {
 }
 
 // ============================================================================
-// SYNC (dynamic graph growth)
-// ============================================================================
-
-static void test_sync_placesNewVertexNearNeighborAndPreservesExisting(void) {
-  Graph g(false);
-  Subgraph sg = MakeInduced(g, 3);
-  AddCycle(g, 3); // triangle 0-1-2
-  ForceAtlas fa(std::move(sg), 2, std::make_unique<FruchtermanReingold>());
-  fa.Configure(/*edgeLength=*/8.0, 0.0);
-  fa.Begin(99);
-  fa.Step();
-  fa.Step();
-
-  double before[3][2];
-  for (size_t v = 0; v < 3; v++) {
-    double *p = fa.GetVPosition(v);
-    before[v][0] = p[0];
-    before[v][1] = p[1];
-  }
-
-  TEST_ASSERT_EQUAL_UINT64(3, g.AddVertex());
-  g.AddEdge(3, 1, 1.0); // new vertex's only neighbor is vertex 1
-
-  TEST_ASSERT_TRUE(fa.Sync(123));
-  TEST_ASSERT_EQUAL_UINT64(4, fa.PositionCount());
-
-  // Existing vertices' positions/history are untouched by Sync.
-  for (size_t v = 0; v < 3; v++) {
-    double *p = fa.GetVPosition(v);
-    TEST_ASSERT_EQUAL_DOUBLE(before[v][0], p[0]);
-    TEST_ASSERT_EQUAL_DOUBLE(before[v][1], p[1]);
-  }
-
-  // The new vertex lands within edgeLength (a generous bound: jitter is at
-  // most edgeLength/2 per axis) of its only neighbor's committed position.
-  double *newPos = fa.GetVPosition(3);
-  double *neighborPos = fa.GetVPosition(1);
-  double dist = std::hypot(newPos[0] - neighborPos[0], newPos[1] - neighborPos[1]);
-  TEST_ASSERT_TRUE(dist <= 8.0);
-
-  // A no-op Sync (nothing mutated since) reports false.
-  TEST_ASSERT_FALSE(fa.Sync(123));
-
-  // Physics arrays were actually grown to cover the new vertex: stepping
-  // again must not crash or produce non-finite output.
-  double maxDisp = fa.Step();
-  TEST_ASSERT_TRUE(std::isfinite(maxDisp));
-}
-
-// ============================================================================
 // ACTIONS
 // ============================================================================
 
@@ -330,8 +291,6 @@ int main(void) {
 
   RUN_TEST(test_radius_formula);
   RUN_TEST(test_preventOverlap_separatesCoincidentVertices);
-
-  RUN_TEST(test_sync_placesNewVertexNearNeighborAndPreservesExisting);
 
   RUN_TEST(test_actions_stepActionAdvancesIterationOnlyWhenBegun);
   RUN_TEST(test_actions_toggleOverlapPrevention);

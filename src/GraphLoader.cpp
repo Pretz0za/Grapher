@@ -24,8 +24,8 @@ namespace {
 // Parses one data line into (u, v): 0 if the line is blank/whitespace-only/
 // a '%' comment (nothing to parse), 1 on success, -1 if the line has
 // content but doesn't start with two whitespace-separated integers. Any
-// trailing content after v (including a weight token) is ignored, matching
-// the old C parse_edge_line -- see LoadFromEdgesFile's doc comment.
+// trailing content after v (including a weight token) is ignored -- see
+// LoadFromEdgesFile's doc comment.
 int ParseEdgeLine(std::string_view line, long long &u, long long &v) {
   size_t i = 0;
   while (i < line.size() && (line[i] == ' ' || line[i] == '\t'))
@@ -88,11 +88,9 @@ size_t FindWithin(const std::string &buf, size_t start, size_t end, std::string_
 // Finds the next occurrence of an XML tag opener (e.g. "<node") within
 // buf[start, end) where the byte immediately after it is a valid tag
 // terminator -- so "<attributes" doesn't spuriously match inside some
-// "<attributesFoo". Reading buf[after] for after == end is well-defined
-// (std::string::operator[](size()) returns the null terminator; end is
-// always <= buf.size() here), mirroring how the original C scan could look
-// one byte past a bounded sub-region into the rest of the (still valid,
-// NUL-terminated) buffer.
+// "<attributesFoo". Reading buf[after] for after == end is well-defined:
+// std::string::operator[](size()) returns the null terminator, and end is
+// always <= buf.size() here.
 size_t FindTag(const std::string &buf, size_t start, size_t end, std::string_view name) {
   size_t p = start;
   while (true) {

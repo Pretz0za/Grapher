@@ -7,14 +7,8 @@
 
 namespace gviz::graphs {
 
-/*
- * Synthetic test-graph builders, ported from utils/graphs.h. Each returns
- * an initialized undirected Graph by value; there is no more "return a
- * zeroed graph on allocation failure" convention -- std::bad_alloc just
- * propagates out of Graph's underlying std::vector allocations like
- * anywhere else in this port, so callers that want to catch it can, and
- * the (overwhelming) majority that don't need not check anything.
- */
+/* Synthetic test-graph builders. Each returns an initialized undirected
+ * Graph by value; std::bad_alloc propagates on allocation failure. */
 
 /** Indices of the three outer corners of a Sierpinski triangle. */
 struct SierpinskiTriangle {
@@ -94,22 +88,8 @@ Graph BuildKleinBottle(size_t rows, size_t cols);
 Graph BuildRandomConnectedGraph(size_t numVertices, double edgeDensity, unsigned int seed,
                                  bool directed = false);
 
-/**
- * Returns whether every vertex of @p g is reachable from every other vertex
- * (true trivially for 0 or 1 vertices).
- *
- * Port note: the old C isConnected(gvizGraph*) rebuilt g->layout and ran a
- * BFS into a full subgraph just to compare its vertex count against the
- * whole graph's -- which required a non-const gvizGraph* purely to satisfy
- * gvizGraphBuildLayout, and paid for a layout (O(V+E)) and an edge bitset
- * neither of which the question "is this connected" actually needs. This
- * port instead marks every vertex present in a vertex-induced Subgraph (no
- * layout, no edge bitset -- see Subgraph.hpp) and asks
- * search::ConnectedComponents whether that comes out to at most one
- * component. Graph::AddVertex/BuildLayout etc. all leave @p g's public
- * surface const-correct enough that this genuinely never needs to mutate
- * @p g, unlike the old signature.
- */
+/** Returns whether every vertex of @p g is reachable from every other
+ *  vertex (true trivially for 0 or 1 vertices). */
 bool IsConnected(const Graph &g);
 
 } // namespace gviz::graphs

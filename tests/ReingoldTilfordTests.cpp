@@ -480,6 +480,85 @@ static void test_stress_randomTree_manySeeds_noOverlap(void) {
     CheckRandomTreeNoOverlap(1000, base + trial);
 }
 
+// ============================================================================
+// STRESS: sibling gaps stay proportional to actual subtree size
+// ============================================================================
+//
+// test_stress_randomTree_manySeeds_noOverlap (above) only asserts strictly-
+// increasing x per BFS depth level -- excess/spurious separation trivially
+// satisfies that, so a bug that inflates a gap by orders of magnitude (a
+// real regression once shipped undetected here: CreateThreads' thread-offset
+// formula dropping two frame-conversion terms, causing a huge subtree's own
+// internal thread corrections to leak into an unrelated sibling gap at a
+// shallower merge) would pass every existing test. This check instead
+// bounds *every* parent's sibling gaps against that parent's own total leaf
+// count -- an upper bound on demand for width regardless of *which* pair of
+// children a given gap sits between, since a gap between children i-1 and i
+// has to accommodate not just those two children's own subtrees but
+// whatever was already merged into the blob to their left (see the
+// calibration note below for why "just the two adjacent children's own leaf
+// counts" is NOT a safe per-pair bound on its own).
+//
+// Bound derivation: kMinSeparation keeps every pair of leaf contours at
+// least 1 offset unit apart, so a subtree's own width is always O(leaf
+// count) in offset units, and kXSeparation converts offset units to
+// position units (must track ReingoldTilford.cpp's private kXSeparation --
+// same "no shared header for a production constant" tradeoff as the
+// kYSeparation=1000.0 literal in CheckRandomTreeNoOverlap above). No single
+// gap between any two of a vertex's children can exceed the width needed
+// for *all* of that vertex's children combined, i.e.
+// totalLeaves(vertex) * kXSeparation -- calibrated empirically at up to
+// ~0.64x that bound across 600 random trees (50-2000 vertices) with the
+// fix in place, vs. ~8.2x at the root alone with the regression this test
+// guards against still present -- kGapSlackFactor leaves a wide margin
+// above the former and well below the latter.
+static void CheckRandomTreeSiblingGapsProportional(size_t numVertices, unsigned int seed) {
+  constexpr double kXSeparation = 500.0;
+  constexpr double kGapSlackFactor = 2.0;
+
+  Graph g = gviz::graphs::BuildRandomConnectedGraph(numVertices, 0.0, seed, /*directed=*/true);
+  g.BuildLayout();
+
+  ReingoldTilford rt(g, 0);
+  rt.CalculateOffsets(0, 0);
+
+  double origin[2] = {0.0, 0.0};
+  rt.Embed(0, origin);
+
+  char msg[320];
+  for (size_t v = 0; v < numVertices; v++) {
+    size_t degree = g.Degree(v);
+    if (degree < 2)
+      continue;
+
+    size_t totalLeaves = search::IsLeaf(g, v) ? 1 : search::CountLeaves(g, v);
+    double bound = static_cast<double>(totalLeaves) * kXSeparation * kGapSlackFactor;
+
+    for (size_t i = 1; i < degree; i++) {
+      size_t a = g.Neighbor(v, i - 1);
+      size_t b = g.Neighbor(v, i);
+      double gap = rt.GetVPosition(b)[0] - rt.GetVPosition(a)[0];
+
+      std::snprintf(msg, sizeof(msg),
+                    "seed=%u N=%zu parent=%zu childIndex=%zu gap=%f exceeds "
+                    "generous bound=%f (parent's totalLeaves=%zu)",
+                    seed, numVertices, v, i, gap, bound, totalLeaves);
+      TEST_ASSERT_TRUE_MESSAGE(gap <= bound, msg);
+    }
+  }
+}
+
+static void test_stress_randomTree_1000_siblingGapsProportional(void) {
+  unsigned int seed = static_cast<unsigned int>(time(NULL));
+  CheckRandomTreeSiblingGapsProportional(1000, seed);
+}
+
+static void test_stress_randomTree_manySeeds_siblingGapsProportional(void) {
+  unsigned int base = static_cast<unsigned int>(time(NULL));
+  for (unsigned int trial = 0; trial < 30; trial++)
+    CheckRandomTreeSiblingGapsProportional(1000, base + trial);
+}
+
 int main(void) {
   UNITY_BEGIN();
 
@@ -500,6 +579,8 @@ int main(void) {
 
   RUN_TEST(test_stress_randomTree_1000_noOverlap);
   RUN_TEST(test_stress_randomTree_manySeeds_noOverlap);
+  RUN_TEST(test_stress_randomTree_1000_siblingGapsProportional);
+  RUN_TEST(test_stress_randomTree_manySeeds_siblingGapsProportional);
 
   return UNITY_END();
 }

@@ -13,6 +13,7 @@
 #include "BitSet.hpp"
 #include "BreadthFirst.hpp"
 #include "ConnectedComponents.hpp"
+#include "DenseIndex.hpp"
 #include "DepthFirst.hpp"
 #include "EmbeddedGraph.hpp"
 #include "Error.hpp"
@@ -20,6 +21,7 @@
 #include "ForceModel.hpp"
 #include "GRIP.hpp"
 #include "Graph.hpp"
+#include "GraphLike.hpp"
 #include "GraphLoader.hpp"
 #include "Graphs.hpp"
 #include "KNearest.hpp"
@@ -37,13 +39,19 @@
 #include "Vec.hpp"
 
 // core/    — ThreadPool, Vec helpers.
-// ds/      — Graph, Subgraph, BitSet, QuadTree.
-// search/  — BreadthFirst, DepthFirst, ConnectedComponents,
-//            Tree (IsTree/IsLeaf/CountLeaves), KNearest.
-// layout/  — EmbeddedGraph, ForceModel, ForceAtlas, GRIP,
-//            ReingoldTilford, ReingoldTilfordTrace (teaching-only, see its
-//            own header), Planar, SchnyderWood, Tutte, SpringTutte,
-//            KamadaKawai.
+// ds/      — Graph, Subgraph, BitSet, QuadTree, GraphLike (the traversal
+//            concept both Graph and Subgraph satisfy) and DenseIndex (the
+//            raw-handle <-> dense-local-index adapter built on it).
+// search/  — BreadthFirst (+ BreadthFirstTree), DepthFirst,
+//            ConnectedComponents, Tree (IsTree/IsLeaf/CountLeaves),
+//            KNearest -- all templated over GraphLike.
+// layout/  — EmbeddedGraph (GraphLike-agnostic base: dimension, positions,
+//            actions, stats, draw mask), ForceModel, and the embedders.
+//            ForceAtlas<G>, GRIP<G>, KamadaKawai<G>, Tutte<G>, SpringTutte<G>
+//            are generic over GraphLike G (typically Graph or Subgraph).
+//            Planar, SchnyderWood, ReingoldTilford, ReingoldTilfordTrace
+//            (teaching-only, see its own header) stay concrete/Graph-
+//            specific -- see each header's class doc for why.
 // io/      — GraphLoader.
 // graphs/  — synthetic graph generators (Graphs.hpp).
 

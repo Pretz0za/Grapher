@@ -8,7 +8,7 @@ namespace {
 
 /** Binary search for the vertex owning flat bit index @p bit under a given
  *  vertexOffsets prefix-sum array; writes the within-vertex adjacency index
- *  to @p outIdx. Mirrors the old layout_vertex_from_bit. */
+ *  to @p outIdx. */
 size_t VertexFromBit(const std::vector<size_t> &offsets, size_t bit, size_t &outIdx) {
   size_t lo = 0;
   size_t hi = offsets.size() - 1;

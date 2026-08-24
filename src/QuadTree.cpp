@@ -141,9 +141,7 @@ void QuadTree::Build() {
   double cx = (minX + maxX) / 2.0;
   double cy = (minY + maxY) / 2.0;
 
-  // Only commit root_ once every point has been inserted successfully --
-  // mirrors the old C's "tree->root = NULL" reset on a failed build, now
-  // driven by exception propagation instead of a checked -1 return.
+  // Only commit root_ once every point has been inserted successfully.
   Node *newRoot = ArenaAlloc(cx, cy, halfSize);
   for (size_t i = 0; i < pointCount_; i++)
     InsertPoint(newRoot, i);

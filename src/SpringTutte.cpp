@@ -1,7 +1,8 @@
 #include "SpringTutte.hpp"
 
 #include "Error.hpp"
-#include "Planar.hpp"
+#include "Graph.hpp"
+#include "Subgraph.hpp"
 #include "Vec.hpp"
 
 #include <cmath>
@@ -19,51 +20,35 @@ size_t RequireDim2(size_t dimension) {
 
 } // namespace
 
-void SpringTutte::ActionStep(EmbeddedGraph &embedding, void *userData,
-                              const ActionPayload &payload) {
+template <GraphLike G>
+void SpringTutte<G>::ActionStep(EmbeddedGraph &embedding, void *userData,
+                                 const ActionPayload &payload) {
   (void)userData;
-  auto &st = static_cast<SpringTutte &>(embedding);
+  auto &st = static_cast<SpringTutte<G> &>(embedding);
   if (!st.begun_ || st.boundary_.empty())
     return;
   double dt = payload.deltaTime > 0.0 ? payload.deltaTime : 1.0 / 60.0;
   st.Step(dt);
 }
 
-void SpringTutte::ActionFixOuterFace(EmbeddedGraph &embedding, void *userData,
-                                      const ActionPayload &payload) {
-  (void)userData;
-  (void)payload;
-  auto &st = static_cast<SpringTutte &>(embedding);
-  st.FixOuterFace();
-}
-
-SpringTutte::SpringTutte(Graph &g, Subgraph subgraph, size_t dimension, double epsilon)
-    : EmbeddedGraph(std::move(subgraph), RequireDim2(dimension)), graph_(g),
-      isBoundary_(g.Size()), scratch_(g.Size() * dimension, 0.0),
-      velocity_(g.Size() * dimension, 0.0), epsilon_(epsilon) {
-  AddAction("springTutte.step", &SpringTutte::ActionStep);
-  AddAction("springTutte.fixOuterFace", &SpringTutte::ActionFixOuterFace);
+template <GraphLike G>
+SpringTutte<G>::SpringTutte(G structure, size_t dimension, double epsilon)
+    : EmbeddedGraph(GraphLikeVertexCount(structure), RequireDim2(dimension)),
+      structure_(std::move(structure)), index_(structure_),
+      isBoundary_(index_.Size()), scratch_(index_.Size() * dimension, 0.0),
+      velocity_(index_.Size() * dimension, 0.0), epsilon_(epsilon) {
+  AddAction("springTutte.step", &SpringTutte<G>::ActionStep);
   AddStatSeries("springTutte.maxDelta", StatChartKind::LineLog);
 }
 
-void SpringTutte::Begin() {
-  ApplyPlanarRotation(graph_, Structure());
-  SetPlanarEmbedded(true);
-
-  std::vector<size_t> boundary = LargestFaceBoundary(graph_, Structure());
-  FixConvexPolygon(boundary, 200.0);
-  SeedInterior();
-  begun_ = true;
-}
-
-bool SpringTutte::SetBoundary(std::span<const size_t> boundary,
-                               std::span<const double> polygonPositions) {
+template <GraphLike G>
+bool SpringTutte<G>::SetBoundary(std::span<const size_t> boundary,
+                                  std::span<const double> polygonPositions) {
   if (boundary.size() < 3)
     return false;
 
-  size_t N = graph_.Size();
   for (size_t idx : boundary)
-    if (idx >= N)
+    if (!structure_.HasVertex(idx))
       return false;
 
   isBoundary_.ClearAll();
@@ -72,17 +57,19 @@ bool SpringTutte::SetBoundary(std::span<const size_t> boundary,
   size_t d = Dim();
   double zero[2] = {0.0, 0.0};
   for (size_t i = 0; i < boundary_.size(); i++) {
-    size_t u = boundary_[i];
-    isBoundary_.Set(u);
-    SetVPosition(u, polygonPositions.data() + i * d);
-    VecCopy(d, zero, velocity_.data() + u * d);
+    size_t uLocal = index_.ToLocal(boundary_[i]);
+    isBoundary_.Set(uLocal);
+    SetVPosition(boundary_[i], polygonPositions.data() + i * d);
+    VecCopy(d, zero, velocity_.data() + uLocal * d);
   }
 
+  begun_ = true;
   return true;
 }
 
-void SpringTutte::SeedInterior() {
-  size_t N = graph_.Size();
+template <GraphLike G>
+void SpringTutte<G>::SeedInterior() {
+  size_t n = index_.Size();
   size_t d = Dim();
 
   double centroid[2] = {0.0, 0.0};
@@ -95,9 +82,9 @@ void SpringTutte::SeedInterior() {
     for (size_t k = 0; k < d; k++)
       centroid[k] /= static_cast<double>(boundary_.size());
 
-  for (size_t u = 0; u < N; u++)
-    if (!isBoundary_.Test(u))
-      SetVPosition(u, centroid);
+  for (size_t uLocal = 0; uLocal < n; uLocal++)
+    if (!isBoundary_.Test(uLocal))
+      EmbeddedGraph::SetVPosition(uLocal, centroid);
 
   VecZero(velocity_.size(), velocity_.data());
 
@@ -106,7 +93,8 @@ void SpringTutte::SeedInterior() {
   converged_ = false;
 }
 
-bool SpringTutte::FixConvexPolygon(std::span<const size_t> boundary, double radius) {
+template <GraphLike G>
+bool SpringTutte<G>::FixConvexPolygon(std::span<const size_t> boundary, double radius) {
   size_t d = Dim();
   size_t count = boundary.size();
   std::vector<double> positions(count * d, 0.0);
@@ -121,27 +109,30 @@ bool SpringTutte::FixConvexPolygon(std::span<const size_t> boundary, double radi
   return SetBoundary(boundary, positions);
 }
 
-void SpringTutte::SnapshotInterior() {
-  size_t N = graph_.Size();
+template <GraphLike G>
+void SpringTutte<G>::SnapshotInterior() {
+  size_t n = index_.Size();
   size_t d = Dim();
-  for (size_t u = 0; u < N; u++)
-    if (!isBoundary_.Test(u))
-      VecCopy(d, GetVPosition(u), scratch_.data() + u * d);
+  for (size_t uLocal = 0; uLocal < n; uLocal++)
+    if (!isBoundary_.Test(uLocal))
+      VecCopy(d, EmbeddedGraph::GetVPosition(uLocal), scratch_.data() + uLocal * d);
 }
 
-const double *SpringTutte::NeighborReadPos(size_t v) const noexcept {
-  if (!isBoundary_.Test(v))
-    return scratch_.data() + v * Dim();
-  return GetVPosition(v);
+template <GraphLike G>
+const double *SpringTutte<G>::NeighborReadPos(size_t vLocal) const noexcept {
+  if (!isBoundary_.Test(vLocal))
+    return scratch_.data() + vLocal * Dim();
+  return EmbeddedGraph::GetVPosition(vLocal);
 }
 
-void SpringTutte::ComputeBarycenter(size_t u, double *out) const {
+template <GraphLike G>
+void SpringTutte<G>::ComputeBarycenter(size_t uLocal, double *out) const {
   size_t d = Dim();
   size_t count = 0;
   VecZero(d, out);
 
-  for (size_t v : Structure().Neighbors(u)) {
-    const double *vp = NeighborReadPos(v);
+  for (size_t v : structure_.Neighbors(index_.ToRaw(uLocal))) {
+    const double *vp = NeighborReadPos(index_.ToLocal(v));
     for (size_t k = 0; k < d; k++)
       out[k] += vp[k];
     count++;
@@ -152,16 +143,17 @@ void SpringTutte::ComputeBarycenter(size_t u, double *out) const {
     out[k] /= static_cast<double>(count);
 }
 
-double SpringTutte::SpringVertex(size_t u, double dt) {
-  if (Structure().Degree(u) == 0)
+template <GraphLike G>
+double SpringTutte<G>::SpringVertex(size_t uLocal, double dt) {
+  if (structure_.Degree(index_.ToRaw(uLocal)) == 0)
     return 0.0;
 
   double bary[2];
-  ComputeBarycenter(u, bary);
+  ComputeBarycenter(uLocal, bary);
 
   size_t d = Dim();
-  double *old = GetVPosition(u);
-  double *v = velocity_.data() + u * d;
+  double *old = EmbeddedGraph::GetVPosition(uLocal);
+  double *v = velocity_.data() + uLocal * d;
   double newp[2];
   double delta = 0.0;
   for (size_t k = 0; k < d; k++) {
@@ -172,22 +164,23 @@ double SpringTutte::SpringVertex(size_t u, double dt) {
     delta += diff * diff;
   }
 
-  SetVPosition(u, newp);
+  EmbeddedGraph::SetVPosition(uLocal, newp);
   return std::sqrt(delta);
 }
 
-double SpringTutte::Step(double dt) {
-  size_t N = graph_.Size();
+template <GraphLike G>
+double SpringTutte<G>::Step(double dt) {
+  size_t n = index_.Size();
   if (dt <= 0.0)
     return 0.0;
 
   SnapshotInterior();
 
   double maxDelta = 0.0;
-  for (size_t u = 0; u < N; u++) {
-    if (isBoundary_.Test(u))
+  for (size_t uLocal = 0; uLocal < n; uLocal++) {
+    if (isBoundary_.Test(uLocal))
       continue;
-    double d = SpringVertex(u, dt);
+    double d = SpringVertex(uLocal, dt);
     if (d > maxDelta)
       maxDelta = d;
   }
@@ -202,11 +195,12 @@ double SpringTutte::Step(double dt) {
   return maxDelta;
 }
 
-size_t SpringTutte::Run(size_t maxIters, double dt) {
+template <GraphLike G>
+size_t SpringTutte<G>::Run(size_t maxIters, double dt) {
   if (boundary_.empty())
     throw std::logic_error(
-        "gviz::layout::SpringTutte::Run: no boundary set (call Begin(), "
-        "SetBoundary(), or FixConvexPolygon() first)");
+        "gviz::layout::SpringTutte::Run: no boundary set (call SetBoundary() "
+        "or FixConvexPolygon() first)");
 
   while (!converged_ && iteration_ < maxIters)
     Step(dt);
@@ -214,50 +208,16 @@ size_t SpringTutte::Run(size_t maxIters, double dt) {
   return iteration_;
 }
 
-bool SpringTutte::FixOuterFace() {
-  if (!IsPlanarEmbedded() || !HasHighlight())
-    return false;
-
-  const Subgraph &highlight = *GetHighlight();
-
-  HalfEdge start{};
-  bool found = false;
-  for (size_t u : highlight) {
-    for (size_t v : highlight.Neighbors(u)) {
-      if (!highlight.HasEdge(u, v))
-        continue;
-      start = HalfEdge{u, v};
-      found = true;
-      break;
-    }
-    if (found)
-      break;
-  }
-  if (!found)
-    return false;
-
-  std::vector<size_t> boundary;
-  for (size_t v : FaceWalk(graph_, highlight, start))
-    boundary.push_back(v);
-
-  if (boundary.size() < 3)
-    return false;
-
-  if (!FixConvexPolygon(boundary, 200.0))
-    return false;
-
-  iteration_ = 0;
-  lastMaxDelta_ = 0.0;
-  converged_ = false;
-  begun_ = true;
-  return true;
-}
-
-void SpringTutte::Configure(double stiffness, double damping) noexcept {
+template <GraphLike G>
+void SpringTutte<G>::Configure(double stiffness, double damping) noexcept {
   if (stiffness > 0.0)
     stiffness_ = stiffness;
   if (damping > 0.0)
     damping_ = damping;
 }
+
+// Explicit instantiation for the GraphLike types this codebase uses.
+template class SpringTutte<Graph>;
+template class SpringTutte<Subgraph>;
 
 } // namespace gviz::layout

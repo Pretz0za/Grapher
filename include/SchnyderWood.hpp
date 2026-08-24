@@ -11,8 +11,7 @@
 namespace gviz::layout {
 
 /**
- * A Schnyder wood (realizer) for a triangulated planar graph. Port of the
- * old C gvizSchnyderWood/gvizSchnyderWoodInit/gvizSchnyderWoodEmbed.
+ * A Schnyder wood (realizer) for a triangulated planar graph.
  *
  * Given a triangulated planar graph G with a designated outer-face triangle
  * (Root(0), Root(1), Root(2)) and a valid CCW rotation system (e.g. one
@@ -34,33 +33,22 @@ namespace gviz::layout {
  *
  * IMPLEMENTATION STATUS -- read before relying on Embed():
  *
- * The constructor (the old gvizSchnyderWoodInit) implements the standard
- * canonical-ordering construction and is believed correct: it is ported
- * faithfully and exercised by the same structural checks the old C test
- * suite used (every root's own-tree parent is kNone, every interior vertex
- * has exactly one parent per tree, every parent pointer is a real graph
- * edge, and following any chain terminates at the correct root).
+ * The constructor implements the standard canonical-ordering construction
+ * and is believed correct (every root's own-tree parent is kNone, every
+ * interior vertex has exactly one parent per tree, every parent pointer is
+ * a real graph edge, and following any chain terminates at the correct
+ * root).
  *
- * Embed(), however, ports a genuinely INCOMPLETE algorithm. The old
- * gvizSchnyderWoodEmbed carried a `// TODO: fix this. finding previous
- * neighbor is not enough` comment directly over its region-counting logic,
- * plus stdout debug printf()s left in from development. This port removes
- * the printf()s (dead debugging output, not intentional behavior -- keeping
- * them would make this the ONLY class in the C++ port that spams stdout on
- * every call) but preserves the region-counting algorithm exactly as
- * written, bug and all: fixing a triangulation/barycentric-coordinate
- * algorithm is out of scope for a mechanical port, and guessing at a fix
- * risks silently shipping a DIFFERENT wrong answer instead of a faithfully
- * reproduced one. Do not treat Embed()'s output as a validated straight-line
+ * Embed(), however, is a known-INCOMPLETE algorithm: its region-counting
+ * logic has an unresolved correctness gap ("finding previous neighbor is
+ * not enough"). Do not treat Embed()'s output as a validated straight-line
  * planar drawing; SchnyderWoodTests.cpp only checks that it runs and
- * produces finite coordinates, exactly as weak as the old C test's coverage
- * (which printed the result for a human to eyeball rather than asserting
- * anything about it).
+ * produces finite coordinates.
  */
 class SchnyderWood {
 public:
   /** Sentinel meaning "no parent" (root vertex, or edge excluded from this
-   *  tree). Replaces the old GVIZ_SW_NONE macro. */
+   *  tree). */
   static constexpr size_t kNone = static_cast<size_t>(-1);
 
   /**
@@ -75,10 +63,7 @@ public:
    * @throws LayoutError if @p g has fewer than 3 vertices, vertex 0 has no
    *         neighbors, or (defensively) the canonical-ordering scan can't
    *         find a next vertex to process -- all indicate @p g is not a
-   *         validly triangulated planar rotation system. The old C asserted
-   *         the last condition (UB/no-op in a release build on failure);
-   *         this throws instead of leaving a partially-built, silently
-   *         invalid object.
+   *         validly triangulated planar rotation system.
    */
   explicit SchnyderWood(const Graph &g);
 
@@ -94,19 +79,9 @@ public:
 
   /**
    * Computes a straight-line embedding from this realizer into
-   * @p embedding (2D only -- matches the old C signature, which took just
-   * the embedding since it could reach the graph via
-   * `embedding->subgraph.g`; this class instead keeps its own reference to
-   * the graph it was built from, captured at construction, so the call
-   * shape here matches the C one exactly despite Subgraph never exposing an
-   * equivalent accessor -- see Planar.hpp's file-level note for the fuller
-   * explanation of why that accessor doesn't exist).
+   * @p embedding (2D only). Reads the graph captured at construction.
    *
-   * @throws DimensionError if @p embedding is not 2-dimensional. The old C
-   *         had no such check and would silently over-read its 3-element
-   *         stack coordinate buffer for any embedding with Dim() > 3; this
-   *         is a genuine safety fix, not a behavior change for any correct
-   *         (2D) caller.
+   * @throws DimensionError if @p embedding is not 2-dimensional.
    */
   void Embed(EmbeddedGraph &embedding) const;
 

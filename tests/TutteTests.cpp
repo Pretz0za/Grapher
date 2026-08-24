@@ -5,17 +5,34 @@
 // Scenarios reshaped for the new API:
 //   - gvizTutteEmbedderInit's -1 return becomes std::bad_alloc (never
 //     exercised directly here) or DimensionError for a bad dimension.
-//   - gvizTutteEmbedderBegin's -2/-1 return codes become, respectively, a
-//     thrown PlanarNotPlanarError and a thrown LayoutError.
 //   - gvizTutteEmbedderRun's -1 "invalid state" return becomes a thrown
 //     std::logic_error (no boundary pinned yet).
 //   - Manual Init/Release pairs: RAII replaces them.
+//   - Begin() no longer exists (see Tutte.hpp's class doc): this refactor
+//     removed planarity testing and auto-boundary-detection from Tutte
+//     entirely -- SetBoundary()/FixConvexPolygon() are now the only way to
+//     establish a boundary, and every scenario below already exercised that
+//     path directly (this suite never actually needed Begin() to pass).
+//     test_tutte_begin_planar_succeeds/begin_nonplanar_throws/begin_twice
+//     are dropped (nothing left to test -- there is no more planarity
+//     check to pass or fail); replaced by test_tutte_nonplanar_runsWithout
+//     Throwing, which asserts the new, intentional contract: a non-planar
+//     Structure() no longer throws, it just relaxes into some (possibly
+//     overlapping) layout without crashing or hanging.
+//   - FixOuterFace()/highlight-subgraph tests are dropped: both FixOuterFace
+//     and EmbeddedGraph's highlight subgraph were removed outright in this
+//     same refactor (see Tutte.hpp/EmbeddedGraph.hpp's class docs) --
+//     SetBoundary()/FixConvexPolygon() are the whole story now.
+//   - Tutte no longer holds a separate `Graph&` alongside its Subgraph
+//     (see Tutte.hpp's class doc) and is generic over GraphLike
+//     (`template <GraphLike G> class Tutte`); every construction below
+//     drops the old `Tutte(g, subgraph, dim)` shape's leading `g` argument
+//     in favor of `Tutte(subgraph, dim)`, deducing G = Subgraph via CTAD.
 
 #include "Tutte.hpp"
 
 #include "Error.hpp"
 #include "Graph.hpp"
-#include "Planar.hpp"
 #include "Subgraph.hpp"
 #include "unity/unity.h"
 
@@ -25,9 +42,7 @@
 
 using gviz::DimensionError;
 using gviz::Graph;
-using gviz::LayoutError;
 using gviz::Subgraph;
-using gviz::layout::PlanarNotPlanarError;
 using gviz::layout::Tutte;
 
 void setUp(void) {}
@@ -53,12 +68,10 @@ static Graph BuildK4() {
 }
 
 // K4 with the outer triangle pinned: after convergence vertex 3 must sit at
-// the centroid of the triangle to within a loose tolerance. Never calls
-// Begin() -- exercises SetBoundary()/FixConvexPolygon()+SeedInterior()+Run()
-// directly, the same path the old C test used.
+// the centroid of the triangle to within a loose tolerance.
 static void test_tutte_k4_centroid(void) {
   Graph g = BuildK4();
-  Tutte t(g, MakeFullSubgraph(g), 2, 1e-8);
+  Tutte t(MakeFullSubgraph(g), 2, 1e-8);
 
   size_t boundary[3] = {0, 1, 2};
   TEST_ASSERT_TRUE(t.FixConvexPolygon(boundary, 100.0));
@@ -81,7 +94,7 @@ static void test_tutte_k4_centroid(void) {
 // Boundary vertex positions must be bit-exact after any number of steps.
 static void test_tutte_boundary_pinned(void) {
   Graph g = BuildK4();
-  Tutte t(g, MakeFullSubgraph(g), 2, 1e-8);
+  Tutte t(MakeFullSubgraph(g), 2, 1e-8);
 
   size_t boundary[3] = {0, 1, 2};
   TEST_ASSERT_TRUE(t.FixConvexPolygon(boundary, 50.0));
@@ -119,7 +132,7 @@ static void test_tutte_convergence(void) {
         g.AddEdge(idx, (i + 1) * W + j, 1.0);
     }
 
-  Tutte t(g, MakeFullSubgraph(g), 2, 1e-5);
+  Tutte t(MakeFullSubgraph(g), 2, 1e-5);
 
   // Collect rim vertices in CCW order: top, right, bottom (rev), left (rev).
   std::vector<size_t> rim;
@@ -145,8 +158,8 @@ static void test_tutte_convergence(void) {
 // 1e-4). GS should use no more iterations than Jacobi.
 static void test_tutte_jacobi_vs_gs(void) {
   Graph g = BuildK4();
-  Tutte tJ(g, MakeFullSubgraph(g), 2, 1e-8);
-  Tutte tGS(g, MakeFullSubgraph(g), 2, 1e-8);
+  Tutte tJ(MakeFullSubgraph(g), 2, 1e-8);
+  Tutte tGS(MakeFullSubgraph(g), 2, 1e-8);
 
   size_t boundary[3] = {0, 1, 2};
   TEST_ASSERT_TRUE(tJ.FixConvexPolygon(boundary, 100.0));
@@ -169,11 +182,11 @@ static void test_tutte_jacobi_vs_gs(void) {
   TEST_ASSERT_LESS_OR_EQUAL(tJ.Iteration(), tGS.Iteration());
 }
 
-// SetBoundary with count<3 or an out-of-range index must return false and
-// leave the object otherwise usable.
+// SetBoundary with count<3 or a handle Structure() doesn't have must return
+// false and leave the object otherwise usable.
 static void test_tutte_setBoundary_validation(void) {
   Graph g = BuildK4();
-  Tutte t(g, MakeFullSubgraph(g), 2);
+  Tutte t(MakeFullSubgraph(g), 2);
 
   size_t tooFew[2] = {0, 1};
   double pos[4] = {0.0, 0.0, 1.0, 0.0};
@@ -188,12 +201,12 @@ static void test_tutte_setBoundary_validation(void) {
   TEST_ASSERT_TRUE(t.FixConvexPolygon(good, 10.0));
 }
 
-// Dimension != 2 must be rejected at construction, not deferred to Begin().
+// Dimension != 2 must be rejected at construction.
 static void test_tutte_dimension_validation(void) {
   Graph g = BuildK4();
   bool threw = false;
   try {
-    Tutte t(g, MakeFullSubgraph(g), 3);
+    Tutte t(MakeFullSubgraph(g), 3);
     (void)t;
   } catch (const DimensionError &) {
     threw = true;
@@ -204,7 +217,7 @@ static void test_tutte_dimension_validation(void) {
 // Run() before any boundary has ever been pinned is a usage-order error.
 static void test_tutte_run_before_boundary_throws(void) {
   Graph g = BuildK4();
-  Tutte t(g, MakeFullSubgraph(g), 2);
+  Tutte t(MakeFullSubgraph(g), 2);
 
   bool threw = false;
   try {
@@ -215,25 +228,33 @@ static void test_tutte_run_before_boundary_throws(void) {
   TEST_ASSERT_TRUE(threw);
 }
 
-// Begin() on a planar graph succeeds, installs a rotation system, and
-// leaves the embedding ready to Run().
-static void test_tutte_begin_planar_succeeds(void) {
+// SetBoundary()/FixConvexPolygon() succeeding marks Begun() true -- the
+// replacement for what a successful Begin()/FixOuterFace() used to do (see
+// Tutte.hpp's class doc).
+static void test_tutte_setBoundary_marksBegun(void) {
   Graph g = BuildK4();
-  Tutte t(g, MakeFullSubgraph(g), 2, 1e-6);
+  Tutte t(MakeFullSubgraph(g), 2, 1e-6);
 
-  t.Begin();
-
-  TEST_ASSERT_TRUE(t.IsPlanarEmbedded());
+  TEST_ASSERT_FALSE(t.Begun());
+  size_t boundary[3] = {0, 1, 2};
+  TEST_ASSERT_TRUE(t.FixConvexPolygon(boundary, 100.0));
   TEST_ASSERT_TRUE(t.Begun());
   TEST_ASSERT_TRUE(t.Boundary().size() >= 3);
 
+  t.SeedInterior();
   size_t iters = t.Run(10000);
   TEST_ASSERT_TRUE(t.Converged());
   (void)iters;
 }
 
-// Begin() on a non-planar graph (K5) must throw PlanarNotPlanarError.
-static void test_tutte_begin_nonplanar_throws(void) {
+// A non-planar Structure() (K5) is no longer tested for planarity at all:
+// Tutte simply relaxes it like any other graph. This is an intentional
+// behavior change from the pre-refactor version (which threw
+// PlanarNotPlanarError from Begin()) -- see Tutte.hpp's class doc. The only
+// thing worth asserting here is that it runs to completion without
+// crashing or hanging; the resulting layout is not expected to be
+// geometrically valid (K5 is not planar, so some overlap is unavoidable).
+static void test_tutte_nonplanar_runsWithoutThrowing(void) {
   Graph g(false);
   for (int i = 0; i < 5; i++)
     g.AddVertex();
@@ -241,71 +262,20 @@ static void test_tutte_begin_nonplanar_throws(void) {
     for (size_t v = u + 1; v < 5; v++)
       g.AddEdge(u, v, 1.0);
 
-  Tutte t(g, MakeFullSubgraph(g), 2);
+  Tutte t(MakeFullSubgraph(g), 2);
 
-  bool threw = false;
-  try {
-    t.Begin();
-  } catch (const PlanarNotPlanarError &) {
-    threw = true;
+  size_t boundary[3] = {0, 1, 2};
+  TEST_ASSERT_TRUE(t.FixConvexPolygon(boundary, 100.0));
+  t.SeedInterior();
+
+  size_t iters = t.Run(1000);
+  TEST_ASSERT_TRUE(iters > 0 || t.Converged());
+
+  for (size_t v = 0; v < 5; v++) {
+    const double *p = t.GetVPosition(v);
+    TEST_ASSERT_TRUE(std::isfinite(p[0]));
+    TEST_ASSERT_TRUE(std::isfinite(p[1]));
   }
-  TEST_ASSERT_TRUE(threw);
-  // A rejected Begin() must not have left the embedding marked planar.
-  TEST_ASSERT_FALSE(t.IsPlanarEmbedded());
-}
-
-// Begin() is safe to call a second time (documented as a deliberate reset,
-// not guarded against) -- it re-tests planarity, re-pins the boundary, and
-// re-seeds interior vertices from scratch.
-static void test_tutte_begin_twice(void) {
-  Graph g = BuildK4();
-  Tutte t(g, MakeFullSubgraph(g), 2, 1e-6);
-
-  t.Begin();
-  t.Run(10000);
-  TEST_ASSERT_TRUE(t.Converged());
-
-  t.Begin();
-  TEST_ASSERT_EQUAL_UINT64(0, t.Iteration());
-  TEST_ASSERT_FALSE(t.Converged());
-  t.Run(10000);
-  TEST_ASSERT_TRUE(t.Converged());
-}
-
-// FixOuterFace() with no highlight set must return false.
-static void test_tutte_fixOuterFace_noHighlight(void) {
-  Graph g = BuildK4();
-  Tutte t(g, MakeFullSubgraph(g), 2);
-  t.Begin();
-
-  TEST_ASSERT_FALSE(t.HasHighlight());
-  TEST_ASSERT_FALSE(t.FixOuterFace());
-}
-
-// FixOuterFace() with a highlight covering real subgraph edges must succeed
-// and re-pin the boundary to whichever face FaceWalk finds starting from an
-// edge inside the highlight (K4's planar rotation has 4 triangular faces,
-// each missing exactly one vertex -- edge (1,2) borders two of them, {1,2,3}
-// and {0,1,2}, so which one gets picked depends on which direction the
-// implementation happens to walk first; both are valid 3-vertex faces, so
-// this test only checks the outcome shape, not a specific vertex set).
-static void test_tutte_fixOuterFace_withHighlight(void) {
-  Graph g = BuildK4();
-  Tutte t(g, MakeFullSubgraph(g), 2);
-  t.Begin();
-
-  Subgraph highlight = Subgraph::CreateFull(g);
-  highlight.HideVertex(0);
-  t.SetHighlight(std::move(highlight));
-
-  TEST_ASSERT_TRUE(t.HasHighlight());
-  TEST_ASSERT_TRUE(t.FixOuterFace());
-  TEST_ASSERT_EQUAL_UINT64(0, t.Iteration());
-  TEST_ASSERT_FALSE(t.Converged());
-  TEST_ASSERT_EQUAL_UINT64(3, t.Boundary().size());
-
-  t.Run(10000);
-  TEST_ASSERT_TRUE(t.Converged());
 }
 
 int main() {
@@ -318,11 +288,8 @@ int main() {
   RUN_TEST(test_tutte_setBoundary_validation);
   RUN_TEST(test_tutte_dimension_validation);
   RUN_TEST(test_tutte_run_before_boundary_throws);
-  RUN_TEST(test_tutte_begin_planar_succeeds);
-  RUN_TEST(test_tutte_begin_nonplanar_throws);
-  RUN_TEST(test_tutte_begin_twice);
-  RUN_TEST(test_tutte_fixOuterFace_noHighlight);
-  RUN_TEST(test_tutte_fixOuterFace_withHighlight);
+  RUN_TEST(test_tutte_setBoundary_marksBegun);
+  RUN_TEST(test_tutte_nonplanar_runsWithoutThrowing);
 
   return UNITY_END();
 }

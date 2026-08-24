@@ -12,6 +12,16 @@
 //   - gvizEmbeddedGraphInit's 0/-1 return code: the constructor either
 //     produces a valid object or throws std::bad_alloc; there is no
 //     "constructed but invalid" state to check.
+//   - Highlight subgraph tests: EmbeddedGraph no longer holds a highlight
+//     (removed outright as part of the GraphLike/DenseIndex refactor -- it
+//     was frontend/presentation state, not this library's concern; see
+//     CLAUDE.md's EmbeddedGraph section). Nothing to port.
+//   - Sync/growth (dynamic-graph) tests: EmbeddedGraph no longer supports
+//     growing the underlying graph while an embedding is active (dynamic
+//     mutation is out of scope for this library now -- see CLAUDE.md).
+//     EmbeddedGraph is constructed with a fixed vertex count and stays that
+//     size for its whole lifetime; there is no Sync()/OutNeighbors()/
+//     InNeighbors() surface left to test.
 //
 // New coverage added beyond the old suite: an explicit
 // test_actions_invokeUnknownIsSafeNoOp, since the "no-op on unknown action
@@ -21,15 +31,11 @@
 
 #include "EmbeddedGraph.hpp"
 
-#include "Graph.hpp"
-#include "Subgraph.hpp"
 #include "unity/unity.h"
 
 #include <cstdio>
 #include <vector>
 
-using gviz::Graph;
-using gviz::Subgraph;
 using gviz::layout::Action;
 using gviz::layout::ActionPayload;
 using gviz::layout::DrawEdgePolicy;
@@ -40,47 +46,19 @@ using gviz::layout::StatSeries;
 void setUp(void) {}
 void tearDown(void) {}
 
-// A path graph 0-1-...-(n-1), embedded over a FULL subgraph (static shape).
-static EmbeddedGraph MakeFullEmbedding(Graph &g, size_t nvertices, size_t dim) {
-  for (size_t i = 0; i < nvertices; i++)
-    g.AddVertex();
-  for (size_t i = 0; i + 1 < nvertices; i++)
-    g.AddEdge(i, i + 1, 1.0);
-  g.BuildLayout();
-  return EmbeddedGraph(Subgraph::CreateFull(g), dim);
-}
-
-// Same path graph, but over a VERTEX-INDUCED subgraph with every existing
-// vertex shown -- the recommended shape for a dynamic (growing) embedding;
-// see EmbeddedGraph.hpp's GROWTH & SYNC section.
-static EmbeddedGraph MakeInducedEmbedding(Graph &g, size_t nvertices, size_t dim) {
-  for (size_t i = 0; i < nvertices; i++)
-    g.AddVertex();
-  for (size_t i = 0; i + 1 < nvertices; i++)
-    g.AddEdge(i, i + 1, 1.0);
-
-  Subgraph sg = Subgraph::CreateVertexInduced(g);
-  for (size_t i = 0; i < nvertices; i++)
-    sg.ShowVertex(i);
-  return EmbeddedGraph(std::move(sg), dim);
-}
-
 // ============================================================================
 // BULK ACCESSORS
 // ============================================================================
 
 static void test_accessors_dimAndPositionCount(void) {
-  Graph g(false);
-  EmbeddedGraph eg = MakeFullEmbedding(g, 5, 3);
+  EmbeddedGraph eg(5, 3);
 
   TEST_ASSERT_EQUAL_UINT64(3, eg.Dim());
   TEST_ASSERT_EQUAL_UINT64(5, eg.PositionCount());
-  TEST_ASSERT_EQUAL_UINT64(5, eg.Structure().VertexCount());
 }
 
 static void test_accessors_positionsSpanMatchesGetVPosition(void) {
-  Graph g(false);
-  EmbeddedGraph eg = MakeFullEmbedding(g, 5, 3);
+  EmbeddedGraph eg(5, 3);
 
   double pos[3] = {1.5, -2.0, 4.0};
   eg.SetVPosition(2, pos);
@@ -113,8 +91,7 @@ static void handlerB(EmbeddedGraph &eg, void *userData, const ActionPayload &pay
 }
 
 static void test_actions_registerFindInvoke(void) {
-  Graph g(false);
-  EmbeddedGraph eg = MakeFullEmbedding(g, 3, 2);
+  EmbeddedGraph eg(3, 2);
   handlerACalls = 0;
 
   TEST_ASSERT_EQUAL_UINT64(0, eg.ActionCount());
@@ -142,8 +119,7 @@ static void test_actions_registerFindInvoke(void) {
 }
 
 static void test_actions_invokeUnknownIsSafeNoOp(void) {
-  Graph g(false);
-  EmbeddedGraph eg = MakeFullEmbedding(g, 3, 2);
+  EmbeddedGraph eg(3, 2);
 
   // Depended-upon behavior (EmbeddedGraph.hpp's InvokeAction doc comment):
   // invoking an unregistered name is a safe no-op, not an error/throw, so a
@@ -153,8 +129,7 @@ static void test_actions_invokeUnknownIsSafeNoOp(void) {
 }
 
 static void test_actions_replaceAndRemove(void) {
-  Graph g(false);
-  EmbeddedGraph eg = MakeFullEmbedding(g, 3, 2);
+  EmbeddedGraph eg(3, 2);
 
   int c1 = 0, c2 = 0;
   eg.AddAction("test.a", handlerA, &c1);
@@ -173,8 +148,7 @@ static void test_actions_replaceAndRemove(void) {
 }
 
 static void test_actions_growPastInitialCapacity(void) {
-  Graph g(false);
-  EmbeddedGraph eg = MakeFullEmbedding(g, 3, 2);
+  EmbeddedGraph eg(3, 2);
 
   static const char *names[] = {"a", "b", "c", "d", "e", "f", "g", "h", "i"};
   for (size_t i = 0; i < 9; i++)
@@ -192,8 +166,7 @@ static void test_actions_growPastInitialCapacity(void) {
 // ============================================================================
 
 static void test_stats_registerAndAppend(void) {
-  Graph g(false);
-  EmbeddedGraph eg = MakeFullEmbedding(g, 3, 2);
+  EmbeddedGraph eg(3, 2);
 
   TEST_ASSERT_EQUAL_UINT64(0, eg.StatSeriesCount());
   TEST_ASSERT_NULL(eg.FindStatSeries("missing"));
@@ -216,8 +189,7 @@ static void test_stats_registerAndAppend(void) {
 }
 
 static void test_stats_appendAutoCreatesSeries(void) {
-  Graph g(false);
-  EmbeddedGraph eg = MakeFullEmbedding(g, 3, 2);
+  EmbeddedGraph eg(3, 2);
 
   TEST_ASSERT_TRUE(eg.StatAppend("test.auto", 3.0));
   const StatSeries *s = eg.FindStatSeries("test.auto");
@@ -228,8 +200,7 @@ static void test_stats_appendAutoCreatesSeries(void) {
 }
 
 static void test_stats_clearKeepsSeriesRegistered(void) {
-  Graph g(false);
-  EmbeddedGraph eg = MakeFullEmbedding(g, 3, 2);
+  EmbeddedGraph eg(3, 2);
 
   eg.StatAppend("test.s", 1.0);
   eg.StatAppend("test.s", 2.0);
@@ -245,8 +216,7 @@ static void test_stats_clearKeepsSeriesRegistered(void) {
 }
 
 static void test_stats_growPastInitialCapacities(void) {
-  Graph g(false);
-  EmbeddedGraph eg = MakeFullEmbedding(g, 3, 2);
+  EmbeddedGraph eg(3, 2);
 
   static const char *names[] = {"s0", "s1", "s2", "s3", "s4", "s5"};
   for (size_t i = 0; i < 6; i++)
@@ -267,19 +237,17 @@ static void test_stats_growPastInitialCapacities(void) {
 // ============================================================================
 
 static void test_drawMask_defaultsShowAll(void) {
-  Graph g(false);
-  EmbeddedGraph eg = MakeFullEmbedding(g, 4, 2);
+  EmbeddedGraph eg(4, 2);
 
   TEST_ASSERT_EQUAL_UINT64(0, eg.DrawMaskRevision());
   TEST_ASSERT_TRUE(eg.IsVertexVisible(0));
   TEST_ASSERT_TRUE(eg.IsVertexVisible(3));
-  TEST_ASSERT_TRUE(eg.IsEdgeVisible(0, 1));
-  TEST_ASSERT_TRUE(eg.IsEdgeVisible(2, 3));
+  TEST_ASSERT_TRUE(eg.IsEdgeVisible(0, 1, /*edgeExists=*/true));
+  TEST_ASSERT_TRUE(eg.IsEdgeVisible(2, 3, /*edgeExists=*/true));
 }
 
 static void test_drawMask_vertexFilterAndNoEdges(void) {
-  Graph g(false);
-  EmbeddedGraph eg = MakeFullEmbedding(g, 4, 2);
+  EmbeddedGraph eg(4, 2);
   eg.DrawMaskHideVertex(0);
   eg.DrawMaskHideVertex(3);
 
@@ -289,26 +257,24 @@ static void test_drawMask_vertexFilterAndNoEdges(void) {
   TEST_ASSERT_TRUE(eg.IsVertexVisible(1));
   TEST_ASSERT_TRUE(eg.IsVertexVisible(2));
   TEST_ASSERT_FALSE(eg.IsVertexVisible(3));
-  TEST_ASSERT_FALSE(eg.IsEdgeVisible(1, 2));
+  TEST_ASSERT_FALSE(eg.IsEdgeVisible(1, 2, /*edgeExists=*/true));
 }
 
 static void test_drawMask_edgesIfBothVisible(void) {
-  Graph g(false);
-  EmbeddedGraph eg = MakeFullEmbedding(g, 4, 2);
+  EmbeddedGraph eg(4, 2);
   eg.DrawMaskHideVertex(3);
 
   eg.SetDrawMaskEdgePolicy(DrawEdgePolicy::IfBothVisible);
-  TEST_ASSERT_TRUE(eg.IsEdgeVisible(0, 1));
-  TEST_ASSERT_TRUE(eg.IsEdgeVisible(1, 2));
-  TEST_ASSERT_FALSE(eg.IsEdgeVisible(2, 3));
+  TEST_ASSERT_TRUE(eg.IsEdgeVisible(0, 1, /*edgeExists=*/true));
+  TEST_ASSERT_TRUE(eg.IsEdgeVisible(1, 2, /*edgeExists=*/true));
+  TEST_ASSERT_FALSE(eg.IsEdgeVisible(2, 3, /*edgeExists=*/true));
 
   eg.ResetDrawMask();
-  TEST_ASSERT_TRUE(eg.IsEdgeVisible(2, 3));
+  TEST_ASSERT_TRUE(eg.IsEdgeVisible(2, 3, /*edgeExists=*/true));
 }
 
 static void test_drawMask_clearAndNotify(void) {
-  Graph g(false);
-  EmbeddedGraph eg = MakeFullEmbedding(g, 4, 2);
+  EmbeddedGraph eg(4, 2);
 
   uint64_t rev = eg.DrawMaskRevision();
   eg.DrawMaskClearVertices();
@@ -332,8 +298,7 @@ static void test_drawMask_clearAndNotify(void) {
 // ============================================================================
 
 static void test_positions_setAddGet(void) {
-  Graph g(false);
-  EmbeddedGraph eg = MakeFullEmbedding(g, 3, 2);
+  EmbeddedGraph eg(3, 2);
 
   double p[2] = {1.0, 2.0};
   eg.SetVPosition(1, p);
@@ -351,8 +316,7 @@ static void test_positions_setAddGet(void) {
 }
 
 static void test_positions_randomizeStaysInBox(void) {
-  Graph g(false);
-  EmbeddedGraph eg = MakeFullEmbedding(g, 20, 2);
+  EmbeddedGraph eg(20, 2);
 
   eg.RandomizePositions(50.0, 1234);
 
@@ -375,8 +339,7 @@ static void test_positions_randomizeStaysInBox(void) {
 }
 
 static void test_positions_saveLoadRoundtrip(void) {
-  Graph g(false);
-  EmbeddedGraph eg = MakeFullEmbedding(g, 4, 2);
+  EmbeddedGraph eg(4, 2);
   eg.RandomizePositions(10.0, 77);
 
   double saved[4][2];
@@ -403,207 +366,15 @@ static void test_positions_saveLoadRoundtrip(void) {
 }
 
 static void test_positions_loadRejectsMismatch(void) {
-  Graph g(false);
-  EmbeddedGraph eg = MakeFullEmbedding(g, 4, 2);
+  EmbeddedGraph eg(4, 2);
   const char *path = "gviz_test_embedding_mismatch_cxx.tmp";
   TEST_ASSERT_TRUE(eg.SaveEmbedding("test", path));
 
-  Graph g2(false);
-  EmbeddedGraph eg2 = MakeFullEmbedding(g2, 5, 2); // different vertex count
+  EmbeddedGraph eg2(5, 2); // different vertex count
   TEST_ASSERT_FALSE(eg2.LoadEmbedding(path));
   TEST_ASSERT_FALSE(eg.LoadEmbedding("no/such/file"));
 
   remove(path);
-}
-
-// ============================================================================
-// HIGHLIGHT
-// ============================================================================
-
-static void test_highlight_setClearOwnership(void) {
-  Graph g(false);
-  EmbeddedGraph eg = MakeFullEmbedding(g, 4, 2);
-
-  TEST_ASSERT_FALSE(eg.HasHighlight());
-  TEST_ASSERT_NULL(eg.GetHighlight());
-
-  Subgraph hl = Subgraph::CreateEmpty(g);
-  hl.ShowVertex(1);
-  hl.ShowVertex(2);
-  eg.SetHighlight(std::move(hl)); // takes ownership
-
-  TEST_ASSERT_TRUE(eg.HasHighlight());
-  const Subgraph *got = eg.GetHighlight();
-  TEST_ASSERT_NOT_NULL(got);
-  TEST_ASSERT_TRUE(got->HasVertex(1));
-  TEST_ASSERT_FALSE(got->HasVertex(0));
-
-  // Replacing releases the old highlight (checked by ASan builds).
-  Subgraph hl2 = Subgraph::CreateEmpty(g);
-  hl2.ShowVertex(3);
-  eg.SetHighlight(std::move(hl2));
-  TEST_ASSERT_TRUE(eg.GetHighlight()->HasVertex(3));
-
-  eg.ClearHighlight();
-  TEST_ASSERT_FALSE(eg.HasHighlight());
-  eg.ClearHighlight(); // double clear is a no-op
-}
-
-// ============================================================================
-// GROWTH & SYNC (commit semantics)
-// ============================================================================
-
-// A vertex added directly to the Graph is invisible everywhere on the
-// embedding -- membership, draw mask, position count, accessors -- until
-// Sync() commits it; the commit admits it with a zeroed position, preserves
-// existing positions, and bumps the draw mask revision.
-static void test_sync_commitsNewVertex(void) {
-  Graph g(false);
-  EmbeddedGraph eg = MakeInducedEmbedding(g, 3, 2);
-  TEST_ASSERT_TRUE(eg.Sync());   // first commit
-  TEST_ASSERT_FALSE(eg.Sync()); // now a no-op
-
-  double preset[2] = {5.0, 6.0};
-  eg.SetVPosition(1, preset);
-
-  TEST_ASSERT_EQUAL_UINT64(3, g.AddVertex());
-
-  TEST_ASSERT_EQUAL_UINT64(3, eg.PositionCount());
-  TEST_ASSERT_FALSE(eg.Structure().HasVertex(3));
-  TEST_ASSERT_FALSE(eg.IsVertexVisible(3));
-  TEST_ASSERT_EQUAL_UINT64(0, eg.OutDegree(3));
-
-  uint64_t rev = eg.DrawMaskRevision();
-  TEST_ASSERT_TRUE(eg.Sync());
-  TEST_ASSERT_EQUAL_UINT64(rev + 1, eg.DrawMaskRevision());
-
-  TEST_ASSERT_EQUAL_UINT64(4, eg.PositionCount());
-  TEST_ASSERT_TRUE(eg.Structure().HasVertex(3));
-  TEST_ASSERT_TRUE(eg.IsVertexVisible(3));
-
-  double *p = eg.GetVPosition(3);
-  TEST_ASSERT_EQUAL_DOUBLE(0.0, p[0]);
-  TEST_ASSERT_EQUAL_DOUBLE(0.0, p[1]);
-  double *p1 = eg.GetVPosition(1);
-  TEST_ASSERT_EQUAL_DOUBLE(5.0, p1[0]);
-  TEST_ASSERT_EQUAL_DOUBLE(6.0, p1[1]);
-}
-
-// An edge added directly to the Graph stays out of the synced adjacency
-// accessors until Sync() commits it, then shows up symmetrically from both
-// endpoints on an undirected graph.
-static void test_sync_commitsNewEdge_accessorsSymmetric(void) {
-  Graph g(false);
-  EmbeddedGraph eg = MakeInducedEmbedding(g, 3, 2); // path 0-1-2
-  TEST_ASSERT_TRUE(eg.Sync());
-
-  TEST_ASSERT_EQUAL_UINT64(1, eg.OutDegree(0));
-  TEST_ASSERT_EQUAL_UINT64(2, eg.OutDegree(1));
-  TEST_ASSERT_EQUAL_UINT64(0, eg.InDegree(1)); // undirected
-
-  g.AddEdge(0, 2, 1.0);
-  TEST_ASSERT_EQUAL_UINT64(1, eg.OutDegree(0)); // deferred
-
-  TEST_ASSERT_TRUE(eg.Sync());
-  TEST_ASSERT_EQUAL_UINT64(2, eg.OutDegree(0));
-  TEST_ASSERT_EQUAL_UINT64(2, eg.OutDegree(2));
-
-  auto nbrs0 = eg.OutNeighbors(0);
-  TEST_ASSERT_EQUAL_UINT64(2, nbrs0.size());
-  TEST_ASSERT_TRUE(nbrs0[0] == 2 || nbrs0[1] == 2);
-  auto nbrs2 = eg.OutNeighbors(2);
-  TEST_ASSERT_EQUAL_UINT64(2, nbrs2.size());
-  TEST_ASSERT_TRUE(nbrs2[0] == 0 || nbrs2[1] == 0);
-}
-
-// Directed snapshots expose out- and in-edges separately: the frontend can
-// ask both "who does v point at" and "who points at v" for any synced
-// vertex.
-static void test_sync_directedInOutAccessors(void) {
-  Graph g(true);
-  for (int i = 0; i < 3; i++)
-    g.AddVertex();
-  g.AddEdge(0, 1, 1.0);
-  g.AddEdge(2, 1, 1.0);
-
-  Subgraph sg = Subgraph::CreateVertexInduced(g);
-  for (size_t i = 0; i < 3; i++)
-    sg.ShowVertex(i);
-
-  EmbeddedGraph eg(std::move(sg), 2);
-  TEST_ASSERT_TRUE(eg.Sync());
-
-  TEST_ASSERT_EQUAL_UINT64(1, eg.OutDegree(0));
-  TEST_ASSERT_EQUAL_UINT64(0, eg.OutDegree(1));
-  TEST_ASSERT_EQUAL_UINT64(0, eg.InDegree(0));
-  TEST_ASSERT_EQUAL_UINT64(2, eg.InDegree(1));
-
-  auto in = eg.InNeighbors(1);
-  TEST_ASSERT_EQUAL_UINT64(2, in.size());
-  TEST_ASSERT_TRUE((in[0] == 0 && in[1] == 2) || (in[0] == 2 && in[1] == 0));
-}
-
-// Querying anything about a not-yet-committed vertex must be safe and
-// empty -- no out-of-bounds reads (ASan builds verify), no phantom
-// membership.
-static void test_sync_uncommittedVertexQueriesAreSafe(void) {
-  Graph g(false);
-  EmbeddedGraph eg = MakeInducedEmbedding(g, 2, 2);
-  TEST_ASSERT_TRUE(eg.Sync());
-
-  TEST_ASSERT_EQUAL_UINT64(2, g.AddVertex());
-  g.AddEdge(2, 0, 1.0);
-
-  size_t newId = 2;
-  TEST_ASSERT_FALSE(eg.Structure().HasVertex(newId));
-  TEST_ASSERT_FALSE(eg.IsVertexVisible(newId));
-  TEST_ASSERT_FALSE(eg.IsEdgeVisible(newId, 0));
-  TEST_ASSERT_EQUAL_UINT64(0, eg.Structure().Degree(newId));
-  TEST_ASSERT_EQUAL_UINT64(0, eg.OutDegree(newId));
-  TEST_ASSERT_EQUAL_UINT64(0, eg.InDegree(newId));
-  auto nbrs = eg.OutNeighbors(newId);
-  TEST_ASSERT_TRUE(nbrs.empty());
-
-  TEST_ASSERT_TRUE(eg.Sync());
-  TEST_ASSERT_EQUAL_UINT64(1, eg.OutDegree(newId));
-}
-
-// The whole grow-and-commit cycle on a vertex-induced embedding never
-// touches the graph's shared edge layout.
-static void test_sync_vertexInducedEmbeddingNeverBuildsLayout(void) {
-  Graph g(false);
-  EmbeddedGraph eg = MakeInducedEmbedding(g, 3, 2);
-  TEST_ASSERT_FALSE(g.HasLayout());
-  TEST_ASSERT_TRUE(eg.Sync());
-  TEST_ASSERT_FALSE(g.HasLayout());
-
-  TEST_ASSERT_EQUAL_UINT64(3, g.AddVertex());
-  g.AddEdge(3, 0, 1.0);
-  TEST_ASSERT_TRUE(eg.Sync());
-
-  TEST_ASSERT_EQUAL_UINT64(4, eg.PositionCount());
-  TEST_ASSERT_TRUE(eg.Structure().HasEdge(3, 0));
-  TEST_ASSERT_EQUAL_UINT64(1, eg.OutDegree(3));
-  TEST_ASSERT_FALSE(g.HasLayout());
-}
-
-// Sync on a full-subgraph embedding still admits new vertices (static
-// full-subgraph consumers keep working if their graph grows); new EDGES are
-// not auto-shown in a full subgraph's explicitly-managed edge subset, which
-// is why dynamic embeddings use the vertex-induced shape.
-static void test_sync_fullSubgraphAdmitsNewVertices(void) {
-  Graph g(false);
-  EmbeddedGraph eg = MakeFullEmbedding(g, 3, 2);
-  TEST_ASSERT_TRUE(eg.Structure().IsFull());
-  TEST_ASSERT_TRUE(eg.Sync());
-
-  TEST_ASSERT_EQUAL_UINT64(3, g.AddVertex());
-  TEST_ASSERT_EQUAL_UINT64(3, eg.PositionCount());
-
-  TEST_ASSERT_TRUE(eg.Sync());
-  TEST_ASSERT_EQUAL_UINT64(4, eg.PositionCount());
-  TEST_ASSERT_TRUE(eg.Structure().HasVertex(3));
-  TEST_ASSERT_TRUE(eg.IsVertexVisible(3));
 }
 
 int main() {
@@ -631,15 +402,6 @@ int main() {
   RUN_TEST(test_positions_randomizeStaysInBox);
   RUN_TEST(test_positions_saveLoadRoundtrip);
   RUN_TEST(test_positions_loadRejectsMismatch);
-
-  RUN_TEST(test_highlight_setClearOwnership);
-
-  RUN_TEST(test_sync_commitsNewVertex);
-  RUN_TEST(test_sync_commitsNewEdge_accessorsSymmetric);
-  RUN_TEST(test_sync_directedInOutAccessors);
-  RUN_TEST(test_sync_uncommittedVertexQueriesAreSafe);
-  RUN_TEST(test_sync_vertexInducedEmbeddingNeverBuildsLayout);
-  RUN_TEST(test_sync_fullSubgraphAdmitsNewVertices);
 
   return UNITY_END();
 }

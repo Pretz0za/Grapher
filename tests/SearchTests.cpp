@@ -65,7 +65,7 @@ static void test_searchBreadthFirst_path(void) {
   Subgraph tree = Subgraph::CreateEmpty(g);
 
   std::vector<size_t> distances;
-  TEST_ASSERT_TRUE(search::BreadthFirst(sg, tree, 0, 0, &distances));
+  TEST_ASSERT_TRUE(search::BreadthFirstTree(sg, tree, 0, 0, &distances));
   TEST_ASSERT_EQUAL_UINT64(4, tree.VertexCount());
   TEST_ASSERT_EQUAL_UINT64(3, tree.EdgeCount());
   TEST_ASSERT_EQUAL_UINT64(0, distances[0]);
@@ -80,7 +80,7 @@ static void test_searchBreadthFirst_maxDepth(void) {
   Subgraph tree = Subgraph::CreateEmpty(g);
 
   std::vector<size_t> distances;
-  TEST_ASSERT_TRUE(search::BreadthFirst(sg, tree, 0, 1, &distances));
+  TEST_ASSERT_TRUE(search::BreadthFirstTree(sg, tree, 0, 1, &distances));
   TEST_ASSERT_EQUAL_UINT64(2, tree.VertexCount());
   TEST_ASSERT_EQUAL_UINT64(1, tree.EdgeCount());
   TEST_ASSERT_EQUAL_UINT64(0, distances[0]);
@@ -95,7 +95,7 @@ static void test_searchBreadthFirst_invalidSource(void) {
   Subgraph tree = Subgraph::CreateEmpty(g);
 
   sg.HideVertex(2); // source outside the subgraph
-  TEST_ASSERT_FALSE(search::BreadthFirst(sg, tree, 2, 0, nullptr));
+  TEST_ASSERT_FALSE(search::BreadthFirstTree(sg, tree, 2, 0, nullptr));
 }
 
 // BFS in a subgraph must not walk through hidden vertices.
@@ -106,7 +106,7 @@ static void test_searchBreadthFirst_respectsHiddenVertices(void) {
 
   Subgraph tree = Subgraph::CreateEmpty(g);
   std::vector<size_t> distances;
-  TEST_ASSERT_TRUE(search::BreadthFirst(sg, tree, 0, 0, &distances));
+  TEST_ASSERT_TRUE(search::BreadthFirstTree(sg, tree, 0, 0, &distances));
   TEST_ASSERT_EQUAL_UINT64(1, tree.VertexCount());
   TEST_ASSERT_EQUAL_UINT64(SIZE_MAX, distances[2]);
   TEST_ASSERT_EQUAL_UINT64(SIZE_MAX, distances[3]);

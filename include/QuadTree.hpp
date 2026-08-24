@@ -10,47 +10,20 @@ namespace gviz {
 /**
  * A quadtree indexing a fixed buffer of 2D points -- the Barnes-Hut spatial
  * index used by force-directed layout's repulsion approximation. Purely
- * spatial: it has no knowledge of graphs, vertices, or edges, and takes raw
- * coordinates only.
+ * spatial: no knowledge of graphs, vertices, or edges.
  *
- * points/masses are borrowed, not owned or copied -- they are refreshed and
+ * points/masses are borrowed, not owned or copied -- refreshed and
  * re-pointed by the caller every simulation step (see Rebuild). points is
- * interleaved x0, y0, x1, y1, ...; masses has one entry per point (not
- * interleaved), same indexing as point index. Every Node's mass (see below)
- * is the sum of the masses of the points in its subtree, and its center of
- * mass is their mass-weighted average -- what lets a Barnes-Hut traversal
- * approximate a whole subtree by one point instead of visiting every leaf.
+ * interleaved x0, y0, x1, y1, ...; masses has one entry per point. Every
+ * Node's mass is the sum of the masses of the points in its subtree, and
+ * its center of mass is their mass-weighted average.
  *
- * Arena allocation, the one thing that matters here: Node objects are never
- * individually new'd/deleted. They are carved out of fixed-size blocks
- * (kArenaBlockNodes each) that are each allocated once, as a
- * std::unique_ptr<Node[]>, and reused across Rebuild() calls -- the intended
- * usage is one construction followed by many Rebuild()s (e.g. once per
- * force-layout iteration, potentially thousands of times per embedding run),
- * with the arena only ever growing (never shrinking or reallocating existing
- * blocks) when a rebuild needs more nodes than any previous one has. Point
- * index storage for steady-state (non-overflowing) leaves is carved out of a
- * second, parallel block arena the same way, so a typical Rebuild allocates
- * nothing at all once the arena has grown to cover the largest tree built so
- * far.
- *
- * Why std::vector<std::unique_ptr<Node[]>> and not std::vector<Node>: the
- * outer std::vector of block pointers can safely grow on its own (appending
- * a new block only moves unique_ptr handles around, never the Node objects
- * they point to), but the Node storage itself must never move underneath an
- * already-handed-out Node* -- every internal Node holds raw Node* children,
- * and Root()/Node::Child() hand out raw Node* to callers that hold on to
- * them across an entire Barnes-Hut traversal. A single std::vector<Node>
- * arena would reallocate (and invalidate every live Node*) the moment a
- * build needed more nodes than the vector's current capacity; a vector of
- * individually-allocated fixed-size blocks never does, because growing the
- * outer index never touches a previously-allocated block's memory.
- *
- * A leaf that overflows its per-cell point capacity (only possible for
- * coincident/inseparable points once halfSize has hit the minimum
- * subdivision threshold) gets an individually growable overflow buffer,
- * freed and reallocated fresh on every Rebuild -- unlike the steady-state
- * arena, which is deliberately never freed early.
+ * Node objects live in an arena of fixed-size blocks (kArenaBlockNodes
+ * each), reused across Rebuild() calls and never shrunk, so a Node* handed
+ * out by Root()/Child() stays valid across an entire Barnes-Hut traversal
+ * even as later rebuilds grow the arena. A leaf that overflows its per-cell
+ * point capacity gets an individually growable overflow buffer, freed and
+ * reallocated fresh on every Rebuild.
  */
 class QuadTree {
 public:
@@ -70,10 +43,8 @@ public:
    *
    * Nodes are owned by the tree's arena and are never individually
    * constructed or destroyed by callers -- only ever reached through
-   * QuadTree::Root()/Child(). Every accessor here is unchecked/noexcept and
-   * trivially inlinable on purpose: this is walked in a tight Barnes-Hut
-   * traversal loop, and none of the old C free-function calls it replaces
-   * did any bounds checking either.
+   * QuadTree::Root()/Child(). Every accessor here is unchecked/noexcept:
+   * this is walked in a tight Barnes-Hut traversal loop.
    */
   class Node {
   public:
@@ -128,8 +99,9 @@ public:
    * @p points/@p masses are borrowed and must outlive the tree (or until the
    * next Rebuild re-points them). @p nodesPerCell is the maximum number of
    * points a leaf holds before it subdivides; pass kNodesPerCellDefault for
-   * the default of 1. Allocation failure throws std::bad_alloc, same as any
-   * std::vector/new -- there is no bespoke error type to check.
+   * the default of 1.
+   *
+   * @throws std::bad_alloc on allocation failure.
    */
   QuadTree(const double *points, const double *masses, size_t count,
            size_t nodesPerCell = kNodesPerCellDefault);
@@ -152,16 +124,12 @@ public:
   /** Returns the root node, or nullptr if the tree indexes zero points. */
   const Node *Root() const noexcept { return root_; }
 
-  /** Number of arena node blocks allocated so far. Diagnostic: exposes the
-   *  amortized arena-growth contract described in the class comment so
-   *  tests can verify a Rebuild() with no larger a tree than before
-   *  allocates no new block, the same way Subgraph::VertexCapacity()
-   *  exposes its own amortized-growth contract. */
+  /** Number of arena node blocks allocated so far. Diagnostic: lets tests
+   *  verify a Rebuild() no larger than before allocates no new block. */
   size_t NodeBlockCount() const noexcept { return nodeBlocks_.size(); }
 
   /** Number of overflow point buffers currently held (freed and rebuilt
-   *  every Rebuild(), see the class comment). Diagnostic, same rationale as
-   *  NodeBlockCount(). */
+   *  every Rebuild()). Diagnostic. */
   size_t OverflowBufferCount() const noexcept { return overflowBuffers_.size(); }
 
 private:
@@ -183,8 +151,8 @@ private:
 
   Node *root_ = nullptr; /**< nullptr when the tree indexes zero points. */
 
-  /** Owned; Node[] arena blocks. See the class comment for why this must be
-   *  a vector of individually-allocated blocks, not a flat std::vector<Node>. */
+  /** Owned; Node[] arena blocks. Individually allocated, not a flat
+   *  std::vector<Node>, so a live Node* is never invalidated by growth. */
   std::vector<std::unique_ptr<Node[]>> nodeBlocks_;
   /** Owned; size_t[] point-storage blocks, one per entry of nodeBlocks_ (and
    *  always the same length -- see ArenaAlloc). Null entries when

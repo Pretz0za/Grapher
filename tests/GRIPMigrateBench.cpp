@@ -1,7 +1,7 @@
 // C++ port of tests/embedders/gvizGRIPMigrateBench.c: benchmarks the
 // coarsest-layer "top-off" migration step (pulling extra vertices into the
 // final MIS layer when it has fewer than dim+1 members) two ways -- the
-// production bounded-BFS algorithm (GRIP::DebugMigrateOneToFinalLayer) vs. a
+// production bounded-BFS algorithm (GRIP<Subgraph>::DebugMigrateOneToFinalLayer) vs. a
 // historical O(V) full-BFS-per-candidate baseline reimplemented here -- from
 // the identical checkpointed starting state, and reports wall time and RSS
 // delta. Not a Unity test -- a standalone benchmark driver, same as the old
@@ -25,8 +25,8 @@
 //     snapshot.
 //   - migrateOneToFinalLayer_legacy's raw gvizGRIPState field pokes (misBorder
 //     read via gripMisBorderAt, in-place misFiltration swap, misBorder bump)
-//     become GRIP::LayerBorder/FiltrationVertexAt (read) and
-//     GRIP::DebugApplyMigration (the swap-and-bump primitive), with the BFS
+//     become GRIP<Subgraph>::LayerBorder/FiltrationVertexAt (read) and
+//     GRIP<Subgraph>::DebugApplyMigration (the swap-and-bump primitive), with the BFS
 //     itself now a real search::BreadthFirst call instead of the old file-
 //     local reimplementation.
 //   - Manual gvizGRIPEmbedderInit/Release error checking is replaced by RAII
@@ -103,7 +103,7 @@ double MonotonicSeconds() {
  * from the bounded algorithm, preserved intentionally since it's part of
  * what the benchmark is comparing.
  */
-bool MigrateOneToFinalLayerLegacy(GRIP &grip, const Graph &graph, size_t layerIndex) {
+bool MigrateOneToFinalLayerLegacy(GRIP<Subgraph> &grip, const Graph &graph, size_t layerIndex) {
   if (layerIndex == 0)
     return false;
   size_t finalEnd = grip.LayerBorder(layerIndex);
@@ -116,7 +116,7 @@ bool MigrateOneToFinalLayerLegacy(GRIP &grip, const Graph &graph, size_t layerIn
   for (size_t i = 0; i < finalEnd; i++) {
     std::vector<size_t> dist;
     Subgraph bfs = Subgraph::CreateEmpty(graph);
-    search::BreadthFirst(grip.Structure(), bfs, grip.FiltrationVertexAt(i), 0, &dist);
+    search::BreadthFirstTree(grip.Structure(), bfs, grip.FiltrationVertexAt(i), 0, &dist);
 
     for (size_t j = finalEnd; j < spanLen; j++) {
       size_t d = dist[grip.FiltrationVertexAt(j)];
@@ -138,7 +138,7 @@ bool MigrateOneToFinalLayerLegacy(GRIP &grip, const Graph &graph, size_t layerIn
   return true;
 }
 
-using MigrateFn = std::function<bool(GRIP &, size_t)>;
+using MigrateFn = std::function<bool(GRIP<Subgraph> &, size_t)>;
 
 struct BenchRow {
   double preMigrateSec = 0.0;
@@ -149,7 +149,7 @@ struct BenchRow {
   size_t rssDeltaKb = 0;
 };
 
-BenchRow RunMigratePhase(GRIP &grip, size_t layerIndex, const MigrateFn &migrate) {
+BenchRow RunMigratePhase(GRIP<Subgraph> &grip, size_t layerIndex, const MigrateFn &migrate) {
   size_t dim = grip.Dim();
   BenchRow row;
 
@@ -194,9 +194,9 @@ std::optional<BenchRow> RunCase(size_t depth, bool legacy) {
 
   MigrateFn migrate;
   if (legacy) {
-    migrate = [&graph](GRIP &g, size_t li) { return MigrateOneToFinalLayerLegacy(g, graph, li); };
+    migrate = [&graph](GRIP<Subgraph> &g, size_t li) { return MigrateOneToFinalLayerLegacy(g, graph, li); };
   } else {
-    migrate = [](GRIP &g, size_t li) { return g.DebugMigrateOneToFinalLayer(li); };
+    migrate = [](GRIP<Subgraph> &g, size_t li) { return g.DebugMigrateOneToFinalLayer(li); };
   }
   BenchRow migrateRow = RunMigratePhase(grip, layerIndex, migrate);
 

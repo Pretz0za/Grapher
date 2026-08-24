@@ -1,11 +1,7 @@
 #include "Planar.hpp"
 #include "SchnyderWood.hpp"
 
-// The vendored Boyer-Myrvold planarity library stays plain C (off-limits to
-// modify -- see this port's task instructions); graph.h itself already
-// wraps its declarations in `extern "C" { ... }` when __cplusplus is
-// defined, so including it directly here (no extra wrapping needed) gets us
-// C linkage automatically.
+// graph.h wraps its declarations in extern "C" when __cplusplus is defined.
 #include "boyerMyrvold/appconst.h"
 #include "boyerMyrvold/graph.h"
 
@@ -33,9 +29,7 @@ size_t PrevNeighborCCWImpl(const Graph &g, size_t u, size_t v) {
 // ---- Boyer-Myrvold <-> Graph bridging --------------------------------------
 
 // The CCW rotation Boyer-Myrvold installed on vertex v, read off its
-// link[1] chain (arcs, i.e. entries >= N) and reversed -- mirrors the old
-// gvizAdjacencyFromGP exactly (that function also reversed after collecting
-// in link[1] order).
+// link[1] arc chain (entries >= N) and reversed.
 void AdjacencyFromBoyer(graphP theGraph, int v, std::vector<size_t> &out) {
   out.clear();
   if (!theGraph)
@@ -55,8 +49,8 @@ void AdjacencyFromBoyer(graphP theGraph, int v, std::vector<size_t> &out) {
   std::reverse(out.begin(), out.end());
 }
 
-// Mirrors the old kuratowskiFromBoyer: walks each vertex's link[0] (DFS
-// child/back-edge) arc ring and records every edge (u, v) with v < u.
+// Walks each vertex's link[0] (DFS child/back-edge) arc ring and records
+// every edge (u, v) with v < u.
 Graph KuratowskiFromBoyer(graphP g) {
   Graph kg(false, static_cast<size_t>(g->N > 0 ? g->N : 0));
   for (int i = 0; i < g->N; i++)
@@ -80,7 +74,7 @@ Graph KuratowskiFromBoyer(graphP g) {
 
 // Rewrites u's adjacency list to: Boyer-Myrvold's CCW order over u's
 // subgraph neighbors, followed by any of u's remaining (out-of-subgraph)
-// neighbors in their existing relative order. Mirrors mergeRotationIntoAdjacency.
+// neighbors in their existing relative order.
 void MergeRotationIntoAdjacency(Graph &g, const Subgraph &sg, graphP boyer, size_t u) {
   std::vector<size_t> order;
   AdjacencyFromBoyer(boyer, static_cast<int>(u), order);
@@ -92,10 +86,6 @@ void MergeRotationIntoAdjacency(Graph &g, const Subgraph &sg, graphP boyer, size
       order.push_back(v);
   }
 
-  // Old C ignored ReorderNeighbors' return value too (order is built to be
-  // exactly a permutation of u's current neighbors by construction: every
-  // subgraph edge Boyer-Myrvold saw plus every remaining non-subgraph
-  // neighbor, each exactly once).
   g.ReorderNeighbors(u, order);
 }
 
@@ -163,14 +153,10 @@ void FaceWalk::iterator::Advance() {
 namespace {
 
 // Prefix-sum offsets into a flat dart index space, one slot per (vertex,
-// raw-adjacency-index) pair for every vertex IN the subgraph -- mirrors
-// buildDartBorders. Note this counts a subgraph vertex's FULL raw degree,
-// including darts to neighbors outside the subgraph (those darts are simply
-// never visited/marked by the enumeration loop below); this matches the old
-// C's behavior exactly rather than tightening it, since Planar's usual
-// operating mode (a full subgraph over the whole graph) makes the
-// distinction moot and this port isn't the place to change enumeration
-// semantics for the one test that exercises a non-full subgraph.
+// raw-adjacency-index) pair for every vertex in the subgraph. Counts each
+// subgraph vertex's full raw degree, including darts to neighbors outside
+// the subgraph -- those darts are simply never visited by the enumeration
+// loop below.
 std::vector<size_t> BuildDartBorders(const Graph &g, const Subgraph &sg, size_t &outDartCount) {
   size_t N = g.Size();
   std::vector<size_t> borders(N, 0);
@@ -185,11 +171,7 @@ std::vector<size_t> BuildDartBorders(const Graph &g, const Subgraph &sg, size_t 
 
 // Traces the face reached by repeatedly taking "the dart just before the
 // reverse dart" (PrevNeighborCCW), pushing each dart's head vertex into
-// @p face, until the starting dart (u, adjIdx) is revisited. Mirrors
-// gvizPlanarTraceFace. Kept file-private (not part of Planar.hpp's public
-// surface): its only caller in the old C was face enumeration itself, and
-// its `visited`/`borders` state is a private detail of one enumeration pass,
-// not something a caller could usefully drive standalone.
+// @p face, until the starting dart (u, adjIdx) is revisited.
 void TraceFace(const Graph &g, const std::vector<size_t> &borders, BitSet &visited, size_t u,
                 size_t adjIdx, std::vector<size_t> &face) {
   struct Dart {
@@ -243,15 +225,9 @@ FaceEnumerator::FaceEnumerator(const Graph &g, const Subgraph &sg) {
 void Triangulate(Graph &g, Subgraph &sg, FaceEnumerator &faces) {
   std::vector<std::vector<size_t>> &faceList = faces.Faces();
 
-  // Every access below goes through faceList[i] by INDEX, re-read fresh
-  // each time, rather than caching a pointer/reference to a face across the
-  // `faceList.push_back()` a few lines down. The old C
-  // (gvizPlanarEmbedderTriangulate) cached `gvizArray *face =
-  // gvizArrayAtIndex(&context->faces, i)` once per outer loop iteration and
-  // kept dereferencing it across `goto t;` even after
-  // `gvizArrayPush(&context->faces, &newFace)` -- a push that can reallocate
-  // context->faces' backing storage, leaving `face` dangling. Re-reading by
-  // index every time sidesteps that class of bug entirely.
+  // Every access below goes through faceList[i] by index, re-read fresh
+  // each time: faceList.push_back() below can reallocate, which would
+  // invalidate a cached pointer/reference into faceList.
   for (size_t i = 0; i < faceList.size(); i++) {
     while (faceList[i].size() != 3) {
       bool split = false;
@@ -277,15 +253,8 @@ void Triangulate(Graph &g, Subgraph &sg, FaceEnumerator &faces) {
           assert(f2);
           size_t idx2 = idx2Pos;
 
-          // Collect the vertices strictly between x and y (the "hidden"
-          // boundary run this split cuts off into its own smaller face)
-          // BEFORE erasing them -- reading faceList[i][z] in a plain
-          // ascending loop, unlike the old C's delete-while-reading-at-z
-          // loop, which (for y - x >= 3, i.e. more than one vertex between
-          // them) skipped a vertex because each gvizArrayDeleteAtIndex
-          // shifted later elements down while z kept incrementing against
-          // the ORIGINAL span. See Planar.hpp's Triangulate doc for the
-          // user-visible consequence.
+          // Collect the vertices strictly between x and y before erasing
+          // them, so erasing (which shifts later elements) can't skip one.
           std::vector<size_t> newFace;
           newFace.push_back(u);
           for (size_t z = x + 1; z < y; z++)
@@ -307,15 +276,12 @@ void Triangulate(Graph &g, Subgraph &sg, FaceEnumerator &faces) {
       }
 
       if (!split)
-        break; // no eligible chord among this face's first four vertices;
-                // leave it as-is, matching the old code's silent fall-through.
+        break; // no eligible chord among this face's first four vertices
     }
   }
 
-  // The insertions above shifted adjacency indices, so the old edge bits no
-  // longer line up with any layout. Triangulation operates on a full
-  // subgraph (faces come from the full rotation system), so re-derive it as
-  // full over the augmented graph instead of migrating stale bit positions.
+  // The insertions above shifted adjacency indices, invalidating the old
+  // edge bits; re-derive the subgraph as full over the augmented graph.
   g.BuildLayout();
   sg.MakeFull();
 }
@@ -344,7 +310,7 @@ void ApplyPlanarRotation(Graph &g, Subgraph &subgraph, bool captureWitness) {
         "Boyer-Myrvold working graph");
   }
 
-  int res = gp_Embed(boyer, 0 /* no special embed flags, matches the old call */);
+  int res = gp_Embed(boyer, 0 /* no special embed flags */);
   if (res == NONPLANAR) {
     if (captureWitness) {
       Graph witness = KuratowskiFromBoyer(boyer);
@@ -378,27 +344,25 @@ void ApplyPlanarRotation(Graph &g, Subgraph &subgraph, bool captureWitness) {
 // THE PLANAR EMBEDDER
 // ============================================================================
 
-Subgraph Planar::MakeRotated(Graph &g, Subgraph &&subgraph) {
-  ApplyPlanarRotation(g, subgraph); // mutates subgraph in place; throws on failure
-  return std::move(subgraph);
+// Rotates a throwaway full subgraph over all of @p g in place and returns
+// its vertex count for the base EmbeddedGraph constructor.
+size_t Planar::ValidateAndRotate(Graph &g) {
+  g.BuildLayout();
+  Subgraph sg = Subgraph::CreateFull(g);
+  ApplyPlanarRotation(g, sg);
+  return g.Size();
 }
 
-Planar::Planar(Graph &g, Subgraph subgraph)
-    : EmbeddedGraph(MakeRotated(g, std::move(subgraph)), 2), graph_(g) {
-  // Reached only on success (MakeRotated/ApplyPlanarRotation throws before
-  // the base EmbeddedGraph -- and therefore this constructor body -- ever
-  // runs on failure), so this is unconditionally correct here. This ordering
-  // (rotate first, construct the base once already-rotated) is also why this
-  // port never needs the old C's "partially-initialized embedding" window:
-  // gvizPlanarEmbedderInit constructed the embedding FIRST and mutated its
-  // subgraph in place afterward, which worked there only because C has no
-  // exceptions to unwind through.
+Planar::Planar(Graph &g) : EmbeddedGraph(ValidateAndRotate(g), 2), graph_(g) {
   SetPlanarEmbedded(true);
 }
 
 void Planar::Embed() {
-  FaceEnumerator faces(graph_, Structure());
-  Triangulate(graph_, Structure(), faces);
+  graph_.BuildLayout();
+  Subgraph sg = Subgraph::CreateFull(graph_);
+
+  FaceEnumerator faces(graph_, sg);
+  Triangulate(graph_, sg, faces);
 
   SchnyderWood sw(graph_);
   sw.Embed(*this);
@@ -409,7 +373,7 @@ void Planar::Embed() {
 // ============================================================================
 
 Subgraph FaceSubgraph(const Graph &g, const std::vector<size_t> &face) {
-  g.EnsureLayout(); // build-if-absent, not force-rebuild (matches faceToSubgraph)
+  g.EnsureLayout();
 
   Subgraph out = Subgraph::CreateEmpty(g);
   for (size_t u : face)
@@ -461,10 +425,12 @@ std::optional<Subgraph> FaceSubgraphAt(const Graph &g, const EmbeddedGraph &embe
   if (!embedding.IsPlanarEmbedded())
     return std::nullopt;
 
-  FaceEnumerator faces(g, embedding.Structure());
+  g.EnsureLayout();
+  Subgraph sg = Subgraph::CreateFull(g);
+  FaceEnumerator faces(g, sg);
 
   double minX = INFINITY, minY = INFINITY, maxX = -INFINITY, maxY = -INFINITY;
-  for (size_t u : embedding.Structure()) {
+  for (size_t u : sg) {
     const double *p = embedding.GetVPosition(u);
     minX = std::min(minX, p[0]);
     minY = std::min(minY, p[1]);

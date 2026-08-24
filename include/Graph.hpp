@@ -4,47 +4,41 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <ranges>
 #include <vector>
 
 namespace gviz {
 
 /** A single directed adjacency-list entry: the neighboring vertex's index
- *  and the weight of the edge to it. Plain struct, no methods -- this is
- *  pure data, same as the old gvizEdge. */
+ *  and the weight of the edge to it. Also implicitly convertible to the
+ *  neighbor's raw vertex id, so `for (size_t nb : g.Neighbors(u))` works
+ *  uniformly with Subgraph's neighbor iteration. */
 struct Edge {
   size_t idx;
   double weight;
+
+  operator size_t() const noexcept { return idx; }
 };
 
 /**
  * A directed or undirected adjacency-list graph. Each vertex holds its
- * adjacency list as a plain std::vector<Edge> -- range-for over a vertex's
- * neighbors falls out for free via Neighbors(idx), no custom iterator
- * needed.
+ * adjacency list as a plain std::vector<Edge>.
  *
  * mutationCount is bumped by every structural mutation (AddVertex, AddEdge,
  * RemoveEdge, InsertNeighborAt, Clear) and by nothing else -- not by
- * weight/data updates, not by ReorderNeighbors. This is what lets a derived
- * view (Subgraph's full-mode edge bitset, and eventually EmbeddedGraph's
- * synced snapshot) answer "has the graph changed since I last looked?" with
- * one integer compare.
+ * weight/data updates, not by ReorderNeighbors. This lets a derived view
+ * answer "has the graph changed since I last looked?" with one integer
+ * compare.
  *
- * Degree/Neighbor/NeighborWeight are UNCHECKED (no bounds validation) --
- * they sit in the tightest loops in the library (every embedder's inner
- * loop walks these) and must not gain a branch, exactly like
+ * Degree/Neighbor/NeighborWeight are unchecked (no bounds validation) --
+ * every embedder's inner loop walks these, same contract as
  * std::vector::operator[]. Passing an out-of-range vertex index to any
- * mutator below (AddEdge, RemoveEdge, ...) is the same kind of precondition
- * violation, not a checked failure mode -- see each method's doc comment.
- * SetVertexData is unchecked for the same reason the old C version was
- * (it never bounds-checked either). GetVertexData stays checked (returns
- * nullptr out of range) since it already had a natural "not found" value
- * and a real bounds check in the old C code.
+ * mutator below is likewise a precondition violation, not a checked
+ * failure mode, except where a method's doc comment says otherwise.
  *
- * Copy/move: Graph has real value semantics (a vertex's adjacency list is a
- * plain vector, so a copy is already a deep copy -- no manual two-step
- * clone dance needed). A copy never carries over the source's cached
- * layout (BuildLayout must be called again on the copy if needed), matching
- * the old gvizGraphCopy/Clone, which never populated dest->layout either.
+ * Copy/move: Graph has real value semantics (a copy is already a deep
+ * copy). A copy never carries over the source's cached layout (BuildLayout
+ * must be called again on the copy if needed).
  */
 class Graph {
 public:
@@ -61,6 +55,21 @@ public:
   bool IsDirected() const noexcept { return directed_; }
   uint64_t MutationCount() const noexcept { return mutationCount_; }
 
+  /** Tells gviz::DenseIndex that Graph's vertex handles are already a
+   *  dense [0, Size()) range, so no raw<->local bijection is needed. */
+  static constexpr bool kDenseVertexHandles = true;
+
+  /** Whether @p u names a currently-valid vertex. O(1). */
+  bool HasVertex(size_t u) const noexcept { return u < vertices_.size(); }
+
+  /** Iterates vertex ids [0, Size()) in ascending order. */
+  auto begin() const noexcept {
+    return std::ranges::iota_view<size_t, size_t>(0, vertices_.size()).begin();
+  }
+  auto end() const noexcept {
+    return std::ranges::iota_view<size_t, size_t>(0, vertices_.size()).end();
+  }
+
   /** Number of edges. Requires a current layout (BuildLayout/EnsureLayout);
    *  0 if no layout has ever been built. */
   size_t EdgeCount() const noexcept;
@@ -68,30 +77,22 @@ public:
   /** True once BuildLayout/EnsureLayout has run at least once. */
   bool HasLayout() const noexcept { return layout_ != nullptr; }
 
-  /**
-   * (Re)builds the shared edge-bitset layout unconditionally. Const:
-   * building the layout doesn't change what the graph logically is, only
-   * refreshes an internal cache (hence layout_ is `mutable`) -- this is
-   * what lets Subgraph hold a plain `const Graph&` and still trigger a
-   * rebuild during its own Rebuild(), with no const_cast anywhere, unlike
-   * the old C version.
-   */
+  /** (Re)builds the shared edge-bitset layout unconditionally. Const:
+   *  building the layout only refreshes an internal cache (layout_ is
+   *  `mutable`), letting Subgraph hold a plain `const Graph&` and still
+   *  trigger a rebuild during its own Rebuild(). */
   void BuildLayout() const;
 
   /** Rebuilds the layout only if stale (one integer compare against
-   *  MutationCount()); the on-demand way to use layout-dependent machinery
-   *  against a graph that grows between uses. Callers holding a Subgraph in
-   *  full mode over this graph must know a rebuild shifts the shared bit
-   *  addressing under it -- Subgraph::Rebuild() is what re-syncs it. */
+   *  MutationCount()). A rebuild shifts the shared bit addressing under
+   *  any full-mode Subgraph over this graph -- Subgraph::Rebuild() is what
+   *  re-syncs it. */
   void EnsureLayout() const;
 
-  /**
-   * Returns a new graph with every edge (u, v) replaced by (v, u).
-   * Undirected graphs are unaffected by reversal, so this just returns a
-   * copy for them (matching the old gvizGraphCopyReversed's undirected
-   * fallback). Vertex data is preserved; the result never carries over a
-   * layout, same as the copy constructor.
-   */
+  /** Returns a new graph with every edge (u, v) replaced by (v, u).
+   *  Undirected graphs are unaffected by reversal, so this just returns a
+   *  copy for them. Vertex data is preserved; the result never carries
+   *  over a layout. */
   Graph Reversed() const;
 
   /** Adds a vertex holding @p data (default nullptr) and returns its index.
@@ -99,19 +100,12 @@ public:
   size_t AddVertex(void *data = nullptr);
 
   /** Removes every vertex. Bumps MutationCount() and drops the cached
-   *  layout, matching the old gvizGraphClear -- a no-op (no bump, no
-   *  layout touch) when already empty. */
+   *  layout; a no-op when already empty. */
   void Clear();
 
-  /**
-   * Adds edge (from, to) with the given weight; mirrors to (to, from) for
-   * undirected graphs. Bumps MutationCount(). Unchecked: @p from and @p to
-   * must be valid vertex indices, exactly like Degree/Neighbor -- there is
-   * no other failure mode left to report once out-of-range indices are a
-   * precondition violation instead of a checked case (the old C
-   * gvizGraphAddEdge's only checked failure *was* that bounds check), so
-   * this deliberately returns void rather than a now-always-true bool.
-   */
+  /** Adds edge (from, to) with the given weight; mirrors to (to, from) for
+   *  undirected graphs. Bumps MutationCount(). Unchecked: @p from and @p to
+   *  must be valid vertex indices. */
   void AddEdge(size_t from, size_t to, double weight);
 
   /**
@@ -123,12 +117,10 @@ public:
    */
   bool RemoveEdge(size_t from, size_t to);
 
-  /** Out-of-range idx returns nullptr (checked -- already had a natural
-   *  "not found" pointer value and a real bounds check in the old C). */
+  /** Out-of-range idx returns nullptr (checked). */
   void *GetVertexData(size_t idx) const;
 
-  /** Unchecked, matching the old C gvizGraphSetVertexData (which never
-   *  bounds-checked either). */
+  /** Unchecked. */
   void SetVertexData(size_t idx, void *data) noexcept;
 
   /** Out-degree of vertex @p idx. Unchecked -- hot path, see class doc. */
@@ -201,10 +193,9 @@ private:
   };
 
   /** Shared edge-bitset layout: prefix sums over adjacency-list lengths.
-   *  Private -- Subgraph reaches in via friendship for its edge-bit
-   *  addressing (a deliberate, hot-path-justified coupling; ordinary
-   *  callers only ever see it through EdgeCount()/HasLayout()/
-   *  BuildLayout()/EnsureLayout()). */
+   *  Subgraph reaches in via friendship for its edge-bit addressing;
+   *  ordinary callers only see it through EdgeCount()/HasLayout()/
+   *  BuildLayout()/EnsureLayout(). */
   struct Layout {
     std::vector<size_t> vertexOffsets;
     size_t edgeCount = 0;

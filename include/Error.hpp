@@ -60,14 +60,8 @@ public:
       : LayoutError(what) {}
 };
 
-/**
- * Thrown by Subgraph::CreateEmpty/CreateFull when the parent Graph has no
- * built layout yet (Graph::BuildLayout/EnsureLayout must run first). A full
- * subgraph's edge-bit addressing is defined in terms of the layout's
- * prefix sums, so there is no valid full subgraph to construct without one --
- * a routine, checkable precondition failure (the caller controls exactly
- * when to call BuildLayout), not an allocation failure or a logic bug.
- */
+/** Thrown by Subgraph::CreateEmpty/CreateFull when the parent Graph has no
+ *  built layout yet (Graph::BuildLayout/EnsureLayout must run first). */
 class NoLayoutError : public LayoutError {
 public:
   explicit NoLayoutError(

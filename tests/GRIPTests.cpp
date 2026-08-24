@@ -66,7 +66,7 @@ static Graph BuildRectMesh(size_t h, size_t w) {
   return g;
 }
 
-static GRIP MakeMeshGRIP(Graph &g, size_t dim, GRIP::Config config = {}) {
+static GRIP<Subgraph> MakeMeshGRIP(Graph &g, size_t dim, GRIP<Subgraph>::Config config = {}) {
   g.BuildLayout();
   return GRIP(Subgraph::CreateFull(g), kSmallMeshW + kSmallMeshH, dim, config);
 }
@@ -144,7 +144,7 @@ static void test_init_exactlyDimPlusOneVerticesSucceeds(void) {
 
 static void test_begin_placesCoarsestSimplexWithFinitePositions(void) {
   Graph g = BuildRectMesh(kSmallMeshH, kSmallMeshW);
-  GRIP::Config cfg;
+  GRIP<Subgraph>::Config cfg;
   cfg.statsEnabled = false;
   GRIP grip = MakeMeshGRIP(g, 2, cfg);
 
@@ -180,7 +180,7 @@ static void test_begin_placesCoarsestSimplexWithFinitePositions(void) {
 
 static void test_nextStage_progressesTowardFinerLayers(void) {
   Graph g = BuildRectMesh(kSmallMeshH, kSmallMeshW);
-  GRIP::Config cfg;
+  GRIP<Subgraph>::Config cfg;
   cfg.statsEnabled = false;
   GRIP grip = MakeMeshGRIP(g, 2, cfg);
   grip.Begin();
@@ -220,7 +220,7 @@ static void test_nextStage_progressesTowardFinerLayers(void) {
 
 static void test_refineRound_producesFiniteStatsAndAdvancesRound(void) {
   Graph g = BuildRectMesh(kSmallMeshH, kSmallMeshW);
-  GRIP::Config cfg;
+  GRIP<Subgraph>::Config cfg;
   cfg.statsEnabled = false;
   GRIP grip = MakeMeshGRIP(g, 2, cfg);
   grip.Begin();
@@ -229,7 +229,7 @@ static void test_refineRound_producesFiniteStatsAndAdvancesRound(void) {
   grip.RefineRound();
   TEST_ASSERT_EQUAL_UINT64(1, grip.CurrentRound());
 
-  GRIP::RoundStats stats = grip.LastRoundStats();
+  GRIP<Subgraph>::RoundStats stats = grip.LastRoundStats();
   TEST_ASSERT_TRUE(std::isfinite(stats.maxDisplacement));
   TEST_ASSERT_TRUE(std::isfinite(stats.meanDisplacement));
   TEST_ASSERT_TRUE(std::isfinite(stats.meanForce));
@@ -242,7 +242,7 @@ static void test_refineRound_producesFiniteStatsAndAdvancesRound(void) {
 
 static void test_actions_registeredAndDriveRefinement(void) {
   Graph g = BuildRectMesh(kSmallMeshH, kSmallMeshW);
-  GRIP::Config cfg;
+  GRIP<Subgraph>::Config cfg;
   cfg.statsEnabled = false;
   GRIP grip = MakeMeshGRIP(g, 2, cfg);
 
@@ -268,13 +268,13 @@ static void test_actions_registeredAndDriveRefinement(void) {
 
 static void test_configureK_clampsToCapacity(void) {
   Graph g = BuildRectMesh(kSmallMeshH, kSmallMeshW);
-  GRIP::Config cfg;
+  GRIP<Subgraph>::Config cfg;
   cfg.knnCapacity = 64;
   GRIP grip = MakeMeshGRIP(g, 2, cfg);
 
   TEST_ASSERT_EQUAL_UINT64(64, grip.KnnCapacity());
 
-  grip.ConfigureK(100000, 100000, GRIP::KPolicy::Constant);
+  grip.ConfigureK(100000, 100000, GRIP<Subgraph>::KPolicy::Constant);
   TEST_ASSERT_TRUE(grip.PlacementKMax() <= grip.KnnCapacity());
   TEST_ASSERT_TRUE(grip.RefinementKMax() <= grip.KnnCapacity());
   TEST_ASSERT_EQUAL_UINT64(64, grip.PlacementKMax());
@@ -282,21 +282,21 @@ static void test_configureK_clampsToCapacity(void) {
 
   // 0 keeps current values.
   size_t placement = grip.PlacementKMax();
-  grip.ConfigureK(0, 0, GRIP::KPolicy::Budget);
+  grip.ConfigureK(0, 0, GRIP<Subgraph>::KPolicy::Budget);
   TEST_ASSERT_EQUAL_UINT64(placement, grip.PlacementKMax());
-  TEST_ASSERT_TRUE(GRIP::KPolicy::Budget == grip.Policy());
+  TEST_ASSERT_TRUE(GRIP<Subgraph>::KPolicy::Budget == grip.Policy());
 }
 
 static void test_kPolicy_variantsAllProduceFinitePositions(void) {
-  const GRIP::KPolicy policies[] = {
-      GRIP::KPolicy::Constant, GRIP::KPolicy::LayerDecay,
-      GRIP::KPolicy::LayerGrow, GRIP::KPolicy::PlacementDecay,
-      GRIP::KPolicy::Budget,
+  const GRIP<Subgraph>::KPolicy policies[] = {
+      GRIP<Subgraph>::KPolicy::Constant, GRIP<Subgraph>::KPolicy::LayerDecay,
+      GRIP<Subgraph>::KPolicy::LayerGrow, GRIP<Subgraph>::KPolicy::PlacementDecay,
+      GRIP<Subgraph>::KPolicy::Budget,
   };
 
-  for (GRIP::KPolicy policy : policies) {
+  for (GRIP<Subgraph>::KPolicy policy : policies) {
     Graph g = BuildRectMesh(kSmallMeshH, kSmallMeshW);
-    GRIP::Config cfg;
+    GRIP<Subgraph>::Config cfg;
     cfg.statsEnabled = false;
     GRIP grip = MakeMeshGRIP(g, 2, cfg);
     grip.ConfigureK(32, 32, policy);
@@ -317,7 +317,7 @@ static void test_kPolicy_variantsAllProduceFinitePositions(void) {
 
 static void test_stats_disabledRegistersNoSeries(void) {
   Graph g = BuildRectMesh(kSmallMeshH, kSmallMeshW);
-  GRIP::Config cfg;
+  GRIP<Subgraph>::Config cfg;
   cfg.statsEnabled = false;
   GRIP grip = MakeMeshGRIP(g, 2, cfg);
 
@@ -328,7 +328,7 @@ static void test_stats_disabledRegistersNoSeries(void) {
 
 static void test_stats_enabledRecordsPerRoundSeries(void) {
   Graph g = BuildRectMesh(kSmallMeshH, kSmallMeshW);
-  GRIP::Config cfg;
+  GRIP<Subgraph>::Config cfg;
   cfg.statsEnabled = true;
   GRIP grip = MakeMeshGRIP(g, 2, cfg);
 
@@ -349,7 +349,7 @@ static void test_stats_enabledRecordsPerRoundSeries(void) {
 
 static void RunEndToEndSpreadCheck(size_t dim) {
   Graph g = BuildRectMesh(kSmallMeshH, kSmallMeshW);
-  GRIP::Config cfg;
+  GRIP<Subgraph>::Config cfg;
   cfg.statsEnabled = false;
   GRIP grip = MakeMeshGRIP(g, dim, cfg);
 
@@ -369,7 +369,7 @@ static void RunEndToEndSpreadCheck(size_t dim) {
   for (size_t d = 0; d < dim; d++)
     TEST_ASSERT_TRUE(hi[d] - lo[d] > 1.0);
 
-  GRIP::RoundStats stats = grip.LastRoundStats();
+  GRIP<Subgraph>::RoundStats stats = grip.LastRoundStats();
   TEST_ASSERT_TRUE(std::isfinite(stats.maxDisplacement));
   TEST_ASSERT_TRUE(std::isfinite(stats.meanDisplacement));
 }
@@ -390,7 +390,7 @@ static void test_embed_endToEnd_4D_producesSpreadFinitePositions(void) {
 // mesh vertices do on average (sanity that the layout reflects topology).
 static void test_embed_endToEnd_neighborsCloserThanFarPairs(void) {
   Graph g = BuildRectMesh(kSmallMeshH, kSmallMeshW);
-  GRIP::Config cfg;
+  GRIP<Subgraph>::Config cfg;
   cfg.statsEnabled = false;
   GRIP grip = MakeMeshGRIP(g, 2, cfg);
 

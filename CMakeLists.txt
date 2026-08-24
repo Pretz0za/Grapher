@@ -52,11 +52,11 @@ add_library(gviz ${GVIZ_LIB_TYPE}
     src/Subgraph.cpp
     src/QuadTree.cpp
 
-    # search/
+    # search/ (DepthFirst and Tree are header-only now -- templated over
+    # GraphLike; ConnectedComponents keeps a .cpp for ConnectedComponentSizes,
+    # its one non-template free function)
     src/BreadthFirst.cpp
-    src/DepthFirst.cpp
     src/ConnectedComponents.cpp
-    src/Tree.cpp
     src/KNearest.cpp
 
     # layout/
