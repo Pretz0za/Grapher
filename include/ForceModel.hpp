@@ -8,27 +8,11 @@
 namespace gviz::layout {
 
 /**
- * A pluggable force computation strategy for force-directed layout
- * (ForceAtlas, a later port milestone): the embedder's heat/Barnes-Hut/
- * action machinery stays fixed, while the actual force math is swapped out
- * through this base class. Direct port of the old gvizForceModel
- * function-pointer vtable struct (gvizForceModel.h) -- a real class
- * hierarchy replaces the table, and the two concrete models below
- * (FruchtermanReingold, LinLog) replace its two static singleton instances.
- *
- * Design note on the old gvizForceModelGet(kind) accessor: it isn't ported
- * as a factory function here. Both models are stateless (no per-instance
- * data at all -- every method only reads its arguments), so there is
- * nothing an enum-keyed lookup buys over just constructing the concrete
- * type directly. ForceAtlas is expected to hold a
- * std::unique_ptr<ForceModel> and initialize it at its own construction
- * time with std::make_unique<FruchtermanReingold>() or
- * std::make_unique<LinLog>() depending on which model it was asked for --
- * ordinary polymorphism, no extra indirection through a kind enum needed.
- *
- * Every method is const: neither concrete model carries state, so one
- * instance can be shared (by reference or through a single owning
- * unique_ptr) across every vertex/pair in a round.
+ * A pluggable force computation strategy for ForceAtlas: the embedder's
+ * heat/Barnes-Hut/action machinery stays fixed while the force math is
+ * swapped out through this base class. Both concrete models
+ * (FruchtermanReingold, LinLog) are stateless; ForceAtlas holds a
+ * std::unique_ptr<ForceModel> chosen at construction.
  */
 class ForceModel {
 public:
@@ -82,13 +66,10 @@ public:
     VecAccFRAttForce(n, vPos, uPos, edgeLength, acc);
   }
 
-  // vMass is intentionally ignored here, exactly as the old C
-  // gvizForceModel's frRepulsive did: FR repulsion is expressed from the
-  // "other" side's mass only (VecAccFRRepForceWeighted's weight parameter).
-  // That's correct whether "other" is an ordinary vertex (mass 1.0, so this
-  // reduces to the unweighted paper formula k^2/dist) or a Barnes-Hut
-  // pseudo-body (aggregated mass standing in for many bodies at once) --
-  // not a bug, preserved deliberately.
+  // vMass is intentionally ignored: FR repulsion is expressed from the
+  // "other" side's mass only (VecAccFRRepForceWeighted's weight parameter),
+  // correct whether "other" is an ordinary vertex (mass 1.0) or a
+  // Barnes-Hut pseudo-body (aggregated mass).
   void Repulsive(size_t n, const double *vPos, const double *otherPos,
                  double vMass, double otherMass, double vRadius,
                  double otherRadius, double overlapConstant, double edgeLength,

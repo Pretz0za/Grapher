@@ -103,10 +103,7 @@ void SierpinskiTetrahedronRecurse(Graph &g, int depth, size_t a, size_t b, size_
 //    nonnegative coords.
 //
 // These helpers are pure math (no gviz types) and are private to this
-// translation unit -- unlike the old C globals bary4_to_index/
-// index_to_bary4/tetra_num_vertices, which leaked file-external linkage to
-// no actual external caller (grep confirms nothing outside graphs.c ever
-// referenced them).
+// translation unit.
 
 struct Bary4 {
   size_t a, b, c, d; // a + b + c + d = depth

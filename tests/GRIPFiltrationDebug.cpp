@@ -10,14 +10,14 @@
 //
 // Port notes:
 //   - makeFirstMISPartition/iterMISFiltration (gvizGRIPInternal.h) become
-//     GRIP::DebugMakeFirstMISPartition/DebugIterMISFiltration, thin
+//     GRIP<Subgraph>::DebugMakeFirstMISPartition/DebugIterMISFiltration, thin
 //     passthroughs to the same private methods Begin() itself calls (see
 //     GRIP.hpp's DEBUG / INTROSPECTION section) -- this tool's whole point
 //     is driving those two steps manually instead of letting Begin() run
 //     them to completion.
 //   - gvizVertexSubset (a raw GVIZ_BIT_ARRAY in the old C) is BitSet here;
 //     gvizVertexSubsetCount/Iterator become BitSet::Popcount()/range-for.
-//   - state->misFiltration[i] reads become GRIP::FiltrationVertexAt(i).
+//   - state->misFiltration[i] reads become GRIP<Subgraph>::FiltrationVertexAt(i).
 
 #include "GRIP.hpp"
 
@@ -59,10 +59,10 @@ void PrintGraphStats(const Graph &g) {
               static_cast<double>(degSum) / static_cast<double>(n));
 }
 
-void ProbeBfsReach(GRIP &grip, const Graph &graph, size_t src, size_t maxDepth) {
+void ProbeBfsReach(GRIP<Subgraph> &grip, const Graph &graph, size_t src, size_t maxDepth) {
   size_t n = graph.Size();
   Subgraph bfs = Subgraph::CreateEmpty(graph);
-  search::BreadthFirst(grip.Structure(), bfs, src, maxDepth, nullptr);
+  search::BreadthFirstTree(grip.Structure(), bfs, src, maxDepth, nullptr);
   size_t reached = bfs.VertexCount();
   std::printf("  BFS from vtx %zu depth %zu: reached %zu vertices (%.4f%%)\n", src,
               maxDepth, reached, 100.0 * static_cast<double>(reached) / static_cast<double>(n));
@@ -135,7 +135,7 @@ int main(int argc, char **argv) {
     for (size_t si = 0; si < lv && si < 12; si++) {
       std::vector<size_t> dist;
       Subgraph bfs = Subgraph::CreateEmpty(graph);
-      search::BreadthFirst(grip.Structure(), bfs, layerVerts[si], 0, &dist);
+      search::BreadthFirstTree(grip.Structure(), bfs, layerVerts[si], 0, &dist);
       for (size_t ti = si + 1; ti < lv; ti++) {
         if (dist[layerVerts[ti]] < mpd)
           mpd = dist[layerVerts[ti]];
@@ -149,7 +149,7 @@ int main(int argc, char **argv) {
     if (lv >= 2) {
       std::vector<size_t> dist;
       Subgraph bfs = Subgraph::CreateEmpty(graph);
-      search::BreadthFirst(grip.Structure(), bfs, layerVerts[0], 0, &dist);
+      search::BreadthFirstTree(grip.Structure(), bfs, layerVerts[0], 0, &dist);
       size_t within128 = 0;
       for (size_t ti = 1; ti < lv; ti++)
         if (dist[layerVerts[ti]] <= 128)

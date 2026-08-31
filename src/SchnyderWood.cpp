@@ -12,7 +12,7 @@ namespace {
 
 // Third vertex of the triangular face traversed by dart u->v. Uses the same
 // rotation as face enumeration: dart u->v -> next dart v->w where w is the
-// neighbor just before u in v's CCW adjacency list. Mirrors swFaceThird.
+// neighbor just before u in v's CCW adjacency list.
 size_t FaceThird(const Graph &g, size_t u, size_t v) {
   size_t idx;
   [[maybe_unused]] bool found = g.NeighborPosition(v, u, idx);
@@ -23,8 +23,7 @@ size_t FaceThird(const Graph &g, size_t u, size_t v) {
 }
 
 // Index of the neighbor immediately after u in v's adjacency list (wrapping
-// to 0 past the end). Mirrors nextNeighborIdx, minus its debug printf()s
-// (see SchnyderWood.hpp's IMPLEMENTATION STATUS note).
+// to 0 past the end).
 size_t NextNeighborIdx(const Graph &g, size_t v, size_t u) {
   size_t idx;
   [[maybe_unused]] bool found = g.NeighborPosition(v, u, idx);
@@ -38,8 +37,7 @@ size_t NextNeighborIdx(const Graph &g, size_t v, size_t u) {
 // vertices already claimed by the current partition (`faceVertices`), finds
 // a vertex strictly inside the face -- i.e. a neighbor, reached by stepping
 // one dart past each boundary edge, that isn't itself already on the
-// boundary/claimed. Mirrors findVertexInsideFace (minus its debug
-// printf()s); std::optional replaces the old -1 sentinel.
+// boundary/claimed.
 std::optional<size_t> FindVertexInsideFace(const Graph &g, const std::vector<size_t> &face,
                                             const BitSet &faceVertices) {
   size_t n = face.size();
@@ -57,12 +55,7 @@ std::optional<size_t> FindVertexInsideFace(const Graph &g, const std::vector<siz
 
 // Counts the vertices reachable from `v` without crossing `pathVertices`
 // (a BFS bounded by that vertex set) -- i.e. the size of the region
-// enclosed by the current partition on v's side. Mirrors verticesInRegion,
-// using a plain index-cursor std::vector as the BFS queue instead of a
-// gvizDeque (push-at-back/pop-at-front is all this ever needs) and dropping
-// the old code's `invMap` scratch array, which was allocated and zeroed but
-// never actually read from or written to anywhere in the original function
-// -- dead code, not ported.
+// enclosed by the current partition on v's side.
 size_t VerticesInRegion(const Graph &g, size_t v, const BitSet &pathVertices) {
   std::vector<size_t> queue;
   size_t head = 0;
@@ -89,8 +82,7 @@ size_t VerticesInRegion(const Graph &g, size_t v, const BitSet &pathVertices) {
 }
 
 // The cycle surrounding the region with the same color as path1: path2
-// forward, then path1 reversed, then the partition vertex. Mirrors
-// getRegionBoundary.
+// forward, then path1 reversed, then the partition vertex.
 std::vector<size_t> GetRegionBoundary(size_t partitionV, const std::vector<size_t> &path1,
                                        const std::vector<size_t> &path2) {
   std::vector<size_t> out;
@@ -182,10 +174,7 @@ SchnyderWood::SchnyderWood(const Graph &g) : g_(g), n_(g.Size()) {
       L = R;
     }
 
-    // For a valid triangulated planar graph this must always succeed. The
-    // old C asserted this (a no-op in a release build) and then defensively
-    // `break`-ed out, leaving `sw` half-built and silently wrong; throwing
-    // instead means a caller can never observe an invalid SchnyderWood.
+    // For a valid triangulated planar graph this must always succeed.
     if (w == kNone)
       throw LayoutError(
           "gviz::layout::SchnyderWood: canonical-ordering scan found no candidate "
@@ -269,10 +258,10 @@ void SchnyderWood::Embed(EmbeddedGraph &embedding) const {
 
     double coordinates[3];
     for (size_t r = 0; r < 3; r++) {
-      // TODO(carried over from the old C, unresolved -- see this class'
-      // IMPLEMENTATION STATUS doc): finding the previous neighbor here is
-      // not sufficient in general; this region-counting step is the known-
-      // incomplete part of the algorithm.
+      // TODO(unresolved -- see this class's IMPLEMENTATION STATUS doc):
+      // finding the previous neighbor here is not sufficient in general;
+      // this region-counting step is the known-incomplete part of the
+      // algorithm.
       std::vector<size_t> boundary = GetRegionBoundary(i, paths[r], paths[(r + 1) % 3]);
       std::optional<size_t> v = FindVertexInsideFace(g_, boundary, pathVertices);
 

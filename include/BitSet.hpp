@@ -12,21 +12,17 @@ namespace gviz {
 
 /**
  * A growable bitset backed by std::vector<uint64_t> word storage --
- * deliberately not std::vector<bool>, whose interface hides the underlying
- * words and therefore can't support the word-skipping set-bit iterator
- * below, which is the whole point: Subgraph's vertex/neighbor iteration
- * (the hottest path in the library) walks this iterator directly, and it
- * must skip all-zero words in O(1) rather than testing bit by bit.
+ * deliberately not std::vector<bool>, so the word-skipping set-bit
+ * iterator below can skip all-zero words in O(1) rather than testing bit
+ * by bit.
  *
  * Size() is the number of meaningful bits; the backing vector always holds
  * exactly ceil(Size()/64) words, and any bits beyond Size() in the last word
- * are kept zero by every mutator here (Set/Clear/SetAll/Resize/ClearRange),
- * so Popcount()/the full-range iterator never need to mask a partial tail
- * word at call time.
+ * are kept zero by every mutator here, so Popcount()/the full-range
+ * iterator never need to mask a partial tail word at call time.
  *
- * Test/Set/Clear are unchecked (no bounds validation) -- same contract as
- * the old C gvizBitArrayTest/Set/Clear macros and as std::vector::operator[],
- * since Subgraph calls these in its own hot paths.
+ * Test/Set/Clear are unchecked (no bounds validation), same contract as
+ * std::vector::operator[].
  */
 class BitSet {
 public:
@@ -118,10 +114,7 @@ public:
 
   /**
    * Grows or shrinks the bitset to @p newSize bits, in place. New bits (on
-   * growth) are zeroed; bits beyond @p newSize (on shrink) are dropped. This
-   * is what Subgraph's vertex-induced mode uses for its amortized-doubling
-   * capacity growth (mirrors the old gvizBitArrayResize semantics, minus the
-   * caller-managed old-pointer bookkeeping -- BitSet owns its storage).
+   * growth) are zeroed; bits beyond @p newSize (on shrink) are dropped.
    */
   void Resize(size_t newSize) {
     size_t newWords = (newSize + 63) / 64;
@@ -238,8 +231,7 @@ public:
   iterator begin() const noexcept { return iterator(words_.data(), size_, size_t{0}); }
   iterator end() const noexcept { return iterator(); }
 
-  /** Iterates set bits within the half-open range [start, end) only --
-   *  mirrors gvizBitArrayIteratorCreateRange. */
+  /** Iterates set bits within the half-open range [start, end) only. */
   RangeView Range(size_t start, size_t end) const noexcept {
     return RangeView(iterator(words_.data(), end, start));
   }

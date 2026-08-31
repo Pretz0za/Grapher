@@ -1,11 +1,12 @@
 #ifndef GVIZ_FORCEATLAS_HPP
 #define GVIZ_FORCEATLAS_HPP
 
+#include "DenseIndex.hpp"
 #include "EmbeddedGraph.hpp"
 #include "Error.hpp"
 #include "ForceModel.hpp"
+#include "GraphLike.hpp"
 #include "QuadTree.hpp"
-#include "Subgraph.hpp"
 #include "ThreadPool.hpp"
 
 #include <cstddef>
@@ -21,43 +22,33 @@ namespace gviz::layout {
  * vertices and is approximated by walking a QuadTree over the current
  * positions and treating distant subtrees as a single pseudo-body at their
  * center of mass; attraction is computed additionally, on top of that
- * repulsion, exactly along real graph edges (O(E) per round). Direct port of
- * the old C gvizForceEmbedderState/gvizForceEmbedder* free functions
- * (embedders/gvizForceEmbedder.h) onto real inheritance from EmbeddedGraph.
+ * repulsion, exactly along real graph edges (O(E) per round).
  *
- * The actual force math (attraction, repulsion, and the mass a vertex
- * contributes to quadtree aggregation) is pluggable via a ForceModel fixed
- * at construction; everything else here (speed regulation, Barnes-Hut
- * traversal, actions, stat series) is shared across models.
- * SetBarnesHutEnabled(false) switches to exact O(V^2) all-pairs repulsion
- * instead of the scalable quadtree default -- call before Begin(), same as
- * the old C contract (toggling mid-run is unsupported: see Step()'s use of
- * the quadtree).
+ * Generic over any `GraphLike G` (typically gviz::Graph or gviz::Subgraph):
+ * owns its own `G structure_` plus a `gviz::DenseIndex<G> index_` built once
+ * from it at construction. Every physics array is sized to the view's
+ * actual vertex count and indexed by local/compact index; a native G handle
+ * only appears where an edge is actually crossed.
+ *
+ * The force math (attraction, repulsion, quadtree mass) is pluggable via a
+ * ForceModel fixed at construction; everything else here (speed
+ * regulation, Barnes-Hut traversal, actions, stat series) is shared across
+ * models. SetBarnesHutEnabled(false) switches to exact O(V^2) all-pairs
+ * repulsion instead of the scalable quadtree default -- call before
+ * Begin(); toggling mid-run is unsupported.
  *
  * Dimension is hard-locked to 2 (repulsion needs a 2D QuadTree); the
  * constructor throws DimensionError otherwise.
  *
- * The one embedder with real dynamic-graph physics catch-up: Sync() layers
- * new-vertex placement and a full degree/mass recompute on top of the
- * inherited EmbeddedGraph::Sync()'s structural commit. Sync() intentionally
- * hides (shadows) the base class's Sync() by name -- EmbeddedGraph's own
- * methods are ordinary, non-virtual functions by design (see its class
- * comment), so a derived embedder that needs extra catch-up work provides
- * its own same-named entry point that calls the base one first, exactly as
- * the old gvizForceEmbedderSync layered on top of gvizEmbeddedGraphSync.
- * Calling EmbeddedGraph::Sync() explicitly on a ForceAtlas (as this class's
- * own Sync() does internally) skips that catch-up and is available to
- * anyone holding a plain `EmbeddedGraph &`/`EmbeddedGraph *` -- exactly the
- * same escape hatch the old C code had via the free function pair.
+ * Every per-vertex array is built exactly once, at construction, from
+ * `structure_` as it stood then; there is no dynamic-graph growth support.
  *
  * Threading: force evaluation, swinging/traction, and speed application are
  * data-parallel across vertices via an owned ThreadPool when one could be
- * started (see the .cpp constructor for the try/catch around its
- * construction, and RunForRange for the serial fallback each call site
- * uses when it couldn't) -- same tolerant-of-a-threadless-platform pattern
- * as GRIP, e.g. Emscripten builds without -pthread, where std::thread/
- * pthread_create simply isn't available.
+ * started, falling back to serial execution when it couldn't (e.g. no
+ * thread support on the platform).
  */
+template <GraphLike G>
 class ForceAtlas : public EmbeddedGraph {
 public:
   static constexpr double kEdgeLengthDefault = 1000.0;
@@ -71,12 +62,10 @@ public:
   static constexpr double kSpeedMaxRise = 0.5;
 
   /**
-   * Initializes a Barnes-Hut force layout over @p subgraph (moved in) with
+   * Initializes a Barnes-Hut force layout over @p structure (moved in) with
    * force math supplied by @p model (moved in; fixed for the object's
-   * lifetime, like @p dimension). Runs the embedding's first structural
-   * commit (EmbeddedGraph::Sync()) to build the synced adjacency CSRs the
-   * physics reads, registers actions "forceEmbedder.step" and
-   * "forceEmbedder.toggleOverlapPrevention", and registers stat series
+   * lifetime, like @p dimension). Registers actions "forceEmbedder.step"
+   * and "forceEmbedder.toggleOverlapPrevention", and stat series
    * "forceEmbedder.maxDisp", "forceEmbedder.speed",
    * "forceEmbedder.attractiveForce", "forceEmbedder.repulsiveForce", and
    * "forceEmbedder.gravityForce". Edge length and box extent start at
@@ -87,23 +76,40 @@ public:
    * is not built until Begin(), since positions are all zero right after
    * construction.
    *
-   * @p subgraph's graph may be directed or undirected; direction only
-   * affects which of OutNeighbors/InNeighbors attraction walks (see
-   * EmbeddedGraph), never repulsion/gravity/speed regulation. For a graph
-   * that will grow while animated, pass a VERTEX-INDUCED subgraph (see
-   * EmbeddedGraph.hpp's GROWTH & SYNC section).
+   * @p structure may be directed or undirected; direction only affects
+   * whether an in-adjacency index is built alongside the out one, never
+   * repulsion/gravity/speed regulation.
    *
-   * @throws DimensionError if @p dimension != 2. @throws std::bad_alloc (or
-   * std::system_error, from the owned ThreadPool) on allocation/thread
-   * startup failure -- no manual -1 return path.
+   * @throws DimensionError if @p dimension != 2.
+   * @throws std::bad_alloc (or std::system_error, from the owned
+   * ThreadPool) on allocation/thread startup failure.
    */
-  ForceAtlas(Subgraph subgraph, size_t dimension, std::unique_ptr<ForceModel> model);
+  ForceAtlas(G structure, size_t dimension, std::unique_ptr<ForceModel> model);
 
   ForceAtlas(const ForceAtlas &) = delete;
   ForceAtlas(ForceAtlas &&) noexcept = default;
   ForceAtlas &operator=(const ForceAtlas &) = delete;
   ForceAtlas &operator=(ForceAtlas &&) = delete;
   ~ForceAtlas() override = default;
+
+  /** The structure this embedder was built over. */
+  G &Structure() noexcept { return structure_; }
+  const G &Structure() const noexcept { return structure_; }
+
+  // Native-handle position accessors; shadow the base class's local-index
+  // versions of the same names, translating via index_.ToLocal().
+  double *GetVPosition(size_t handle) noexcept {
+    return EmbeddedGraph::GetVPosition(index_.ToLocal(handle));
+  }
+  const double *GetVPosition(size_t handle) const noexcept {
+    return EmbeddedGraph::GetVPosition(index_.ToLocal(handle));
+  }
+  void SetVPosition(size_t handle, const double *position) noexcept {
+    EmbeddedGraph::SetVPosition(index_.ToLocal(handle), position);
+  }
+  void AddVPosition(size_t handle, const double *position) noexcept {
+    EmbeddedGraph::AddVPosition(index_.ToLocal(handle), position);
+  }
 
   // CONFIGURATION (call before Begin(), unless noted otherwise): -----------
 
@@ -128,7 +134,7 @@ public:
   /** Enables or disables the Barnes-Hut quadtree approximation of repulsion
    *  (enabled by construction). Disabled, Step() computes repulsion by exact
    *  all-pairs evaluation instead. Call before Begin(); toggling after is
-   *  unsupported (see the class comment). */
+   *  unsupported. */
   void SetBarnesHutEnabled(bool enabled) noexcept { barnesHutEnabled_ = enabled; }
 
   /** Whether Barnes-Hut approximation is currently enabled. */
@@ -162,11 +168,9 @@ public:
   /** Enables or disables treating vertices as circles of radius
    *  VertexRadius() (rather than dimensionless points) for repulsion.
    *  Disabled (the default) behaves as if no radius had ever been
-   *  configured. Safe to call at any time, including mid-simulation -- see
-   *  the old C header's note on why that's the typical usage (mirrors
-   *  Gephi's own UI checkbox). Also exposed as the
-   *  "forceEmbedder.toggleOverlapPrevention" action for live toggling from a
-   *  bound key. */
+   *  configured. Safe to call at any time, including mid-simulation. Also
+   *  exposed as the "forceEmbedder.toggleOverlapPrevention" action for live
+   *  toggling from a bound key. */
   void SetPreventOverlapEnabled(bool enabled) noexcept { preventOverlap_ = enabled; }
 
   /** Whether overlap prevention is currently enabled. */
@@ -189,37 +193,10 @@ public:
    * default) for a time-based seed. Safe to call again to restart the
    * layout.
    *
-   * @throws std::bad_alloc if building the quadtree fails (propagates
-   * naturally from QuadTree's constructor/Rebuild -- no manual -1 return).
-   * This object stays validly constructed either way: unlike a constructor
-   * failure, a failed Begin() is not "this object is now invalid", so
-   * there's no reason to swallow/wrap the exception here.
+   * @throws std::bad_alloc if building the quadtree fails. The object stays
+   * validly constructed either way.
    */
   void Begin(unsigned int seed = 0);
-
-  /**
-   * Commits whatever has been mutated on the underlying Graph since
-   * construction or the last Sync() -- first structurally
-   * (EmbeddedGraph::Sync(): admit new vertices, grow positions/draw mask,
-   * rebuild synced adjacency), then for the physics (grow the per-vertex
-   * arrays, place new vertices near their already-synced neighbors'
-   * centroid jittered by up to edgeLength/2, or uniformly at random if a
-   * vertex has no edges yet, then recompute degree/mass for EVERY vertex --
-   * not just new ones, since a new edge can raise an already-tracked
-   * vertex's degree). Existing vertices' positions and swinging/traction
-   * history are left untouched, so the layout never jumps.
-   *
-   * @p seed seeds new-vertex jitter placement; pass 0 (the default) for a
-   * time-based seed.
-   *
-   * @return true if a commit happened (structural, physics catch-up, or
-   * both), false for the true no-op (nothing changed since the last
-   * Sync()/construction). @throws std::bad_alloc on allocation failure; on
-   * failure this object stays exactly as it was before the call (see the
-   * .cpp for the "build into temporaries, publish only on success"
-   * mechanism), so a caller that catches and retries later resumes cleanly.
-   */
-  bool Sync(unsigned int seed = 0);
 
   /**
    * Runs one round: accumulates the model's repulsive force (Barnes-Hut
@@ -228,7 +205,7 @@ public:
    * edge, and (if ConfigureGravity() set a nonzero k) a constant-magnitude
    * pull toward the origin -- then scales the resulting per-vertex force
    * down to a displacement using ForceAtlas2's adaptive global-speed
-   * regulation (Jacomy et al. 2014; see the .cpp for the exact formulas).
+   * regulation (Jacomy et al. 2014).
    *
    * @return the maximum per-vertex displacement actually applied this
    * round.
@@ -240,11 +217,7 @@ public:
    * @p maxIters rounds have run.
    *
    * @return the number of rounds run.
-   * @throws std::logic_error if Begin() has not been called -- a usage-order
-   * precondition violation (there is no "run before begin" outcome a caller
-   * would ever want to routinely check for and recover from, unlike the
-   * genuinely-expected outcomes the rest of this library's exceptions
-   * cover), replacing the old C API's -1 sentinel return.
+   * @throws std::logic_error if Begin() has not been called.
    */
   size_t Run(size_t maxIters, double epsilon);
 
@@ -261,7 +234,7 @@ public:
 private:
   static double DefaultBoxExtent(size_t vertexCount, double edgeLength);
 
-  void GrowPerVertexArraysTo(size_t newCount);
+  void BuildInAdjacencyIfDirected();
   void GatherPositions();
   double VertexRadiusIfEnabled(size_t idx) const noexcept;
   void AccumulateBHRepulsion(const QuadTree::Node *node, size_t selfIdx,
@@ -272,11 +245,9 @@ private:
   void UpdateGlobalSpeed();
   void ApplySpeedRange(size_t begin, size_t end);
   void RecomputeDegreeMass();
-  void PlaceGrownVertex(size_t i, unsigned int &seed);
 
   /** Runs @p task over [begin, end) via the worker pool if one exists,
-   *  falling back to one synchronous call on the calling thread otherwise
-   *  -- same shape and same reason as GRIP::RunForRange (see GRIP.hpp). */
+   *  falling back to one synchronous call on the calling thread otherwise. */
   void RunForRange(size_t begin, size_t end, size_t grain,
                     const std::function<void(size_t, size_t)> &task);
 
@@ -286,18 +257,17 @@ private:
                                              void *userData,
                                              const ActionPayload &payload);
 
+  G structure_;
+  DenseIndex<G> index_;
   std::unique_ptr<ForceModel> model_; // force computation strategy, fixed at construction
 
-  // Active subgraph vertex ids, compact index i -> raw vertex id. Every
-  // other per-vertex vector below is parallel to this one (size() in
-  // lockstep); vertices_.size() IS the published/active vertex count, no
-  // separate counter -- unlike the old C state->vertexCount, which had to be
-  // a field distinct from state->vertices' allocated length because growth
-  // there happened in place. Here GrowPerVertexArraysTo builds fully-grown
-  // replacement vectors and moves them in only once every one has
-  // succeeded, so vertices_ is never observably larger than "published."
-  std::vector<size_t> vertices_;
-  std::vector<size_t> degree_;   // out-degree + in-degree per vertex, from the synced CSRs
+  // Out-adjacency (local index -> local neighbor indices) and, only for a
+  // directed structure_, in-adjacency, both built exactly once at
+  // construction.
+  std::vector<size_t> outOffsets_, outNeighborsLocal_;
+  std::vector<size_t> inOffsets_, inNeighborsLocal_;
+
+  std::vector<size_t> degree_;   // out-degree + in-degree per vertex, local-indexed
   std::vector<double> mass_;     // model_->VertexMass(degree_[i])
   std::vector<double> disp_;                // vertexCount * 2, raw net force before speed scaling
   std::vector<double> positionsScratch_;    // vertexCount * 2, gathered from base positions each round
@@ -308,18 +278,6 @@ private:
   std::vector<double> appliedDisp_;         // vertexCount * 2, disp_ after speed scaling
   std::vector<double> swinging_;            // vertexCount, mass-weighted swinging
   std::vector<double> traction_;            // vertexCount, mass-weighted effective traction
-
-  // Graph::MutationCount() (via Structure().ParentMutationCount()) as of the
-  // last time the PHYSICS side of Sync() completed. Normally equal to the
-  // base class's own commit mark; it lags only when a Sync()'s structural
-  // commit succeeded but its physics growth then failed on allocation, and
-  // it's what lets the next Sync() notice and retry even though
-  // EmbeddedGraph::Sync() itself reports "nothing new." Reading the parent
-  // graph's live mutation count directly (rather than peeking at
-  // EmbeddedGraph's own private syncedMutationCount_) is deliberate: it's
-  // public API (Subgraph::ParentMutationCount()) and answers exactly the
-  // same question the old C code asked of its sibling struct field.
-  uint64_t physicsSyncedMutationCount_ = UINT64_MAX;
 
   double radiusBase_ = 0.0;
   double radiusPerDegree_ = 0.0;
@@ -338,31 +296,15 @@ private:
   size_t nodesPerCell_ = QuadTree::kNodesPerCellDefault;
   bool barnesHutEnabled_ = true;
 
-  // Engaged exactly when the quadtree has been built at least once (old C's
-  // quadtreeReady flag) -- stays disengaged whenever barnesHutEnabled_ is
-  // false, since the quadtree is never built in that mode. std::optional is
-  // a natural fit: QuadTree has no default constructor (it always indexes
-  // *some* point buffer), so there is no "zeroed but safe" QuadTree value to
-  // fall back on the way the old C struct's zero-initialized quadtree field
-  // was -- optional supplies the same "maybe not built yet" state
-  // explicitly instead.
+  // Engaged once the quadtree has been built at least once; stays
+  // disengaged whenever barnesHutEnabled_ is false.
   std::optional<QuadTree> quadtree_;
 
-  // Null when a worker thread failed to start (ThreadPool's constructor
-  // throws std::system_error on the first pthread_create failure -- see the
-  // .cpp constructor's try/catch) -- e.g. a wasm build with no -pthread/
-  // -sUSE_PTHREADS, or a platform genuinely out of thread resources. Every
-  // parallel phase (ComputeForceRange/ComputeSwingTractionRange/
-  // ApplySpeedRange, called through RunForRange in the .cpp) falls back to
-  // running its whole range serially on the calling thread when this is
-  // null, exactly like GRIP's identically-shaped pool_/RunForRange pair
-  // (see GRIP.hpp) -- a missing thread pool is a performance loss, not a
-  // reason to fail construction. Held via unique_ptr rather than by value
-  // specifically so ForceAtlas stays move-constructible: ThreadPool itself
-  // is neither copyable nor movable (see ThreadPool.hpp), so a
-  // `ThreadPool pool_;` value member would make the implicitly-declared
-  // ForceAtlas move constructor deleted, breaking parity with the base
-  // EmbeddedGraph (which *is* move-constructible) for no benefit.
+  // Null when a worker thread failed to start (e.g. no thread support on
+  // the platform); every parallel phase then falls back to running its
+  // whole range serially via RunForRange. unique_ptr rather than a value
+  // member so ForceAtlas stays move-constructible (ThreadPool itself is
+  // neither copyable nor movable).
   std::unique_ptr<ThreadPool> pool_;
 };
 

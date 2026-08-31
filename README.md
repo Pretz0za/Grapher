@@ -16,22 +16,31 @@ piecemeal.
 | Layer | Path | Contents |
 |-------|------|----------|
 | `core` | `include/`, `src/` | `ThreadPool`, `Vec.hpp` (small vector-math helpers) |
-| `ds` | `include/`, `src/` | `Graph` (directed/undirected adjacency-list graph), `Subgraph` (vertex/edge-induced views), `BitSet`, `QuadTree` (Barnes-Hut spatial index) |
-| `search` | `include/`, `src/` | `BreadthFirst`, `DepthFirst`, `ConnectedComponents`, `IsTree`/`IsLeaf`/`CountLeaves`, `KNearest` |
+| `ds` | `include/`, `src/` | `Graph` (directed/undirected adjacency-list graph), `Subgraph` (vertex/edge-induced views), `BitSet`, `QuadTree` (Barnes-Hut spatial index), `GraphLike` (the traversal concept both `Graph` and `Subgraph` satisfy) and `DenseIndex` (build-once raw-handle <-> dense-local-index adapter built on it) |
+| `search` | `include/`, `src/` | `BreadthFirst` (+ `BreadthFirstTree`), `DepthFirst`, `ConnectedComponents`, `IsTree`/`IsLeaf`/`CountLeaves`, `KNearest` — all templated over `GraphLike` |
 | `layout` | `include/`, `src/` | See below |
 | `io` / `graphs` | `include/`, `src/` | `GraphLoader` (`.edges`/`.gexf`/`.obj`), `Graphs` (synthetic test-graph generators) |
 
 Each layer depends only on the layers above it — see `include/gviz.hpp`'s own
 doc comment and `CLAUDE.md` for the full architecture write-up, including the
-`Graph`/`Subgraph` performance design, the sync/commit machinery behind
-dynamic (growing-while-rendering) graphs, and the actions/stat-series
-interface every embedder exposes generically.
+`Graph`/`Subgraph` performance design, the `GraphLike`/`DenseIndex` sizing
+adapter every embedder's per-vertex storage is built on, and the
+actions/stat-series interface every embedder exposes generically.
 
-Every embedder publicly inherits from `gviz::layout::EmbeddedGraph` (a
-`Subgraph` plus an n-dimensional position buffer, plus generic
-actions/stat-series/draw-mask registries) so a front-end can drive any of
-them — trigger a step, toggle a setting, plot a convergence series — without
-knowing which algorithm is underneath.
+Every embedder publicly inherits from `gviz::layout::EmbeddedGraph` (an
+n-dimensional position buffer, plus generic actions/stat-series/draw-mask
+registries — `EmbeddedGraph` itself knows nothing about graph structure, see
+`CLAUDE.md`) so a front-end can drive any of them — trigger a step, toggle a
+setting, plot a convergence series — without knowing which algorithm, or
+which `GraphLike` type it was built over, is underneath. `ForceAtlas`,
+`GRIP`, `KamadaKawai`, `Tutte`, and `SpringTutte` are generic
+(`template <GraphLike G> class Foo`, typically instantiated over `Graph` or
+`Subgraph`); `Planar`, `SchnyderWood`, and `ReingoldTilford` stay
+Graph-specific (see each header's class doc for why).
+
+Dynamic graph growth while an embedding is active (the old sync/commit
+machinery) is not currently supported — an embedder's structure and
+per-vertex storage are fixed at construction.
 
 ## Embedding algorithms
 
@@ -41,11 +50,12 @@ knowing which algorithm is underneath.
   - `gviz::layout::LinLog`
 
   Also supports optional gravity (constant pull toward the origin, useful for disconnected/unconnected graphs), and radius-aware "prevent overlap" repulsion that treats vertices as circles sized by degree and saturates at a bounded magnitude once they touch, instead of diverging.
-- **`gviz::layout::Tutte`** — real-time Tutte barycentric embedding (interior vertices relax toward their neighbors' barycenter, boundary pinned), Jacobi or Gauss-Seidel.
-- **`gviz::layout::SpringTutte`** — second-order variant of the above driven by a damped harmonic oscillator instead of a direct position blend, so underdamped settings overshoot and settle rather than moving straight to equilibrium. Structurally mirrors `Tutte` — same method names, same call order — differing only where the physics genuinely differs.
-- **`gviz::layout::Planar`** — Boyer-Myrvold planarity testing (third-party, `third-party/boyerMyrvold/`) plus CCW rotation-system construction and a straight-line embedding; throws `PlanarNotPlanarError` (carrying a Kuratowski subdivision witness) on non-planar input. Also owns the free-function planarity API used by any embedder: face walking (`FaceWalk`, a real C++ range), face enumeration (`FaceEnumerator`), triangulation, face-at-point picking.
+- **`gviz::layout::Tutte`** — real-time Tutte barycentric embedding (interior vertices relax toward their neighbors' barycenter, boundary pinned), Jacobi or Gauss-Seidel. Generic over `GraphLike`. Does not test planarity or install a rotation system itself — `SetBoundary()`/`FixConvexPolygon()` are the only way to pin a boundary; a genuinely non-planar structure just relaxes into a possibly-overlapping layout rather than throwing.
+- **`gviz::layout::SpringTutte`** — second-order variant of the above driven by a damped harmonic oscillator instead of a direct position blend, so underdamped settings overshoot and settle rather than moving straight to equilibrium. Structurally mirrors `Tutte` — same method names, same call order, same planarity-agnostic contract — differing only where the physics genuinely differs.
+- **`gviz::layout::Planar`** — Boyer-Myrvold planarity testing (third-party, `third-party/boyerMyrvold/`) plus CCW rotation-system construction and a straight-line embedding; throws `PlanarNotPlanarError` (carrying a Kuratowski subdivision witness) on non-planar input. Always embeds the whole graph (`Planar(Graph&)` — no `Subgraph` parameter). Also owns the free-function planarity API used by any embedder: face walking (`FaceWalk`, a real C++ range), face enumeration (`FaceEnumerator`), triangulation, face-at-point picking.
 - **`gviz::layout::SchnyderWood`** — Schnyder wood (realizer) decomposition of a triangulated planar graph into three directed trees; building block for planar straight-line drawings. Its `Embed()` ports a known-incomplete algorithm faithfully (see the header doc) — its construction (canonical ordering) is separately verified correct.
-- **`gviz::layout::ReingoldTilford`** — classic tidy tree layout. One-shot, not iterative: `RTInit` → `CalculateOffsets` → `Embed`.
+- **`gviz::layout::ReingoldTilford`** — classic tidy tree layout. One-shot, not iterative: construct → `CalculateOffsets` → `Embed`. Takes `const Graph&` directly (not a `Subgraph`/`GraphLike`) since it needs positional adjacency (`Graph::Neighbor(v, i)`) a filtered view can't coherently answer.
+- **`gviz::layout::KamadaKawai`** — Kamada & Kawai (1989) graph-theoretic-distance layout: minimizes a global energy over all-pairs BFS hop distances via Newton-Raphson refinement of whichever vertex has the largest energy gradient. Generic over `GraphLike`; any dimension >= 1. Requires a connected structure (throws `NotConnectedError` otherwise).
 
 ## Graph loading and generation
 
@@ -76,9 +86,10 @@ Enable AddressSanitizer for memory debugging:
 cmake .. -DENABLE_ASAN=ON
 ```
 
-`gviz` (the static library) links against `planar` (the vendored
-Boyer-Myrvold implementation, still C), `m`, and a system thread pool
-(`Threads::Threads`) — no other external dependencies.
+`gviz` (a shared library, except on Emscripten builds where it's static)
+links against `planar` (the vendored Boyer-Myrvold implementation, still C),
+`m`, and a system thread pool (`Threads::Threads`) — no other external
+dependencies.
 
 ## Testing
 

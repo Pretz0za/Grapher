@@ -1,3 +1,23 @@
+// Standalone pick-testing tool: relaxes a rectangular mesh with Tutte and
+// verifies FaceSubgraphAt() correctly identifies the quad face under a
+// sampled world point, both for interior clicks and a click outside the
+// drawing (which should fall back to the largest/outer face).
+//
+// Post-refactor note (see Tutte.hpp/Planar.hpp's class docs): Tutte no
+// longer installs a planar rotation system or sets IsPlanarEmbedded() at
+// all -- that's Planar's job alone now, and FaceSubgraphAt() requires
+// IsPlanarEmbedded() == true on whatever EmbeddedGraph it's given. So this
+// tool now composes the two explicitly, matching the layering the refactor
+// introduced: a throwaway `Planar` installs the rotation system on `graph`
+// (a real, if minor, mutation of the graph's own adjacency order -- see
+// ApplyPlanarRotation) and is kept alive purely as the
+// IsPlanarEmbedded()-carrying object FaceSubgraphAt() is called against;
+// `Tutte` does the actual barycentric relaxation over its own Subgraph, and
+// its converged positions are copied into the Planar object afterward. This
+// is the intended shape now for "relax with Tutte, then query faces" --
+// Planar and Tutte are separate, independently-usable embedders, not a
+// package deal the way the pre-refactor Tutte::Begin() made them.
+
 #include "EmbeddedGraph.hpp"
 #include "Graph.hpp"
 #include "Graphs.hpp"
@@ -41,11 +61,23 @@ int main() {
     Graph graph = graphs::BuildRectMesh(rows, cols);
     graph.BuildLayout();
 
-    Tutte tutte(graph, Subgraph::CreateFull(graph), 2);
-    tutte.Begin();
+    // Installs the rotation system on `graph` and is kept alive purely so
+    // FaceSubgraphAt() has an IsPlanarEmbedded() == true object to query --
+    // see the file-level note above.
+    Planar planar(graph);
+
+    Tutte tutte(Subgraph::CreateFull(graph), 2);
+    std::vector<size_t> boundary = LargestFaceBoundary(graph, tutte.Structure());
+    tutte.FixConvexPolygon(boundary, 200.0);
+    tutte.SeedInterior();
     tutte.Run(5000);
 
-    EmbeddedGraph &eg = tutte;
+    // Copy Tutte's converged positions into the Planar-embedded object that
+    // FaceSubgraphAt() will actually query.
+    for (size_t u = 0; u < graph.Size(); u++)
+      planar.SetVPosition(u, tutte.GetVPosition(u));
+
+    EmbeddedGraph &eg = planar;
 
     std::printf("planar=%d converged=%d\n", eg.IsPlanarEmbedded(),
                 tutte.Converged());

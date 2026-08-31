@@ -1,6 +1,9 @@
 #include "GRIP.hpp"
 
+#include "ConnectedComponents.hpp"
 #include "Error.hpp"
+#include "Graph.hpp"
+#include "Subgraph.hpp"
 #include "Vec.hpp"
 
 #include <algorithm>
@@ -16,17 +19,6 @@ namespace gviz::layout {
 
 namespace {
 
-/**
- * GVIZ_GRIP_DEBUG_FILTRATION / GVIZ_GRIP_STAGE_TIMING: opt-in, stderr-only
- * debug logging documented in README.md's "Debug and profiling environment
- * variables" section. Direct port of the old C gvizGRIPEmbedder.c's
- * GRIP_FILTRATION_DEBUG() macro and gvizGRIPEmbedderNextStage's inline
- * getenv("GVIZ_GRIP_STAGE_TIMING") check -- both log sites (IterMISFiltration/
- * VerticesWithinRadius below, and NextStage) preserve the exact line formats
- * README documents, since GRIPFiltrationDebug/GRIPPlaceBench (the C++ ports
- * of the old white-box tools that exercise this output) drive GRIP through
- * this same public Begin()/NextStage() path, not a reimplementation.
- */
 bool FiltrationDebugEnabled() {
   return std::getenv("GVIZ_GRIP_DEBUG_FILTRATION") != nullptr;
 }
@@ -39,10 +31,9 @@ constexpr size_t kParallelGrain = 1;
 constexpr size_t kMigrateBfsDepth = 64;
 constexpr size_t kMaxRoundsPerLayer = 30;
 constexpr double kConvergenceFactor = 1e-3;
-// GRIP applies VecAccGRIPFRAttForce (a repulsive-shaped op used as GRIP's
-// "attractive" spring to k-nearest non-edge vertices) scaled down relative
-// to the along-edge repulsion, matching the old C gvizForceDirected.c's
-// FR_SCALE_FACTOR.
+// Scales VecAccGRIPFRAttForce (a repulsive-shaped op used as GRIP's
+// "attractive" spring to k-nearest non-edge vertices) down relative to the
+// along-edge repulsion.
 constexpr double kFrScaleFactor = 0.05;
 
 size_t ClampK(size_t k, size_t minK, size_t maxK) {
@@ -56,10 +47,7 @@ size_t ClampK(size_t k, size_t minK, size_t maxK) {
 /**
  * Generates the n+1 vertices of a regular n-simplex centered at the origin,
  * scaled so every pairwise distance equals @p sideLength. @p out must hold
- * (n+1)*n doubles. Direct port of the old C makeRegularSimplex (Gram-matrix
- * construction: each new vertex is placed to be equidistant from every
- * previously placed one, then the whole thing is rescaled from the unit
- * simplex's edge length to @p sideLength).
+ * (n+1)*n doubles.
  */
 void MakeRegularSimplex(size_t n, double sideLength, double *out) {
   std::fill(out, out + (n + 1) * n, 0.0);
@@ -72,7 +60,6 @@ void MakeRegularSimplex(size_t n, double sideLength, double *out) {
       continue;
     }
 
-    // Unit regular simplex: dot(vi, vj) = -1/n for all i != j.
     double c = -1.0 / static_cast<double>(n);
 
     for (size_t j = 0; j < k; j++) {
@@ -108,8 +95,8 @@ void MakeRegularSimplex(size_t n, double sideLength, double *out) {
 
 /** Solves the 3x3 linear system a*x = b via partial-pivot Gaussian
  *  elimination, in place on @p a. Returns false (leaving @p x untouched) if
- *  @p a is (numerically) singular. Direct port of the old C solve3x3, used
- *  only by GRIP::RemoveNetRotation's 3D inertia-tensor solve. */
+ *  @p a is (numerically) singular. Used only by GRIP::RemoveNetRotation's
+ *  3D inertia-tensor solve. */
 bool Solve3x3(double a[3][3], const double *b, double *x) {
   size_t idx[3] = {0, 1, 2};
   double rhs[3] = {b[0], b[1], b[2]};
@@ -140,41 +127,40 @@ bool Solve3x3(double a[3][3], const double *b, double *x) {
   return true;
 }
 
-/**
- * Validates @p dimension/@p sg before EmbeddedGraph's (potentially large)
- * base allocation runs, and forwards @p sg through unchanged on success.
- * Used in GRIP's constructor's base-class initializer so a rejected
- * construction (bad dimension, too few active vertices) never allocates the
- * position buffer at all.
- */
-Subgraph ValidateForGRIP(Subgraph sg, size_t dimension) {
+/** Validates @p dimension/@p g and returns @p g's vertex count on success.
+ *  Called from GRIP's constructor's base-class initializer so a rejected
+ *  construction never allocates the position buffer at all. */
+template <GraphLike G>
+size_t ValidateAndCountForGRIP(const G &g, size_t dimension) {
   if (dimension < 2 || dimension > 4)
     throw DimensionError("GRIP requires an embedding dimension of 2, 3, or 4");
-  if (sg.VertexCount() < dimension + 1)
+  size_t count = GraphLikeVertexCount(g);
+  if (count < dimension + 1)
     throw InsufficientVerticesError(
         "GRIP needs at least dimension + 1 active vertices to place the "
         "coarsest simplex");
-  return sg;
+  return count;
 }
 
 } // namespace
 
-GRIP::GRIP(Subgraph subgraph, size_t diameter, size_t dimension, Config config)
-    : EmbeddedGraph(ValidateForGRIP(std::move(subgraph), dimension), dimension),
+template <GraphLike G>
+GRIP<G>::GRIP(G structure, size_t diameter, size_t dimension, Config config)
+    : EmbeddedGraph(ValidateAndCountForGRIP(structure, dimension), dimension),
+      structure_(std::move(structure)), index_(structure_),
       knnCapacity_(config.knnCapacity > 0 ? config.knnCapacity
                                            : kKnnCapacityDefault),
       placementKMax_(kKMaxDefault), refinementKMax_(kKMaxDefault),
       kPolicy_(KPolicy::Constant), statsEnabled_(config.statsEnabled),
-      radiusBfsScratch_(Structure().VertexCapacity()) {
-  size_t n = Structure().VertexCapacity();
-  size_t activeCount = Structure().VertexCount();
+      radiusBfsScratch_(GraphLikeVertexCapacity(structure_)) {
+  size_t n = index_.Size();
 
   size_t misBorderReserve = 1024;
   if (diameter)
     misBorderReserve =
         static_cast<size_t>(std::log2(static_cast<double>(diameter))) + 8;
   misBorder_.reserve(misBorderReserve);
-  misBorder_.push_back(activeCount);
+  misBorder_.push_back(n);
 
   misFiltration_.assign(n, 0);
   dec_.resize(n);
@@ -185,18 +171,16 @@ GRIP::GRIP(Subgraph subgraph, size_t diameter, size_t dimension, Config config)
   }
 
   dispCalculated_ = BitSet(n);
-  radiusBfsDepth_.assign(n, 0);
+  radiusBfsDepth_.assign(GraphLikeVertexCapacity(structure_), 0);
 
-  // EmbeddedGraph's base constructor defaults the draw mask to "every
-  // subgraph vertex visible" (the right default for a static layout).
-  // GRIP instead builds visibility up one MIS layer at a time (Begin()/
-  // NextStage() call DrawMaskShowVertex as each layer is placed), so it
-  // must start from nothing visible -- matching the old C Init's
-  // gripClearDrawMask(state) call.
+  // GRIP builds visibility up one MIS layer at a time (Begin()/NextStage()
+  // call DrawMaskShowVertex as each layer is placed), so start from
+  // nothing visible rather than EmbeddedGraph's "every vertex visible"
+  // default.
   DrawMaskClearVertices();
 
-  AddAction("grip.refineRound", &GRIP::ActionRefineRound, nullptr);
-  AddAction("grip.nextStage", &GRIP::ActionNextStage, nullptr);
+  AddAction("grip.refineRound", &GRIP<G>::ActionRefineRound, nullptr);
+  AddAction("grip.nextStage", &GRIP<G>::ActionNextStage, nullptr);
 
   if (statsEnabled_) {
     AddStatSeries("grip.heat", StatChartKind::LineLog);
@@ -205,14 +189,8 @@ GRIP::GRIP(Subgraph subgraph, size_t diameter, size_t dimension, Config config)
     AddStatSeries("grip.meanForce", StatChartKind::LineLog);
   }
 
-  // NULL pool is fine: parallel phases fall back to running serially (see
-  // RunForRange). Unlike the old C gvizThreadPoolCreate (which tolerated
-  // partial worker-startup failure and only failed if zero workers came
-  // up), gviz::ThreadPool throws immediately on the first worker failure;
-  // GRIP treats that identically to "no pool available" rather than
-  // propagating it, since a construction failure here would be surprising
-  // for what is, from the caller's perspective, a resource GRIP manages
-  // internally purely as a performance optimization.
+  // Null pool is fine: parallel phases fall back to running serially (see
+  // RunForRange).
   try {
     pool_ = std::make_unique<ThreadPool>(0);
   } catch (const std::system_error &) {
@@ -222,13 +200,13 @@ GRIP::GRIP(Subgraph subgraph, size_t diameter, size_t dimension, Config config)
   knnScratchCount_ = pool_ ? pool_->ThreadCount() + 1 : 1;
   knnScratch_.reserve(knnScratchCount_);
   for (size_t i = 0; i < knnScratchCount_; i++)
-    knnScratch_.emplace_back(Structure().VertexCapacity());
+    knnScratch_.emplace_back(GraphLikeVertexCapacity(structure_));
 }
 
 // CONFIGURATION: -------------------------------------------------------------
 
-void GRIP::ConfigureK(size_t placementKMax, size_t refinementKMax,
-                       KPolicy policy) {
+template <GraphLike G>
+void GRIP<G>::ConfigureK(size_t placementKMax, size_t refinementKMax, KPolicy policy) {
   kPolicy_ = policy;
   if (placementKMax > 0)
     placementKMax_ =
@@ -238,7 +216,8 @@ void GRIP::ConfigureK(size_t placementKMax, size_t refinementKMax,
         refinementKMax > knnCapacity_ ? knnCapacity_ : refinementKMax;
 }
 
-size_t GRIP::ComputeK(size_t maxK, bool forPlacement) const {
+template <GraphLike G>
+size_t GRIP<G>::ComputeK(size_t maxK, bool forPlacement) const {
   size_t minK = Dim() + 1;
   size_t cap = knnCapacity_;
   if (maxK > cap)
@@ -287,32 +266,37 @@ size_t GRIP::ComputeK(size_t maxK, bool forPlacement) const {
   return ClampK(k, minK, maxK);
 }
 
-size_t GRIP::PlacementK() const { return ComputeK(placementKMax_, true); }
-size_t GRIP::RefinementK() const { return ComputeK(refinementKMax_, false); }
+template <GraphLike G>
+size_t GRIP<G>::PlacementK() const { return ComputeK(placementKMax_, true); }
+template <GraphLike G>
+size_t GRIP<G>::RefinementK() const { return ComputeK(refinementKMax_, false); }
 
 // ACTIONS: -------------------------------------------------------------------
 
-void GRIP::ActionRefineRound(EmbeddedGraph &embedding, void *userData,
-                              const ActionPayload &payload) {
+template <GraphLike G>
+void GRIP<G>::ActionRefineRound(EmbeddedGraph &embedding, void *userData,
+                                 const ActionPayload &payload) {
   (void)userData;
   (void)payload;
-  auto &grip = static_cast<GRIP &>(embedding);
+  auto &grip = static_cast<GRIP<G> &>(embedding);
   if (grip.layerCount_ == 0)
     return; // Begin() has not run yet
   grip.RefineRound();
 }
 
-void GRIP::ActionNextStage(EmbeddedGraph &embedding, void *userData,
-                            const ActionPayload &payload) {
+template <GraphLike G>
+void GRIP<G>::ActionNextStage(EmbeddedGraph &embedding, void *userData,
+                               const ActionPayload &payload) {
   (void)userData;
   (void)payload;
-  auto &grip = static_cast<GRIP &>(embedding);
+  auto &grip = static_cast<GRIP<G> &>(embedding);
   if (grip.layerCount_ == 0)
     return;
   grip.NextStage();
 }
 
-void GRIP::SyncDrawMask() {
+template <GraphLike G>
+void GRIP<G>::SyncDrawMask() {
   DrawEdgePolicy edges = currLayer_ == 0 ? DrawEdgePolicy::IfBothVisible
                                          : DrawEdgePolicy::None;
   SetDrawMaskEdgePolicy(edges);
@@ -320,15 +304,17 @@ void GRIP::SyncDrawMask() {
 
 // SCRATCH / SCHEDULING HELPERS: -----------------------------------------------
 
-search::KNearestScratch &GRIP::KnnScratchForCaller() {
+template <GraphLike G>
+search::KNearestScratch &GRIP<G>::KnnScratchForCaller() {
   size_t slot = pool_ ? pool_->WorkerSlot() : 0;
   if (slot >= knnScratch_.size())
     slot = 0;
   return knnScratch_[slot];
 }
 
-void GRIP::RunForRange(size_t begin, size_t end, size_t grain,
-                        const std::function<void(size_t, size_t)> &task) {
+template <GraphLike G>
+void GRIP<G>::RunForRange(size_t begin, size_t end, size_t grain,
+                           const std::function<void(size_t, size_t)> &task) {
   if (begin >= end)
     return;
   if (grain == 0)
@@ -340,8 +326,9 @@ void GRIP::RunForRange(size_t begin, size_t end, size_t grain,
   }
 }
 
-void GRIP::Barycenter(std::span<const search::FoundVertex> neighbors,
-                       double *out) const {
+template <GraphLike G>
+void GRIP<G>::Barycenter(std::span<const search::FoundVertex> neighbors,
+                          double *out) const {
   size_t dim = Dim();
   VecZero(dim, out);
   for (const auto &fv : neighbors)
@@ -350,13 +337,14 @@ void GRIP::Barycenter(std::span<const search::FoundVertex> neighbors,
 }
 
 // MIS FILTRATION: --------------------------------------------------------------
+//
+// Stays raw/capacity-addressed throughout: this is the MIS coarsening
+// permutation.
 
-// NOTE: could potentially be improved by randomizing the order vertices are
-// visited in, either by shuffling or assigning random priorities to each
-// vertex (carried over from the old C's comment -- still true here).
-void GRIP::MakeFirstMISPartition(BitSet &out) {
+template <GraphLike G>
+void GRIP<G>::MakeFirstMISPartition(BitSet &out) {
   size_t writePos = MisBorderAt(0) - 1;
-  BitSet states(Structure().VertexCapacity());
+  BitSet states(GraphLikeVertexCapacity(structure_));
 
   for (size_t i : Structure()) {
     if (states.Test(i))
@@ -376,7 +364,8 @@ void GRIP::MakeFirstMISPartition(BitSet &out) {
   misBorder_.push_back(border);
 }
 
-void GRIP::VerticesWithinRadius(size_t source, size_t maxDepth, BitSet &out) {
+template <GraphLike G>
+void GRIP<G>::VerticesWithinRadius(size_t source, size_t maxDepth, BitSet &out) {
   size_t epoch = radiusBfsScratch_.BeginEpoch();
   radiusBfsScratch_.MarkVisited(source, epoch);
   radiusBfsDepth_[source] = 0;
@@ -413,15 +402,6 @@ void GRIP::VerticesWithinRadius(size_t source, size_t maxDepth, BitSet &out) {
     }
   }
 
-  // dbgPushFail is always 0: std::deque::push_back either succeeds or
-  // throws std::bad_alloc (which would unwind out of this function
-  // entirely), unlike the old gvizDeque's checked push failure -- there is
-  // no soft-fail path left here for the old "[grip-bfs] push fail ..." line
-  // to report, so that line has no C++ equivalent. dbgQueuePeak reports the
-  // largest BFS-frontier size actually reached instead of the old code's
-  // `queue->capacity` (std::deque manages its own capacity and doesn't
-  // expose it) -- a real "peak" value that fits the "queuePeak" label at
-  // least as well as the field it replaces.
   if (FiltrationDebugEnabled() && maxDepth >= 64) {
     static size_t dbgCalls = 0;
     if (dbgCalls++ < 3)
@@ -432,8 +412,9 @@ void GRIP::VerticesWithinRadius(size_t source, size_t maxDepth, BitSet &out) {
   }
 }
 
-bool GRIP::IterMISFiltration(size_t i, BitSet &vertices) {
-  size_t nvertices = Structure().VertexCapacity();
+template <GraphLike G>
+bool GRIP<G>::IterMISFiltration(size_t i, BitSet &vertices) {
+  size_t nvertices = GraphLikeVertexCapacity(structure_);
   BitSet newVertices(nvertices);
   BitSet newMisStates(nvertices);
 
@@ -485,10 +466,11 @@ bool GRIP::IterMISFiltration(size_t i, BitSet &vertices) {
  * distance to the current final set (misFiltration_[0, finalEnd)) is
  * largest. Runs one multi-source BFS capped at @p maxDepth (GRIP-style local
  * search); candidates beyond the cap are treated as equally far and
- * preferred over nearer ones. Direct port of the old C gripPickFarCandidate.
+ * preferred over nearer ones.
  */
-size_t GRIP::PickFarCandidate(size_t finalEnd, size_t candBegin,
-                               size_t candEnd, size_t maxDepth) {
+template <GraphLike G>
+size_t GRIP<G>::PickFarCandidate(size_t finalEnd, size_t candBegin,
+                                  size_t candEnd, size_t maxDepth) {
   size_t epoch = radiusBfsScratch_.BeginEpoch();
   auto &queue = radiusBfsScratch_.Queue();
 
@@ -538,10 +520,11 @@ size_t GRIP::PickFarCandidate(size_t finalEnd, size_t candBegin,
 // border, so its vertices are contiguous with the next-shallower layer's
 // drop set; walk outward through count-3, count-4, ... down to layer 0 (the
 // full active set) until a non-empty pool is found. Returns false only when
-// layer 0 itself is exhausted, which means the subgraph has fewer than
-// dim+1 vertices in total (unreachable given the constructor's
+// layer 0 itself is exhausted, which means the view has fewer than dim+1
+// vertices in total (unreachable given the constructor's
 // InsufficientVerticesError precondition, kept as a defensive fallback).
-bool GRIP::MigrateOneToFinalLayer(size_t count) {
+template <GraphLike G>
+bool GRIP<G>::MigrateOneToFinalLayer(size_t count) {
   size_t finalEnd = MisBorderAt(count - 1);
 
   size_t srcLayer = count - 1;
@@ -560,8 +543,9 @@ bool GRIP::MigrateOneToFinalLayer(size_t count) {
   return true;
 }
 
-size_t GRIP::CreateMISFiltration() {
-  size_t nvertices = Structure().VertexCapacity();
+template <GraphLike G>
+size_t GRIP<G>::CreateMISFiltration() {
+  size_t nvertices = GraphLikeVertexCapacity(structure_);
   BitSet curr(nvertices);
 
   MakeFirstMISPartition(curr);
@@ -582,8 +566,9 @@ size_t GRIP::CreateMISFiltration() {
   return i + 1;
 }
 
-size_t GRIP::DebugBuildFiltrationPreMigrate() {
-  size_t nvertices = Structure().VertexCapacity();
+template <GraphLike G>
+size_t GRIP<G>::DebugBuildFiltrationPreMigrate() {
+  size_t nvertices = GraphLikeVertexCapacity(structure_);
   BitSet curr(nvertices);
 
   MakeFirstMISPartition(curr);
@@ -605,7 +590,8 @@ size_t GRIP::DebugBuildFiltrationPreMigrate() {
 // visible neighbors. Safe to run concurrently over disjoint ranges: the draw
 // mask and the positions of visible vertices are only read, and each
 // iteration writes the position of a distinct hidden vertex.
-void GRIP::PlaceVertexRange(size_t begin, size_t end) {
+template <GraphLike G>
+void GRIP<G>::PlaceVertexRange(size_t begin, size_t end) {
   search::KNearestScratch &scratch = KnnScratchForCaller();
   size_t placementK = PlacementK();
   const BitSet &visible = VisibleVertices();
@@ -628,7 +614,8 @@ void GRIP::PlaceVertexRange(size_t begin, size_t end) {
 }
 
 // DO NOT CALL FOR THE FIRST LAYER (misBorderAt(currLayer_ + 1) must exist).
-void GRIP::PlaceLayerVertices() {
+template <GraphLike G>
+void GRIP<G>::PlaceLayerVertices() {
   size_t layer = currLayer_;
   size_t begin = MisBorderAt(layer + 1);
   size_t end = MisBorderAt(layer);
@@ -669,14 +656,15 @@ void GRIP::PlaceLayerVertices() {
                 [this](size_t b, size_t e) { PlaceVertexRange(b, e); });
 
   for (size_t i = begin; i < end; i++)
-    DrawMaskShowVertex(misFiltration_[i]);
+    DrawMaskShowVertex(index_.ToLocal(misFiltration_[i]));
 }
 
 // REFINEMENT: ----------------------------------------------------------------
 
-void GRIP::UpdateLocalTemp(size_t v) {
+template <GraphLike G>
+void GRIP<G>::UpdateLocalTemp(size_t v) {
   size_t dim = Dim();
-  Decorators &dec = dec_[v];
+  Decorators &dec = Dec(v);
   double nrm = VecNorm2(dim, dec.disp.data());
   double oldNrm = VecNorm2(dim, dec.oldDisp.data());
 
@@ -696,12 +684,13 @@ void GRIP::UpdateLocalTemp(size_t v) {
   dec.oldCos = cosv;
 }
 
-// DO NOT TOUCH THIS FUNCTION, VERY FRAGILE (carried over from the old C --
-// still true here: the force balance was tuned empirically).
-void GRIP::CalculateSpringForces(size_t v, size_t layer) {
+// DO NOT TOUCH THIS FUNCTION, VERY FRAGILE: the force balance was tuned
+// empirically.
+template <GraphLike G>
+void GRIP<G>::CalculateSpringForces(size_t v, size_t layer) {
   size_t dim = Dim();
   std::vector<double> f(dim, 0.0);
-  Decorators &dec = dec_[v];
+  Decorators &dec = Dec(v);
 
   if (layer > 0) {
     for (size_t i = 0; i < dec.knnCount; i++) {
@@ -724,12 +713,13 @@ void GRIP::CalculateSpringForces(size_t v, size_t layer) {
   VecCopy(dim, f.data(), dec.disp.data());
 }
 
-void GRIP::ClearDecorators() {
+template <GraphLike G>
+void GRIP<G>::ClearDecorators() {
   dispCalculated_.ClearAll();
 
   for (size_t i = 0; i < MisBorderAt(currLayer_); i++) {
     size_t curr = misFiltration_[i];
-    Decorators &dec = dec_[curr];
+    Decorators &dec = Dec(curr);
     dec.heat = 0.0;
     dec.oldCos = 0.0;
     dec.knnCount = 0;
@@ -738,14 +728,15 @@ void GRIP::ClearDecorators() {
   }
 }
 
-void GRIP::UpdateKNNRange(size_t begin, size_t end) {
+template <GraphLike G>
+void GRIP<G>::UpdateKNNRange(size_t begin, size_t end) {
   search::KNearestScratch &scratch = KnnScratchForCaller();
   size_t refinementK = RefinementK();
   const BitSet &visible = VisibleVertices();
 
   for (size_t i = begin; i < end; i++) {
     size_t curr = misFiltration_[i];
-    Decorators &dec = dec_[curr];
+    Decorators &dec = Dec(curr);
     size_t count = search::KNearest(
         Structure(), std::span<search::FoundVertex>(dec.knn.data(), dec.knn.size()),
         refinementK, curr, &visible, scratch);
@@ -753,7 +744,8 @@ void GRIP::UpdateKNNRange(size_t begin, size_t end) {
   }
 }
 
-void GRIP::UpdateKNNs() {
+template <GraphLike G>
+void GRIP<G>::UpdateKNNs() {
   size_t end = MisBorderAt(currLayer_);
   size_t refinementK = RefinementK();
   const BitSet &visible = VisibleVertices();
@@ -766,8 +758,8 @@ void GRIP::UpdateKNNs() {
     for (size_t i = 0; i < end; i++) {
       size_t curr = misFiltration_[i];
       targets[i].vertex = curr;
-      targets[i].out = std::span<search::FoundVertex>(dec_[curr].knn.data(),
-                                                        dec_[curr].knn.size());
+      targets[i].out = std::span<search::FoundVertex>(Dec(curr).knn.data(),
+                                                        Dec(curr).knn.size());
       targets[i].count = 0;
     }
     if (search::KNearestFromVisibleBatch(Structure(), &visible, refinementK,
@@ -777,7 +769,7 @@ void GRIP::UpdateKNNs() {
       batchUpdated = true;
       for (size_t i = 0; i < end; i++) {
         size_t curr = misFiltration_[i];
-        dec_[curr].knnCount = targets[i].count;
+        Dec(curr).knnCount = targets[i].count;
       }
     }
   }
@@ -787,7 +779,12 @@ void GRIP::UpdateKNNs() {
                 [this](size_t b, size_t e) { UpdateKNNRange(b, e); });
 }
 
-void GRIP::Begin() {
+template <GraphLike G>
+void GRIP<G>::Begin() {
+  search::Components components = search::ConnectedComponents(structure_);
+  if (components.count > 1)
+    throw NotConnectedError();
+
   layerCount_ = CreateMISFiltration();
   currLayer_ = layerCount_ - 1;
 
@@ -796,7 +793,7 @@ void GRIP::Begin() {
   MakeRegularSimplex(dim, kEdgeLength * 1000.0, simplex.data());
 
   for (size_t j = 0; j < dim + 1; j++) {
-    DrawMaskShowVertex(misFiltration_[j]);
+    DrawMaskShowVertex(index_.ToLocal(misFiltration_[j]));
     SetVPosition(misFiltration_[j], simplex.data() + j * dim);
   }
 
@@ -805,7 +802,8 @@ void GRIP::Begin() {
   SyncDrawMask();
 }
 
-void GRIP::NextStage() {
+template <GraphLike G>
+void GRIP<G>::NextStage() {
   if (currLayer_ == 0)
     return;
   currLayer_--;
@@ -837,20 +835,22 @@ void GRIP::NextStage() {
   SyncDrawMask();
 }
 
-void GRIP::RefinementPass1Range(size_t begin, size_t end) {
+template <GraphLike G>
+void GRIP<G>::RefinementPass1Range(size_t begin, size_t end) {
   size_t dim = Dim();
   size_t layer = currLayer_;
 
   for (size_t i = begin; i < end; i++) {
     size_t curr = misFiltration_[i];
-    Decorators &dec = dec_[curr];
+    Decorators &dec = Dec(curr);
 
     VecCopy(dim, dec.disp.data(), dec.oldDisp.data());
 
     CalculateSpringForces(curr, layer);
 
-    if (!dispCalculated_.Test(curr)) {
-      dispCalculated_.Set(curr);
+    size_t currLocal = index_.ToLocal(curr);
+    if (!dispCalculated_.Test(currLocal)) {
+      dispCalculated_.Set(currLocal);
       dec.heat = kEdgeLength / 6.0;
     } else {
       UpdateLocalTemp(curr);
@@ -872,7 +872,8 @@ void GRIP::RefinementPass1Range(size_t begin, size_t end) {
 // KNN lists) makes the whole embedding drift or spin indefinitely.
 // Subtracting the mean displacement pins the barycenter without altering
 // relative motion.
-void GRIP::RemoveNetTranslation() {
+template <GraphLike G>
+void GRIP<G>::RemoveNetTranslation() {
   size_t dim = Dim();
   size_t count = MisBorderAt(currLayer_);
   if (count == 0)
@@ -880,24 +881,25 @@ void GRIP::RemoveNetTranslation() {
 
   std::vector<double> mean(dim, 0.0);
   for (size_t i = 0; i < count; i++)
-    VecAxpy(dim, 1.0, dec_[misFiltration_[i]].disp.data(), mean.data());
+    VecAxpy(dim, 1.0, Dec(misFiltration_[i]).disp.data(), mean.data());
   VecScale(dim, 1.0 / static_cast<double>(count), mean.data());
 
   for (size_t i = 0; i < count; i++)
-    VecAxpy(dim, -1.0, mean.data(), dec_[misFiltration_[i]].disp.data());
+    VecAxpy(dim, -1.0, mean.data(), Dec(misFiltration_[i]).disp.data());
 }
 
 // Removes net rotation in the (a, b) coordinate plane using the same 2D
 // formula as the z-axis rotation case in RemoveNetRotation.
-void GRIP::RemoveNetRotationPlane(size_t a, size_t b, const double *com,
-                                   size_t count) {
+template <GraphLike G>
+void GRIP<G>::RemoveNetRotationPlane(size_t a, size_t b, const double *com,
+                                      size_t count) {
   double L = 0.0;
   double inertia = 0.0;
 
   for (size_t i = 0; i < count; i++) {
     size_t v = misFiltration_[i];
     double *p = GetVPosition(v);
-    double *d = dec_[v].disp.data();
+    double *d = Dec(v).disp.data();
     double ra = p[a] - com[a];
     double rb = p[b] - com[b];
     L += ra * d[b] - rb * d[a];
@@ -911,7 +913,7 @@ void GRIP::RemoveNetRotationPlane(size_t a, size_t b, const double *com,
   for (size_t i = 0; i < count; i++) {
     size_t v = misFiltration_[i];
     double *p = GetVPosition(v);
-    double *d = dec_[v].disp.data();
+    double *d = Dec(v).disp.data();
     double ra = p[a] - com[a];
     double rb = p[b] - com[b];
     d[a] += omega * rb;
@@ -923,7 +925,8 @@ void GRIP::RemoveNetRotationPlane(size_t a, size_t b, const double *com,
 // displacements: omega = I^-1 L with L the "angular momentum" of the disp
 // field and I the inertia tensor of the active vertices. In 4D, all six
 // coordinate-plane rotations are removed sequentially.
-void GRIP::RemoveNetRotation() {
+template <GraphLike G>
+void GRIP<G>::RemoveNetRotation() {
   size_t dim = Dim();
   size_t count = MisBorderAt(currLayer_);
   if (count < 3 || (dim != 2 && dim != 3 && dim != 4))
@@ -955,7 +958,7 @@ void GRIP::RemoveNetRotation() {
   for (size_t i = 0; i < count; i++) {
     size_t v = misFiltration_[i];
     double *p = GetVPosition(v);
-    double *d = dec_[v].disp.data();
+    double *d = Dec(v).disp.data();
     double r[3] = {p[0] - com3[0], p[1] - com3[1],
                    dim == 3 ? p[2] - com3[2] : 0.0};
     double dz = dim == 3 ? d[2] : 0.0;
@@ -982,7 +985,7 @@ void GRIP::RemoveNetRotation() {
   for (size_t i = 0; i < count; i++) {
     size_t v = misFiltration_[i];
     double *p = GetVPosition(v);
-    double *d = dec_[v].disp.data();
+    double *d = Dec(v).disp.data();
     double r[3] = {p[0] - com3[0], p[1] - com3[1],
                    dim == 3 ? p[2] - com3[2] : 0.0};
     d[0] -= omega[1] * r[2] - omega[2] * r[1];
@@ -992,7 +995,8 @@ void GRIP::RemoveNetRotation() {
   }
 }
 
-void GRIP::RefineRound() {
+template <GraphLike G>
+void GRIP<G>::RefineRound() {
   size_t layer = currLayer_;
   size_t dim = Dim();
 
@@ -1006,7 +1010,7 @@ void GRIP::RefineRound() {
   size_t active = MisBorderAt(layer);
   for (size_t i = 0; i < active; i++) {
     size_t curr = misFiltration_[i];
-    Decorators &dec = dec_[curr];
+    Decorators &dec = Dec(curr);
     double nrm = VecNorm2(dim, dec.disp.data());
     if (nrm > maxDisp)
       maxDisp = nrm;
@@ -1031,7 +1035,8 @@ void GRIP::RefineRound() {
   currRound_++;
 }
 
-void GRIP::Embed() {
+template <GraphLike G>
+void GRIP<G>::Embed() {
   Begin();
   if (layerCount_ == 0)
     return; // Defensive: unreachable given the constructor's
@@ -1049,5 +1054,9 @@ void GRIP::Embed() {
     NextStage();
   }
 }
+
+// Explicit instantiation for the GraphLike types this codebase uses.
+template class GRIP<Graph>;
+template class GRIP<Subgraph>;
 
 } // namespace gviz::layout

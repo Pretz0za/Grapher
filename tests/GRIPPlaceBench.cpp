@@ -10,7 +10,7 @@
 // MigrateBench/FiltrationDebug, needed NO new GRIP.hpp accessors beyond
 // LayerBorder (shared with the other tools): this tool drives GRIP entirely
 // through Begin()/NextStage()/ConfigureK(), so the env-var logging added to
-// GRIP::NextStage/IterMISFiltration/VerticesWithinRadius (see GRIP.cpp) and
+// GRIP<Subgraph>::NextStage/IterMISFiltration/VerticesWithinRadius (see GRIP.cpp) and
 // the already-ported gviz::search::KnnProfileReset/KnnProfileSnapshot
 // (KNearest.hpp) fire automatically.
 //
@@ -118,15 +118,15 @@ void LoadEdgesLargestCC(const std::string &path, Graph &graph, std::optional<Sub
 
 int RunGripStages(const std::string &label, Subgraph sg, size_t dim, size_t diameter,
                    size_t maxStages) {
-  std::unique_ptr<GRIP> gripPtr;
+  std::unique_ptr<GRIP<Subgraph>> gripPtr;
   try {
-    gripPtr = std::make_unique<GRIP>(std::move(sg), diameter, dim);
+    gripPtr = std::make_unique<GRIP<Subgraph>>(std::move(sg), diameter, dim);
   } catch (const LayoutError &) {
     std::fprintf(stderr, "%s: init failed\n", label.c_str());
     return -1;
   }
-  GRIP &grip = *gripPtr;
-  grip.ConfigureK(64, 64, GRIP::KPolicy::Budget);
+  GRIP<Subgraph> &grip = *gripPtr;
+  grip.ConfigureK(64, 64, GRIP<Subgraph>::KPolicy::Budget);
 
   double t0 = MonotonicSeconds();
   grip.Begin();

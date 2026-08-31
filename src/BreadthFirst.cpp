@@ -14,8 +14,8 @@ struct NodeDepth {
 };
 } // namespace
 
-bool BreadthFirst(const Subgraph &sg, Subgraph &out, size_t source, size_t maxDepth,
-                   std::vector<size_t> *distances) {
+bool BreadthFirstTree(const Subgraph &sg, Subgraph &out, size_t source, size_t maxDepth,
+                       std::vector<size_t> *distances) {
   if (!out.IsFull())
     return false;
   if (!sg.HasVertex(source))

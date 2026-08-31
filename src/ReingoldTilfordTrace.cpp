@@ -1,17 +1,9 @@
-// Clarity-first, event-recording reimplementation of the same algorithm
-// ReingoldTilford.cpp ports from the old C gvizEmbeddedTree. See
-// ReingoldTilfordTrace.hpp's class comment for why this exists as its own
-// class instead of instrumenting ReingoldTilford directly, and for the one
-// deliberate divergence (real depth tracking) from that port.
-//
 // Every private method here is the direct structural analog of the
-// same-named private method in ReingoldTilford.cpp -- read that file's
-// comments for the algorithm itself; the comments here focus on where and
-// why an Event gets recorded.
+// same-named private method in ReingoldTilford.cpp; the comments here
+// focus on where and why an Event gets recorded.
 
 #include "ReingoldTilfordTrace.hpp"
 
-#include "Subgraph.hpp"
 #include "Tree.hpp"
 #include "Vec.hpp"
 
@@ -21,28 +13,17 @@
 namespace gviz::layout {
 
 namespace {
-// Must stay numerically in sync with ReingoldTilford.cpp's kXSeparation/
-// kYSeparation: this class's whole "teaches the real algorithm" claim rests
-// on producing the same final positions ReingoldTilford does (see this
-// class's header comment for why that holds regardless of the depth-
-// tracking fix), and ReingoldTilfordTraceTests.cpp checks that by direct
-// position comparison. Not shared via a common header because
-// ReingoldTilford.cpp's constants are a private implementation detail of
-// the production class, not something this teaching-only class should pull
-// production internals in for -- a mismatch here would simply show up as a
-// failing test.
+// Must stay numerically in sync with ReingoldTilford.cpp's identically
+// named/valued constants -- a mismatch shows up as a failing
+// ReingoldTilfordTraceTests parity test.
 constexpr float kXSeparation = 500.0f;
 constexpr float kYSeparation = 1000.0f;
-// Must also stay numerically in sync with ReingoldTilford.cpp's identically-
-// named/valued constants (same "not shared via a common header" rationale
-// as kXSeparation/kYSeparation above -- a mismatch shows up as a failing
-// ReingoldTilfordTraceTests parity test, not a silent divergence).
 constexpr float kMinSeparation = 1.0f;
 constexpr float kSeparationEpsilon = 1e-4f;
 } // namespace
 
 ReingoldTilfordTrace::ReingoldTilfordTrace(const Graph &graph, size_t root)
-    : EmbeddedGraph(Subgraph::CreateFull(graph), 2), graph_(graph) {
+    : EmbeddedGraph(graph.Size(), 2), graph_(graph) {
   if (gviz::search::IsTree(graph_, &parents_) !=
       gviz::search::TreeCheckResult::IsTree)
     throw NotATreeError();
@@ -154,6 +135,10 @@ void ReingoldTilfordTrace::CreateThreads(size_t root, size_t i, size_t &lrContou
       gviz::search::IsLeaf(graph_, rlContour)) {
     r.lOffset += IterateContourRightward(lrContour);
     dec_[extremes.rr].threadTo = lrContour;
+    // Kept in lockstep with ReingoldTilford::CreateThreads's identical
+    // formula (see its comment): must subtract r.rmostSeparation (this
+    // merge's own contribution to extremes.rr's pre-merge frame) before
+    // adding r.lOffset.
     dec_[extremes.rr].offsets[0] =
         dec_[extremes.rr].offsets[0] - r.rmostSeparation + r.lOffset;
 
@@ -171,6 +156,10 @@ void ReingoldTilfordTrace::CreateThreads(size_t root, size_t i, size_t &lrContou
            !gviz::search::IsLeaf(graph_, rlContour)) {
     r.rOffset += IterateContourLeftward(rlContour);
     dec_[extremes.ll].threadTo = rlContour;
+    // Kept in lockstep with ReingoldTilford::CreateThreads's identical
+    // formula (see its comment): must add r.totalNewSeparation/2 +
+    // dec_[root].offsets[i] to bring extremes.ll's still-local-frame
+    // offsets[0] into root's frame before adding r.rOffset.
     dec_[extremes.ll].offsets[0] = dec_[extremes.ll].offsets[0] +
                                     r.totalNewSeparation / 2.0f +
                                     dec_[root].offsets[i] + r.rOffset;
@@ -232,23 +221,11 @@ ReingoldTilfordTrace::SeparateAlongContours(size_t &lrContour, size_t &rlContour
   begin.vertexB = rlContour;
   events_.push_back(std::move(begin));
 
-  // The root pair itself -- lrContour/rlContour exactly as
-  // ContourCompareBegin just displayed them, before any stepping -- gets
-  // its own measure/correct cycle too, same as every deeper level below:
-  // no level is ever just assumed correct. They start out fully
-  // overlapped (measuredSeparation 0, matching how ContourCompareBegin's
-  // consumer is expected to have staged them), so this always corrects by
-  // exactly kMinSeparation. Unlike GetAncestor's role for every subsequent,
-  // deeper level, this placement is fixed, not computed: the baseline unit
-  // is always owed in the gap directly between the already-merged blob and
-  // the new child being folded in (slot rightSubtreeIndex - 1), never an
-  // earlier gap -- there is no earlier collision to attribute it to yet,
-  // since nothing has been measured before this. Mathematically identical
-  // to the old code's silent `newSeparations[rightSubtreeIndex - 1] =
-  // kMinSeparation` seed (newSeparations starts all-zero, so seeding a
-  // slot directly and zero-init-then-adding-kMinSeparation-to-it are the
-  // same value) -- only the presentation changed, from an invisible seed
-  // to a genuine, visible measure-then-correct step.
+  // The root pair itself gets its own measure/correct cycle too, same as
+  // every deeper level below. They start out fully overlapped
+  // (measuredSeparation 0), so this always corrects by exactly
+  // kMinSeparation, attributed to the fixed gap slot rightSubtreeIndex - 1
+  // (there's no earlier collision to attribute it to yet).
   {
     Event measure;
     measure.kind = EventKind::ContourMeasure;
@@ -280,19 +257,12 @@ ReingoldTilfordTrace::SeparateAlongContours(size_t &lrContour, size_t &rlContour
     rOffset += rstep;
     lOffset += lstep;
 
-    // currsep, right after this step, is exactly this level's contour gap
-    // given every correction applied at shallower levels so far -- measure
-    // it fresh every iteration, no bundling across iterations.
     currsep += rstep;
     currsep -= lstep;
 
-    // lrContour/rlContour now hold the *post-step* pair -- the one whose
-    // relative position currsep was actually just computed against.
-    // Report that pair, not the pre-step one: the measurement (and any
-    // correction) below belongs to this newly-revealed level, not the
-    // level the walk was at before this iteration ran. (The pre-step pair
-    // isn't lost -- it's exactly what the previous event in this loop, or
-    // ContourCompareBegin for the first iteration, already reported.)
+    // lrContour/rlContour now hold the post-step pair, the one currsep was
+    // actually just computed against -- report that pair, not the
+    // pre-step one already reported by the previous event.
     Event measure;
     measure.kind = EventKind::ContourMeasure;
     measure.root = root;
@@ -304,12 +274,10 @@ ReingoldTilfordTrace::SeparateAlongContours(size_t &lrContour, size_t &rlContour
     measure.measuredSeparation = currsep;
     events_.push_back(std::move(measure));
 
-    // Always a matching ContourCorrect right after -- every iteration
-    // measures and corrects independently, so a level with plenty of
-    // slack (currsep already >= kMinSeparation) still gets its own
-    // "nothing to do" event rather than being silently skipped, and a
-    // level with a shortfall never has that shortfall deferred or bundled
-    // into a later level's correction.
+    // A matching ContourCorrect always follows, even when there's nothing
+    // to do: a level with slack (currsep already >= kMinSeparation)
+    // carries that slack forward uncorrected for a deeper level to draw
+    // on, rather than resetting it (which would double-correct).
     Event correct;
     correct.kind = EventKind::ContourCorrect;
     correct.root = root;
@@ -317,14 +285,6 @@ ReingoldTilfordTrace::SeparateAlongContours(size_t &lrContour, size_t &rlContour
     correct.vertexA = lrContour;
     correct.vertexB = rlContour;
 
-    // Only ever correct a genuine shortfall, and correct it fully and
-    // immediately to exactly kMinSeparation -- never more. When currsep is
-    // already at or above kMinSeparation there is real slack from this
-    // level, which must carry forward uncorrected (not reset) for later,
-    // deeper levels to draw on -- resetting it here would double-correct a
-    // shortfall that slack already covers (see this class's header comment
-    // on why summing independent per-level shortfalls this way still
-    // equals the true total requirement).
     if (currsep < kMinSeparation - kSeparationEpsilon) {
       size_t ancestor = GetAncestor(root, lrContour);
       size_t n = rightSubtreeIndex - ancestor;

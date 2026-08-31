@@ -2,9 +2,10 @@
 #define GVIZ_GRIP_HPP
 
 #include "BitSet.hpp"
+#include "DenseIndex.hpp"
 #include "EmbeddedGraph.hpp"
+#include "GraphLike.hpp"
 #include "KNearest.hpp"
-#include "Subgraph.hpp"
 #include "ThreadPool.hpp"
 
 #include <cstddef>
@@ -16,71 +17,43 @@
 
 namespace gviz::layout {
 
-class GRIP;
-
-/**
- * Construction-time configuration for GRIP. Design note (deviation from the
- * old C API): gvizGRIPEmbedderConfigureKnnCapacity and
- * gvizGRIPEmbedderConfigureStats were documented as "must be called on a
- * zero-initialized state before Init; no effect afterward" -- they size
- * storage (the per-vertex KNN buffers) and decide whether stat series exist
- * at all, both one-time decisions baked in at Init. That "mutate-before-Init"
- * shape doesn't map onto throw-from-constructor RAII (there is no
- * zeroed-but-not-yet-constructed GRIP to call setters on), so both become
- * fields of this struct, passed once to GRIP's constructor, instead of
- * post-construction setters. gvizGRIPEmbedderConfigureK (placement/
- * refinement k and the policy) is different: reading the old
- * gvizGRIPEmbedderInit, it unconditionally resets placementKMax/
- * refinementKMax/kPolicy to their defaults via memset, silently discarding
- * any pre-Init ConfigureK call -- so in the original code that function only
- * ever took effect when called AFTER Init, not before. It has no
- * construction-time constraint to preserve, so it stays an ordinary
- * post-construction mutator on GRIP instead: see GRIP::ConfigureK().
- *
- * Deliberately a free struct rather than a type nested inside GRIP (where
- * GRIP::Config might read more discoverably): a nested class's default
- * member initializers can't be used in a default argument of the enclosing
- * class's OWN member function declarations (the enclosing class isn't
- * "complete" yet at that point, even though the nested class already is --
- * a real, if obscure, C++ rule that clang enforces) -- exactly the shape
- * GRIP's constructor needs (`Config config = Config{}`). GRIP still exposes
- * this as `GRIP::Config` via a type alias for a discoverable, conventional
- * name at call sites.
- */
+/** Construction-time configuration for GRIP. */
 struct GRIPConfig {
   /** Per-vertex KNN storage capacity, allocated once at construction. 0
-   *  means "use the default" (256), matching gvizGRIPEmbedderInit's
-   *  handling of a zero knnCapacity request. */
+   *  means "use the default" (256). */
   size_t knnCapacity = 256;
-  /** When false, no gvizStatSeries-equivalent series are registered and
-   *  GRIP::RefineRound() skips StatAppend (zero chart overhead). */
+  /** When false, no stat series are registered and GRIP::RefineRound()
+   *  skips StatAppend. */
   bool statsEnabled = true;
 };
 
 /**
- * Direct port of gvizGRIPEmbedder.h/.c: large-graph layout via
- * maximal-independent-set (MIS) filtration. Builds a coarse-to-fine
- * hierarchy of the graph (createMISFiltration in the old C), places the
- * coarsest layer as a regular simplex, then refines layer by layer with
- * KNN-spring relaxation -- so cost scales with graph size much better than
- * running a direct force-directed layout on very large inputs. See
- * CLAUDE.md's GRIP row for the conceptual overview; this header only
- * documents the C++-specific shape.
+ * Large-graph layout via maximal-independent-set (MIS) filtration. Builds a
+ * coarse-to-fine hierarchy of the graph, places the coarsest layer as a
+ * regular simplex, then refines layer by layer with KNN-spring relaxation
+ * -- so cost scales with graph size much better than running a direct
+ * force-directed layout on very large inputs.
  *
- * Layer numbering (unchanged from the old C, see createMISFiltration's doc
- * below): layer 0 is every active vertex (no filtering at all); layer
- * LayerCount()-1 is the coarsest layer, a single (Dim()+1)-vertex simplex.
- * CurrentLayer() starts at LayerCount()-1 after Begin() and decreases toward
- * 0 as NextStage() is called.
+ * Generic over any `GraphLike G` (typically gviz::Graph or gviz::Subgraph):
+ * owns its own `G structure_` plus a `gviz::DenseIndex<G> index_`. Per-
+ * vertex decorator state (dec_, dispCalculated_) is sized to `index_.Size()`
+ * and addressed by local index. The MIS-filtration machinery itself
+ * (misFiltration_/misBorder_ and related scratch state) stays addressed by
+ * native/raw vertex handle.
  *
- * Drivable one-shot (Embed()) or manually (Begin()/NextStage()/RefineRound(),
- * also reachable as the inherited "grip.nextStage"/"grip.refineRound"
- * actions) for live/animated refinement, exactly like the old C API.
+ * Layer numbering: layer 0 is every active vertex (no filtering at all);
+ * layer LayerCount()-1 is the coarsest layer, a single (Dim()+1)-vertex
+ * simplex. CurrentLayer() starts at LayerCount()-1 after Begin() and
+ * decreases toward 0 as NextStage() is called.
+ *
+ * Drivable one-shot (Embed()) or manually (Begin()/NextStage()/
+ * RefineRound(), also reachable as the inherited "grip.nextStage"/
+ * "grip.refineRound" actions) for live/animated refinement.
  */
+template <GraphLike G>
 class GRIP : public EmbeddedGraph {
 public:
-  /** How placement/refinement neighbor counts are chosen per layer. Direct
-   *  port of gvizGRIPKPolicy. */
+  /** How placement/refinement neighbor counts are chosen per layer. */
   enum class KPolicy {
     /** Same placementKMax / refinementKMax at every layer. */
     Constant = 0,
@@ -102,8 +75,7 @@ public:
     Budget,
   };
 
-  /** Displacement and force statistics from the most recent RefineRound().
-   *  Rename of gvizGRIPRoundStats. */
+  /** Displacement and force statistics from the most recent RefineRound(). */
   struct RoundStats {
     double maxDisplacement = 0.0;
     double meanDisplacement = 0.0;
@@ -111,42 +83,51 @@ public:
     double meanForce = 0.0;
   };
 
-  /** Discoverable alias for GRIPConfig (see its own doc comment for why it
-   *  is a free struct rather than nested here directly). */
   using Config = GRIPConfig;
 
   /**
-   * Builds GRIP state over @p subgraph in @p dimension dimensions. @p
-   * diameter may be 0 if unknown; it only sizes an internal reserve hint for
-   * the MIS-filtration layer-border list (same role as the old C
-   * gvizGRIPEmbedderInit's diameter parameter).
+   * Builds GRIP state over @p structure (moved in) in @p dimension
+   * dimensions. @p diameter may be 0 if unknown; it only sizes an internal
+   * reserve hint for the MIS-filtration layer-border list.
    *
    * @throws DimensionError if @p dimension is not 2, 3, or 4.
-   * @throws InsufficientVerticesError if @p subgraph has fewer than
+   * @throws InsufficientVerticesError if @p structure has fewer than
    * @p dimension + 1 active vertices -- too few to place the coarsest
-   * simplex. Checked before the (potentially large) base EmbeddedGraph
-   * allocation runs, so a rejected construction leaves nothing behind to
-   * unwind.
-   * @throws std::bad_alloc on allocation failure, propagated naturally.
+   * simplex.
+   * @throws std::bad_alloc on allocation failure.
    */
-  GRIP(Subgraph subgraph, size_t diameter, size_t dimension,
-       Config config = Config{});
+  GRIP(G structure, size_t diameter, size_t dimension, Config config = Config{});
 
-  // Polymorphic base (EmbeddedGraph) forbids copy and move-assignment for
-  // the same reason documented there (Subgraph's `const Graph&` member can't
-  // be reseated); GRIP follows the identical shape.
   GRIP(const GRIP &) = delete;
   GRIP(GRIP &&) noexcept = default;
   GRIP &operator=(const GRIP &) = delete;
   GRIP &operator=(GRIP &&) = delete;
   ~GRIP() override = default;
 
+  /** The structure this embedder was built over. */
+  G &Structure() noexcept { return structure_; }
+  const G &Structure() const noexcept { return structure_; }
+
+  // Native-handle position accessors; shadow the base class's local-index
+  // versions of the same names.
+  double *GetVPosition(size_t handle) noexcept {
+    return EmbeddedGraph::GetVPosition(index_.ToLocal(handle));
+  }
+  const double *GetVPosition(size_t handle) const noexcept {
+    return EmbeddedGraph::GetVPosition(index_.ToLocal(handle));
+  }
+  void SetVPosition(size_t handle, const double *position) noexcept {
+    EmbeddedGraph::SetVPosition(index_.ToLocal(handle), position);
+  }
+  void AddVPosition(size_t handle, const double *position) noexcept {
+    EmbeddedGraph::AddVPosition(index_.ToLocal(handle), position);
+  }
+
   /**
    * Configures neighbor counts for placement and refinement; both are
    * clamped to the KNN capacity fixed at construction (Config::knnCapacity).
    * A value of 0 leaves that max unchanged. Defaults after construction:
-   * placement/refinement max 128, KPolicy::Constant. Callable at any time
-   * (see Config's doc comment on why this one isn't construction-only).
+   * placement/refinement max 128, KPolicy::Constant. Callable at any time.
    */
   void ConfigureK(size_t placementKMax, size_t refinementKMax, KPolicy policy);
 
@@ -180,11 +161,7 @@ public:
    * Starts GRIP embedding: builds the MIS filtration (createMISFiltration),
    * places the coarsest layer as a regular simplex, and prepares it for
    * refinement (clears decorators, computes its KNN lists, syncs the draw
-   * mask). Also exposed as the "grip.nextStage"-sibling action set up by the
-   * constructor is NOT required before calling Begin() directly -- Begin()
-   * itself is not an action (there is no natural payload for "start over"),
-   * matching the old C gvizGRIPEmbedderBegin, which was likewise only ever
-   * called directly by a driver, never through the action registry.
+   * mask).
    */
   void Begin();
 
@@ -209,76 +186,46 @@ public:
    * number of refinement rounds (stopping early once the max displacement
    * settles below a small fraction of the target edge length), advancing
    * until the finest layer (layer 0) has been refined. One-shot equivalent
-   * of driving Begin()/RefineRound()/NextStage() manually. Matches the old
-   * gvizGRIPEmbedderEmbed's early-stopping behavior exactly.
+   * of driving Begin()/RefineRound()/NextStage() manually.
    */
   void Embed();
 
   // DEBUG / INTROSPECTION: ------------------------------------------------
   //
   // Narrow windows into MIS-filtration state for tests/embedders/*.cpp
-  // benchmark and probe tools only (gvizGRIPKBench/LayerProbe/MigrateBench/
-  // FiltrationDebug/PlaceBench's C++ ports) -- the white-box access those
-  // tools got for free in C via gvizGRIPInternal.h/gvizGRIPState's public
-  // fields. Ordinary callers (front-ends driving GRIP through Begin/
-  // NextStage/RefineRound/Embed) should never need any of these; each one
-  // exists because a specific old-C tool read (or, for the Debug*Migration/
-  // Debug*Filtration group, mutated) exactly that piece of state and has no
-  // other way to reach it now that GRIP's internals are private (see the
-  // class doc above on why there is no second "internal" header in C++).
-  //
-  // LayerBorder/FiltrationVertexAt/Displacement are plain read-only
-  // passthroughs, safe for any caller. The Debug*-prefixed group below them
-  // is a different, more invasive kind of surface: DebugBuildFiltrationPreMigrate/
-  // DebugSnapshotFiltration/DebugSnapshotBorders/DebugRestoreFiltration/
-  // DebugMigrateOneToFinalLayer/DebugApplyMigration exist ONLY so
-  // GRIPMigrateBench can checkpoint the filtration mid-build and compare the
-  // production bounded-BFS migration step against an alternate
-  // (intentionally unbounded, historical baseline) algorithm implemented
-  // entirely at the call site -- that comparison is the tool's whole
-  // purpose, and there is no way to offer it without exposing both a
-  // mutation primitive and a checkpoint/restore pair. This is broader
-  // surface than any other embedder's Debug accessors in this port; flagged
-  // here rather than silently folded in with the read-only group above.
+  // benchmark and probe tools only. Ordinary callers (front-ends driving
+  // GRIP through Begin/NextStage/RefineRound/Embed) should never need any
+  // of these.
 
   /** Exclusive-end index into the filtration order (see FiltrationVertexAt)
-   *  for MIS layer @p layer -- misBorder_[layer] in the old C's naming, and
-   *  the direct equivalent of the old C tools' `gripMisBorderAt` helper.
-   *  Unchecked: @p layer must address an already-recorded border (< the
-   *  number of Begin()/DebugMakeFirstMISPartition/DebugIterMISFiltration/
-   *  DebugBuildFiltrationPreMigrate calls made so far, plus one). */
+   *  for MIS layer @p layer. Unchecked. */
   size_t LayerBorder(size_t layer) const noexcept { return misBorder_[layer]; }
 
-  /** Raw vertex id at position @p i in the MIS-filtration order
-   *  (misFiltration_[i] in the old C's naming). Unchecked: @p i must be
-   *  < Structure().VertexCount(). */
+  /** Raw vertex handle at position @p i in the MIS-filtration order.
+   *  Unchecked: @p i must be < Structure()'s vertex count. */
   size_t FiltrationVertexAt(size_t i) const noexcept { return misFiltration_[i]; }
 
-  /** Vertex @p v's displacement vector from the most recent RefineRound()
-   *  (Dim() doubles) -- all-zero before its layer's first round. Unchecked:
-   *  @p v must be < Structure().VertexCapacity(). */
-  std::span<const double> Displacement(size_t v) const noexcept { return dec_[v].disp; }
+  /** Vertex @p v's (raw handle) displacement vector from the most recent
+   *  RefineRound() (Dim() doubles) -- all-zero before its layer's first
+   *  round. Unchecked: @p v must be a handle Structure() actually has. */
+  std::span<const double> Displacement(size_t v) const noexcept {
+    return dec_[index_.ToLocal(v)].disp;
+  }
 
   /** Disables the internal worker pool, forcing every subsequent parallel
    *  phase (placement, KNN refresh, refinement) onto the calling thread.
-   *  One-way (no re-enable). Matches the old C benchmarking pattern of
-   *  destroying gvizGRIPState::pool right after Init for a reproducible
-   *  single-threaded run (see GRIPKBench). Debug/benchmark use only. */
+   *  One-way (no re-enable). Debug/benchmark use only. */
   void DebugDisableThreadPool() noexcept { pool_.reset(); }
 
   /** Runs MakeFirstMISPartition: builds the finest MIS layer into @p out
    *  and records its border. @p out must be a zeroed BitSet sized to
-   *  Structure().VertexCapacity(). For tools (GRIPFiltrationDebug) that
-   *  drive the filtration one layer at a time instead of through Begin();
-   *  see DebugBuildFiltrationPreMigrate for the "run it to completion and
-   *  hand back just the layer index" equivalent Begin() itself uses. */
+   *  GraphLikeVertexCapacity(Structure()). For tools that drive the
+   *  filtration one layer at a time instead of through Begin(). */
   void DebugMakeFirstMISPartition(BitSet &out) { MakeFirstMISPartition(out); }
 
   /** Runs one coarsening step of the MIS filtration: coarsens @p vertices
    *  into layer @p i in place and records its border. Returns true while
-   *  further coarsening is possible (same contract as the old C
-   *  iterMISFiltration). Same step-by-step-driving use case as
-   *  DebugMakeFirstMISPartition. */
+   *  further coarsening is possible. */
   bool DebugIterMISFiltration(size_t i, BitSet &vertices) {
     return IterMISFiltration(i, vertices);
   }
@@ -286,11 +233,9 @@ public:
   /**
    * Builds the MIS filtration up to (but not including) the final top-off
    * loop that pulls extra vertices into the coarsest layer when it has
-   * fewer than Dim() + 1 members (see DebugMigrateOneToFinalLayer) -- the
-   * same work CreateMISFiltration() does, minus that last step, so a
-   * benchmark can checkpoint the pre-migrate state and compare different
-   * top-off strategies from the identical starting point. Direct port of
-   * the old C GRIPMigrateBench.c's file-local buildFiltrationPreMigrate.
+   * fewer than Dim() + 1 members, so a benchmark can checkpoint the
+   * pre-migrate state and compare different top-off strategies from the
+   * identical starting point.
    *
    * @return the layer index the migration loop should run at -- pass it
    * (or layerIndex - 1, per each accessor's own doc) to LayerBorder,
@@ -299,32 +244,26 @@ public:
   size_t DebugBuildFiltrationPreMigrate();
 
   /** Read-only copies of the filtration order and layer borders, for
-   *  checkpointing around a DebugBuildFiltrationPreMigrate call so a
-   *  benchmark can run two different migration strategies from the same
-   *  starting state (see DebugRestoreFiltration). */
+   *  checkpointing around a DebugBuildFiltrationPreMigrate call. */
   std::vector<size_t> DebugSnapshotFiltration() const { return misFiltration_; }
   std::vector<size_t> DebugSnapshotBorders() const { return misBorder_; }
 
   /** Restores a snapshot taken by DebugSnapshotFiltration/
    *  DebugSnapshotBorders. Unchecked: @p filtration.size() must equal
-   *  Structure().VertexCapacity() and @p borders must be a valid border
-   *  sequence for it (as produced by an earlier DebugBuildFiltrationPreMigrate
-   *  run over the same subgraph). */
+   *  Structure()'s vertex count and @p borders must be a valid border
+   *  sequence for it. */
   void DebugRestoreFiltration(std::vector<size_t> filtration, std::vector<size_t> borders) {
     misFiltration_ = std::move(filtration);
     misBorder_ = std::move(borders);
   }
 
   /**
-   * Runs the production bounded-BFS migration step (the old C
-   * migrateOneToFinalLayer) that pulls one vertex from a shallower layer's
-   * drop set into the coarsest layer, preferring the farthest reachable
-   * candidate within a capped local BFS. @p layerIndex is the coarsest
-   * layer's border index (LayerBorder(layerIndex) is what advances by one
-   * on success) -- one less than the old C function's `count` parameter.
+   * Pulls one vertex from a shallower layer's drop set into the coarsest
+   * layer, preferring the farthest reachable candidate within a capped
+   * local BFS. @p layerIndex is the coarsest layer's border index
+   * (LayerBorder(layerIndex) is what advances by one on success).
    *
-   * @return false when every shallower pool is exhausted (see
-   * MigrateOneToFinalLayer's doc for why that's unreachable in practice).
+   * @return false when every shallower pool is exhausted.
    */
   bool DebugMigrateOneToFinalLayer(size_t layerIndex) {
     return MigrateOneToFinalLayer(layerIndex + 1);
@@ -333,13 +272,7 @@ public:
   /**
    * Raw primitive both migration strategies reduce to: swaps
    * FiltrationVertexAt(candidateIndex) into the slot at
-   * LayerBorder(layerIndex) and advances that border by one. Exposed so an
-   * alternative migration algorithm -- e.g. GRIPMigrateBench's historical
-   * full-BFS-per-candidate baseline, implemented entirely at the call site
-   * using Structure()/search::BreadthFirst plus FiltrationVertexAt/
-   * LayerBorder to pick a candidate -- can apply its pick the same way
-   * DebugMigrateOneToFinalLayer's production algorithm does internally,
-   * without reaching into private state to do it.
+   * LayerBorder(layerIndex) and advances that border by one.
    */
   void DebugApplyMigration(size_t layerIndex, size_t candidateIndex) noexcept {
     std::swap(misFiltration_[candidateIndex], misFiltration_[misBorder_[layerIndex]]);
@@ -347,13 +280,8 @@ public:
   }
 
 private:
-  /** Per-vertex working state. Direct port of gvizGRIPDecorators: knn/disp/
-   *  oldDisp become owned std::vectors (one small allocation per vertex)
-   *  instead of slices of three big manually-managed contiguous blocks --
-   *  simpler ownership at the cost of N allocations instead of O(1); GRIP
-   *  has no hot-path perf constraint on par with Graph/Subgraph's, so this
-   *  trade favors clarity. knn is sized to knnCapacity_ once (like the old
-   *  fixed-capacity gvizArray) and only [0, knnCount) holds live entries. */
+  /** Per-vertex working state, local-indexed. knn is sized to knnCapacity_
+   *  once and only [0, knnCount) holds live entries. */
   struct Decorators {
     std::vector<search::FoundVertex> knn;
     size_t knnCount = 0;
@@ -376,6 +304,9 @@ private:
     return GetDrawMask().visibleVertices;
   }
 
+  /** Local-indexed decorator lookup for raw handle @p v. */
+  Decorators &Dec(size_t v) noexcept { return dec_[index_.ToLocal(v)]; }
+
   search::KNearestScratch &KnnScratchForCaller();
   size_t ComputeK(size_t maxK, bool forPlacement) const;
   size_t PlacementK() const;
@@ -387,9 +318,7 @@ private:
                    double *out) const;
 
   /** Runs @p task over [begin, end) via the worker pool if one exists,
-   *  falling back to one synchronous call on the calling thread otherwise
-   *  -- the same NULL-pool serial fallback gvizThreadPoolForRange gave a
-   *  NULL gvizThreadPool*. */
+   *  falling back to one synchronous call on the calling thread otherwise. */
   void RunForRange(size_t begin, size_t end, size_t grain,
                     const std::function<void(size_t, size_t)> &task);
 
@@ -414,6 +343,9 @@ private:
                                size_t count);
   void RemoveNetRotation();
 
+  G structure_;
+  DenseIndex<G> index_;
+
   size_t knnCapacity_;
   size_t placementKMax_;
   size_t refinementKMax_;
@@ -425,39 +357,33 @@ private:
   size_t currRound_ = 0;
   RoundStats lastRoundStats_{};
 
-  /** misFiltration[i]: raw vertex id at MIS-filtration array position i.
-   *  Sized to Structure().VertexCapacity(). Direct port of
-   *  gvizGRIPState::misFiltration. */
+  /** misFiltration[i]: raw vertex handle at MIS-filtration array position
+   *  i. Sized to index_.Size(). */
   std::vector<size_t> misFiltration_;
   /** misBorder_[layer]: exclusive end index into misFiltration_ for that
-   *  layer's vertex range. Direct port of gvizGRIPState::misBorder
-   *  (was a gvizArray; grows the same way a std::vector does). */
+   *  layer's vertex range. */
   std::vector<size_t> misBorder_;
+  /** Local-indexed, sized to index_.Size(). */
   std::vector<Decorators> dec_;
-  /** Whether a vertex has had a displacement computed yet this layer (its
-   *  heat needs a first-touch initial value instead of the adaptive
-   *  update). Direct port of gvizGRIPState::dispCalculated. */
+  /** Whether a vertex has had a displacement computed yet this layer.
+   *  Local-indexed, sized to index_.Size(). */
   BitSet dispCalculated_;
 
   /** Depth reached by the most recent radius-BFS (VerticesWithinRadius /
-   *  PickFarCandidate), valid for vertex v exactly when
-   *  radiusBfsScratch_.Visited(v, <that BFS's epoch>) is true. Design note:
-   *  the old C packed epoch and depth into one stamp word per vertex
-   *  (gripMigrateStampVisit/Visited/Depth); here the epoch/visited half is
-   *  reused from search::KNearestScratch (its stamp array + queue are
-   *  exactly this shape already, so GRIP doesn't hand-roll a second
-   *  epoch-stamped BFS scratch next to KNearest's), and only the payload
-   *  half (depth) needs its own parallel array. */
+   *  PickFarCandidate), valid for raw handle v exactly when
+   *  radiusBfsScratch_.Visited(v, <that BFS's epoch>) is true. Raw/
+   *  capacity-addressed, same as radiusBfsScratch_ whose epoch/visited half
+   *  this reuses. */
   std::vector<size_t> radiusBfsDepth_;
   search::KNearestScratch radiusBfsScratch_;
 
   /** Worker pool for data-parallel phases (placement, KNN refresh,
    *  refinement). Null => every parallel phase runs serially on the calling
-   *  thread instead -- deliberately tolerated (see the constructor), same
-   *  as the old C's NULL gvizThreadPool* fallback. */
+   *  thread instead. */
   std::unique_ptr<ThreadPool> pool_;
   /** One KNN scratch buffer per pool worker plus one for the caller thread
-   *  (or just one, serial fallback). */
+   *  (or just one, serial fallback). Capacity-addressed, same as
+   *  radiusBfsScratch_. */
   size_t knnScratchCount_ = 1;
   std::vector<search::KNearestScratch> knnScratch_;
 };

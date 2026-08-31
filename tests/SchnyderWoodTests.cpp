@@ -20,6 +20,7 @@
 #include <cmath>
 
 using gviz::Graph;
+using gviz::Subgraph;
 using gviz::layout::EmbeddedGraph;
 using gviz::layout::FaceEnumerator;
 using gviz::layout::Planar;
@@ -80,7 +81,7 @@ static void test_schnyderWood_K4(void) {
   g.AddEdge(2, 3, 1.0);
 
   g.BuildLayout();
-  Planar p(g, gviz::Subgraph::CreateFull(g));
+  Planar p(g);
 
   SchnyderWood sw(g);
   TEST_ASSERT_EQUAL_UINT64(4, sw.Size());
@@ -102,10 +103,12 @@ static void test_schnyderWood_hexagonAfterTriangulation(void) {
   g.AddEdge(5, 3, 1.0);
 
   g.BuildLayout();
-  Planar p(g, gviz::Subgraph::CreateFull(g));
+  Planar p(g);
 
-  FaceEnumerator faces(g, p.Structure());
-  Triangulate(g, p.Structure(), faces);
+  (void)p;
+  Subgraph sg = Subgraph::CreateFull(g);
+  FaceEnumerator faces(g, sg);
+  Triangulate(g, sg, faces);
 
   SchnyderWood sw(g);
   TEST_ASSERT_EQUAL_UINT64(6, sw.Size());
@@ -137,13 +140,14 @@ static void test_schnyderWood_embedRejectsNon2D(void) {
   // system (see its class doc) -- installing edges in raw insertion order,
   // as above, does not guarantee one, so a Planar embedder must run first,
   // exactly like every other SchnyderWood test in this file.
-  Planar p(g, gviz::Subgraph::CreateFull(g));
+  Planar p(g);
+  (void)p;
 
   // A bare (non-planar-embedder) 3D EmbeddedGraph over the same, now
   // rotation-installed graph, to exercise Embed()'s dimension guard -- the
   // old C had no such check and would silently over-read its 3-element
   // stack buffer here instead.
-  EmbeddedGraph eg3d(gviz::Subgraph::CreateFull(g), 3);
+  EmbeddedGraph eg3d(g.Size(), 3);
 
   SchnyderWood sw(g);
 

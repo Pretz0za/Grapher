@@ -79,21 +79,9 @@
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/c++ -Dgviz_EXPORTS -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -fPIC -o CMakeFiles/gviz.dir/src/DepthFirst.cpp.o -c /Users/abdulaziz.alahmadi/gviz/src/DepthFirst.cpp",
-  "file": "/Users/abdulaziz.alahmadi/gviz/src/DepthFirst.cpp",
-  "output": "CMakeFiles/gviz.dir/src/DepthFirst.cpp.o"
-},
-{
-  "directory": "/Users/abdulaziz.alahmadi/gviz/build",
   "command": "/usr/bin/c++ -Dgviz_EXPORTS -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -fPIC -o CMakeFiles/gviz.dir/src/ConnectedComponents.cpp.o -c /Users/abdulaziz.alahmadi/gviz/src/ConnectedComponents.cpp",
   "file": "/Users/abdulaziz.alahmadi/gviz/src/ConnectedComponents.cpp",
   "output": "CMakeFiles/gviz.dir/src/ConnectedComponents.cpp.o"
-},
-{
-  "directory": "/Users/abdulaziz.alahmadi/gviz/build",
-  "command": "/usr/bin/c++ -Dgviz_EXPORTS -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -fPIC -o CMakeFiles/gviz.dir/src/Tree.cpp.o -c /Users/abdulaziz.alahmadi/gviz/src/Tree.cpp",
-  "file": "/Users/abdulaziz.alahmadi/gviz/src/Tree.cpp",
-  "output": "CMakeFiles/gviz.dir/src/Tree.cpp.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
@@ -127,6 +115,12 @@
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
+  "command": "/usr/bin/c++ -Dgviz_EXPORTS -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -fPIC -o CMakeFiles/gviz.dir/src/ReingoldTilfordTrace.cpp.o -c /Users/abdulaziz.alahmadi/gviz/src/ReingoldTilfordTrace.cpp",
+  "file": "/Users/abdulaziz.alahmadi/gviz/src/ReingoldTilfordTrace.cpp",
+  "output": "CMakeFiles/gviz.dir/src/ReingoldTilfordTrace.cpp.o"
+},
+{
+  "directory": "/Users/abdulaziz.alahmadi/gviz/build",
   "command": "/usr/bin/c++ -Dgviz_EXPORTS -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -fPIC -o CMakeFiles/gviz.dir/src/Planar.cpp.o -c /Users/abdulaziz.alahmadi/gviz/src/Planar.cpp",
   "file": "/Users/abdulaziz.alahmadi/gviz/src/Planar.cpp",
   "output": "CMakeFiles/gviz.dir/src/Planar.cpp.o"
@@ -148,6 +142,12 @@
   "command": "/usr/bin/c++ -Dgviz_EXPORTS -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -fPIC -o CMakeFiles/gviz.dir/src/SpringTutte.cpp.o -c /Users/abdulaziz.alahmadi/gviz/src/SpringTutte.cpp",
   "file": "/Users/abdulaziz.alahmadi/gviz/src/SpringTutte.cpp",
   "output": "CMakeFiles/gviz.dir/src/SpringTutte.cpp.o"
+},
+{
+  "directory": "/Users/abdulaziz.alahmadi/gviz/build",
+  "command": "/usr/bin/c++ -Dgviz_EXPORTS -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -fPIC -o CMakeFiles/gviz.dir/src/KamadaKawai.cpp.o -c /Users/abdulaziz.alahmadi/gviz/src/KamadaKawai.cpp",
+  "file": "/Users/abdulaziz.alahmadi/gviz/src/KamadaKawai.cpp",
+  "output": "CMakeFiles/gviz.dir/src/KamadaKawai.cpp.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
@@ -343,6 +343,18 @@
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -arch arm64 -fPIE -o CMakeFiles/ReingoldTilfordTraceTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
+  "file": "/Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
+  "output": "CMakeFiles/ReingoldTilfordTraceTests.dir/third-party/unity/unity.c.o"
+},
+{
+  "directory": "/Users/abdulaziz.alahmadi/gviz/build",
+  "command": "/usr/bin/c++ -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -fPIE -o CMakeFiles/ReingoldTilfordTraceTests.dir/tests/ReingoldTilfordTraceTests.cpp.o -c /Users/abdulaziz.alahmadi/gviz/tests/ReingoldTilfordTraceTests.cpp",
+  "file": "/Users/abdulaziz.alahmadi/gviz/tests/ReingoldTilfordTraceTests.cpp",
+  "output": "CMakeFiles/ReingoldTilfordTraceTests.dir/tests/ReingoldTilfordTraceTests.cpp.o"
+},
+{
+  "directory": "/Users/abdulaziz.alahmadi/gviz/build",
   "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -arch arm64 -fPIE -o CMakeFiles/PlanarTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "file": "/Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
   "output": "CMakeFiles/PlanarTests.dir/third-party/unity/unity.c.o"
@@ -388,6 +400,18 @@
   "command": "/usr/bin/c++ -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -fPIE -o CMakeFiles/SpringTutteTests.dir/tests/SpringTutteTests.cpp.o -c /Users/abdulaziz.alahmadi/gviz/tests/SpringTutteTests.cpp",
   "file": "/Users/abdulaziz.alahmadi/gviz/tests/SpringTutteTests.cpp",
   "output": "CMakeFiles/SpringTutteTests.dir/tests/SpringTutteTests.cpp.o"
+},
+{
+  "directory": "/Users/abdulaziz.alahmadi/gviz/build",
+  "command": "/usr/bin/cc -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu11 -arch arm64 -fPIE -o CMakeFiles/KamadaKawaiTests.dir/third-party/unity/unity.c.o -c /Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
+  "file": "/Users/abdulaziz.alahmadi/gviz/third-party/unity/unity.c",
+  "output": "CMakeFiles/KamadaKawaiTests.dir/third-party/unity/unity.c.o"
+},
+{
+  "directory": "/Users/abdulaziz.alahmadi/gviz/build",
+  "command": "/usr/bin/c++ -DUNITY_INCLUDE_DOUBLE -I/Users/abdulaziz.alahmadi/gviz/include -I/Users/abdulaziz.alahmadi/gviz/third-party -std=gnu++20 -arch arm64 -fPIE -o CMakeFiles/KamadaKawaiTests.dir/tests/KamadaKawaiTests.cpp.o -c /Users/abdulaziz.alahmadi/gviz/tests/KamadaKawaiTests.cpp",
+  "file": "/Users/abdulaziz.alahmadi/gviz/tests/KamadaKawaiTests.cpp",
+  "output": "CMakeFiles/KamadaKawaiTests.dir/tests/KamadaKawaiTests.cpp.o"
 },
 {
   "directory": "/Users/abdulaziz.alahmadi/gviz/build",

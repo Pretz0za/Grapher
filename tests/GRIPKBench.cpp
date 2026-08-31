@@ -6,7 +6,7 @@
 //
 // Port notes:
 //   - gvizGRIPState::pool was destroyed right after Init in the old C, for a
-//     reproducible single-threaded run; GRIP::DebugDisableThreadPool() is
+//     reproducible single-threaded run; GRIP<Subgraph>::DebugDisableThreadPool() is
 //     the narrow accessor added for exactly this (see GRIP.hpp's DEBUG /
 //     INTROSPECTION section).
 //   - The old C's per-policy `layerCount` (used only to normalize
@@ -47,24 +47,24 @@ struct KPolicyCase {
   const char *name;
   size_t placementK;
   size_t refinementK;
-  GRIP::KPolicy policy;
+  GRIP<Subgraph>::KPolicy policy;
 };
 
 const KPolicyCase kPolicies[] = {
-    {"const_256", 256, 256, GRIP::KPolicy::Constant},
-    {"const_128", 128, 128, GRIP::KPolicy::Constant},
-    {"const_64", 64, 64, GRIP::KPolicy::Constant},
-    {"const_32", 32, 32, GRIP::KPolicy::Constant},
-    {"decay_256", 256, 256, GRIP::KPolicy::LayerDecay},
-    {"decay_128", 128, 128, GRIP::KPolicy::LayerDecay},
-    {"decay_64", 64, 64, GRIP::KPolicy::LayerDecay},
-    {"grow_256", 256, 256, GRIP::KPolicy::LayerGrow},
-    {"grow_128", 128, 128, GRIP::KPolicy::LayerGrow},
-    {"grow_64", 64, 64, GRIP::KPolicy::LayerGrow},
-    {"place_decay_ref_128", 128, 128, GRIP::KPolicy::PlacementDecay},
-    {"place_decay_ref_256", 256, 256, GRIP::KPolicy::PlacementDecay},
-    {"budget_64_32", 64, 32, GRIP::KPolicy::Budget},
-    {"budget_128_64", 128, 64, GRIP::KPolicy::Budget},
+    {"const_256", 256, 256, GRIP<Subgraph>::KPolicy::Constant},
+    {"const_128", 128, 128, GRIP<Subgraph>::KPolicy::Constant},
+    {"const_64", 64, 64, GRIP<Subgraph>::KPolicy::Constant},
+    {"const_32", 32, 32, GRIP<Subgraph>::KPolicy::Constant},
+    {"decay_256", 256, 256, GRIP<Subgraph>::KPolicy::LayerDecay},
+    {"decay_128", 128, 128, GRIP<Subgraph>::KPolicy::LayerDecay},
+    {"decay_64", 64, 64, GRIP<Subgraph>::KPolicy::LayerDecay},
+    {"grow_256", 256, 256, GRIP<Subgraph>::KPolicy::LayerGrow},
+    {"grow_128", 128, 128, GRIP<Subgraph>::KPolicy::LayerGrow},
+    {"grow_64", 64, 64, GRIP<Subgraph>::KPolicy::LayerGrow},
+    {"place_decay_ref_128", 128, 128, GRIP<Subgraph>::KPolicy::PlacementDecay},
+    {"place_decay_ref_256", 256, 256, GRIP<Subgraph>::KPolicy::PlacementDecay},
+    {"budget_64_32", 64, 32, GRIP<Subgraph>::KPolicy::Budget},
+    {"budget_128_64", 128, 64, GRIP<Subgraph>::KPolicy::Budget},
 };
 
 struct BenchScore {
@@ -91,7 +91,7 @@ BenchScore RunPolicy(const Graph &graph, size_t dim, const KPolicyCase &policy) 
 
     for (size_t r = 0; r < kRoundsPerLayer; r++) {
       grip.RefineRound();
-      GRIP::RoundStats stats = grip.LastRoundStats();
+      GRIP<Subgraph>::RoundStats stats = grip.LastRoundStats();
       if (stats.maxDisplacement > prevDisp * 1.05)
         layerOsc++;
       prevDisp = stats.maxDisplacement;
@@ -111,7 +111,7 @@ BenchScore RunPolicy(const Graph &graph, size_t dim, const KPolicyCase &policy) 
   for (size_t r = 0; r < kRoundsPerLayer; r++)
     grip.RefineRound();
   {
-    GRIP::RoundStats stats = grip.LastRoundStats();
+    GRIP<Subgraph>::RoundStats stats = grip.LastRoundStats();
     if (stats.maxDisplacement > score.worstLayerFinalDisp)
       score.worstLayerFinalDisp = stats.maxDisplacement;
     score.sumLayerFinalDisp += stats.maxDisplacement;

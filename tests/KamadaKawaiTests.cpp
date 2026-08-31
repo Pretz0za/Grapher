@@ -242,8 +242,8 @@ static void test_kk_path_3d_dimension_fallback(void) {
   }
 }
 
-// Begin() is safe to call a second time (mirrors Tutte::Begin()): resets
-// Iteration()/Converged() and rebuilds the distance table from scratch.
+// Begin() is safe to call a second time: resets Iteration()/Converged() and
+// rebuilds the distance table from scratch.
 static void test_kk_begin_twice(void) {
   Graph g = BuildCycle(6);
   KamadaKawai kk(MakeInducedSubgraph(g), 2, 50.0, 1e-3);
@@ -266,7 +266,7 @@ static void test_kk_stiffness_accessor(void) {
   Graph g = BuildK4();
   KamadaKawai kk(MakeInducedSubgraph(g), 2);
 
-  TEST_ASSERT_EQUAL_DOUBLE(KamadaKawai::kDefaultStiffness, kk.Stiffness());
+  TEST_ASSERT_EQUAL_DOUBLE(KamadaKawai<Subgraph>::kDefaultStiffness, kk.Stiffness());
   kk.SetStiffness(2.5);
   TEST_ASSERT_EQUAL_DOUBLE(2.5, kk.Stiffness());
 }

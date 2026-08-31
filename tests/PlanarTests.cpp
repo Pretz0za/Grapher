@@ -66,7 +66,7 @@ static void test_planar_rotationInstalled(void) {
   g.AddEdge(1, 2, 1.0);
   g.AddEdge(2, 3, 1.0);
 
-  Planar p(g, MakeFullSubgraph(g));
+  Planar p(g);
 
   std::vector<size_t> correctOrder = {3, 2, 1};
   size_t prev = g.Neighbor(0, 0);
@@ -91,7 +91,7 @@ static void test_nonPlanar_throwsPlanarNotPlanarError(void) {
 
   bool threw = false;
   try {
-    Planar p(g, MakeFullSubgraph(g));
+    Planar p(g);
     (void)p;
   } catch (const PlanarNotPlanarError &) {
     threw = true;
@@ -190,10 +190,12 @@ static void test_triangulation_hexagon(void) {
   g.AddEdge(5, 0, 1.0);
   g.AddEdge(5, 3, 1.0);
 
-  Planar p(g, MakeFullSubgraph(g));
+  Planar p(g);
+  (void)p;
 
-  FaceEnumerator faces(g, p.Structure());
-  Triangulate(g, p.Structure(), faces);
+  Subgraph sg = MakeFullSubgraph(g);
+  FaceEnumerator faces(g, sg);
+  Triangulate(g, sg, faces);
 
   for (const auto &face : faces.Faces())
     TEST_ASSERT_EQUAL_UINT64(3, face.size());
@@ -215,11 +217,12 @@ static void test_subgraph_neighbor_ccw_order(void) {
   g.AddEdge(1, 2, 1.0);
   g.AddEdge(2, 3, 1.0);
 
-  Planar p(g, MakeFullSubgraph(g));
+  Planar p(g);
+  (void)p;
 
   std::vector<size_t> correctOrder = {3, 2, 1};
   std::vector<size_t> nbrs;
-  for (size_t v : p.Structure().Neighbors(0))
+  for (size_t v : g.Neighbors(0))
     nbrs.push_back(v);
   TEST_ASSERT_EQUAL_UINT64(3, nbrs.size());
 
@@ -241,9 +244,11 @@ static void test_faceWalk_triangle(void) {
   g.AddEdge(1, 2, 1.0);
   g.AddEdge(2, 0, 1.0);
 
-  Planar p(g, MakeFullSubgraph(g));
+  Planar p(g);
+  (void)p;
 
-  FaceWalk walk(g, p.Structure(), HalfEdge{0, 1});
+  Subgraph sg = MakeFullSubgraph(g);
+  FaceWalk walk(g, sg, HalfEdge{0, 1});
   std::vector<size_t> seen;
   for (size_t v : walk)
     seen.push_back(v);
@@ -259,46 +264,24 @@ static void test_faceWalk_rejectsNonSubgraphEdge(void) {
   g.AddEdge(1, 2, 1.0);
   g.AddEdge(2, 0, 1.0);
 
-  Planar p(g, MakeFullSubgraph(g));
+  Planar p(g);
+  (void)p;
+  Subgraph sg = MakeFullSubgraph(g);
 
   // 0-1 IS a real edge -- must construct without throwing.
-  FaceWalk ok(g, p.Structure(), HalfEdge{0, 1});
+  FaceWalk ok(g, sg, HalfEdge{0, 1});
   (void)ok;
 
   // (0, 99) references a vertex that doesn't even exist in g -- a dart that
   // is by construction never a subgraph edge -- must throw.
   bool threw = false;
   try {
-    FaceWalk bad(g, p.Structure(), HalfEdge{0, 99});
+    FaceWalk bad(g, sg, HalfEdge{0, 99});
     (void)bad;
   } catch (const LayoutError &) {
     threw = true;
   }
   TEST_ASSERT_TRUE(threw);
-}
-
-static void test_vertexInducedSubgraph_planar(void) {
-  Graph g(false);
-  for (int i = 0; i < 5; i++)
-    g.AddVertex();
-
-  g.AddEdge(0, 1, 1.0);
-  g.AddEdge(1, 2, 1.0);
-  g.AddEdge(2, 3, 1.0);
-  g.AddEdge(3, 0, 1.0);
-  g.AddEdge(0, 4, 1.0);
-
-  Subgraph sg = Subgraph::CreateVertexInduced(g);
-  for (size_t i = 0; i < 4; i++)
-    sg.ShowVertex(i);
-
-  Planar p(g, std::move(sg));
-
-  TEST_ASSERT_EQUAL_UINT64(4, p.Structure().VertexCount());
-  TEST_ASSERT_EQUAL_UINT64(8, p.Structure().EdgeCount());
-
-  FaceEnumerator faces(g, p.Structure());
-  TEST_ASSERT_TRUE(faces.Faces().size() >= 1);
 }
 
 static void test_faceSubgraphAt_squareCenter(void) {
@@ -310,7 +293,7 @@ static void test_faceSubgraphAt_squareCenter(void) {
   g.AddEdge(2, 3, 1.0);
   g.AddEdge(3, 0, 1.0);
 
-  Planar p(g, MakeFullSubgraph(g));
+  Planar p(g);
   double pos0[2] = {0.0, 0.0};
   double pos1[2] = {1.0, 0.0};
   double pos2[2] = {1.0, 1.0};
@@ -337,9 +320,7 @@ int main() {
   RUN_TEST(test_triangulation_hexagon);
   RUN_TEST(test_subgraph_neighbor_ccw_order);
   RUN_TEST(test_faceWalk_triangle);
-  RUN_TEST(test_faceWalk_rejectsNonSubgraphEdge);
-  RUN_TEST(test_vertexInducedSubgraph_planar);
-  RUN_TEST(test_faceSubgraphAt_squareCenter);
+  RUN_TEST(test_faceWalk_rejectsNonSubgraphEdge);  RUN_TEST(test_faceSubgraphAt_squareCenter);
 
   return UNITY_END();
 }
